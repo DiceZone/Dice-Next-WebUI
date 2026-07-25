@@ -1,0 +1,32 @@
+{
+  "adapters": [],
+  "dice": {
+    "command_prefix": ".",
+    "rules": {
+      "coc_critical_range": 1,
+      "coc_enabled": true,
+      "coc_fumble_range": 95,
+      "custom_rules": {},
+      "default_dice_sides": 100,
+      "dnd_advantage": false,
+      "dnd_enabled": true,
+      "fate_enabled": false,
+      "l5r_enabled": false
+    }
+  },
+  "hot_reload": {
+    "debounce_ms": 500,
+    "enabled": true,
+    "watch_paths": [
+      "./config",
+      "./data"
+    ]
+  },
+  "server": {
+    "api_key": "",
+    "db_path": "./data/dice.db",
+    "host": "0.0.0.0",
+    "log_level": "info",
+    "port": 8080
+  }
+}
