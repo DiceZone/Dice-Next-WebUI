@@ -6,3 +6,14 @@ logs/
 uploads/
 .env.local
 
+# Generated TypeScript declarations (tsc emitDeclarationOnly output).
+# vite-env.d.ts is hand-written and kept under version control.
+src/**/*.d.ts
+!src/vite-env.d.ts
+
+# Editor / stray backups
+*.bak
+
+
+# Local Claude Code tooling config
+.claude/

@@ -11,8 +11,13 @@ const badgeVariants = cva(
         secondary: 'border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80',
         destructive: 'border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80',
         outline: 'text-foreground',
-        success: 'border-transparent bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-        warning: 'border-transparent bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+        // Soft semantic pills (matches the tinted style already used across pages).
+        // Use these for status labels instead of hand-writing bg-*/15 classes.
+        success: 'border-transparent bg-green-500/15 text-green-600 dark:text-green-400',
+        warning: 'border-transparent bg-amber-500/15 text-amber-600 dark:text-amber-400',
+        info: 'border-transparent bg-blue-500/15 text-blue-600 dark:text-blue-400',
+        danger: 'border-transparent bg-red-500/15 text-red-600 dark:text-red-400',
+        neutral: 'border-transparent bg-muted text-muted-foreground',
       },
     },
     defaultVariants: {

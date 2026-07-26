@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -206,8 +207,8 @@ const PermTab: React.FC<{ entries: BanEntry[]; reload: () => Promise<void>; del:
             <p className="py-6 text-center text-sm text-muted-foreground">{t('banlist.perm_empty')}</p>
           ) : (
             <>
-              <table className="w-full text-sm">
-                <thead className="border-b text-xs text-muted-foreground">
+              <div className="overflow-x-auto"><table className="rt w-full text-sm">
+                <thead className="bg-muted/50 border-b text-xs text-muted-foreground">
                   <tr>
                     <th className="p-2 text-left w-12"></th>
                     <th className="p-2 text-left">{t('banlist.perm_col_user')}</th>
@@ -218,12 +219,12 @@ const PermTab: React.FC<{ entries: BanEntry[]; reload: () => Promise<void>; del:
                 <tbody>
                   {pageItems.map((p) => (
                     <tr key={p.platform + p.userId} className="border-b last:border-0">
-                      <td className="p-2">
+                      <td data-label={t('banlist.perm_col_user')} className="p-2">
                         <img src={`https://q1.qlogo.cn/g?b=qq&nk=${p.userId}&s=100`} alt=""
                           className="h-8 w-8 rounded-full object-cover"
                           onError={(ev) => { (ev.target as HTMLImageElement).style.display = 'none'; }} />
                       </td>
-                      <td className="p-2">
+                      <td data-label={t('banlist.perm_col_trust')} className="p-2">
                         <span className="font-mono">{p.userId}</span>
                         {p.nickname && <span className="ml-2 text-muted-foreground">{p.nickname}</span>}
                       </td>
@@ -246,7 +247,7 @@ const PermTab: React.FC<{ entries: BanEntry[]; reload: () => Promise<void>; del:
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </table></div>
               <PaginationBar total={filtered.length} page={curPage} pageSize={pageSize}
                 onPageChange={setPage} onPageSizeChange={(s) => { setPageSize(s); setPage(1); }} />
             </>
@@ -280,8 +281,8 @@ const PermTab: React.FC<{ entries: BanEntry[]; reload: () => Promise<void>; del:
           {whites.length === 0 ? (
             <p className="py-4 text-center text-sm text-muted-foreground">{t('banlist.empty')}</p>
           ) : (
-            <table className="w-full text-sm">
-              <thead className="border-b text-xs text-muted-foreground">
+            <div className="overflow-x-auto"><table className="rt w-full text-sm">
+              <thead className="bg-muted/50 border-b text-xs text-muted-foreground">
                 <tr>
                   <th className="p-2 text-left w-12"></th>
                   <th className="p-2 text-left">{t('banlist.id')}</th>
@@ -293,7 +294,7 @@ const PermTab: React.FC<{ entries: BanEntry[]; reload: () => Promise<void>; del:
               <tbody>
                 {whites.map((e) => (
                   <tr key={e.id} className="border-b last:border-0">
-                    <td className="p-2">
+                    <td data-label={t('banlist.id')} className="p-2">
                       {e.targetType === 1 ? (
                         <img src={`https://p.qlogo.cn/gh/${e.targetId}/${e.targetId}/100`} alt=""
                           className="h-8 w-8 rounded-full object-cover"
@@ -302,8 +303,8 @@ const PermTab: React.FC<{ entries: BanEntry[]; reload: () => Promise<void>; del:
                         <Badge variant="secondary" className="text-[10px]">{t('banlist.user')}</Badge>
                       )}
                     </td>
-                    <td className="p-2 font-mono">{e.targetId}</td>
-                    <td className="p-2 text-muted-foreground">{e.reason || '—'}</td>
+                    <td data-label={t('banlist.reason')} className="p-2 font-mono">{e.targetId}</td>
+                    <td data-label={t('banlist.time')} className="p-2 text-muted-foreground">{e.reason || '—'}</td>
                     <td className="p-2 text-xs text-muted-foreground">{fmtTs(e.createdAt)}</td>
                     <td className="p-2 text-right">
                       <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => del(e.id)}>
@@ -313,7 +314,7 @@ const PermTab: React.FC<{ entries: BanEntry[]; reload: () => Promise<void>; del:
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           )}
         </CardContent>
       </Card>
@@ -455,8 +456,8 @@ const BlackTab: React.FC<{ entries: BanEntry[]; reload: () => Promise<void>; del
             <p className="py-6 text-center text-sm text-muted-foreground">{t('banlist.empty')}</p>
           ) : (
             <>
-              <table className="w-full text-sm">
-                <thead className="border-b text-xs text-muted-foreground">
+              <div className="overflow-x-auto"><table className="rt w-full text-sm">
+                <thead className="bg-muted/50 border-b text-xs text-muted-foreground">
                   <tr>
                     <th className="p-2 text-left w-12"></th>
                     <th className="p-2 text-left">{t('banlist.perm_col_user')}</th>
@@ -469,7 +470,7 @@ const BlackTab: React.FC<{ entries: BanEntry[]; reload: () => Promise<void>; del
                 <tbody>
                   {pageItems.map((e) => (
                     <tr key={e.id} className="border-b last:border-0">
-                      <td className="p-2">
+                      <td data-label={t('banlist.perm_col_user')} className="p-2">
                         <img
                           src={e.targetType === 1
                             ? `https://p.qlogo.cn/gh/${e.targetId}/${e.targetId}/100`
@@ -477,16 +478,16 @@ const BlackTab: React.FC<{ entries: BanEntry[]; reload: () => Promise<void>; del
                           alt="" className="h-8 w-8 rounded-full object-cover"
                           onError={(ev) => { (ev.target as HTMLImageElement).style.display = 'none'; }} />
                       </td>
-                      <td className="p-2">
+                      <td data-label={t('banlist.target')} className="p-2">
                         <span className="font-mono">{e.targetId}</span>
                         {nameOf(e) && <span className="ml-2 text-muted-foreground">{nameOf(e)}</span>}
                       </td>
-                      <td className="p-2">
+                      <td data-label={t('banlist.reason')} className="p-2">
                         <Badge variant="outline" className="text-[10px]">
                           {e.targetType === 1 ? t('banlist.group') : t('banlist.user')}
                         </Badge>
                       </td>
-                      <td className="p-2 text-muted-foreground">{e.reason || '—'}</td>
+                      <td data-label={t('banlist.time')} className="p-2 text-muted-foreground">{e.reason || '—'}</td>
                       <td className="p-2 text-xs text-muted-foreground">{fmtTs(e.createdAt)}</td>
                       <td className="p-2 text-right">
                         <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => del(e.id)}>
@@ -496,7 +497,7 @@ const BlackTab: React.FC<{ entries: BanEntry[]; reload: () => Promise<void>; del
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </table></div>
               <PaginationBar total={filtered.length} page={curPage} pageSize={pageSize}
                 onPageChange={setPage} onPageSizeChange={(s) => { setPageSize(s); setPage(1); }} />
             </>
@@ -541,16 +542,13 @@ export const BanlistPage: React.FC = () => {
     `px-4 py-2 text-sm font-medium border-b-2 transition-colors ${active ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`;
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold flex items-center gap-2"><ShieldCheck className="h-5 w-5" />{t('banlist.title')}</h1>
-          <p className="text-sm text-muted-foreground">{t('banlist.desc')}</p>
-        </div>
-        <Button size="sm" variant="outline" onClick={load} disabled={loading}>
-          <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />{t('common.refresh')}
-        </Button>
-      </div>
+    <div className="space-y-6">
+      <PageHeader icon={ShieldCheck} title={t('banlist.title')} description={t('banlist.desc')}
+        actions={
+          <Button size="sm" variant="outline" onClick={load} disabled={loading}>
+            <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />{t('common.refresh')}
+          </Button>
+        } />
 
       {/* 选项卡：权限管理 / 骰娘识别 / 黑名单 */}
       <div className="flex gap-2 border-b">
@@ -587,8 +585,8 @@ export const BanlistPage: React.FC = () => {
               {entries.filter((e) => e.listType === 2).length === 0 ? (
                 <p className="py-8 text-center text-sm text-muted-foreground">{t('banlist.dicebot_empty')}</p>
               ) : (
-                <table className="w-full text-sm">
-                  <thead className="border-b text-xs text-muted-foreground">
+                <div className="overflow-x-auto"><table className="rt w-full text-sm">
+                  <thead className="bg-muted/50 border-b text-xs text-muted-foreground">
                     <tr>
                       <th className="p-2 text-left w-12"></th>
                       <th className="p-2 text-left">{t('banlist.id')}</th>
@@ -600,13 +598,13 @@ export const BanlistPage: React.FC = () => {
                   <tbody>
                     {entries.filter((e) => e.listType === 2).map((e) => (
                       <tr key={e.id} className="border-b last:border-0">
-                        <td className="p-2">
+                        <td data-label={t('banlist.id')} className="p-2">
                           <img src={`https://q1.qlogo.cn/g?b=qq&nk=${e.targetId}&s=100`} alt=""
                             className="h-8 w-8 rounded-full object-cover"
                             onError={(ev) => { (ev.target as HTMLImageElement).style.display = 'none'; }} />
                         </td>
-                        <td className="p-2 font-mono">{e.targetId}</td>
-                        <td className="p-2"><Badge variant="secondary">{e.reason || '?'}</Badge></td>
+                        <td data-label={t('banlist.dicebot_kind')} className="p-2 font-mono">{e.targetId}</td>
+                        <td data-label={t('banlist.dicebot_seen')} className="p-2"><Badge variant="secondary">{e.reason || '?'}</Badge></td>
                         <td className="p-2 text-xs text-muted-foreground">{fmtTs(e.createdAt)}</td>
                         <td className="p-2 text-right">
                           <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => del(e.id)}>
@@ -616,7 +614,7 @@ export const BanlistPage: React.FC = () => {
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                </table></div>
               )}
             </CardContent>
           </Card>

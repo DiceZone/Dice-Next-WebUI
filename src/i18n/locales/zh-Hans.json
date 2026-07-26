@@ -1,4 +1,9 @@
 ﻿{
+  "pagination": {
+    "total": "{{n}} 项",
+    "per_page": "{{n}} 个/页",
+    "jump": "输入页码跳转"
+  },
   "app": {
     "initializing": "正在初始化..."
   },
@@ -79,6 +84,7 @@
     "ja": "日本語"
   },
   "about": {
+    "unknown": "未知",
     "title": "关于项目",
     "subtitle": "Dice!Next 项目信息与技术栈",
     "intro_title": "项目介绍",
@@ -157,6 +163,15 @@
     "ok": "确定"
   },
   "dashboard": {
+    "physical": "物理核",
+    "logical": "逻辑核",
+    "total_commands": "累计响应指令",
+    "server_info": "服务器信息",
+    "cpu": "CPU",
+    "memory": "内存",
+    "disk": "磁盘",
+    "cores": "核心",
+    "proc_mem": "本进程",
     "title": "运行概览",
     "subtitle": "Dice! 骰子机器人的实时运行概览",
     "online_adapters": "在线适配器",
@@ -167,6 +182,11 @@
     "no_logs": "暂无日志"
   },
   "adapters": {
+    "conn_connected": "已连接",
+    "conn_connecting": "连接中",
+    "conn_error": "错误",
+    "conn_disconnected": "已断开",
+    "conn_timeout": "连接超时",
     "title": "平台连接",
     "subtitle": "管理机器人平台适配器连接",
     "no_adapters": "暂无适配器",
@@ -309,8 +329,32 @@
     "saved": "已保存并热加载"
   },
   "logs": {
-    "title": "跑团记录",
-    "subtitle": "查看 .log 指令记录的跑团数据。在群内使用 .log on/off 控制记录开关。",
+    "export_html": "导出网页",
+    "tab_logs": "日志管理",
+    "tab_sessions": "团务管理",
+    "col_name": "日志名",
+    "col_group": "所属群号",
+    "col_status": "状态",
+    "col_count": "已记录条数",
+    "col_game": "所属团",
+    "col_creator": "创建人",
+    "col_created": "创建时间",
+    "col_last": "最后记录时间",
+    "col_actions": "操作",
+    "search_ph": "搜索群名、群号、日志名、团名、团号或创建人",
+    "unnamed_session": "未命名团务",
+    "no_sessions": "暂无跨群团务日志。开团后可在其他群使用团号接入。",
+    "session_active": "进行中",
+    "session_ended": "已结团",
+    "session_status": "团务状态",
+    "session_code": "团号",
+    "players": "玩家",
+    "joined_groups": "接入群",
+    "log_stats": "日志统计",
+    "log_stats_value": "共 {{total}} 条 · 进行中 {{active}} 条 · 暂停 {{paused}} 条 · 已结束 {{ended}} 条",
+    "cross_export_fail": "跨团日志导出失败",
+    "title": "日志管理",
+    "subtitle": "集中查看所有日志，或按团务管理跨群跑团记录。",
     "no_logs": "暂无跑团记录",
     "no_logs_hint": "在群内发送 .log on 开始记录，.log off 结束记录",
     "status_active": "进行中",
@@ -761,6 +805,13 @@
     "load_default": "载入默认"
   },
   "settings": {
+    "sec_basic": "基础",
+    "sec_approval": "审批与事件",
+    "sec_reply": "回复与显示",
+    "sec_image": "图片",
+    "sec_logdata": "日志与数据",
+    "sec_maintenance": "系统维护",
+    "sec_global": "原版全局设置",
     "title": "系统设置",
     "subtitle": "管理核心配置、骰主、指令、审批与全局设定。",
     "webpw_title": "管理面板登录密码",
@@ -823,7 +874,7 @@
     "logsite_url": "日志站 API 地址",
     "logsite_unofficial": "⚠️ 这不是官方日志站地址——上传的日志会发往第三方站点，请确认其可信。",
     "logsite_format": "上传协议",
-    "logsite_format_seal": "SealDice 兼容（默认，zlib 压缩 JSON）",
+    "logsite_format_seal": "SealDice 兼容（zlib 压缩 JSON）",
     "logsite_format_legacy": "旧版（多段 txt POST，自建旧端点用）",
     "logsite_reset": "恢复官方默认",
     "approval_group_reject_nonfriend": "拒绝非好友邀请加群",
@@ -893,7 +944,7 @@
     "imghost_local_hint": "bot 自己 serve 图片（/api/logs/images/…）。log 站要能从公网 HTTPS 访问你的 bot——需有域名+反向代理+SSL；自托管无公网 IP 时用不了。",
     "logout": "退出登录",
     "logsite_format_seal_v105": "SealDice V105（Parquet 列式，体积更小，需日志站支持）",
-    "logsite_format_dicenext": "DiceNext 专属（zstd 压缩，体积小，需配套 DiceNext 日志站/染色器）",
+    "logsite_format_dicenext": "DiceNext 专属（默认，zstd 压缩，体积小，需配套 DiceNext 日志站/染色器）",
     "approval_group_name_keyword": "群名关键词自动退群",
     "approval_group_name_keyword_ph": "如：福利 互赞 抽奖（空格分隔多个，留空=关闭）",
     "approval_group_name_keyword_hint": "入群后自动查询群名，含任一关键词即自动退群并通知骰主（邀请审批时拿不到群名，只能进群后判定）。"

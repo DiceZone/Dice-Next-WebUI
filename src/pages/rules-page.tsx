@@ -125,12 +125,12 @@ export const RulesPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2"><Scroll className="h-5 w-5" />{t('rules.title')}</h1>
           <p className="text-sm text-muted-foreground">{t('rules.desc')}</p>
         </div>
-        <div className="flex gap-2 shrink-0">
+        <div className="flex flex-wrap gap-2">
           <Button size="sm" variant="outline" onClick={loadAll} disabled={loading}><RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />{t('common.refresh')}</Button>
           <Button size="sm" variant="outline" onClick={() => zipRef.current?.click()}><Package className="mr-2 h-4 w-4" />{t('rules.import_bundle')}</Button>
           <input ref={zipRef} type="file" accept=".zip" className="hidden" onChange={onUploadZip} />

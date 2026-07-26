@@ -216,7 +216,7 @@ const PluginCard: React.FC<{
             <span className="font-medium">{p.name}</span>
             {p.version && <span className="text-xs text-muted-foreground">v{p.version}</span>}
             {p.author && <span className="text-xs text-muted-foreground">{t('modules.by')} {p.author}</span>}
-            {up?.hasUpdate && <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-400 text-xs">{t('modules.new_version', { v: up.latest })}</Badge>}
+            {up?.hasUpdate && <Badge variant="warning" className="text-xs">{t('modules.new_version', { v: up.latest })}</Badge>}
             {p.ruleCompat && <Badge className="bg-violet-500/15 text-violet-700 dark:text-violet-400 text-xs">{t('modules.rule_compat')}</Badge>}
             {p.superseded && <Badge variant="outline" className="text-xs">{t('modules.superseded', { v: p.supersededBy })}</Badge>}
             {!p.enabled && !p.superseded && <Badge variant="outline" className="text-xs">{t('modules.disabled')}</Badge>}
@@ -370,12 +370,12 @@ export const ModulesPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {dlg.node}
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2"><Puzzle className="h-5 w-5" />{t('modules.title')}</h1>
           <p className="text-sm text-muted-foreground">{t('modules.subtitle')}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <input ref={fileRef} type="file" accept=".js,.lua,.zip" className="hidden" onChange={onFileChosen} />
           <Button variant="outline" size="sm" onClick={checkAll} disabled={busy}><ArrowUpCircle className="mr-2 h-4 w-4" />{t('modules.check_all')}</Button>
           <Button variant="outline" size="sm" onClick={reload} disabled={busy}><RefreshCw className={`mr-2 h-4 w-4 ${busy ? 'animate-spin' : ''}`} />{t('modules.reload')}</Button>

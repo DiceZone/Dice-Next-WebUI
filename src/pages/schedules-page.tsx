@@ -149,7 +149,7 @@ export const SchedulesPage: React.FC = () => {
             : tasks.length === 0 ? <p className="text-sm text-muted-foreground py-6 text-center">{t('schedules.empty')}</p>
             : (
             <div className="rounded-lg border overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="rt w-full text-sm">
                 <thead className="bg-muted/50 text-muted-foreground">
                   <tr>
                     <th className="text-left font-medium p-2.5">{t('schedules.name')}</th>
@@ -164,15 +164,15 @@ export const SchedulesPage: React.FC = () => {
                 <tbody>
                   {tasks.map((tk) => (
                     <tr key={tk.id} className="border-t align-top hover:bg-muted/30">
-                      <td className="p-2.5 font-medium whitespace-nowrap">{tk.name}</td>
-                      <td className="p-2.5 whitespace-nowrap text-muted-foreground">{(tk.targetType === 'private' ? t('schedules.private') : t('schedules.group'))} {tk.targetId}</td>
-                      <td className="p-2.5 font-mono whitespace-nowrap">{tk.cronTime}</td>
-                      <td className="p-2.5 whitespace-nowrap text-xs">{daysLabel(tk.days)}</td>
-                      <td className="p-2.5 whitespace-nowrap text-xs">
+                      <td data-label={t('schedules.name')} className="p-2.5 font-medium whitespace-nowrap">{tk.name}</td>
+                      <td data-label={t('schedules.target')} className="p-2.5 whitespace-nowrap text-muted-foreground">{(tk.targetType === 'private' ? t('schedules.private') : t('schedules.group'))} {tk.targetId}</td>
+                      <td data-label={t('schedules.time')} className="p-2.5 font-mono whitespace-nowrap">{tk.cronTime}</td>
+                      <td data-label={t('schedules.days')} className="p-2.5 whitespace-nowrap text-xs">{daysLabel(tk.days)}</td>
+                      <td data-label={t('schedules.action')} className="p-2.5 whitespace-nowrap text-xs">
                         {tk.action === 'leave' ? <span className="text-destructive">{t('schedules.action_leave')}</span> : t('schedules.action_send')}
                         {tk.condition && <span className="block font-mono text-[11px] text-muted-foreground">{tk.condition}</span>}
                       </td>
-                      <td className="p-2.5 text-muted-foreground whitespace-pre-wrap break-words max-w-[14rem]">{tk.content}</td>
+                      <td data-label={t('schedules.content')} className="p-2.5 text-muted-foreground whitespace-pre-wrap break-words max-w-[14rem]">{tk.content}</td>
                       <td className="p-2.5">
                         <div className="flex items-center gap-1.5">
                           <Switch checked={tk.enabled} onCheckedChange={() => toggle(tk)} />

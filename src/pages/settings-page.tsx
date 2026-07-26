@@ -6,9 +6,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
-import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { PageHeader } from '@/components/ui/page-header';
 import { useToast } from '@/hooks/use-toast';
+import { useDialogs } from '@/hooks/use-dialogs';
+import type { LucideIcon } from 'lucide-react';
 import {
   SlidersHorizontal, Crown, Plus, Trash2, ShieldCheck, Zap,
   Image, Type, Server, Database, Clock, ScrollText,
@@ -66,6 +68,10 @@ const GLOBAL_GROUPS: GGroup[] = [
     { key: 'leave_black_qq', label: '检测黑名单用户自动退群', type: 'bool' },
     { key: 'listen_at_when_off', label: '停用时 @ 仍可触发', type: 'bool' },
     { key: 'allow_stranger', label: '陌生人策略(0白名单/1有记录/2非黑)', type: 'int' },
+  ] },
+  { title: '身份绑定（高风险）', opts: [
+    { key: 'allow_official_direct_bind', label: '允许 QQ 官方窗口直接绑定真实 QQ', type: 'bool', wired: true,
+      hint: '默认关闭。QQ 官方机器人无法验证发言者真实 QQ 或群管理身份；开启后可能有人冒认 QQ，导致人物卡、好感度等用户数据被错误合并或访问。仅在人工协助绑定时短暂开启，完成后请立即关闭。' },
   ] },
 ];
 
@@ -208,37 +214,52 @@ const ImageHostCard: React.FC = () => {
   );
 };
 
-// ── B：骰主通知窗口 + 审计日志 ─────────────────────────────
-// ── Saver 行组件 ─────────────────────────────────────────
-const SwitchRow: React.FC<{ title: string; desc: string; checked: boolean; onToggle: (v: boolean) => void }> = ({ title, desc, checked, onToggle }) => (
+// ── Section + grouped-row primitives ─────────────────────
+// Loose one-off switches/inputs are consolidated into titled group cards so the
+// whole page reads as a handful of labelled sections instead of ~25 stray cards.
+const SectionHeading: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <h2 className="text-sm font-semibold text-muted-foreground pt-2 first:pt-0">{children}</h2>
+);
+
+const SettingGroup: React.FC<{ title?: string; icon?: LucideIcon; children: React.ReactNode }> = ({ title, icon: Icon, children }) => (
   <Card>
-    <CardContent className="flex items-center justify-between py-4">
-      <div className="pr-4">
-        <Label className="text-sm font-medium">{title}</Label>
-        <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
-      </div>
-      <Switch checked={checked} onCheckedChange={onToggle} />
-    </CardContent>
+    {title && (
+      <CardHeader>
+        <CardTitle className="text-base flex items-center gap-2">{Icon && <Icon className="h-4 w-4" />}{title}</CardTitle>
+      </CardHeader>
+    )}
+    <CardContent className={title ? 'divide-y' : 'divide-y pt-6'}>{children}</CardContent>
   </Card>
 );
 
-const SaveRow: React.FC<{ title: string; desc: string; children: React.ReactNode; extra?: React.ReactNode }> = ({ title, desc, children, extra }) => (
-  <Card>
-    <CardContent className="flex items-center justify-between gap-4 py-4">
-      <div className="pr-4 min-w-0">
-        <Label className="text-sm font-medium">{title}</Label>
-        <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
-        {extra}
-      </div>
-      <div className="flex items-center gap-2 shrink-0">{children}</div>
-    </CardContent>
-  </Card>
+// A switch row that lives inside a SettingGroup.
+const SettingSwitch: React.FC<{ title: string; desc: string; checked: boolean; onToggle: (v: boolean) => void }> = ({ title, desc, checked, onToggle }) => (
+  <div className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
+    <div className="min-w-0 pr-2">
+      <Label className="text-sm font-medium">{title}</Label>
+      <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
+    </div>
+    <Switch checked={checked} onCheckedChange={onToggle} />
+  </div>
+);
+
+// A row with arbitrary controls (input + save button) inside a SettingGroup.
+const SettingRow: React.FC<{ title: string; desc: string; children: React.ReactNode; extra?: React.ReactNode }> = ({ title, desc, children, extra }) => (
+  <div className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
+    <div className="min-w-0 pr-2">
+      <Label className="text-sm font-medium">{title}</Label>
+      <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
+      {extra}
+    </div>
+    <div className="flex items-center gap-2 shrink-0">{children}</div>
+  </div>
 );
 
 // ── 主页面 ───────────────────────────────────────────────
 export const SettingsPage: React.FC = () => {
   const { t } = useTranslation();
   const toast = useToast();
+  const dlg = useDialogs(t);
 
   // — Master —
   const [masters, setMasters] = useState<Master[]>([]);
@@ -257,7 +278,7 @@ export const SettingsPage: React.FC = () => {
   const [savingEvents, setSavingEvents] = useState(false);
   // — 日志站（API 地址可自建 + 上传协议）—
   const [logsiteUrl, setLogsiteUrl] = useState('');
-  const [logsiteFormat, setLogsiteFormat] = useState('seal');
+  const [logsiteFormat, setLogsiteFormat] = useState('dicenext');
   const [logsiteOfficial, setLogsiteOfficial] = useState('');
   const [savingLogsite, setSavingLogsite] = useState(false);
   // — Nudge —
@@ -324,7 +345,7 @@ export const SettingsPage: React.FC = () => {
   const loadLogsite = async () => {
     try {
       const r = await fetch('/api/system/logsite'); const j = await r.json();
-      if (j.code === 0) { setLogsiteUrl(j.data.url || ''); setLogsiteFormat(j.data.format || 'seal'); setLogsiteOfficial(j.data.official || ''); }
+      if (j.code === 0) { setLogsiteUrl(j.data.url || ''); setLogsiteFormat(j.data.format || 'dicenext'); setLogsiteOfficial(j.data.official || ''); }
     } catch { /* ignore */ }
   };
 
@@ -375,7 +396,7 @@ export const SettingsPage: React.FC = () => {
       const r = await fetch('/api/system/logsite', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: logsiteUrl.trim(), format: logsiteFormat }) });
       const j = await r.json(); if (j.code !== 0) throw new Error(j.message);
-      setLogsiteUrl(j.data.url || ''); setLogsiteFormat(j.data.format || 'seal');
+      setLogsiteUrl(j.data.url || ''); setLogsiteFormat(j.data.format || 'dicenext');
       toast({ title: t('common.save_success') });
     } catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
     finally { setSavingLogsite(false); }
@@ -391,6 +412,14 @@ export const SettingsPage: React.FC = () => {
     finally { setSavingPoke(false); }
   };
   const saveGlobal = async (key: string, value: boolean | number) => {
+    if (key === 'allow_official_direct_bind' && value === true) {
+      const accepted = await dlg.confirm({
+        title: '高风险操作',
+        description: 'QQ 官方机器人无法验证发言者真实 QQ 或群管理身份。开启后，任何人都可能冒认 QQ，造成他人的人物卡、好感度等用户数据被错误关联或访问。仅在人工协助绑定时临时开启，完成后请立即关闭。是否继续？',
+        destructive: true, confirmText: '仍然开启',
+      });
+      if (!accepted) return;
+    }
     setGlobals((g) => ({ ...g, [key]: value }));
     try {
       const r = await fetch('/api/system/global', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ [key]: value }) });
@@ -448,10 +477,9 @@ export const SettingsPage: React.FC = () => {
 
   return (
     <div className="space-y-6 max-w-3xl">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2"><SlidersHorizontal className="h-5 w-5" />{t('settings.title')}</h1>
-        <p className="text-sm text-muted-foreground">{t('settings.subtitle')}</p>
-      </div>
+      <PageHeader icon={SlidersHorizontal} title={t('settings.title')} description={t('settings.subtitle')} />
+
+      <SectionHeading>{t('settings.sec_basic')}</SectionHeading>
 
       {/* ── Master ── */}
       <Card>
@@ -509,6 +537,8 @@ export const SettingsPage: React.FC = () => {
         </CardContent>
       </Card>
 
+      <SectionHeading>{t('settings.sec_approval')}</SectionHeading>
+
       {/* ── 好友 / 加群邀请审批 ── */}
       <Card>
         <CardHeader>
@@ -564,39 +594,6 @@ export const SettingsPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* ── 日志站（API 地址可自建 + 上传协议）── */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2"><ScrollText className="h-4 w-4" />{t('settings.logsite_title')}</CardTitle>
-          <CardDescription>{t('settings.logsite_desc')}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>{t('settings.logsite_url')}</Label>
-            <Input value={logsiteUrl} onChange={(e) => setLogsiteUrl(e.target.value)} placeholder={logsiteOfficial} className="font-mono text-xs" />
-            {logsiteUrl.trim() !== '' && logsiteOfficial !== '' && logsiteUrl.trim() !== logsiteOfficial && (
-              <p className="text-xs text-amber-600 dark:text-amber-400">{t('settings.logsite_unofficial')}</p>
-            )}
-          </div>
-          <div className="space-y-2">
-            <Label>{t('settings.logsite_format')}</Label>
-            <Select value={logsiteFormat} onValueChange={setLogsiteFormat}>
-              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="seal">{t('settings.logsite_format_seal')}</SelectItem>
-                <SelectItem value="dicenext">{t('settings.logsite_format_dicenext')}</SelectItem>
-                <SelectItem value="seal_v105">{t('settings.logsite_format_seal_v105')}</SelectItem>
-                <SelectItem value="legacy">{t('settings.logsite_format_legacy')}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button size="sm" onClick={saveLogsite} disabled={savingLogsite}>{t('common.save')}</Button>
-            <Button size="sm" variant="outline" onClick={() => { setLogsiteUrl(logsiteOfficial); setLogsiteFormat('seal'); }}>{t('settings.logsite_reset')}</Button>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* ── 戳一戳 (独立容器) ── */}
       <Card>
         <CardHeader>
@@ -643,63 +640,90 @@ export const SettingsPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* ── 开机自启动 ── */}
-      <SwitchRow title={t('settings.autostart')} desc={t('settings.autostart_desc')} checked={autostart} onToggle={toggleAutostart} />
+      <SectionHeading>{t('settings.sec_reply')}</SectionHeading>
 
-      {/* ── 保存日志图片 ── */}
-      <SwitchRow title={t('settings.save_images')} desc={t('settings.save_images_desc')} checked={saveImages} onToggle={toggleSaveImages} />
+      <SettingGroup>
+        <SettingSwitch title={t('settings.quote_reply')} desc={t('settings.quote_reply_desc')} checked={quoteReply} onToggle={toggleQuoteReply} />
+        <SettingSwitch title={t('settings.auto_card')} desc={t('settings.auto_card_desc')} checked={autoCard} onToggle={toggleAutoCard} />
+        <SettingSwitch title={t('settings.respond_self')} desc={t('settings.respond_self_desc')} checked={respondSelf} onToggle={toggleRespondSelf} />
+        <SettingSwitch title={t('settings.forward_long')} desc={t('settings.forward_long_desc')} checked={forwardLong} onToggle={toggleForwardLong} />
+        <SettingRow title={t('settings.forward_threshold')} desc={t('settings.forward_threshold_desc')}>
+          <Input type="number" min={1} max={100000} disabled={!forwardLong} className="h-9 w-28 text-sm"
+            value={forwardThreshold} onChange={(e) => setForwardThreshold(Number(e.target.value))} />
+          <Button size="sm" onClick={saveForwardThreshold} disabled={!forwardLong}>{t('common.save')}</Button>
+        </SettingRow>
+        <SettingRow title={t('settings.seg_len')} desc={t('settings.seg_len_desc')}>
+          <Input type="number" min={100} max={1000} className="h-9 w-24 text-sm" value={segLen} onChange={(e) => setSegLen(Number(e.target.value))} />
+          <Button size="sm" onClick={saveSegLen} disabled={segSaving}>{t('common.save')}</Button>
+        </SettingRow>
+        <SettingRow title={t('settings.nick_wrap')} desc={t('settings.nick_wrap_desc')}
+          extra={<p className="text-xs text-muted-foreground mt-0.5 font-mono">{nickPre}{t('settings.nick_sample')}{nickSuf}</p>}>
+          <Input className="h-9 w-14 text-sm text-center" maxLength={4} placeholder="<" value={nickPre} onChange={(e) => setNickPre(e.target.value)} />
+          <Input className="h-9 w-14 text-sm text-center" maxLength={4} placeholder=">" value={nickSuf} onChange={(e) => setNickSuf(e.target.value)} />
+          <Button size="sm" onClick={saveNickWrap} disabled={nickSaving}>{t('common.save')}</Button>
+        </SettingRow>
+      </SettingGroup>
 
-      {/* ── 引用投掷对象发言 ── */}
-      <SwitchRow title={t('settings.respond_self')} desc={t('settings.respond_self_desc')} checked={respondSelf} onToggle={toggleRespondSelf} />
-      <SwitchRow title={t('settings.quote_reply')} desc={t('settings.quote_reply_desc')} checked={quoteReply} onToggle={toggleQuoteReply} />
-      <SwitchRow title={t('settings.auto_card')} desc={t('settings.auto_card_desc')} checked={autoCard} onToggle={toggleAutoCard} />
-      <SwitchRow title={t('settings.forward_long')} desc={t('settings.forward_long_desc')} checked={forwardLong} onToggle={toggleForwardLong} />
+      <SectionHeading>{t('settings.sec_image')}</SectionHeading>
 
-      {/* ── 合并转发字符阈值（开关关闭时禁用） ── */}
-      <SaveRow title={t('settings.forward_threshold')} desc={t('settings.forward_threshold_desc')}>
-        <Input type="number" min={1} max={100000} disabled={!forwardLong} className="h-9 w-28 text-sm"
-          value={forwardThreshold} onChange={(e) => setForwardThreshold(Number(e.target.value))} />
-        <Button size="sm" onClick={saveForwardThreshold} disabled={!forwardLong}>{t('common.save')}</Button>
-      </SaveRow>
-
-      {/* ── 分段发送长度 ── */}
-      <SaveRow title={t('settings.seg_len')} desc={t('settings.seg_len_desc')}>
-        <Input type="number" min={100} max={1000} className="h-9 w-24 text-sm" value={segLen} onChange={(e) => setSegLen(Number(e.target.value))} />
-        <Button size="sm" onClick={saveSegLen} disabled={segSaving}>{t('common.save')}</Button>
-      </SaveRow>
-
-      {/* ── 用户名包裹 ── */}
-      <SaveRow title={t('settings.nick_wrap')} desc={t('settings.nick_wrap_desc')}
-        extra={<p className="text-xs text-muted-foreground mt-0.5 font-mono">{nickPre}{t('settings.nick_sample')}{nickSuf}</p>}>
-        <Input className="h-9 w-14 text-sm text-center" maxLength={4} placeholder="<" value={nickPre} onChange={(e) => setNickPre(e.target.value)} />
-        <Input className="h-9 w-14 text-sm text-center" maxLength={4} placeholder=">" value={nickSuf} onChange={(e) => setNickSuf(e.target.value)} />
-        <Button size="sm" onClick={saveNickWrap} disabled={nickSaving}>{t('common.save')}</Button>
-      </SaveRow>
-
-      {/* ── C#56: 图片发送方式 ── */}
+      {/* 图片发送方式 */}
       <ImageSendCard />
-
-      {/* ── 图床 ── */}
+      {/* 图床 */}
       <ImageHostCard />
 
+      <SectionHeading>{t('settings.sec_logdata')}</SectionHeading>
 
-      {/* ── C#44: 聊天记录保留期 ── */}
+      {/* 日志站（API 地址可自建 + 上传协议）*/}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2"><ScrollText className="h-4 w-4" />{t('settings.logsite_title')}</CardTitle>
+          <CardDescription>{t('settings.logsite_desc')}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>{t('settings.logsite_url')}</Label>
+            <Input value={logsiteUrl} onChange={(e) => setLogsiteUrl(e.target.value)} placeholder={logsiteOfficial} className="font-mono text-xs" />
+            {logsiteUrl.trim() !== '' && logsiteOfficial !== '' && logsiteUrl.trim() !== logsiteOfficial && (
+              <p className="text-xs text-amber-600 dark:text-amber-400">{t('settings.logsite_unofficial')}</p>
+            )}
+          </div>
+          <div className="space-y-2">
+            <Label>{t('settings.logsite_format')}</Label>
+            <Select value={logsiteFormat} onValueChange={setLogsiteFormat}>
+              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="seal">{t('settings.logsite_format_seal')}</SelectItem>
+                <SelectItem value="dicenext">{t('settings.logsite_format_dicenext')}</SelectItem>
+                <SelectItem value="seal_v105">{t('settings.logsite_format_seal_v105')}</SelectItem>
+                <SelectItem value="legacy">{t('settings.logsite_format_legacy')}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button size="sm" onClick={saveLogsite} disabled={savingLogsite}>{t('common.save')}</Button>
+            <Button size="sm" variant="outline" onClick={() => { setLogsiteUrl(logsiteOfficial); setLogsiteFormat('dicenext'); }}>{t('settings.logsite_reset')}</Button>
+          </div>
+        </CardContent>
+      </Card>
+      {/* 聊天记录保留期 */}
       <ChatRetentionCard />
-
-      {/* ── C#51: 用户群 ── */}
-      <UserGroupCard />
-
-      {/* ── C#52: 自动清理好友 ── */}
-      <FriendCleanCard />
-
-      {/* C#40: 骰娘人格管理已迁移到「指令列表」页（按人格直接编辑回复文案），此处不再放置。 */}
-
-      {/* ── C#30: 旧版数据导入 ── */}
+      {/* 旧版数据导入 */}
       <LegacyImportCard />
 
-      <Separator />
+      <SectionHeading>{t('settings.sec_maintenance')}</SectionHeading>
 
-      {/* ── 原版全局设置：每个二级标题独立容器 ── */}
+      <SettingGroup>
+        <SettingSwitch title={t('settings.autostart')} desc={t('settings.autostart_desc')} checked={autostart} onToggle={toggleAutostart} />
+        <SettingSwitch title={t('settings.save_images')} desc={t('settings.save_images_desc')} checked={saveImages} onToggle={toggleSaveImages} />
+      </SettingGroup>
+      {/* 用户群 */}
+      <UserGroupCard />
+      {/* 自动清理好友 */}
+      <FriendCleanCard />
+
+      <SectionHeading>{t('settings.sec_global')}</SectionHeading>
+
+      {/* 原版全局设置：每个二级标题独立容器 */}
       {GLOBAL_GROUPS.map((grp) => (
         <Card key={grp.title}>
           <CardHeader>
@@ -727,11 +751,12 @@ export const SettingsPage: React.FC = () => {
           </CardContent>
         </Card>
       ))}
+      {dlg.node}
     </div>
   );
 };
 
-// ── C#44: 聊天记录保留期 ─────────────────────────────────────────
+// ── 聊天记录保留期 ─────────────────────────────────────────
 const ChatRetentionCard: React.FC = () => {
   const { t } = useTranslation();
   const toast = useToast();

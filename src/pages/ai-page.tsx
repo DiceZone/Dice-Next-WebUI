@@ -5,6 +5,7 @@
  */
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -215,11 +216,8 @@ export const AiPage: React.FC = () => {
   const TitleIcon = section === 'polish' ? Wand2 : section === 'translate' ? Languages : section === 'chat' ? MessageCircle : section === 'npc' ? Drama : Sparkles;
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold flex items-center gap-2"><TitleIcon className="h-5 w-5 text-primary" />{t(titleKey)}</h1>
-        <p className="text-sm text-muted-foreground">{t('ai.desc')}</p>
-      </div>
+    <div className="space-y-6">
+      <PageHeader icon={TitleIcon} title={t(titleKey)} description={t('ai.desc')} />
 
       {/* ══ 模型 section ══ */}
       {section === 'models' && (<>

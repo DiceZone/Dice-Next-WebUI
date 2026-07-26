@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -216,11 +217,8 @@ export const HelpDocsPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-4 max-w-full overflow-x-hidden">
-      <div>
-        <h1 className="text-xl font-semibold flex items-center gap-2"><HelpCircle className="h-5 w-5" />{t('helpdoc.title')}</h1>
-        <p className="text-sm text-muted-foreground">{t('helpdoc.desc')}</p>
-      </div>
+    <div className="space-y-6 max-w-full overflow-x-hidden">
+      <PageHeader icon={HelpCircle} title={t('helpdoc.title')} description={t('helpdoc.desc')} />
 
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-[180px] max-w-sm">

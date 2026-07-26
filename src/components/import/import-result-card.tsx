@@ -58,7 +58,7 @@ export const ImportResultCard: React.FC<Props> = ({ title, result }) => {
 
         {/* Detail list */}
         {result.details.length > 0 && (
-          <div className="max-h-48 overflow-y-auto rounded-md border">
+          <div className="max-h-48 overflow-auto rounded-md border">
             <table className="w-full text-xs">
               <tbody>
                 {result.details.map((d, i) => (

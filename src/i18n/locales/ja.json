@@ -1,4 +1,9 @@
 ﻿{
+  "pagination": {
+    "total": "{{n}} 件",
+    "per_page": "{{n}} 件/ページ",
+    "jump": "ページ番号を入力して移動"
+  },
   "app": {
     "initializing": "初期化中..."
   },
@@ -79,6 +84,7 @@
     "ja": "日本語"
   },
   "about": {
+    "unknown": "不明",
     "title": "プロジェクトについて",
     "subtitle": "Dice!Next のプロジェクト情報と技術スタック",
     "intro_title": "紹介",
@@ -157,6 +163,15 @@
     "ok": "OK"
   },
   "dashboard": {
+    "physical": "物理コア",
+    "logical": "論理コア",
+    "total_commands": "応答コマンド数",
+    "server_info": "サーバー情報",
+    "cpu": "CPU",
+    "memory": "メモリ",
+    "disk": "ディスク",
+    "cores": "コア",
+    "proc_mem": "本プロセス",
     "title": "ダッシュボード",
     "subtitle": "Dice! ダイスボットのリアルタイム概要",
     "online_adapters": "オンラインアダプター",
@@ -167,6 +182,11 @@
     "no_logs": "ログなし"
   },
   "adapters": {
+    "conn_connected": "接続済み",
+    "conn_connecting": "接続中",
+    "conn_error": "エラー",
+    "conn_disconnected": "切断",
+    "conn_timeout": "タイムアウト",
     "title": "アダプター",
     "subtitle": "ボットのプラットフォームアダプター接続を管理",
     "no_adapters": "アダプターなし",
@@ -309,8 +329,32 @@
     "no_brief": "説明なし"
   },
   "logs": {
-    "title": "セッションログ",
-    "subtitle": ".log コマンドの記録データを表示。グループ内で .log on/off で記録を制御。",
+    "export_html": "HTMLで書き出し",
+    "tab_logs": "ログ管理",
+    "tab_sessions": "セッション管理",
+    "col_name": "ログ名",
+    "col_group": "所属グループ",
+    "col_status": "状態",
+    "col_count": "記録数",
+    "col_game": "所属セッション",
+    "col_creator": "作成者",
+    "col_created": "作成日時",
+    "col_last": "最終記録",
+    "col_actions": "操作",
+    "search_ph": "グループ名・群番号・ログ名・セッション名・団番号・作成者で検索",
+    "unnamed_session": "無名のセッション",
+    "no_sessions": "グループ横断のセッションはまだありません。開始後、他のグループから団番号で参加できます。",
+    "session_active": "進行中",
+    "session_ended": "終了",
+    "session_status": "セッション状態",
+    "session_code": "団番号",
+    "players": "プレイヤー",
+    "joined_groups": "参加グループ",
+    "log_stats": "ログ統計",
+    "log_stats_value": "合計 {{total}} 件 · 進行中 {{active}} 件 · 一時停止 {{paused}} 件 · 終了 {{ended}} 件",
+    "cross_export_fail": "セッションログのエクスポートに失敗しました",
+    "title": "ログ管理",
+    "subtitle": "すべてのログを一覧表示、またはセッション単位でグループ横断の記録を管理。",
     "no_logs": "セッションログなし",
     "no_logs_hint": "グループで .log on を送ると記録開始、.log off で停止",
     "status_active": "進行中",
@@ -792,6 +836,13 @@
     "load_default": "デフォルトを読み込み"
   },
   "settings": {
+    "sec_basic": "基本",
+    "sec_approval": "承認とイベント",
+    "sec_reply": "応答と表示",
+    "sec_image": "画像",
+    "sec_logdata": "ログとデータ",
+    "sec_maintenance": "メンテナンス",
+    "sec_global": "全体設定（互換）",
     "title": "設定",
     "subtitle": "API Key とアプリ設定を管理",
     "webpw_title": "管理パネルのパスワード",
@@ -854,7 +905,7 @@
     "logsite_url": "ログサイト API アドレス",
     "logsite_unofficial": "⚠️ 公式ログサイトではありません——ログは第三者のサーバーに送信されます。信頼できるか確認してください。",
     "logsite_format": "アップロードプロトコル",
-    "logsite_format_seal": "SealDice 互換（デフォルト、zlib 圧縮 JSON）",
+    "logsite_format_seal": "SealDice 互換（zlib 圧縮 JSON）",
     "logsite_format_legacy": "旧版（multipart txt POST、旧自前エンドポイント用）",
     "logsite_reset": "公式デフォルトに戻す",
     "approval_group_reject_nonfriend": "非フレンドのグループ招待を拒否",
@@ -934,7 +985,7 @@
     "imghost_local_hint": "ボット自身が画像を提供します（/api/logs/images/…）。ログサイトは公開HTTPSであなたのボットへ到達できる必要があります — ドメイン + リバースプロキシ + SSL が必要；公開IPなしのNAT配下では動作しません。",
     "record_only": "記録のみ",
     "logsite_format_seal_v105": "SealDice V105（Parquet 列指向、より小さい／ログ站の対応が必要）",
-    "logsite_format_dicenext": "DiceNext 専用（zstd 圧縮、小さい／DiceNext ログ站・染色器が必要）",
+    "logsite_format_dicenext": "DiceNext 専用（デフォルト、zstd 圧縮、小さい／DiceNext ログ站・染色器が必要）",
     "approval_group_name_keyword": "グループ名キーワードで自動退出",
     "approval_group_name_keyword_ph": "例：福利 抽選（空白区切り、空=オフ）",
     "approval_group_name_keyword_hint": "参加後にグループ名を取得し、キーワードを含む場合は自動退出してマスターに通知します（招待時点では名前を取得できません）。"

@@ -1,9 +1,11 @@
 import React, { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { PageHeader } from '@/components/ui/page-header';
 import { StatCard } from '@/components/dashboard/stat-card';
 import { RecentLogs } from '@/components/dashboard/recent-logs';
+import { ServerInfo } from '@/components/dashboard/server-info';
 import { zustandDashboardStore } from '@/store/dashboard-store';
-import { Dices, Users, MessageSquareReply, PlugZap } from 'lucide-react';
+import { Clock, LayoutDashboard, MessagesSquare, PlugZap } from 'lucide-react';
 
 function formatUptime(seconds: number): string {
   const h = Math.floor(seconds / 3600);
@@ -25,27 +27,27 @@ export const DashboardPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">{t('dashboard.title')}</h1>
-        <p className="text-sm text-muted-foreground">{t('dashboard.subtitle')}</p>
-      </div>
+      <PageHeader icon={LayoutDashboard} title={t('dashboard.title')} description={t('dashboard.subtitle')} />
 
       {loading && !stats ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {[...Array(4)].map((_, i) => (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {[...Array(3)].map((_, i) => (
             <div key={i} className="h-24 animate-pulse rounded-lg bg-muted" />
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard icon={PlugZap} label={t('dashboard.online_adapters')} value={`${stats?.active_connections ?? 0}`} />
-          <StatCard icon={Dices} label={t('dashboard.uptime')} value={stats ? formatUptime(stats.uptime_seconds) : '--'} />
-          <StatCard icon={Users} label={t('dashboard.active_records')} value={stats?.active_sessions ?? 0} />
-          <StatCard icon={MessageSquareReply} label={t('dashboard.custom_replies')} value={stats?.total_rules ?? 0} />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <StatCard icon={PlugZap} label={t('dashboard.online_adapters')}
+            value={`${stats?.active_connections ?? 0} / ${stats?.total_adapters ?? 0}`} />
+          <StatCard icon={MessagesSquare} label={t('dashboard.total_commands')} value={stats?.total_commands ?? 0} />
+          <StatCard icon={Clock} label={t('dashboard.uptime')} value={stats ? formatUptime(stats.uptime_seconds) : '--'} />
         </div>
       )}
 
-      <RecentLogs logs={stats?.recent_logs ?? []} />
+      <div className="grid gap-4 lg:grid-cols-3 lg:items-stretch">
+        <div className="lg:col-span-1"><ServerInfo /></div>
+        <div className="lg:col-span-2"><RecentLogs logs={stats?.recent_logs ?? []} /></div>
+      </div>
     </div>
   );
 };

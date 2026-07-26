@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -120,11 +121,8 @@ export const NoticeSettingsPage: React.FC = () => {
     : a === 2 ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400' : 'bg-muted text-muted-foreground';
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold flex items-center gap-2"><Bell className="h-5 w-5" />{t('noticeset.title')}</h1>
-        <p className="text-sm text-muted-foreground">{t('noticeset.desc')}</p>
-      </div>
+    <div className="space-y-6">
+      <PageHeader icon={Bell} title={t('noticeset.title')} description={t('noticeset.desc')} />
 
       <div className="flex gap-2 border-b">
         <button className={tabCls(tab === 'windows')} onClick={() => setTab('windows')}>{t('noticeset.tab_windows')}</button>
@@ -312,7 +310,7 @@ export const NoticeSettingsPage: React.FC = () => {
                 <ScrollText className="h-4 w-4" />{t('noticeset.audit_empty')}
               </p>
             ) : (
-              <table className="w-full text-sm">
+              <div className="overflow-x-auto"><table className="rt w-full text-sm">
                 <thead className="border-b text-xs text-muted-foreground">
                   <tr>
                     <th className="p-2 text-left whitespace-nowrap">{t('noticeset.audit_time')}</th>
@@ -325,15 +323,15 @@ export const NoticeSettingsPage: React.FC = () => {
                 <tbody>
                   {audit.map((a, i) => (
                     <tr key={i} className="border-b last:border-0 align-top">
-                      <td className="p-2 font-mono text-xs text-muted-foreground whitespace-nowrap">{a.ts}</td>
-                      <td className="p-2"><span className={`rounded px-1.5 py-0.5 text-xs ${areaBadgeCls(areaOfLevel(a.level))}`}>{areaName(areaOfLevel(a.level))}</span></td>
-                      <td className="p-2 text-xs whitespace-nowrap">{a.op ? evName(a.op) : '—'}</td>
-                      <td className="p-2 font-mono text-xs text-muted-foreground whitespace-nowrap">{a.origin || '—'}</td>
-                      <td className="p-2 text-xs break-all">{a.msg}</td>
+                      <td data-label={t('noticeset.audit_time')} className="p-2 font-mono text-xs text-muted-foreground whitespace-nowrap">{a.ts}</td>
+                      <td data-label={t('noticeset.audit_area')} className="p-2"><span className={`rounded px-1.5 py-0.5 text-xs ${areaBadgeCls(areaOfLevel(a.level))}`}>{areaName(areaOfLevel(a.level))}</span></td>
+                      <td data-label={t('noticeset.audit_event')} className="p-2 text-xs whitespace-nowrap">{a.op ? evName(a.op) : '—'}</td>
+                      <td data-label={t('noticeset.audit_origin')} className="p-2 font-mono text-xs text-muted-foreground whitespace-nowrap">{a.origin || '—'}</td>
+                      <td data-label={t('noticeset.audit_msg')} className="p-2 text-xs break-all">{a.msg}</td>
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </table></div>
             )}
           </CardContent>
         </Card>

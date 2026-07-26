@@ -155,7 +155,7 @@ export const PersonaManagerCard: React.FC<{ onChanged?: () => void }> = ({ onCha
                   <div className="flex items-center gap-2">
                     <span className="font-medium">{p.name}</span>
                     {p.isBuiltin && <Badge variant="secondary" className="text-xs">{t('persona.builtin')}</Badge>}
-                    {activeId === p.id && <Badge className="bg-green-500/15 text-green-700 dark:text-green-400 text-xs">{t('persona.current_badge')}</Badge>}
+                    {activeId === p.id && <Badge variant="success" className="text-xs">{t('persona.current_badge')}</Badge>}
                   </div>
                   {p.description && <p className="text-xs text-muted-foreground mt-0.5 truncate">{p.description}</p>}
                   <p className="text-xs text-muted-foreground">{t('persona.entry_count', { count: p.entryCount })}</p>

@@ -78,3 +78,78 @@
     @apply bg-muted-foreground/50;
   }
 }
+
+/* ── Responsive tables → card mode on narrow screens ─────────────
+   Add class "rt" to a table and data-label="列名" to its cells:
+   below 640px the table renders as stacked cards (one card per row,
+   each cell a "label · value" line). No JS, no second render path. */
+@media (max-width: 639.9px) {
+  table.rt { display: block; }
+  table.rt thead { display: none; }
+  table.rt tbody { display: block; }
+  table.rt tr {
+    display: block;
+    border: 1px solid hsl(var(--border));
+    border-radius: calc(var(--radius) - 2px);
+    background: hsl(var(--card));
+    padding: 0.25rem 0;
+    margin: 0.5rem 0.125rem;
+  }
+  table.rt td {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;   /* 标签+内容都靠左，别左右两端拉扯 */
+    gap: 0.5rem;
+    width: 100%;
+    max-width: none;               /* 覆盖表格模式的 max-w-0 截断列 */
+    padding: 0.3rem 0.75rem;
+    text-align: left;
+    white-space: normal;
+    min-width: 0;
+    overflow: hidden;
+  }
+  table.rt td > * { min-width: 0; }
+  table.rt td[data-label]::before {
+    content: attr(data-label);
+    flex-shrink: 0;
+    font-weight: 500;
+    color: hsl(var(--muted-foreground));
+  }
+  /* 无标签单元格＝操作按钮区，靠右 */
+  table.rt td:not([data-label]) { justify-content: flex-end; }
+  table.rt td:empty { display: none; }
+}
+
+/* ── Login page animated background ─────────────────────────────
+   Cheap by design: pre-blurred radial gradients drifting with
+   transform-only keyframes (GPU-composited; no filter/blur animation,
+   no repaint). Honors prefers-reduced-motion. */
+.login-orb {
+  position: absolute;
+  width: 55vmax;
+  height: 55vmax;
+  border-radius: 9999px;
+  pointer-events: none;
+  will-change: transform;
+}
+.login-orb-a {
+  background: radial-gradient(circle at center, hsl(var(--primary) / 0.16) 0%, transparent 62%);
+  top: -18vmax; left: -12vmax;
+  animation: login-drift-a 26s ease-in-out infinite alternate;
+}
+.login-orb-b {
+  background: radial-gradient(circle at center, hsl(258 84% 58% / 0.12) 0%, transparent 62%);
+  bottom: -22vmax; right: -14vmax;
+  animation: login-drift-b 32s ease-in-out infinite alternate;
+}
+@keyframes login-drift-a {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to   { transform: translate3d(9vmax, 6vmax, 0) scale(1.12); }
+}
+@keyframes login-drift-b {
+  from { transform: translate3d(0, 0, 0) scale(1.08); }
+  to   { transform: translate3d(-8vmax, -5vmax, 0) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .login-orb-a, .login-orb-b { animation: none; }
+}

@@ -6,7 +6,7 @@ import { ReverseWsInfo } from '@/components/adapter/reverse-ws-info';
 import { Button } from '@/components/ui/button';
 import { zustandAdapterStore } from '@/store/adapter-store';
 import { useToast } from '@/hooks/use-toast';
-import { Plus } from 'lucide-react';
+import { Plus, PlugZap } from 'lucide-react';
 import type { Adapter, AdapterFormData } from '@/types/adapter';
 
 export const AdaptersPage: React.FC = () => {
@@ -62,7 +62,7 @@ export const AdaptersPage: React.FC = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">{t('adapters.title')}</h1>
+          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2"><PlugZap className="h-5 w-5" />{t('adapters.title')}</h1>
           <p className="text-sm text-muted-foreground">{t('adapters.subtitle')}</p>
         </div>
         <Button size="sm" onClick={() => { setEditingAdapter(null); setFormOpen(true); }}>

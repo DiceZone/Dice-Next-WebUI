@@ -4,8 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useDialogs } from '@/hooks/use-dialogs';
-import { Loader2, RefreshCw, Check, X, Pencil, ArrowLeft, ChevronRight, ChevronDown, Copy, Save } from 'lucide-react';
+import { Loader2, RefreshCw, Check, X, Pencil, ArrowLeft, ChevronRight, ChevronDown, Copy, Save, UserCog } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { PaginationBar } from '@/components/ui/pagination-bar';
 import { ChatTab } from '@/pages/groups-page';
 
 interface Player {
@@ -261,7 +262,7 @@ const PlayerDetailView: React.FC<{
                 </div>
                 {open && (
                   <div className="border-t px-2.5 pb-2.5">
-                    <table className="w-full text-xs">
+                    <div className="overflow-x-auto"><table className="w-full text-xs">
                       <tbody>
                         {Object.entries(c.attrs).map(([k, v]) => (
                           <tr key={k} className="border-t first:border-0">
@@ -295,7 +296,7 @@ const PlayerDetailView: React.FC<{
                           </td>
                         </tr>
                       </tbody>
-                    </table>
+                    </table></div>
                   </div>
                 )}
               </div>
@@ -307,8 +308,8 @@ const PlayerDetailView: React.FC<{
           {tab === 'settings' && <>
           {sectionTitle(t('players.detail_settings'), detail.settings.length)}
           {detail.settings.length === 0 ? <p className="text-xs text-muted-foreground">{t('players.detail_none')}</p> : (
-            <table className="w-full text-xs">
-              <thead className="text-muted-foreground">
+            <div className="overflow-x-auto"><table className="w-full text-xs">
+              <thead className="bg-muted/50 text-muted-foreground">
                 <tr><th className="text-left py-1 w-28">{t('players.col_group')}</th><th className="text-left py-1 w-32">{t('players.col_key')}</th><th className="text-left py-1">{t('players.col_value')}</th></tr>
               </thead>
               <tbody>
@@ -326,7 +327,7 @@ const PlayerDetailView: React.FC<{
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           )}
           </>}
 
@@ -334,8 +335,8 @@ const PlayerDetailView: React.FC<{
           {tab === 'plugins' && <>
           {sectionTitle(t('players.detail_luavars'), detail.luaVars.length)}
           {detail.luaVars.length === 0 ? <p className="text-xs text-muted-foreground">{t('players.detail_none')}</p> : (
-            <table className="w-full text-xs">
-              <thead className="text-muted-foreground">
+            <div className="overflow-x-auto"><table className="w-full text-xs">
+              <thead className="bg-muted/50 text-muted-foreground">
                 <tr><th className="text-left py-1 w-40">{t('players.col_key')}</th><th className="text-left py-1">{t('players.col_value')}</th></tr>
               </thead>
               <tbody>
@@ -352,7 +353,7 @@ const PlayerDetailView: React.FC<{
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           )}
 
           {/* Lua 卡片数据（背包等 JSON blob） */}
@@ -410,6 +411,8 @@ export const PlayersPage: React.FC = () => {
   const [q, setQ] = useState('');
   const [sortCol, setSortCol] = useState<string>('trustLevel');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 20;
   const [selected, setSelected] = useState<Player | null>(null);   // C#96：详情二级页面
 
   const load = useCallback(async () => {
@@ -511,8 +514,13 @@ export const PlayersPage: React.FC = () => {
       if (sortCol === 'userId') return a.userId.localeCompare(b.userId) * dir;
       return 0;
     });
+  // 分页：每页 20 个，搜索/排序变化时回到第 1 页。
+  const totalPages = Math.max(1, Math.ceil(shown.length / PAGE_SIZE));
+  const curPage = Math.min(page, totalPages);
+  const paged = shown.slice((curPage - 1) * PAGE_SIZE, curPage * PAGE_SIZE);
+  useEffect(() => { setPage(1); }, [q, sortCol, sortDir]);
 
-  // C#96：详情二级页面
+  // 详情二级页面
   if (selected) {
     return <PlayerDetailView player={selected} isMaster={masterSet.has(selected.userId)} onBack={() => setSelected(null)} />;
   }
@@ -522,7 +530,7 @@ export const PlayersPage: React.FC = () => {
       {dlg.node}
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">{t('players.title')}</h1>
+          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2"><UserCog className="h-5 w-5" />{t('players.title')}</h1>
           <p className="text-sm text-muted-foreground">{t('players.subtitle')}</p>
         </div>
         <div className="flex items-center gap-2">
@@ -540,7 +548,7 @@ export const PlayersPage: React.FC = () => {
         <div className="rounded-lg border py-16 text-center text-sm text-muted-foreground">{t('players.empty')}</div>
       ) : (
         <div className="rounded-lg border overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="rt w-full text-sm">
             <thead className="bg-muted/50 text-muted-foreground">
               <tr>
                 {[['nickname', 'players.col_nickname'], ['userId', 'players.col_id'], ['trustLevel', 'players.col_trust'], ['favor', 'players.col_favor'], ['cmdCount', 'players.col_count'], ['lastCmdAt', 'players.col_last']].map(([col, label]) => (
@@ -553,9 +561,9 @@ export const PlayersPage: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {shown.map((p) => (
+              {paged.map((p) => (
                 <tr key={key(p)} className="border-t hover:bg-muted/30">
-                  <td className="p-2.5">
+                  <td data-label={t('players.col_nickname')} className="p-2.5">
                     <button className="flex items-center gap-2 hover:underline text-left" onClick={() => setSelected(p)}>
                       {!p.virtualId && (
                         <img
@@ -568,8 +576,8 @@ export const PlayersPage: React.FC = () => {
                       <span className="font-medium">{p.nickname || '—'}</span>
                     </button>
                   </td>
-                  <td className="p-2.5 font-mono text-xs">{p.userId}</td>
-                  <td className="p-2.5">
+                  <td data-label={t('players.col_id')} className="p-2.5 font-mono text-xs">{p.userId}</td>
+                  <td data-label={t('players.col_trust')} className="p-2.5">
                     {/* C#92：骰主(256)是可选等级——选中即写入 dice.masters，切走即移出。 */}
                     <Select value={masterSet.has(p.userId) ? '256' : String(p.trustLevel)} onValueChange={(v) => saveTrust(p, Number(v))}>
                       <SelectTrigger className="h-7 w-28 text-xs"><SelectValue /></SelectTrigger>
@@ -587,7 +595,7 @@ export const PlayersPage: React.FC = () => {
                       </SelectContent>
                     </Select>
                   </td>
-                  <td className="p-2.5">
+                  <td data-label={t('players.col_favor')} className="p-2.5">
                     {editFav === key(p) ? (
                       <span className="inline-flex items-center gap-1">
                         <input type="number" value={favVal} onChange={(e) => setFavVal(parseInt(e.target.value) || 0)}
@@ -602,8 +610,8 @@ export const PlayersPage: React.FC = () => {
                       </span>
                     )}
                   </td>
-                  <td className="p-2.5">{p.cmdCount}</td>
-                  <td className="p-2.5 text-muted-foreground text-xs whitespace-nowrap">{fmtTime(p.lastCmdAt)}</td>
+                  <td data-label={t('players.col_count')} className="p-2.5">{p.cmdCount}</td>
+                  <td data-label={t('players.col_last')} className="p-2.5 text-muted-foreground text-xs whitespace-nowrap">{fmtTime(p.lastCmdAt)}</td>
                   <td className="p-2.5">
                     <div className="flex items-center gap-1">
                       <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setSelected(p)}>{t('players.detail_btn')}</Button>
@@ -625,6 +633,9 @@ export const PlayersPage: React.FC = () => {
             </tbody>
           </table>
         </div>
+      )}
+      {!loading && shown.length > 0 && (
+        <PaginationBar total={shown.length} page={curPage} pageSize={PAGE_SIZE} onPageChange={setPage} fixedSize />
       )}
     </div>
   );

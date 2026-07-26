@@ -34,14 +34,16 @@ export const RecentLogs: React.FC<RecentLogsProps> = ({ logs }) => {
   }, [logs]);
 
   return (
-    <Card className="flex h-full flex-col">
-      <CardHeader className="pb-3">
+    <Card className="flex h-full flex-col overflow-hidden">
+      <CardHeader className="pb-3 shrink-0">
         <CardTitle className="text-base">{t('dashboard.recent_logs')}</CardTitle>
       </CardHeader>
-      <CardContent className="flex-1 overflow-hidden p-0">
+      <CardContent className="relative flex-1 min-h-0 p-0">
+        {/* Desktop: fill the card (height driven by the sibling server-info card) and
+            scroll internally; mobile (stacked): a fixed-height scroll region. */}
         <ScrollArea
           ref={scrollRef}
-          className="h-[400px]"
+          className="h-[400px] lg:absolute lg:inset-0 lg:h-auto"
         >
           {logs.length === 0 ? (
             <div className="flex h-full items-center justify-center p-6 text-sm text-muted-foreground">

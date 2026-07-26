@@ -79,7 +79,7 @@ const StatusBadge: React.FC<{ g: Group; t: (k: string) => string }> = ({ g, t })
   if (g.left) return <Badge variant="outline" className="rounded h-5 px-2 py-0 text-[11px] leading-5 whitespace-nowrap shrink-0 text-muted-foreground">{t('groups.status_left')}</Badge>;
   if (g.locked) return <Badge variant="destructive" className="rounded h-5 px-2 py-0 text-[11px] leading-5 whitespace-nowrap shrink-0">{t('groups.status_locked')}</Badge>;
   if (!g.enabled) return <Badge variant="secondary" className="rounded h-5 px-2 py-0 text-[11px] leading-5 whitespace-nowrap shrink-0">{t('groups.status_off')}</Badge>;
-  return <Badge className="bg-green-600 text-white hover:bg-green-600 rounded h-5 px-2 py-0 text-[11px] leading-5 whitespace-nowrap shrink-0">{t('groups.status_on')}</Badge>;
+  return <Badge variant="success" className="rounded h-5 px-2 py-0 text-[11px] leading-5 whitespace-nowrap shrink-0">{t('groups.status_on')}</Badge>;
 };
 
 const Pager: React.FC<{ page: number; pages: number; onPage: (p: number) => void }> = ({ page, pages, onPage }) =>
@@ -203,7 +203,7 @@ export const GroupsPage: React.FC = () => {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">{t('groups.title')}</h1>
+            <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2"><Users className="h-5 w-5" />{t('groups.title')}</h1>
             <p className="text-sm text-muted-foreground">{t('groups.subtitle')}</p>
           </div>
           <div className="flex items-center gap-2">
@@ -289,8 +289,8 @@ export const GroupsPage: React.FC = () => {
           </>
         ) : (
           <>
-            <div className="rounded-lg border overflow-hidden">
-              <table className="w-full text-sm">
+            <div className="rounded-lg border overflow-x-auto">
+              <table className="rt w-full text-sm">
                 <thead className="bg-muted/50 text-muted-foreground">
                   <tr>
                     <th className="text-left font-medium p-2.5 w-24">{t('groups.col_status')}</th>
@@ -304,16 +304,16 @@ export const GroupsPage: React.FC = () => {
                 <tbody>
                   {shown.map((g) => (
                     <tr key={`${g.platform}/${g.groupId}`} className="border-t hover:bg-muted/30">
-                      <td className="p-2.5"><StatusBadge g={g} t={t} /></td>
-                      <td className="p-2.5"><div className="h-8 w-8 rounded-md overflow-hidden bg-muted shrink-0">
+                      <td data-label={t('groups.col_status')} className="p-2.5"><StatusBadge g={g} t={t} /></td>
+                      <td data-label={t('groups.col_avatar')} className="p-2.5"><div className="h-8 w-8 rounded-md overflow-hidden bg-muted shrink-0">
                         {g.platform === 'onebot_v11' ? <img src={`https://p.qlogo.cn/gh/${g.groupId}/${g.groupId}/100`} alt="" className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} /> : <Users2 className="h-5 w-5 m-1.5 text-muted-foreground" />}
                       </div></td>
-                      <td className="p-2.5">
+                      <td data-label={t('groups.col_group')} className="p-2.5">
                         <button onClick={() => setSelected(g)} className="font-medium hover:text-primary transition-colors">{g.name}</button>
                         <div className="mt-1"><Tags g={g} compact /></div>
                       </td>
-                      <td className="p-2.5">{g.memberCount || '—'}</td>
-                      <td className="p-2.5">{roleLabel(t, g.botRole)}</td>
+                      <td data-label={t('groups.members_label')} className="p-2.5">{g.memberCount || '—'}</td>
+                      <td data-label={t('groups.perm_label')} className="p-2.5">{roleLabel(t, g.botRole)}</td>
                       <td className="p-2.5"><div className="flex justify-end"><Actions g={g} /></div></td>
                     </tr>
                   ))}
@@ -843,7 +843,7 @@ const LogsTab: React.FC<any> = ({ group, t, toast, dlg }) => {
 
   return (
     <div className="rounded-lg border overflow-x-auto">
-      <table className="w-full text-sm">
+      <table className="rt w-full text-sm">
         <thead className="bg-muted/50 text-muted-foreground">
           <tr>
             <th className="text-left font-medium p-2.5">{t('groups.log_name')}</th>
@@ -857,11 +857,11 @@ const LogsTab: React.FC<any> = ({ group, t, toast, dlg }) => {
         <tbody>
           {rows.map((r) => (
             <tr key={r.id} className="border-t hover:bg-muted/30">
-              <td className="p-2.5 font-medium">{r.name}</td>
-              <td className="p-2.5 font-mono text-xs">{r.gmId}</td>
-              <td className="p-2.5 text-muted-foreground text-xs whitespace-nowrap">{fmt(r.createdAt)}</td>
-              <td className="p-2.5 text-muted-foreground text-xs whitespace-nowrap">{fmt(r.lastAt)}</td>
-              <td className="p-2.5">{r.count}</td>
+              <td data-label={t('groups.log_name')} className="p-2.5 font-medium">{r.name}</td>
+              <td data-label={t('groups.log_creator')} className="p-2.5 font-mono text-xs">{r.gmId}</td>
+              <td data-label={t('groups.log_start')} className="p-2.5 text-muted-foreground text-xs whitespace-nowrap">{fmt(r.createdAt)}</td>
+              <td data-label={t('groups.log_last')} className="p-2.5 text-muted-foreground text-xs whitespace-nowrap">{fmt(r.lastAt)}</td>
+              <td data-label={t('groups.log_count')} className="p-2.5">{r.count}</td>
               <td className="p-2.5">
                 <div className="flex items-center gap-1">
                   <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => exportLog(r.id, 'txt')}><Download className="mr-1 h-3.5 w-3.5" />TXT</Button>
@@ -1081,7 +1081,7 @@ const FilesTab: React.FC<any> = ({ base, t, toast }) => {
         <div className="rounded-lg border py-10 text-center text-sm text-muted-foreground">{t('groups.files_empty')}</div>
       ) : (
         <div className="rounded-lg border overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="rt w-full text-sm">
             <thead className="bg-muted/50 text-muted-foreground">
               <tr>
                 <th className="text-left font-medium p-2.5">{t('groups.files_name')}</th>
@@ -1094,19 +1094,19 @@ const FilesTab: React.FC<any> = ({ base, t, toast }) => {
             <tbody>
               {folders.map((f) => (
                 <tr key={'d' + f.folderId} className="border-t hover:bg-muted/30 cursor-pointer" onClick={() => enter(f)}>
-                  <td className="p-2.5"><span className="flex items-center gap-2"><FolderOpen className="h-4 w-4 text-amber-500" />{f.name}<span className="text-xs text-muted-foreground">({f.count})</span></span></td>
-                  <td className="p-2.5 text-muted-foreground">—</td>
-                  <td className="p-2.5"></td>
-                  <td className="p-2.5"></td>
+                  <td data-label={t('groups.files_name')} className="p-2.5"><span className="flex items-center gap-2"><FolderOpen className="h-4 w-4 text-amber-500" />{f.name}<span className="text-xs text-muted-foreground">({f.count})</span></span></td>
+                  <td data-label={t('groups.files_size')} className="p-2.5 text-muted-foreground">—</td>
+                  <td data-label={t('groups.files_uploader')} className="p-2.5"></td>
+                  <td data-label={t('groups.files_time')} className="p-2.5"></td>
                   <td className="p-2.5"></td>
                 </tr>
               ))}
               {files.map((f) => (
                 <tr key={f.fileId} className="border-t hover:bg-muted/30">
-                  <td className="p-2.5"><span className="flex items-center gap-2"><FileText className="h-4 w-4 opacity-60" /><span className="break-all">{f.name}</span></span></td>
-                  <td className="p-2.5 text-xs text-muted-foreground whitespace-nowrap">{fmtSize(f.size)}</td>
-                  <td className="p-2.5 text-xs text-muted-foreground">{f.uploaderName || f.uploader}</td>
-                  <td className="p-2.5 text-xs text-muted-foreground whitespace-nowrap">{f.uploadTime ? new Date(f.uploadTime * 1000).toLocaleString() : '—'}</td>
+                  <td data-label={t('groups.files_name')} className="p-2.5"><span className="flex items-center gap-2"><FileText className="h-4 w-4 opacity-60" /><span className="break-all">{f.name}</span></span></td>
+                  <td data-label={t('groups.files_size')} className="p-2.5 text-xs text-muted-foreground whitespace-nowrap">{fmtSize(f.size)}</td>
+                  <td data-label={t('groups.files_uploader')} className="p-2.5 text-xs text-muted-foreground">{f.uploaderName || f.uploader}</td>
+                  <td data-label={t('groups.files_time')} className="p-2.5 text-xs text-muted-foreground whitespace-nowrap">{f.uploadTime ? new Date(f.uploadTime * 1000).toLocaleString() : '—'}</td>
                   <td className="p-2.5">
                     <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => download(f)} disabled={dling.has(f.fileId)}>
                       {dling.has(f.fileId) ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Download className="mr-1 h-3 w-3" />}{t('common.download')}
@@ -1225,9 +1225,12 @@ export const ChatTab: React.FC<any> = ({ base, platform, t, toast, privateChat =
       {availableChannels.length > 1 && (
         <div className="flex items-center gap-2 border-b bg-muted/20 px-3 py-2 text-xs">
           <span className="text-muted-foreground">发送渠道</span>
-          <select value={channelKey} onChange={(e) => setChannelKey(e.target.value)} className="h-7 rounded border bg-background px-2 text-xs">
-            {availableChannels.map((channel: any) => <option key={channel.key} value={channel.key}>{channel.label}</option>)}
-          </select>
+          <Select value={channelKey} onValueChange={setChannelKey}>
+            <SelectTrigger className="h-7 w-auto min-w-[120px] text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {availableChannels.map((channel: any) => <SelectItem key={channel.key} value={channel.key} className="text-xs">{channel.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
         </div>
       )}
       <div ref={boxRef} onScroll={onScroll} className="flex-1 overflow-y-auto p-4 space-y-3">

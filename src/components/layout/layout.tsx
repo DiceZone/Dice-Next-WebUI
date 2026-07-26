@@ -26,7 +26,7 @@ export const Layout: React.FC<LayoutProps> = ({
         <Header wsConnected={wsConnected} />
         <main
           className={cn(
-            'flex-1 overflow-auto p-4 md:p-6',
+            'flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6',
             sidebarCollapsed ? 'lg:ml-0' : 'ml-0'
           )}
         >

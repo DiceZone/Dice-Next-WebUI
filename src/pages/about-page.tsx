@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Info } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 
 export const AboutPage: React.FC = () => {
@@ -25,7 +26,7 @@ export const AboutPage: React.FC = () => {
   return (
     <div className="space-y-6 max-w-2xl">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">{t('about.title')}</h1>
+        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2"><Info className="h-5 w-5" />{t('about.title')}</h1>
         <p className="text-sm text-muted-foreground">{t('about.subtitle')}</p>
       </div>
 

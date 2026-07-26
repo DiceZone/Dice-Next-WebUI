@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Accordion } from '@/components/ui/accordion';
+import { Dices } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { DiceRuleGroupPanel } from '@/components/dice/dice-rule-group';
@@ -30,14 +31,14 @@ export const DiceRulesPage: React.FC = () => {
   const handleReset = () => { resetRules(); toast({ title: t('dice.reset_done') }); };
 
   if (loading && !localRules) {
-    return (<div className="space-y-6"><div><h1 className="text-2xl font-bold tracking-tight">{t('dice.title')}</h1><p className="text-sm text-muted-foreground">{t('common.loading')}</p></div><div className="h-64 animate-pulse rounded-lg bg-muted" /></div>);
+    return (<div className="space-y-6"><div><h1 className="text-2xl font-bold tracking-tight flex items-center gap-2"><Dices className="h-5 w-5" />{t('dice.title')}</h1><p className="text-sm text-muted-foreground">{t('common.loading')}</p></div><div className="h-64 animate-pulse rounded-lg bg-muted" /></div>);
   }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">{t('dice.title')}</h1>
+          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2"><Dices className="h-5 w-5" />{t('dice.title')}</h1>
           <p className="text-sm text-muted-foreground">{t('dice.subtitle')}</p>
         </div>
         <div className="flex items-center gap-2">

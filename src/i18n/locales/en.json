@@ -1,4 +1,9 @@
 ﻿{
+  "pagination": {
+    "total": "{{n}} items",
+    "per_page": "{{n}} / page",
+    "jump": "Jump to page"
+  },
   "app": {
     "initializing": "Initializing..."
   },
@@ -79,6 +84,7 @@
     "ja": "日本語"
   },
   "about": {
+    "unknown": "Unknown",
     "title": "About",
     "subtitle": "Dice!Next project information & tech stack",
     "intro_title": "Introduction",
@@ -157,6 +163,15 @@
     "ok": "OK"
   },
   "dashboard": {
+    "physical": "physical",
+    "logical": "logical",
+    "total_commands": "Commands Handled",
+    "server_info": "Server Info",
+    "cpu": "CPU",
+    "memory": "Memory",
+    "disk": "Disk",
+    "cores": "cores",
+    "proc_mem": "Process",
     "title": "Dashboard",
     "subtitle": "Real-time overview of Dice! dice bot",
     "online_adapters": "Online Adapters",
@@ -167,6 +182,11 @@
     "no_logs": "No logs"
   },
   "adapters": {
+    "conn_connected": "Connected",
+    "conn_connecting": "Connecting",
+    "conn_error": "Error",
+    "conn_disconnected": "Disconnected",
+    "conn_timeout": "Timeout",
     "title": "Adapters",
     "subtitle": "Manage bot platform adapter connections",
     "no_adapters": "No adapters",
@@ -309,8 +329,32 @@
     "no_brief": "No description"
   },
   "logs": {
-    "title": "Game Logs",
-    "subtitle": "View game recording log data from .log command. Use .log on/off in group to control.",
+    "export_html": "Export HTML",
+    "tab_logs": "Log Management",
+    "tab_sessions": "Sessions",
+    "col_name": "Log Name",
+    "col_group": "Group",
+    "col_status": "Status",
+    "col_count": "Records",
+    "col_game": "Session",
+    "col_creator": "Creator",
+    "col_created": "Created",
+    "col_last": "Last Record",
+    "col_actions": "Actions",
+    "search_ph": "Search by group name, group ID, log name, session name, session code or creator",
+    "unnamed_session": "Unnamed session",
+    "no_sessions": "No cross-group sessions yet. After starting a session, other groups can join with the session code.",
+    "session_active": "Active",
+    "session_ended": "Ended",
+    "session_status": "Session Status",
+    "session_code": "Session Code",
+    "players": "Players",
+    "joined_groups": "Joined Groups",
+    "log_stats": "Log Stats",
+    "log_stats_value": "{{total}} total · {{active}} active · {{paused}} paused · {{ended}} ended",
+    "cross_export_fail": "Failed to export cross-group session log",
+    "title": "Log Management",
+    "subtitle": "Browse all logs, or manage cross-group game sessions.",
     "no_logs": "No game logs",
     "no_logs_hint": "Send .log on in group to start recording, .log off to stop",
     "status_active": "Active",
@@ -792,6 +836,13 @@
     "load_default": "Load default"
   },
   "settings": {
+    "sec_basic": "Basics",
+    "sec_approval": "Approval & Events",
+    "sec_reply": "Reply & Display",
+    "sec_image": "Images",
+    "sec_logdata": "Logs & Data",
+    "sec_maintenance": "Maintenance",
+    "sec_global": "Legacy Global Settings",
     "title": "Settings",
     "subtitle": "Manage API Key and app preferences",
     "webpw_title": "Admin panel password",
@@ -854,7 +905,7 @@
     "logsite_url": "Log site API URL",
     "logsite_unofficial": "⚠️ This is not the official log site — logs will be sent to a third-party server; make sure you trust it.",
     "logsite_format": "Upload protocol",
-    "logsite_format_seal": "SealDice-compatible (default, zlib-compressed JSON)",
+    "logsite_format_seal": "SealDice-compatible (zlib-compressed JSON)",
     "logsite_format_legacy": "Legacy (multipart txt POST, for old self-hosted endpoints)",
     "logsite_reset": "Reset to official",
     "approval_group_reject_nonfriend": "Reject group invites from non-friends",
@@ -934,7 +985,7 @@
     "imghost_local_hint": "The bot serves images itself (/api/logs/images/…). The log site must reach your bot over public HTTPS — needs a domain + reverse proxy + SSL; won't work behind NAT without a public IP.",
     "record_only": "recorded",
     "logsite_format_seal_v105": "SealDice V105 (Parquet columnar, smaller; log site must support it)",
-    "logsite_format_dicenext": "DiceNext (zstd-compressed, small; needs DiceNext log site/painter)",
+    "logsite_format_dicenext": "DiceNext (default, zstd-compressed, small; needs DiceNext log site/painter)",
     "approval_group_name_keyword": "Auto-leave by group name keyword",
     "approval_group_name_keyword_ph": "e.g. giveaway spam (space-separated; empty = off)",
     "approval_group_name_keyword_hint": "After joining, the group name is fetched; if it contains any keyword the bot leaves and notifies the master (name is unavailable at invite time)."

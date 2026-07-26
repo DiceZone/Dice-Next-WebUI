@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { zustandReplyStore } from '@/store/reply-store';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Search } from 'lucide-react';
+import { MessageSquareReply, Plus, Search } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import type { ReplyRule, ReplyFormData } from '@/types/reply';
 import type { CausalRule } from '@/types/causal';
@@ -110,7 +110,7 @@ export const RepliesPage: React.FC = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">{t('replies.title')}</h1>
+          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2"><MessageSquareReply className="h-5 w-5" />{t('replies.title')}</h1>
           <p className="text-sm text-muted-foreground">{t('replies.subtitle')}</p>
         </div>
       </div>
