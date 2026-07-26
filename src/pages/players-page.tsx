@@ -17,6 +17,8 @@ interface Player {
   favor: number;
   lastCmdAt: string;
   createdAt: string;
+  virtualId?: boolean;
+  bindings?: { adapterType: string; adapterAccount: string; endpointId: string }[];
 }
 
 interface DetailGroup { id: string; name: string }
@@ -164,7 +166,7 @@ const PlayerDetailView: React.FC<{
       </div>
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex items-center gap-3">
-          {player.platform === 'onebot_v11' && (
+          {!player.virtualId && (
             <img src={`https://q1.qlogo.cn/g?b=qq&nk=${player.userId}&s=640`} alt=""
               className="h-16 w-16 rounded-full object-cover bg-muted"
               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
@@ -175,9 +177,14 @@ const PlayerDetailView: React.FC<{
               {isMaster && <Badge variant="outline" className="border-red-300 text-red-600 dark:border-red-700 dark:text-red-400">{t('banlist.perm_master')}</Badge>}
             </div>
             <div className="text-xs text-muted-foreground font-mono">{player.userId}</div>
+            {player.virtualId && <div className="text-xs text-amber-600 dark:text-amber-400">虚拟 QQ 号（尚未绑定真实 QQ）</div>}
             <div className="text-xs text-muted-foreground">{t('players.col_count')}: {player.cmdCount} · {t('players.col_favor')}: {player.favor}</div>
           </div>
         </div>
+        {(player.bindings?.length ?? 0) > 0 && <div className="rounded border bg-muted/30 px-3 py-2 text-xs">
+          <div className="mb-1 text-muted-foreground">已绑定身份来源</div>
+          {player.bindings!.map((b, i) => <div key={`${b.adapterType}-${b.adapterAccount}-${b.endpointId}-${i}`} className="font-mono break-all">{b.adapterType} / {b.adapterAccount || '—'} / {b.endpointId}</div>)}
+        </div>}
         <span className="flex-1" />
         <Button size="sm" onClick={saveAll} disabled={saving || dirtyCount === 0}>
           {saving ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Save className="mr-1 h-4 w-4" />}
@@ -378,7 +385,12 @@ const PlayerDetailView: React.FC<{
           </>}
 
           {tab === 'chat' && <ChatTab base={`/players/${encodeURIComponent(player.platform)}/${encodeURIComponent(player.userId)}`}
-            platform={player.platform} t={t} toast={toast} privateChat />}
+            platform={player.platform} t={t} toast={toast} privateChat
+            channels={(player.bindings?.length ? player.bindings : [{ adapterType: player.platform, adapterAccount: '', endpointId: player.userId }]).map((b) => ({
+              key: `${b.adapterType}:${b.adapterAccount}`, platform: b.adapterType, adapterAccount: b.adapterAccount,
+              base: `/players/${encodeURIComponent(b.adapterType)}/${encodeURIComponent(player.userId)}`,
+              label: b.adapterType === 'qq_official' ? `QQ 官方机器人 ${b.adapterAccount}` : `OneBot（适配器 ${b.adapterAccount || '默认'}）`,
+            }))} />}
         </div>
       )}
     </div>
@@ -545,7 +557,7 @@ export const PlayersPage: React.FC = () => {
                 <tr key={key(p)} className="border-t hover:bg-muted/30">
                   <td className="p-2.5">
                     <button className="flex items-center gap-2 hover:underline text-left" onClick={() => setSelected(p)}>
-                      {p.platform === 'onebot_v11' && (
+                      {!p.virtualId && (
                         <img
                           src={`https://q1.qlogo.cn/g?b=qq&nk=${p.userId}&s=100`}
                           alt=""

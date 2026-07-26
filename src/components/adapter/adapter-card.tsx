@@ -33,6 +33,11 @@ const MODE_LABELS: Record<string, string> = {
   http: 'HTTP',
 };
 
+const ADAPTER_TYPE_LABELS: Record<string, string> = {
+  onebot_v11: 'OneBot v11',
+  qq_official: 'QQ 官方机器人 2.0',
+};
+
 export const AdapterCard: React.FC<AdapterCardProps> = ({
   adapter,
   onConnect,
@@ -56,6 +61,7 @@ export const AdapterCard: React.FC<AdapterCardProps> = ({
   const isConnecting = effectiveStatus === 'connecting';
   const isTimeout = effectiveStatus === 'timeout';
   const displayName = isConnected && adapter.loginName ? adapter.loginName : adapter.name;
+  const avatarQQ = adapter.type === 'qq_official' ? (adapter.qqNumber || '') : (adapter.loginId || '');
   const { t } = useTranslation();
 
   return (
@@ -69,9 +75,9 @@ export const AdapterCard: React.FC<AdapterCardProps> = ({
           <div className={cn('flex items-center gap-3 min-w-0', !adapter.enabled && 'opacity-50')}>
             {/* QQ avatar with connection status overlay */}
             <div className="relative shrink-0">
-              {adapter.loginId ? (
+              {avatarQQ ? (
                 <img
-                  src={`https://q1.qlogo.cn/g?b=qq&nk=${adapter.loginId}&s=100`}
+                  src={`https://q1.qlogo.cn/g?b=qq&nk=${avatarQQ}&s=100`}
                   alt={adapter.loginName || adapter.name}
                   className="h-10 w-10 rounded-full object-cover"
                   onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
@@ -87,8 +93,9 @@ export const AdapterCard: React.FC<AdapterCardProps> = ({
             <div className="min-w-0 flex-1">
               <h3 className="font-semibold truncate">{displayName}</h3>
               <p className="text-xs text-muted-foreground">
-                {adapter.loginId && <span>QQ:{adapter.loginId} · </span>}
-                {adapter.type === 'onebot_v11' ? 'OneBot v11' : adapter.type} · {MODE_LABELS[adapter.connectionMode] || adapter.connectionMode}
+                {adapter.loginId && <span>{adapter.type === 'qq_official' ? 'Bot:' : 'QQ:'}{adapter.loginId} · </span>}
+                {adapter.type === 'qq_official' && adapter.qqNumber && <span>QQ:{adapter.qqNumber} · </span>}
+                {ADAPTER_TYPE_LABELS[adapter.type] || adapter.type} · {adapter.type === 'qq_official' ? '官方 Gateway WebSocket' : (MODE_LABELS[adapter.connectionMode] || adapter.connectionMode)}
               </p>
             </div>
           </div>
@@ -117,7 +124,9 @@ export const AdapterCard: React.FC<AdapterCardProps> = ({
         {/* Endpoint / Port */}
         <div className={cn('mt-3', !adapter.enabled && 'opacity-50')}>
           <p className="font-mono text-xs text-muted-foreground truncate" title={adapter.endpoint}>
-            {adapter.connectionMode === 'reverse_ws'
+            {adapter.type === 'qq_official'
+              ? `AppID: ${adapter.appId || '—'}`
+              : adapter.connectionMode === 'reverse_ws'
               ? `${t('adapters.port')}: ${adapter.endpoint}`
               : `${t('adapters.address')}: ${adapter.endpoint}`}
           </p>

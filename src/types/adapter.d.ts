@@ -6,7 +6,7 @@
  */
 export type ConnectionMode = 'forward_ws' | 'reverse_ws' | 'http';
 export type AdapterStatus = 'connected' | 'disconnected' | 'connecting' | 'error' | 'timeout';
-export type AdapterType = 'onebot_v11';
+export type AdapterType = 'onebot_v11' | 'qq_official';
 export interface Adapter {
     id: string;
     name: string;
@@ -14,6 +14,9 @@ export interface Adapter {
     connectionMode: ConnectionMode;
     endpoint: string;
     accessToken?: string;
+    appId?: string;
+    appSecret?: string;
+    qqNumber?: string;
     enabled: boolean;
     status: AdapterStatus;
     lastActive?: string;
@@ -27,5 +30,8 @@ export interface AdapterFormData {
     connectionMode: ConnectionMode;
     endpoint: string;
     accessToken?: string;
+    appId?: string;
+    appSecret?: string;
+    qqNumber?: string;
     enabled?: boolean;
 }

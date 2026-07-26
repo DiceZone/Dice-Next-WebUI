@@ -37,16 +37,17 @@ export const AdaptersPage: React.FC = () => {
     try { await updateAdapter(editingAdapter.id, data); toast({ title: t('adapters.updated') }); }
     catch { toast({ title: t('common.update_fail'), variant: 'destructive' }); }
   };
+  const errorText = (error: unknown) => error instanceof Error ? error.message : String(error);
   const handleDelete = async (id: string) => {
     try { await deleteAdapter(id); toast({ title: t('adapters.deleted') }); }
-    catch { toast({ title: t('common.delete_fail'), variant: 'destructive' }); }
+    catch (error) { toast({ title: t('common.delete_fail'), description: errorText(error), variant: 'destructive' }); }
   };
   const handleToggle = async (id: string) => {
     try {
       const a = adapters.find((x) => x.id === id);
       await toggleAdapter(id);
       toast({ title: a?.enabled ? t('adapters.disabled_toast') : t('adapters.enabled_toast') });
-    } catch { toast({ title: t('common.operation_fail'), variant: 'destructive' }); }
+    } catch (error) { toast({ title: t('common.operation_fail'), description: errorText(error), variant: 'destructive' }); }
   };
   const handleReconnect = async (id: string) => {
     try { await reconnectAdapter(id); toast({ title: t('adapters.reconnecting') }); }

@@ -27,6 +27,7 @@ interface Group {
   welcome?: string; welcome_delay?: string; welcome_cooldown?: string;
   welcome_min_delay?: number; welcome_min_cooldown?: number;  // C#76: global minimums
   left?: boolean;     // C#62: 已退群（记录保留）
+  bindings?: { adapterType: string; adapterAccount: string; endpointId: string }[];
 }
 interface Member { userId: string; nickname: string; card: string; role: string; title: string; }
 interface ChatLine { id: number; sender: string; userId?: string; content: string; self: boolean; time: number; recalled?: boolean; msgId?: string; }
@@ -349,6 +350,11 @@ const GroupDetail: React.FC<{ group: Group; dlg: any; onBack: () => void; onChan
                 <span className="font-mono text-muted-foreground">{group.groupId}</span>
               </span>
             )}
+            {group.bindings && group.bindings.length > 0 && (
+              <span className="text-xs text-muted-foreground">
+                已绑定：{group.bindings.map((b) => `${b.adapterType === 'qq_official' ? 'QQ 官方机器人' : b.adapterType} ${b.adapterAccount}:${b.endpointId}`).join('；')}
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -368,7 +374,12 @@ const GroupDetail: React.FC<{ group: Group; dlg: any; onBack: () => void; onChan
       {tab === 'members' && <MembersTab base={base} t={t} toast={toast} dlg={dlg} />}
       {tab === 'logs' && <LogsTab group={group} t={t} toast={toast} dlg={dlg} />}
       {tab === 'files' && <FilesTab base={base} t={t} toast={toast} />}
-      {tab === 'chat' && <ChatTab base={base} platform={group.platform} t={t} toast={toast} />}
+      {tab === 'chat' && <ChatTab base={base} platform={group.platform} t={t} toast={toast}
+        channels={(group.bindings?.length ? group.bindings : [{ adapterType: group.platform, adapterAccount: '', endpointId: group.groupId }]).map((b) => ({
+          key: `${b.adapterType}:${b.adapterAccount}`, platform: b.adapterType, adapterAccount: b.adapterAccount,
+          base: `/groups/${encodeURIComponent(b.adapterType)}/${encodeURIComponent(group.groupId)}`,
+          label: b.adapterType === 'qq_official' ? `QQ 官方机器人 ${b.adapterAccount}` : `OneBot（适配器 ${b.adapterAccount || '默认'}）`,
+        }))} />}
     </div>
   );
 };
@@ -1112,7 +1123,7 @@ const FilesTab: React.FC<any> = ({ base, t, toast }) => {
 };
 
 // C#106：玩家私聊页复用同一套模拟聊天 UI；私聊没有群历史/戳一戳/群文件能力。
-export const ChatTab: React.FC<any> = ({ base, platform, t, toast, privateChat = false }) => {
+export const ChatTab: React.FC<any> = ({ base, platform, t, toast, privateChat = false, channels = [] }) => {
   const [lines, setLines] = useState<ChatLine[]>([]);
   const [input, setInput] = useState('');
   const [zoom, setZoom] = useState<string | null>(null);
@@ -1120,6 +1131,15 @@ export const ChatTab: React.FC<any> = ({ base, platform, t, toast, privateChat =
   // C#43: only auto-stick to the bottom when the user is already there, so
   // scrolling up to read history isn't yanked back down by the 3s poll.
   const [stick, setStick] = useState(true);
+  const fallbackChannel = { key: `${platform}:default`, platform, adapterAccount: '', base, label: platform === 'qq_official' ? 'QQ 官方机器人' : 'OneBot' };
+  const availableChannels = channels.length ? channels : [fallbackChannel];
+  const [channelKey, setChannelKey] = useState(() => (availableChannels.find((c: any) => c.platform === platform)?.key ?? availableChannels[0].key));
+  const activeChannel = availableChannels.find((c: any) => c.key === channelKey) ?? availableChannels[0];
+  const activeBase = activeChannel.base || base;
+  const activePlatform = activeChannel.platform || platform;
+  useEffect(() => {
+    if (!availableChannels.some((c: any) => c.key === channelKey)) setChannelKey(availableChannels[0].key);
+  }, [channelKey, availableChannels]);
   const onScroll = () => {
     const el = boxRef.current; if (!el) return;
     setStick(el.scrollHeight - el.scrollTop - el.clientHeight < 48);
@@ -1127,8 +1147,8 @@ export const ChatTab: React.FC<any> = ({ base, platform, t, toast, privateChat =
   const toLatest = () => { const el = boxRef.current; if (el) { el.scrollTo(0, el.scrollHeight); setStick(true); } };
 
   const poll = useCallback(async () => {
-    try { const d = await jget<ChatLine[]>(`${base}/messages`); setLines(d || []); } catch { /* ignore */ }
-  }, [base]);
+    try { const d = await jget<ChatLine[]>(`${activeBase}/messages`); setLines(d || []); } catch { /* ignore */ }
+  }, [activeBase]);
   useEffect(() => {
     void poll();
     const id = setInterval(poll, 3000);
@@ -1140,12 +1160,12 @@ export const ChatTab: React.FC<any> = ({ base, platform, t, toast, privateChat =
     const text = input.trim();
     if (!text) return;
     setInput(''); setStick(true);   // C#43: jump to latest after sending your own message
-    try { await jsend('POST', `${base}/messages`, { text }); await poll(); }
+    try { await jsend('POST', `${activeBase}/messages`, { text, adapterAccount: activeChannel.adapterAccount || '' }); await poll(); }
     catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
   };
   const sendRaw = async (text: string) => {
     setStick(true);
-    try { await jsend('POST', `${base}/messages`, { text }); await poll(); }
+    try { await jsend('POST', `${activeBase}/messages`, { text, adapterAccount: activeChannel.adapterAccount || '' }); await poll(); }
     catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
   };
 
@@ -1202,12 +1222,20 @@ export const ChatTab: React.FC<any> = ({ base, platform, t, toast, privateChat =
 
   return (
     <div className="relative flex flex-col h-[60vh] rounded-lg border">
+      {availableChannels.length > 1 && (
+        <div className="flex items-center gap-2 border-b bg-muted/20 px-3 py-2 text-xs">
+          <span className="text-muted-foreground">发送渠道</span>
+          <select value={channelKey} onChange={(e) => setChannelKey(e.target.value)} className="h-7 rounded border bg-background px-2 text-xs">
+            {availableChannels.map((channel: any) => <option key={channel.key} value={channel.key}>{channel.label}</option>)}
+          </select>
+        </div>
+      )}
       <div ref={boxRef} onScroll={onScroll} className="flex-1 overflow-y-auto p-4 space-y-3">
         {lines.length === 0 ? (
           <div className="h-full flex items-center justify-center text-sm text-muted-foreground">{t('groups.chat_empty')}</div>
         ) : lines.map((l) => (
           <div key={l.id} className={`flex gap-2 ${l.self ? 'flex-row-reverse' : 'flex-row'}`}>
-            <ChatAvatar userId={l.userId} sender={l.sender} platform={platform} self={l.self} />
+            <ChatAvatar userId={l.userId} sender={l.sender} platform={activePlatform} self={l.self} />
             <div className={`max-w-[75%] flex flex-col ${l.self ? 'items-end' : 'items-start'}`}>
               <div className="text-xs opacity-70 mb-0.5 px-1 flex items-center flex-wrap gap-x-1">
                 {l.sender}
