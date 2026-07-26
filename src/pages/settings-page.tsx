@@ -7,13 +7,14 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/ui/page-header';
 import { useToast } from '@/hooks/use-toast';
 import { useDialogs } from '@/hooks/use-dialogs';
 import type { LucideIcon } from 'lucide-react';
 import {
   SlidersHorizontal, Crown, Plus, Trash2, ShieldCheck, Zap,
-  Image, Type, Server, Database, Clock, ScrollText,
+  Image, Type, Server, Database, Clock, ScrollText, HeartPulse,
 } from 'lucide-react';
 import { ImportResultCard, type ImportResultData } from '@/components/import/import-result-card';
 import { apiClient } from '@/lib/api-client';
@@ -594,6 +595,9 @@ export const SettingsPage: React.FC = () => {
         </CardContent>
       </Card>
 
+      {/* ── 心跳上报（heart.dice.zone）── */}
+      <HeartbeatCard />
+
       {/* ── 戳一戳 (独立容器) ── */}
       <Card>
         <CardHeader>
@@ -753,6 +757,116 @@ export const SettingsPage: React.FC = () => {
       ))}
       {dlg.node}
     </div>
+  );
+};
+
+// ── 心跳上报（向 heart.dice.zone 上报骰娘在线状态）────────────────
+interface HeartbeatConf {
+  enabled: boolean; url: string; token_set: boolean; token_tail: string;
+  public_show: boolean; interval: number;
+  last_status: string; last_report_at: string; last_error: string;
+}
+
+const HeartbeatCard: React.FC = () => {
+  const { t } = useTranslation();
+  const toast = useToast();
+  const [c, setC] = useState<HeartbeatConf>({
+    enabled: false, url: 'https://heart.dice.zone', token_set: false, token_tail: '',
+    public_show: true, interval: 300, last_status: '', last_report_at: '', last_error: '',
+  });
+  const [token, setToken] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      const d = await getJson('/system/heartbeat') as Partial<HeartbeatConf>;
+      setC((prev) => ({ ...prev, ...d, url: d.url || 'https://heart.dice.zone' }));
+    } catch { /* ignore */ }
+  }, []);
+  useEffect(() => { void load(); }, [load]);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const interval = Math.min(600, Math.max(180, Number(c.interval) || 300));
+      await putJson('/system/heartbeat', {
+        enabled: c.enabled, url: c.url.trim(), token,   // token 留空 = 不修改
+        public_show: c.public_show, interval,
+      });
+      setToken(''); await load();
+      toast({ title: t('common.save_success') });
+    } catch (e) { toast({ title: (e as Error).message, variant: 'destructive' }); }
+    finally { setSaving(false); }
+  };
+
+  const test = async () => {
+    setTesting(true);
+    try {
+      const r = await fetch('/api/system/heartbeat/test', { method: 'POST' });
+      const j = await r.json(); if (j.code !== 0) throw new Error(j.message);
+      const d = j.data || {};
+      toast({ title: t('settings.heartbeat_test_done', { status: d.http_status ?? '?' }), description: String(d.body ?? '').slice(0, 200) });
+      void load();
+    } catch (e) { toast({ title: t('settings.heartbeat_test_fail'), description: (e as Error).message, variant: 'destructive' }); }
+    finally { setTesting(false); }
+  };
+
+  const statusBadge = () => {
+    const s = c.last_status || '';
+    if (!s) return <Badge variant="outline">{t('settings.heartbeat_never')}</Badge>;
+    if (s === 'ok') return <Badge variant="outline" className="border-green-600 text-green-600 dark:border-green-400 dark:text-green-400">{t('settings.heartbeat_ok')}</Badge>;
+    return <Badge variant="destructive">{s}</Badge>;
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base flex items-center gap-2"><HeartPulse className="h-4 w-4" />{t('settings.heartbeat_title')}</CardTitle>
+        <CardDescription>{t('settings.heartbeat_desc')}</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex items-center justify-between">
+          <Label className="text-sm">{t('settings.heartbeat_enable')}</Label>
+          <Switch checked={c.enabled} onCheckedChange={(v) => setC({ ...c, enabled: v })} />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">{t('settings.heartbeat_url')}</Label>
+          <Input className="h-8 font-mono text-xs" value={c.url}
+            onChange={(e) => setC({ ...c, url: e.target.value })} placeholder="https://heart.dice.zone" />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Access Token</Label>
+          <Input className="h-8 text-sm" type="password" value={token} onChange={(e) => setToken(e.target.value)}
+            placeholder={c.token_set ? t('settings.heartbeat_token_set_ph', { tail: c.token_tail }) : t('settings.heartbeat_token_unset_ph')} />
+          <p className="text-[11px] text-muted-foreground">
+            {t('settings.heartbeat_token_hint')}<a href="https://heart.dice.zone" target="_blank" rel="noreferrer" className="underline text-primary">heart.dice.zone</a>
+          </p>
+        </div>
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <Label className="text-sm">{t('settings.heartbeat_public')}</Label>
+            <p className="text-xs text-muted-foreground">{t('settings.heartbeat_public_desc')}</p>
+          </div>
+          <Switch checked={c.public_show} onCheckedChange={(v) => setC({ ...c, public_show: v })} />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">{t('settings.heartbeat_interval')}</Label>
+          <Input className="h-8 w-32 text-sm" type="number" min={180} max={600} value={c.interval}
+            onChange={(e) => setC({ ...c, interval: Number(e.target.value) || 0 })} />
+        </div>
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <span className="text-muted-foreground">{t('settings.heartbeat_last')}</span>
+          {statusBadge()}
+          {c.last_report_at && <span className="text-muted-foreground">{c.last_report_at.replace('T', ' ').slice(0, 19)}</span>}
+          {c.last_error && <span className="text-destructive truncate max-w-[280px]" title={c.last_error}>{c.last_error}</span>}
+        </div>
+        <div className="flex justify-end gap-2">
+          <Button size="sm" variant="outline" onClick={test} disabled={testing}>{testing ? t('settings.heartbeat_testing') : t('settings.heartbeat_test_now')}</Button>
+          <Button size="sm" onClick={save} disabled={saving}>{t('common.save')}</Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 };
 

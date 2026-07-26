@@ -334,6 +334,19 @@ const GroupDetail: React.FC<{ group: Group; dlg: any; onBack: () => void; onChan
   const toast = useToast();
   const [tab, setTab] = useState<'function' | 'plugins' | 'members' | 'logs' | 'chat' | 'ai' | 'files'>('function');
   const base = `/groups/${group.platform}/${group.groupId}`;
+  // 平台能力位：按能力隐藏该平台不支持的 tab（成员列表/群文件），取不到时全显示。
+  const [caps, setCaps] = useState<Record<string, Record<string, boolean>> | null>(null);
+  useEffect(() => {
+    fetch('/api/platform-caps').then((r) => r.json())
+      .then((j) => setCaps(j.data || {})).catch(() => setCaps(null));
+  }, []);
+  const pcaps = caps?.[group.platform];
+  const tabVisible = (k: string) => {
+    if (!pcaps) return true;
+    if (k === 'members') return pcaps.member_list !== false;
+    if (k === 'files') return pcaps.group_file !== false;
+    return true;
+  };
 
   return (
     <div className="space-y-5">
@@ -360,7 +373,7 @@ const GroupDetail: React.FC<{ group: Group; dlg: any; onBack: () => void; onChan
       </div>
 
       <div className="flex gap-1 border-b">
-        {([['function', Settings2, t('groups.tab_function')], ['ai', Sparkles, t('groups.tab_ai')], ['plugins', Blocks, t('groups.tab_plugins')], ['members', Users, t('groups.tab_members')], ['logs', ScrollText, t('groups.tab_logs')], ['files', FolderOpen, t('groups.tab_files')], ['chat', MessagesSquare, t('groups.tab_chat')]] as const).map(([k, Icon, label]) => (
+        {([['function', Settings2, t('groups.tab_function')], ['ai', Sparkles, t('groups.tab_ai')], ['plugins', Blocks, t('groups.tab_plugins')], ['members', Users, t('groups.tab_members')], ['logs', ScrollText, t('groups.tab_logs')], ['files', FolderOpen, t('groups.tab_files')], ['chat', MessagesSquare, t('groups.tab_chat')]] as const).filter(([k]) => tabVisible(k)).map(([k, Icon, label]) => (
           <button key={k} onClick={() => setTab(k)}
             className={`flex items-center gap-1.5 px-3 py-2 text-sm border-b-2 -mb-px transition-colors ${tab === k ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
             <Icon className="h-4 w-4" />{label}

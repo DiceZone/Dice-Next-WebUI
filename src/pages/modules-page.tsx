@@ -303,12 +303,12 @@ export const ModulesPage: React.FC = () => {
         const content = await new Promise<string>((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result)); r.onerror = rej; r.readAsDataURL(file); });
         await jsend('POST', '/mod/lua/upload', { filename: file.name, content });
         toast({ title: t('luamod.imported') });
-      } else if (ext === 'zip') {
+      } else if (ext === 'zip' || ext === 'json') {
         const content = await new Promise<string>((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result)); r.onerror = rej; r.readAsDataURL(file); });
         await jsend('POST', '/mod/lua/upload', { filename: file.name, content });
         toast({ title: t('luamod.imported') });
-      } else { toast({ title: t('common.upload_fail'), description: '支持 .js / .lua / .zip', variant: 'destructive' }); }
-      if (ext === 'js' || ext === 'lua' || ext === 'zip') setTab(ext === 'js' ? 'js' : 'lua');   // 上传后跳到对应选项卡
+      } else { toast({ title: t('common.upload_fail'), description: '支持 .js / .lua / .zip / .json', variant: 'destructive' }); }
+      if (ext === 'js' || ext === 'lua' || ext === 'zip' || ext === 'json') setTab(ext === 'js' ? 'js' : 'lua');   // 上传后跳到对应选项卡
       await loadAll();
     } catch (err) { toast({ title: t('common.upload_fail'), description: String(err), variant: 'destructive' }); }
     finally { setBusy(false); }
@@ -376,7 +376,7 @@ export const ModulesPage: React.FC = () => {
           <p className="text-sm text-muted-foreground">{t('modules.subtitle')}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <input ref={fileRef} type="file" accept=".js,.lua,.zip" className="hidden" onChange={onFileChosen} />
+          <input ref={fileRef} type="file" accept=".js,.lua,.zip,.json" className="hidden" onChange={onFileChosen} />
           <Button variant="outline" size="sm" onClick={checkAll} disabled={busy}><ArrowUpCircle className="mr-2 h-4 w-4" />{t('modules.check_all')}</Button>
           <Button variant="outline" size="sm" onClick={reload} disabled={busy}><RefreshCw className={`mr-2 h-4 w-4 ${busy ? 'animate-spin' : ''}`} />{t('modules.reload')}</Button>
           <Button size="sm" onClick={onPickFile} disabled={busy}><Upload className="mr-2 h-4 w-4" />{t('modules.upload')}</Button>

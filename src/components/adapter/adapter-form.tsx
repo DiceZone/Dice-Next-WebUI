@@ -30,7 +30,7 @@ function normalizeUrl(raw: string): string {
 
 const adapterFormSchema = z.object({
   name: z.string().min(1).max(50),
-  type: z.enum(['onebot_v11', 'qq_official'] as const),
+  type: z.enum(['onebot_v11', 'qq_official', 'discord', 'kook'] as const),
   // C#55: HTTP 是单向的、不适合使用，已移除。仅保留 正向 / 反向 WS。
   connectionMode: z.enum(['forward_ws', 'reverse_ws'] as const).optional(),
   endpoint: z.string().optional(),
@@ -93,6 +93,20 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
   React.useEffect(() => () => { qrPollingRef.current = false; }, []);
 
   const handleFormSubmit = async (data: FormValues) => {
+    if (data.type === 'discord' || data.type === 'kook') {
+      // Token 型适配器：只需 Bot Token；编辑时留空 = 保持原 Token 不变。
+      const token = (data.accessToken ?? '').trim();
+      if (!token && !isEdit) {
+        setError('accessToken', { message: t('adapters.token_required') });
+        return;
+      }
+      data.endpoint = '';
+      data.connectionMode = 'forward_ws';
+      if (isEdit && !token) delete (data as Partial<FormValues>).accessToken;
+      await onSubmit(data as AdapterFormData);
+      onOpenChange(false);
+      return;
+    }
     if (data.type === 'qq_official') {
       if (!data.appId?.trim() || (!isEdit && !data.appSecret?.trim())) {
         setError('appId', { message: '请输入 AppID 和 AppSecret，或使用扫码绑定。' });
@@ -173,6 +187,7 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
   const mode = watch('connectionMode');
   const type = watch('type');
   const official = type === 'qq_official';
+  const tokenBot = type === 'discord' || type === 'kook';   // 仅需 Bot Token 的平台
   const isReverse = mode === 'reverse_ws';
   const modeChosen = mode === 'forward_ws' || mode === 'reverse_ws';   // C#54: gate later fields
   // Label: "连接地址" for forward/http, "端口" for reverse
@@ -199,10 +214,24 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
             {/* C#55: 编辑时不允许修改适配器平台 */}
             <Select value={watch('type')} onValueChange={(v) => setValue('type', v as AdapterType)} disabled={isEdit}>
               <SelectTrigger id="type"><SelectValue placeholder={t('adapters.type_label')} /></SelectTrigger>
-              <SelectContent><SelectItem value="onebot_v11">OneBot v11</SelectItem><SelectItem value="qq_official">QQ 官方机器人 2.0</SelectItem></SelectContent>
+              <SelectContent>
+                <SelectItem value="onebot_v11">OneBot v11</SelectItem>
+                <SelectItem value="qq_official">QQ 官方机器人 2.0</SelectItem>
+                <SelectItem value="discord">Discord</SelectItem>
+                <SelectItem value="kook">KOOK</SelectItem>
+              </SelectContent>
             </Select>
           </div>
-          {official ? <>
+          {tokenBot ? <>
+           <div className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">
+             {type === 'discord' ? t('adapters.discord_hint') : t('adapters.kook_hint')}
+           </div>
+           <div className="space-y-2">
+             <Label htmlFor="botToken">Bot Token{isEdit ? `（${t('adapters.token_keep')}）` : ''}</Label>
+             <Input id="botToken" type="password" autoComplete="new-password" {...register('accessToken')} />
+             {errors.accessToken && <p className="text-xs text-destructive">{errors.accessToken.message}</p>}
+           </div>
+          </> : official ? <>
           <div className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">QQ 官方机器人使用官方 Gateway WebSocket，不使用 OneBot 或 Webhook。可直接填写凭据，或扫码后自动填入。</div>
            <div className="rounded-md border p-3 space-y-2"><Button type="button" variant="outline" size="sm" onClick={startQrLogin} disabled={qrBusy}>{qrBusy ? '等待扫码中…' : '扫码绑定 QQ 官方机器人'}</Button>{qr && <><QRCodeSVG className="mx-auto h-44 w-44" value={qr.url} size={176} level="M" includeMargin aria-label="QQ 官方机器人绑定二维码" /><p className="text-xs text-muted-foreground">请使用手机 QQ 扫码；成功后会自动填入 AppID 和 AppSecret。</p></>}</div>
            <div className="space-y-2"><Label htmlFor="appId">AppID</Label><Input id="appId" autoComplete="off" {...register('appId')} />{errors.appId && <p className="text-xs text-destructive">{errors.appId.message}</p>}</div>
@@ -251,7 +280,7 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
           </>}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>{t('common.cancel')}</Button>
-            <Button type="submit" disabled={isSubmitting || (!official && !modeChosen)}>{isSubmitting ? t('common.saving') : isEdit ? t('adapters.save_edit') : t('adapters.add')}</Button>
+            <Button type="submit" disabled={isSubmitting || (!official && !tokenBot && !modeChosen)}>{isSubmitting ? t('common.saving') : isEdit ? t('adapters.save_edit') : t('adapters.add')}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

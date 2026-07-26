@@ -36,6 +36,8 @@ const MODE_LABELS: Record<string, string> = {
 const ADAPTER_TYPE_LABELS: Record<string, string> = {
   onebot_v11: 'OneBot v11',
   qq_official: 'QQ 官方机器人 2.0',
+  discord: 'Discord',
+  kook: 'KOOK',
 };
 
 export const AdapterCard: React.FC<AdapterCardProps> = ({
@@ -61,7 +63,8 @@ export const AdapterCard: React.FC<AdapterCardProps> = ({
   const isConnecting = effectiveStatus === 'connecting';
   const isTimeout = effectiveStatus === 'timeout';
   const displayName = isConnected && adapter.loginName ? adapter.loginName : adapter.name;
-  const avatarQQ = adapter.type === 'qq_official' ? (adapter.qqNumber || '') : (adapter.loginId || '');
+  const avatarQQ = adapter.type === 'qq_official' ? (adapter.qqNumber || '')
+    : adapter.type === 'onebot_v11' ? (adapter.loginId || '') : '';   // Discord/KOOK 无 QQ 头像
   const { t } = useTranslation();
 
   return (
@@ -93,9 +96,11 @@ export const AdapterCard: React.FC<AdapterCardProps> = ({
             <div className="min-w-0 flex-1">
               <h3 className="font-semibold truncate">{displayName}</h3>
               <p className="text-xs text-muted-foreground">
-                {adapter.loginId && <span>{adapter.type === 'qq_official' ? 'Bot:' : 'QQ:'}{adapter.loginId} · </span>}
+                {adapter.loginId && <span>{adapter.type === 'onebot_v11' ? 'QQ:' : 'Bot:'}{adapter.loginId} · </span>}
                 {adapter.type === 'qq_official' && adapter.qqNumber && <span>QQ:{adapter.qqNumber} · </span>}
-                {ADAPTER_TYPE_LABELS[adapter.type] || adapter.type} · {adapter.type === 'qq_official' ? '官方 Gateway WebSocket' : (MODE_LABELS[adapter.connectionMode] || adapter.connectionMode)}
+                {ADAPTER_TYPE_LABELS[adapter.type] || adapter.type} · {adapter.type === 'onebot_v11'
+                  ? (MODE_LABELS[adapter.connectionMode] || adapter.connectionMode)
+                  : adapter.type === 'qq_official' ? '官方 Gateway WebSocket' : 'Gateway WebSocket'}
               </p>
             </div>
           </div>

@@ -409,6 +409,7 @@ export const PlayersPage: React.FC = () => {
   const [editFav, setEditFav] = useState<string | null>(null);
   const [favVal, setFavVal] = useState(0);
   const [q, setQ] = useState('');
+  const [platFilter, setPlatFilter] = useState('all');   // 平台筛选（KOOK 用户 id 可能与 QQ 号同形，分开看）
   const [sortCol, setSortCol] = useState<string>('trustLevel');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [page, setPage] = useState(1);
@@ -501,7 +502,8 @@ export const PlayersPage: React.FC = () => {
 
   const key = (p: Player) => p.platform + ':' + p.userId;
   const shown = rows.filter((p) =>
-    !q || p.userId.includes(q) || (p.nickname || '').toLowerCase().includes(q.toLowerCase()))
+    (platFilter === 'all' || p.platform === platFilter)
+    && (!q || p.userId.includes(q) || (p.nickname || '').toLowerCase().includes(q.toLowerCase())))
     .sort((a, b) => {
       const dir = sortDir === 'asc' ? 1 : -1;
       // 排序时 Master 视为最高权限（C#92：默认权限从大到小时骰主排最前）。
@@ -518,7 +520,7 @@ export const PlayersPage: React.FC = () => {
   const totalPages = Math.max(1, Math.ceil(shown.length / PAGE_SIZE));
   const curPage = Math.min(page, totalPages);
   const paged = shown.slice((curPage - 1) * PAGE_SIZE, curPage * PAGE_SIZE);
-  useEffect(() => { setPage(1); }, [q, sortCol, sortDir]);
+  useEffect(() => { setPage(1); }, [q, platFilter, sortCol, sortDir]);
 
   // 详情二级页面
   if (selected) {
@@ -533,7 +535,17 @@ export const PlayersPage: React.FC = () => {
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2"><UserCog className="h-5 w-5" />{t('players.title')}</h1>
           <p className="text-sm text-muted-foreground">{t('players.subtitle')}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Select value={platFilter} onValueChange={setPlatFilter}>
+            <SelectTrigger className="h-9 w-36 text-sm"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t('players.all_platforms')}</SelectItem>
+              <SelectItem value="onebot_v11">OneBot (QQ)</SelectItem>
+              <SelectItem value="qq_official">QQ 官方</SelectItem>
+              <SelectItem value="discord">Discord</SelectItem>
+              <SelectItem value="kook">KOOK</SelectItem>
+            </SelectContent>
+          </Select>
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('players.search')}
             className="h-9 rounded-md border border-input bg-background px-3 text-sm w-44" />
           <Button variant="outline" size="sm" onClick={load} disabled={loading}>
@@ -576,7 +588,16 @@ export const PlayersPage: React.FC = () => {
                       <span className="font-medium">{p.nickname || '—'}</span>
                     </button>
                   </td>
-                  <td data-label={t('players.col_id')} className="p-2.5 font-mono text-xs">{p.userId}</td>
+                  <td data-label={t('players.col_id')} className="p-2.5 font-mono text-xs">
+                    <span className="inline-flex items-center gap-1.5">
+                      {p.userId}
+                      {p.platform && p.platform !== 'onebot_v11' && (
+                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-sans">
+                          {p.platform === 'qq_official' ? 'QQ官方' : p.platform === 'discord' ? 'Discord' : p.platform === 'kook' ? 'KOOK' : p.platform}
+                        </Badge>
+                      )}
+                    </span>
+                  </td>
                   <td data-label={t('players.col_trust')} className="p-2.5">
                     {/* C#92：骰主(256)是可选等级——选中即写入 dice.masters，切走即移出。 */}
                     <Select value={masterSet.has(p.userId) ? '256' : String(p.trustLevel)} onValueChange={(v) => saveTrust(p, Number(v))}>

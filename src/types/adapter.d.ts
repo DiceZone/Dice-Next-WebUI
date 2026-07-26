@@ -6,7 +6,7 @@
  */
 export type ConnectionMode = 'forward_ws' | 'reverse_ws' | 'http';
 export type AdapterStatus = 'connected' | 'disconnected' | 'connecting' | 'error' | 'timeout';
-export type AdapterType = 'onebot_v11' | 'qq_official';
+export type AdapterType = 'onebot_v11' | 'qq_official' | 'discord' | 'kook';
 export interface Adapter {
     id: string;
     name: string;
