@@ -58,7 +58,7 @@ const GLOBAL_GROUPS: GGroup[] = [
   ] },
   { title: '自动维护', opts: [
     { key: 'inactive_user_line', label: '用户不活跃上限(天)', hint: '0=不生效', type: 'int' },
-    { key: 'inactive_group_line', label: '群不活跃上限(天)', hint: '0=不生效；用于不活跃自动退群', type: 'int' },
+    // 群不活跃自动退群已迁移为「定时任务」页的一条 *(全部群) 任务，启动时自动迁移旧配置。
     { key: 'group_clear_limit', label: '单次清群上限', type: 'int' },
     { key: 'group_invalid_size', label: '协议无效群规模', type: 'int' },
   ] },
@@ -806,16 +806,18 @@ const HeartbeatCard: React.FC = () => {
       const r = await fetch('/api/system/heartbeat/test', { method: 'POST' });
       const j = await r.json(); if (j.code !== 0) throw new Error(j.message);
       const d = j.data || {};
-      toast({ title: t('settings.heartbeat_test_done', { status: d.http_status ?? '?' }), description: String(d.body ?? '').slice(0, 200) });
+      toast({ title: t('settings.heartbeat_test_done', { status: d.http ?? '?' }), description: String(d.body ?? '').slice(0, 200) });
       void load();
     } catch (e) { toast({ title: t('settings.heartbeat_test_fail'), description: (e as Error).message, variant: 'destructive' }); }
     finally { setTesting(false); }
   };
 
   const statusBadge = () => {
+    // 后端取值：''/unknown=从未上报、online=在线、offline=离线；其余视为错误
     const s = c.last_status || '';
-    if (!s) return <Badge variant="outline">{t('settings.heartbeat_never')}</Badge>;
-    if (s === 'ok') return <Badge variant="outline" className="border-green-600 text-green-600 dark:border-green-400 dark:text-green-400">{t('settings.heartbeat_ok')}</Badge>;
+    if (!s || s === 'unknown') return <Badge variant="outline">{t('settings.heartbeat_never')}</Badge>;
+    if (s === 'online') return <Badge variant="outline" className="border-green-600 text-green-600 dark:border-green-400 dark:text-green-400">{t('settings.heartbeat_online')}</Badge>;
+    if (s === 'offline') return <Badge variant="outline">{t('settings.heartbeat_offline')}</Badge>;
     return <Badge variant="destructive">{s}</Badge>;
   };
 
@@ -852,7 +854,7 @@ const HeartbeatCard: React.FC = () => {
         </div>
         <div className="space-y-1">
           <Label className="text-xs">{t('settings.heartbeat_interval')}</Label>
-          <Input className="h-8 w-32 text-sm" type="number" min={180} max={600} value={c.interval}
+          <Input className="h-8 w-32 text-sm" type="number" min={180} max={480} value={c.interval}
             onChange={(e) => setC({ ...c, interval: Number(e.target.value) || 0 })} />
         </div>
         <div className="flex flex-wrap items-center gap-2 text-xs">

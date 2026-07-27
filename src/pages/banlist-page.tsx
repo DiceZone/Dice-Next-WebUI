@@ -517,7 +517,7 @@ const BlackTab: React.FC<{ entries: BanEntry[]; reload: () => Promise<void>; del
 interface CloudBanConf {
   enabled: boolean; url: string; token_set: boolean; token_tail: string;
   share: boolean; min_danger: number; sync_interval: number; cursor: number;
-  last_sync_at: string; last_sync_added: number; last_sync_removed: number;
+  last_sync_at: string; last_sync_added: number; last_sync_removed: number; last_error: string;
 }
 
 const CloudBanTab: React.FC<{ reload: () => Promise<void> }> = ({ reload }) => {
@@ -526,7 +526,7 @@ const CloudBanTab: React.FC<{ reload: () => Promise<void> }> = ({ reload }) => {
   const [c, setC] = useState<CloudBanConf>({
     enabled: false, url: '', token_set: false, token_tail: '', share: false,
     min_danger: 2, sync_interval: 21600, cursor: 0,
-    last_sync_at: '', last_sync_added: 0, last_sync_removed: 0,
+    last_sync_at: '', last_sync_added: 0, last_sync_removed: 0, last_error: '',
   });
   const [token, setToken] = useState('');
   const [saving, setSaving] = useState(false);
@@ -579,7 +579,7 @@ const CloudBanTab: React.FC<{ reload: () => Promise<void> }> = ({ reload }) => {
         <div className="space-y-1">
           <Label className="text-xs">{t('banlist.cloudban_url')}</Label>
           <Input className="h-8 font-mono text-xs" value={c.url}
-            onChange={(e) => setC({ ...c, url: e.target.value })} placeholder="https://heart.dice.zone" />
+            onChange={(e) => setC({ ...c, url: e.target.value })} placeholder="https://cloudban.dice.zone" />
         </div>
         <div className="space-y-1">
           <Label className="text-xs">Access Token</Label>
@@ -628,6 +628,7 @@ const CloudBanTab: React.FC<{ reload: () => Promise<void> }> = ({ reload }) => {
           ) : (
             <Badge variant="outline">{t('banlist.cloudban_never')}</Badge>
           )}
+          {c.last_error && <span className="text-destructive truncate max-w-[280px]" title={c.last_error}>{c.last_error}</span>}
         </div>
         <div className="flex justify-end gap-2">
           <Button size="sm" variant="outline" onClick={syncNow} disabled={syncing}>

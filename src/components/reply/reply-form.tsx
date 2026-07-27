@@ -16,10 +16,18 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { Image as ImageIcon, Plus, X } from 'lucide-react';
-import type { ReplyRule, ReplyFormData, MatchType, ReplyLogic, ReplyCondition } from '@/types/reply';
+import type { ReplyRule, ReplyFormData, MatchType, ReplyLogic, ReplyCondition, ReplyScopeMode } from '@/types/reply';
 import { DEFAULT_REPLY_PRIORITY } from '@/types/reply';
 
-const MATCH_TYPES: MatchType[] = ['keyword', 'prefix', 'regex', 'search'];
+// 下拉顺序按「日常最常用」排：包含 → 完全等于 → 前缀 → 正则。
+// （keyword 的语义是整条消息完全相等，别再叫它「关键词」误导人。）
+const MATCH_TYPES: MatchType[] = ['search', 'keyword', 'prefix', 'regex'];
+
+// 客户端先粗验正则（服务端保存时还会用真引擎再验一次）。
+const regexError = (pattern: string): string | null => {
+  if (pattern.length > 400) return 'too long';
+  try { new RegExp(pattern); return null; } catch (e) { return String(e); }
+};
 
 interface ReplyFormProps {
   open: boolean;
@@ -35,6 +43,15 @@ export const ReplyForm: React.FC<ReplyFormProps> = ({ open, onOpenChange, onSubm
   const [logic, setLogic] = React.useState<ReplyLogic>('or');
   const [results, setResults] = React.useState<string[]>(['']);
   const [priority, setPriority] = React.useState<number>(DEFAULT_REPLY_PRIORITY);
+  const [prob, setProb] = React.useState<number>(100);
+  const [cooldownSec, setCooldownSec] = React.useState<number>(0);
+  const [scopeMode, setScopeMode] = React.useState<ReplyScopeMode>('');
+  const [scopeIds, setScopeIds] = React.useState<string>('');
+  const [cooldownNotice, setCooldownNotice] = React.useState<string>('');
+  const [dayLimit, setDayLimit] = React.useState<number>(0);
+  const [dayLimitNotice, setDayLimitNotice] = React.useState<string>('');
+  const [scopeUsersMode, setScopeUsersMode] = React.useState<ReplyScopeMode>('');
+  const [scopeUsers, setScopeUsers] = React.useState<string>('');
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState('');
 
@@ -48,6 +65,15 @@ export const ReplyForm: React.FC<ReplyFormProps> = ({ open, onOpenChange, onSubm
     setLogic(reply?.logic ?? 'or');
     setResults(res);
     setPriority(reply?.priority ?? DEFAULT_REPLY_PRIORITY);
+    setProb(reply?.prob ?? 100);
+    setCooldownSec(reply?.cooldownSec ?? 0);
+    setScopeMode((reply?.scopeMode ?? '') as ReplyScopeMode);
+    setScopeIds(reply?.scopeIds ?? '');
+    setCooldownNotice(reply?.cooldownNotice ?? '');
+    setDayLimit(reply?.dayLimit ?? 0);
+    setDayLimitNotice(reply?.dayLimitNotice ?? '');
+    setScopeUsersMode((reply?.scopeUsersMode ?? '') as ReplyScopeMode);
+    setScopeUsers(reply?.scopeUsers ?? '');
     setError('');
   }, [open, reply]);
 
@@ -83,9 +109,26 @@ export const ReplyForm: React.FC<ReplyFormProps> = ({ open, onOpenChange, onSubm
     const res = results.map((r) => r).filter((r) => r.trim());
     if (conds.length === 0) { setError(t('replies.err_need_cond')); return; }
     if (res.length === 0) { setError(t('replies.err_need_result')); return; }
+    for (const c of conds) {
+      if (c.type === 'regex') {
+        const re = regexError(c.content);
+        if (re) { setError(t('replies.err_bad_regex', { err: re })); return; }
+      }
+    }
+    if (scopeMode && !scopeIds.trim()) { setError(t('replies.err_need_scope_ids')); return; }
+    if (scopeUsersMode && !scopeUsers.trim()) { setError(t('replies.err_need_scope_users')); return; }
     setSubmitting(true);
     try {
-      await onSubmit({ conditions: conds, logic, results: res, priority });
+      await onSubmit({
+        conditions: conds, logic, results: res, priority,
+        prob: Math.min(100, Math.max(0, prob)),
+        cooldownSec: Math.max(0, cooldownSec),
+        scopeMode, scopeIds: scopeMode ? scopeIds.trim() : '',
+        cooldownNotice: cooldownSec > 0 ? cooldownNotice : '',
+        dayLimit: Math.max(0, dayLimit),
+        dayLimitNotice: dayLimit > 0 ? dayLimitNotice : '',
+        scopeUsersMode, scopeUsers: scopeUsersMode ? scopeUsers.trim() : '',
+      });
       onOpenChange(false);
     } catch (e) { setError(String(e)); }
     finally { setSubmitting(false); }
@@ -114,19 +157,24 @@ export const ReplyForm: React.FC<ReplyFormProps> = ({ open, onOpenChange, onSubm
               )}
             </div>
             {conditions.map((c, i) => (
-              <div key={i} className="flex items-start gap-1.5">
-                <Select value={c.type} onValueChange={(v) => setCond(i, { type: v as MatchType })}>
-                  <SelectTrigger className="w-28 shrink-0"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {MATCH_TYPES.map((value) => (
-                      <SelectItem key={value} value={value}>{t('replies.mt_' + value, value)}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Input value={c.content} onChange={(e) => setCond(i, { content: e.target.value })}
-                  placeholder={t('replies.ph_' + c.type)} className="flex-1" />
-                {conditions.length > 1 && (
-                  <Button type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => delCond(i)}><X className="h-4 w-4" /></Button>
+              <div key={i} className="space-y-1">
+                <div className="flex items-start gap-1.5">
+                  <Select value={c.type} onValueChange={(v) => setCond(i, { type: v as MatchType })}>
+                    <SelectTrigger className="w-28 shrink-0"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {MATCH_TYPES.map((value) => (
+                        <SelectItem key={value} value={value}>{t('replies.mt_' + value, value)}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input value={c.content} onChange={(e) => setCond(i, { content: e.target.value })}
+                    placeholder={t('replies.ph_' + c.type)} className="flex-1" />
+                  {conditions.length > 1 && (
+                    <Button type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => delCond(i)}><X className="h-4 w-4" /></Button>
+                  )}
+                </div>
+                {c.type === 'regex' && c.content.trim() && regexError(c.content) && (
+                  <p className="text-xs text-destructive pl-28 ml-1.5">{t('replies.regex_invalid')}</p>
                 )}
               </div>
             ))}
@@ -158,6 +206,74 @@ export const ReplyForm: React.FC<ReplyFormProps> = ({ open, onOpenChange, onSubm
               onChange={(e) => { const f = e.target.files?.[0]; if (f) void uploadImage(f); e.target.value = ''; }} />
             <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={addResult}><Plus className="mr-1 h-3.5 w-3.5" />{t('replies.add_result')}</Button>
             <p className="text-xs text-muted-foreground leading-relaxed">{t('replies.var_hint')}</p>
+          </div>
+
+          {/* 触发限制（原版每条规则自带：概率 / 冷却 / 生效范围） */}
+          <div className="space-y-2">
+            <Label>{t('replies.limits_label')}</Label>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <span className="text-xs text-muted-foreground">{t('replies.limit_prob')}</span>
+                <div className="flex items-center gap-1.5">
+                  <Input type="number" min={0} max={100} className="w-20"
+                    value={prob} onChange={(e) => setProb(parseInt(e.target.value) || 0)} />
+                  <span className="text-sm text-muted-foreground">%</span>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <span className="text-xs text-muted-foreground">{t('replies.limit_cd')}</span>
+                <div className="flex items-center gap-1.5">
+                  <Input type="number" min={0} className="w-24"
+                    value={cooldownSec} onChange={(e) => setCooldownSec(parseInt(e.target.value) || 0)} />
+                  <span className="text-sm text-muted-foreground">{t('replies.limit_cd_unit')}</span>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <span className="text-xs text-muted-foreground">{t('replies.limit_daylimit')}</span>
+                <div className="flex items-center gap-1.5">
+                  <Input type="number" min={0} className="w-24"
+                    value={dayLimit} onChange={(e) => setDayLimit(parseInt(e.target.value) || 0)} />
+                  <span className="text-sm text-muted-foreground">{t('replies.limit_daylimit_unit')}</span>
+                </div>
+              </div>
+            </div>
+            {cooldownSec > 0 && (
+              <Input value={cooldownNotice} onChange={(e) => setCooldownNotice(e.target.value)}
+                placeholder={t('replies.limit_cd_notice_ph')} />
+            )}
+            {dayLimit > 0 && (
+              <Input value={dayLimitNotice} onChange={(e) => setDayLimitNotice(e.target.value)}
+                placeholder={t('replies.limit_daylimit_notice_ph')} />
+            )}
+            <div className="flex items-start gap-1.5">
+              <Select value={scopeMode || 'all'} onValueChange={(v) => setScopeMode((v === 'all' ? '' : v) as ReplyScopeMode)}>
+                <SelectTrigger className="w-36 shrink-0"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t('replies.scope_all')}</SelectItem>
+                  <SelectItem value="allow">{t('replies.scope_allow')}</SelectItem>
+                  <SelectItem value="deny">{t('replies.scope_deny')}</SelectItem>
+                </SelectContent>
+              </Select>
+              {scopeMode && (
+                <Input value={scopeIds} onChange={(e) => setScopeIds(e.target.value)}
+                  placeholder={t('replies.scope_ids_ph')} className="flex-1 font-mono" />
+              )}
+            </div>
+            <div className="flex items-start gap-1.5">
+              <Select value={scopeUsersMode || 'all'} onValueChange={(v) => setScopeUsersMode((v === 'all' ? '' : v) as ReplyScopeMode)}>
+                <SelectTrigger className="w-36 shrink-0"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t('replies.scope_users_all')}</SelectItem>
+                  <SelectItem value="allow">{t('replies.scope_users_allow')}</SelectItem>
+                  <SelectItem value="deny">{t('replies.scope_users_deny')}</SelectItem>
+                </SelectContent>
+              </Select>
+              {scopeUsersMode && (
+                <Input value={scopeUsers} onChange={(e) => setScopeUsers(e.target.value)}
+                  placeholder={t('replies.scope_users_ph')} className="flex-1 font-mono" />
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">{t('replies.limits_hint')}</p>
           </div>
 
           {/* Priority */}

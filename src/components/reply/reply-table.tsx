@@ -47,39 +47,79 @@ export const ReplyTable: React.FC<ReplyTableProps> = ({
   const filtered = useMemo(() => {
     if (!filterText) return replies;
     const lower = filterText.toLowerCase();
-    return replies.filter(
-      (r) =>
-        r.matchContent.toLowerCase().includes(lower) ||
-        r.replyContent.toLowerCase().includes(lower)
-    );
+    // 搜索覆盖全部条件与全部回复（以前只搜第一条，多条件规则的其余条件搜不到）。
+    return replies.filter((r) => {
+      const hay = [
+        r.matchContent, r.replyContent,
+        ...(r.conditions?.map((c) => c.content) ?? []),
+        ...(r.results ?? []),
+      ].join('\n').toLowerCase();
+      return hay.includes(lower);
+    });
   }, [replies, filterText]);
 
   const columns = useMemo(
     () => [
       columnHelper.accessor('matchType', {
         header: t('replies.match_type'),
-        cell: (info) => (
-          <Badge variant="secondary" className="text-xs">
-            {t('replies.mt_' + info.getValue(), info.getValue())}
-          </Badge>
-        ),
-        size: 100,
+        cell: (info) => {
+          const row = info.row.original;
+          const extraConds = (row.conditions?.length ?? 1) - 1;
+          return (
+            <div className="flex items-center gap-1 flex-wrap">
+              <Badge variant="secondary" className="text-xs">
+                {t('replies.mt_' + info.getValue(), info.getValue())}
+              </Badge>
+              {extraConds > 0 && (
+                <Badge variant="outline" className="text-[10px]" title={t('replies.more_conds_hint')}>
+                  +{extraConds}
+                </Badge>
+              )}
+            </div>
+          );
+        },
+        size: 110,
       }),
       columnHelper.accessor('matchContent', {
         header: t('replies.match_content'),
-        cell: (info) => (
-          <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">
-            {truncate(info.getValue(), 40)}
-          </code>
-        ),
+        cell: (info) => {
+          const row = info.row.original;
+          const limits: string[] = [];
+          if ((row.prob ?? 100) < 100) limits.push(`${row.prob}%`);
+          if ((row.cooldownSec ?? 0) > 0) limits.push(`CD ${row.cooldownSec}s`);
+          if ((row.dayLimit ?? 0) > 0) limits.push(t('replies.daylimit_badge', { n: row.dayLimit }));
+          if (row.scopeMode === 'allow') limits.push(t('replies.scope_allow_short'));
+          if (row.scopeMode === 'deny') limits.push(t('replies.scope_deny_short'));
+          if (row.scopeUsersMode === 'allow') limits.push(t('replies.scope_users_allow_short'));
+          if (row.scopeUsersMode === 'deny') limits.push(t('replies.scope_users_deny_short'));
+          return (
+            <div>
+              <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">
+                {truncate(info.getValue(), 40)}
+              </code>
+              {limits.length > 0 && (
+                <span className="block text-[10px] text-muted-foreground mt-0.5">{limits.join(' · ')}</span>
+              )}
+            </div>
+          );
+        },
       }),
       columnHelper.accessor('replyContent', {
         header: t('replies.reply_content'),
-        cell: (info) => (
-          <span className="text-sm text-muted-foreground">
-            {truncate(info.getValue(), 50)}
-          </span>
-        ),
+        cell: (info) => {
+          const row = info.row.original;
+          const extraResults = (row.results?.length ?? 1) - 1;
+          return (
+            <span className="text-sm text-muted-foreground">
+              {truncate(info.getValue(), 50)}
+              {extraResults > 0 && (
+                <Badge variant="outline" className="ml-1 text-[10px]" title={t('replies.more_results_hint')}>
+                  ×{extraResults + 1}
+                </Badge>
+              )}
+            </span>
+          );
+        },
       }),
       columnHelper.accessor('priority', {
         header: t('replies.priority'),
