@@ -1661,9 +1661,11 @@
     "overwrite": "既存ファイルを上書き（既定はスキップ）",
     "deck_result": "デッキインポート結果",
     "mod_result": "モッドインポート結果",
+    "plugin_result": "プラグインインポート結果",
     "need_dir": "旧版データのディレクトリパスを入力してください",
     "done": "インポート完了",
-    "done_desc": "デッキ: {{decks}} 成功、モッド: {{mods}} 成功",
+    "done_desc": "デッキ: {{decks}} 成功、モッド: {{mods}} 成功、プラグイン: {{plugins}} 成功",
+    "summary": "クロスグループリンク {{links}} 件、通知ウィンドウ {{notices}} 件、旧版のセッション {{sessions}} 件とログ {{logs}} 件（{{logMessages}} レコード）を変換しました。元のディレクトリは残し、テストグループで確認してください。",
     "fail": "インポート失敗: {{msg}}"
   },
   "chatcfg": {

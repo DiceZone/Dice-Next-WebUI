@@ -1005,17 +1005,21 @@ const LegacyImportCard: React.FC = () => {
   const [importing, setImporting] = useState(false);
   const [deckResult, setDeckResult] = useState<ImportResultData | null>(null);
   const [modResult, setModResult] = useState<ImportResultData | null>(null);
+  const [pluginResult, setPluginResult] = useState<ImportResultData | null>(null);
+  const [summary, setSummary] = useState<{ links: number; notices: number; sessions: number; logs: number; logMessages: number } | null>(null);
 
   const handleImport = async () => {
     if (!dir.trim()) { toast({ title: t('legacy_import.need_dir'), variant: 'destructive' }); return; }
     setImporting(true);
-    setDeckResult(null); setModResult(null);
+    setDeckResult(null); setModResult(null); setPluginResult(null); setSummary(null);
     try {
-      const res = await apiClient.post<{ decks?: ImportResultData; mods?: ImportResultData }>('/legacy/import', { dir: dir.trim(), overwrite });
+      const res = await apiClient.post<{ decks?: ImportResultData; mods?: ImportResultData; plugins?: ImportResultData; links?: number; notices?: number; sessions?: number; logs?: number; logMessages?: number }>('/legacy/import', { dir: dir.trim(), overwrite });
       const data = res.data;
       if (data?.decks) setDeckResult(data.decks);
       if (data?.mods) setModResult(data.mods);
-      toast({ title: t('legacy_import.done'), description: t('legacy_import.done_desc', { decks: data?.decks?.success ?? 0, mods: data?.mods?.success ?? 0 }) });
+      if (data?.plugins) setPluginResult(data.plugins);
+      setSummary({ links: data?.links ?? 0, notices: data?.notices ?? 0, sessions: data?.sessions ?? 0, logs: data?.logs ?? 0, logMessages: data?.logMessages ?? 0 });
+      toast({ title: t('legacy_import.done'), description: t('legacy_import.done_desc', { decks: data?.decks?.success ?? 0, mods: data?.mods?.success ?? 0, plugins: data?.plugins?.success ?? 0 }) });
     } catch (e) {
       toast({ title: t('legacy_import.fail', { msg: (e as Error).message }), variant: 'destructive' });
     } finally {
@@ -1043,6 +1047,8 @@ const LegacyImportCard: React.FC = () => {
         </div>
         {deckResult && <ImportResultCard title={t('legacy_import.deck_result')} result={deckResult} />}
         {modResult && <ImportResultCard title={t('legacy_import.mod_result')} result={modResult} />}
+        {pluginResult && <ImportResultCard title={t('legacy_import.plugin_result')} result={pluginResult} />}
+        {summary && <p className="text-xs text-muted-foreground">{t('legacy_import.summary', summary)}</p>}
       </CardContent>
     </Card>
   );
