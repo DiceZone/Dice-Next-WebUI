@@ -11,6 +11,7 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const { t } = useTranslation();
   const [state, setState] = useState<'loading' | 'login' | 'ok'>('loading');
   const [pw, setPw] = useState('');
+  const [trustDevice, setTrustDevice] = useState(false);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -32,7 +33,7 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
     try {
       const r = await fetch('/api/auth/login', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: pw }),
+        body: JSON.stringify({ password: pw, trust_device: trustDevice }),
       });
       if (!r.ok) { setErr(t('auth.wrong')); setBusy(false); return; }
       setPw('');
@@ -69,6 +70,10 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
           placeholder={t('auth.prompt')}
           className="mb-4 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none transition-shadow focus:ring-2 focus:ring-ring/40"
         />
+        <label className="mb-4 flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+          <input type="checkbox" checked={trustDevice} onChange={(e) => setTrustDevice(e.target.checked)} />
+          信任此设备 30 天
+        </label>
         {err && <p className="mb-3 text-sm text-destructive">{err}</p>}
         <button
           type="submit"
