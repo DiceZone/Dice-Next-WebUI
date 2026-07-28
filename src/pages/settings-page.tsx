@@ -14,9 +14,8 @@ import { useDialogs } from '@/hooks/use-dialogs';
 import type { LucideIcon } from 'lucide-react';
 import {
   SlidersHorizontal, Crown, Plus, Trash2, ShieldCheck, Zap,
-  Image, Type, Server, Database, Clock, ScrollText, HeartPulse,
+  Image, Type, Server, Clock, ScrollText, HeartPulse,
 } from 'lucide-react';
-import { ImportResultCard, type ImportResultData } from '@/components/import/import-result-card';
 import { apiClient } from '@/lib/api-client';
 
 interface Master { platform: string; id: string; }
@@ -711,9 +710,6 @@ export const SettingsPage: React.FC = () => {
       </Card>
       {/* 聊天记录保留期 */}
       <ChatRetentionCard />
-      {/* 旧版数据导入 */}
-      <LegacyImportCard />
-
       <SectionHeading>{t('settings.sec_maintenance')}</SectionHeading>
 
       <SettingGroup>
@@ -991,64 +987,6 @@ const UserGroupCard: React.FC = () => {
           <Label className="text-sm font-normal">{t('usergroup.invite')}</Label>
         </div>
         <p className="text-xs text-muted-foreground">{t('usergroup.hint')}</p>
-      </CardContent>
-    </Card>
-  );
-};
-
-// ── C#30: Legacy Import Card with structured results ──────────────
-const LegacyImportCard: React.FC = () => {
-  const { t } = useTranslation();
-  const toast = useToast();
-  const [dir, setDir] = useState('');
-  const [overwrite, setOverwrite] = useState(false);
-  const [importing, setImporting] = useState(false);
-  const [deckResult, setDeckResult] = useState<ImportResultData | null>(null);
-  const [modResult, setModResult] = useState<ImportResultData | null>(null);
-  const [pluginResult, setPluginResult] = useState<ImportResultData | null>(null);
-  const [summary, setSummary] = useState<{ links: number; notices: number; sessions: number; logs: number; logMessages: number } | null>(null);
-
-  const handleImport = async () => {
-    if (!dir.trim()) { toast({ title: t('legacy_import.need_dir'), variant: 'destructive' }); return; }
-    setImporting(true);
-    setDeckResult(null); setModResult(null); setPluginResult(null); setSummary(null);
-    try {
-      const res = await apiClient.post<{ decks?: ImportResultData; mods?: ImportResultData; plugins?: ImportResultData; links?: number; notices?: number; sessions?: number; logs?: number; logMessages?: number }>('/legacy/import', { dir: dir.trim(), overwrite });
-      const data = res.data;
-      if (data?.decks) setDeckResult(data.decks);
-      if (data?.mods) setModResult(data.mods);
-      if (data?.plugins) setPluginResult(data.plugins);
-      setSummary({ links: data?.links ?? 0, notices: data?.notices ?? 0, sessions: data?.sessions ?? 0, logs: data?.logs ?? 0, logMessages: data?.logMessages ?? 0 });
-      toast({ title: t('legacy_import.done'), description: t('legacy_import.done_desc', { decks: data?.decks?.success ?? 0, mods: data?.mods?.success ?? 0, plugins: data?.plugins?.success ?? 0 }) });
-    } catch (e) {
-      toast({ title: t('legacy_import.fail', { msg: (e as Error).message }), variant: 'destructive' });
-    } finally {
-      setImporting(false);
-    }
-  };
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base flex items-center gap-2"><Database className="h-4 w-4" />{t('legacy_import.title')}</CardTitle>
-        <CardDescription>{t('legacy_import.desc')}</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="flex items-end gap-2">
-          <div className="flex-1 space-y-1">
-            <Label className="text-xs">{t('legacy_import.dir_label')}</Label>
-            <Input value={dir} onChange={(e) => setDir(e.target.value)} placeholder="./data/legacy" className="h-9" />
-          </div>
-          <Button onClick={handleImport} disabled={importing}>{importing ? t('legacy_import.importing') : t('legacy_import.start')}</Button>
-        </div>
-        <div className="flex items-center gap-2">
-          <Switch checked={overwrite} onCheckedChange={setOverwrite} />
-          <Label className="text-sm font-normal">{t('legacy_import.overwrite')}</Label>
-        </div>
-        {deckResult && <ImportResultCard title={t('legacy_import.deck_result')} result={deckResult} />}
-        {modResult && <ImportResultCard title={t('legacy_import.mod_result')} result={modResult} />}
-        {pluginResult && <ImportResultCard title={t('legacy_import.plugin_result')} result={pluginResult} />}
-        {summary && <p className="text-xs text-muted-foreground">{t('legacy_import.summary', summary)}</p>}
       </CardContent>
     </Card>
   );

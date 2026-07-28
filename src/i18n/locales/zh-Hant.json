@@ -1650,6 +1650,12 @@
     "subtitle": "匯入舊版 Dice! 資料與備份恢復。",
     "backup_restore_title": "備份 / 恢復",
     "backup_restore_desc": "一鍵備份當前的所有資料與設定，或從備份檔案恢復。",
+    "backup_downloaded": "備份已下載",
+    "backup_fail": "備份或恢復失敗",
+    "restore_confirm": "恢復會在下次重新啟動 Dice!Next 時生效，並會保留目前資料作為回滾副本。確定繼續嗎？",
+    "restore_staged": "備份已暫存",
+    "restore_staged_desc": "請重新啟動 Dice!Next 以完成恢復。",
+    "restore_warning": "恢復會在下次重新啟動後套用，目前的 data/ 與設定會保留為回滾副本。",
     "not_implemented": "此功能尚未實現，敬請期待"
   },
   "legacy_import": {

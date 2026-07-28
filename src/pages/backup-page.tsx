@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Archive, Database, Loader2 } from 'lucide-react';
+import { Archive, Database, Download, Loader2, Upload } from 'lucide-react';
 
 export const BackupPage: React.FC = () => {
   const { t } = useTranslation();
@@ -12,6 +12,9 @@ export const BackupPage: React.FC = () => {
   const [legacyDir, setLegacyDir] = useState('');
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<string>('');
+  const [backingUp, setBackingUp] = useState(false);
+  const [restoring, setRestoring] = useState(false);
+  const restoreFileRef = useRef<HTMLInputElement>(null);
 
   const runImport = async () => {
     if (!legacyDir.trim()) return;
@@ -31,6 +34,39 @@ export const BackupPage: React.FC = () => {
       toast({ title: t('backup.legacy_done') });
     } catch (e) { setImportResult(''); toast({ title: t('backup.legacy_fail'), description: String(e), variant: 'destructive' }); }
     finally { setImporting(false); }
+  };
+
+  const downloadBackup = async () => {
+    setBackingUp(true);
+    try {
+      const r = await fetch('/api/backup/export');
+      if (!r.ok) throw new Error(await r.text());
+      const blob = await r.blob();
+      const name = r.headers.get('Content-Disposition')?.match(/filename="?([^";]+)"?/i)?.[1] ?? 'DiceNext-backup.tar.gz';
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = name; a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: t('backup.backup_downloaded') });
+    } catch (e) {
+      toast({ title: t('backup.backup_fail'), description: String(e), variant: 'destructive' });
+    } finally { setBackingUp(false); }
+  };
+
+  const stageRestore = async (file?: File) => {
+    if (!file) return;
+    if (!window.confirm(t('backup.restore_confirm'))) return;
+    setRestoring(true);
+    try {
+      const r = await fetch('/api/backup/restore', { method: 'POST', headers: { 'Content-Type': 'application/gzip' }, body: file });
+      const j = await r.json();
+      if (j.code !== 0) throw new Error(j.message);
+      toast({ title: t('backup.restore_staged'), description: t('backup.restore_staged_desc') });
+    } catch (e) {
+      toast({ title: t('backup.backup_fail'), description: String(e), variant: 'destructive' });
+    } finally {
+      setRestoring(false);
+      if (restoreFileRef.current) restoreFileRef.current.value = '';
+    }
   };
 
   return (
@@ -58,14 +94,22 @@ export const BackupPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* 备份 / 恢复（尚未实现） */}
-      <Card className="border-dashed">
+      <Card>
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2 text-muted-foreground"><Archive className="h-4 w-4" />{t('backup.backup_restore_title')}</CardTitle>
+          <CardTitle className="text-base flex items-center gap-2"><Archive className="h-4 w-4" />{t('backup.backup_restore_title')}</CardTitle>
           <CardDescription>{t('backup.backup_restore_desc')}</CardDescription>
         </CardHeader>
-        <CardContent>
-          <p className="text-xs text-muted-foreground">{t('backup.not_implemented')}</p>
+        <CardContent className="space-y-3">
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={downloadBackup} disabled={backingUp}>
+              {backingUp ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}{t('common.download')}
+            </Button>
+            <Button variant="outline" onClick={() => restoreFileRef.current?.click()} disabled={restoring}>
+              {restoring ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}{t('common.upload')}
+            </Button>
+            <input ref={restoreFileRef} className="hidden" type="file" accept=".tar.gz,application/gzip" onChange={(e) => void stageRestore(e.target.files?.[0])} />
+          </div>
+          <p className="text-xs text-amber-600 dark:text-amber-400">{t('backup.restore_warning')}</p>
         </CardContent>
       </Card>
     </div>
