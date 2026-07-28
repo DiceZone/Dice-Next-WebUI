@@ -4,14 +4,20 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Archive, Clock3, Database, Download, Loader2, Save, Trash2, Upload } from 'lucide-react';
+import { Archive, Clock3, Database, Download, Loader2, RotateCcw, Save, Trash2, Upload } from 'lucide-react';
 
 type StoredBackup = { name: string; size: number; createdAt: number; automatic: boolean };
-type AutoBackupConfig = { enabled: boolean; schedule: 'interval' | 'daily'; intervalHours: number; dailyTime: string; keepCount: number; lastAutoAt: number };
+type BackupSelection = { config: boolean; databases: boolean; logs: boolean; resources: boolean; plugins: boolean; media: boolean };
+type AutoBackupConfig = { enabled: boolean; schedule: 'interval' | 'daily'; intervalHours: number; dailyTime: string; keepDays: number; selection: BackupSelection; lastAutoAt: number };
+const defaultSelection: BackupSelection = { config: true, databases: true, logs: true, resources: true, plugins: true, media: true };
 
 const formatSize = (bytes: number) => bytes < 1024 * 1024
   ? `${Math.max(1, Math.round(bytes / 1024))} KB`
   : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+const selectionFields: Array<[keyof BackupSelection, string]> = [
+  ['config', '系统配置'], ['databases', '人物卡与数据库'], ['logs', '跑团与运行日志'],
+  ['resources', '牌堆、规则包与帮助'], ['plugins', 'JS / Lua 插件'], ['media', '本地图片与聊天媒体'],
+];
 
 export const BackupPage: React.FC = () => {
   const { t } = useTranslation();
@@ -22,7 +28,8 @@ export const BackupPage: React.FC = () => {
   const [backingUp, setBackingUp] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [archives, setArchives] = useState<StoredBackup[]>([]);
-  const [autoConfig, setAutoConfig] = useState<AutoBackupConfig>({ enabled: false, schedule: 'interval', intervalHours: 24, dailyTime: '04:00', keepCount: 7, lastAutoAt: 0 });
+  const [selection, setSelection] = useState<BackupSelection>(defaultSelection);
+  const [autoConfig, setAutoConfig] = useState<AutoBackupConfig>({ enabled: false, schedule: 'interval', intervalHours: 24, dailyTime: '04:00', keepDays: 7, selection: defaultSelection, lastAutoAt: 0 });
   const [savingAuto, setSavingAuto] = useState(false);
   const restoreFileRef = useRef<HTMLInputElement>(null);
 
@@ -63,36 +70,43 @@ export const BackupPage: React.FC = () => {
     finally { setImporting(false); }
   };
 
-  const downloadBackup = async () => {
+  const createStoredBackup = async () => {
     setBackingUp(true);
     try {
-      const r = await fetch('/api/backup/export');
-      if (!r.ok) throw new Error(await r.text());
-      const blob = await r.blob();
-      const name = r.headers.get('Content-Disposition')?.match(/filename="?([^";]+)"?/i)?.[1] ?? 'DiceNext-backup.zip';
-      saveBlob(blob, name);
-      toast({ title: t('backup.backup_downloaded') });
-      void loadBackupState();
+      const r = await fetch('/api/backup/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ selection }) });
+      const j = await r.json(); if (j.code !== 0) throw new Error(j.message);
+      toast({ title: '备份已保存到服务器', description: j.data?.name }); await loadBackupState();
     } catch (e) {
       toast({ title: t('backup.backup_fail'), description: String(e), variant: 'destructive' });
     } finally { setBackingUp(false); }
   };
 
-  const downloadStored = async (name: string) => {
+  const downloadStored = async (name: string, automatic: boolean) => {
     try {
-      const r = await fetch(`/api/backup/download?name=${encodeURIComponent(name)}`);
+      const r = await fetch(`/api/backup/download?name=${encodeURIComponent(name)}&automatic=${automatic ? '1' : '0'}`);
       if (!r.ok) throw new Error(await r.text());
       saveBlob(await r.blob(), name);
     } catch (e) { toast({ title: t('backup.backup_fail'), description: String(e), variant: 'destructive' }); }
   };
 
-  const deleteStored = async (name: string) => {
+  const deleteStored = async (name: string, automatic: boolean) => {
     if (!window.confirm(`确定删除备份「${name}」吗？此操作无法撤销。`)) return;
     try {
-      const r = await fetch(`/api/backup/${encodeURIComponent(name)}`, { method: 'DELETE' }); const j = await r.json();
+      const r = await fetch(`/api/backup/${encodeURIComponent(name)}?automatic=${automatic ? '1' : '0'}`, { method: 'DELETE' }); const j = await r.json();
       if (j.code !== 0) throw new Error(j.message);
       await loadBackupState();
     } catch (e) { toast({ title: '删除备份失败', description: String(e), variant: 'destructive' }); }
+  };
+
+  const restoreStored = async (name: string, automatic: boolean) => {
+    if (!window.confirm(`确定使用服务器中的备份「${name}」恢复吗？当前数据会在重启时被替换，并保留回滚副本。`)) return;
+    setRestoring(true);
+    try {
+      const r = await fetch('/api/backup/restore-stored', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, automatic }) });
+      const j = await r.json(); if (j.code !== 0) throw new Error(j.message);
+      toast({ title: '恢复已暂存', description: '请重启 Dice!Next 以安全应用该备份。' });
+    } catch (e) { toast({ title: '恢复暂存失败', description: String(e), variant: 'destructive' }); }
+    finally { setRestoring(false); }
   };
 
   const saveAutoConfig = async () => {
@@ -154,14 +168,18 @@ export const BackupPage: React.FC = () => {
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex flex-wrap gap-2">
-            <Button onClick={downloadBackup} disabled={backingUp}>
-              {backingUp ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}{t('common.download')}
+            <Button onClick={createStoredBackup} disabled={backingUp}>
+              {backingUp ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Archive className="mr-2 h-4 w-4" />}立即备份到服务器
             </Button>
             <Button variant="outline" onClick={() => restoreFileRef.current?.click()} disabled={restoring}>
               {restoring ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}{t('common.upload')}
             </Button>
             <input ref={restoreFileRef} className="hidden" type="file" accept=".zip,application/zip" onChange={(e) => void stageRestore(e.target.files?.[0])} />
           </div>
+          <div className="grid gap-2 sm:grid-cols-3">
+            {selectionFields.map(([key, label]) => <label key={key} className="flex items-center gap-2 rounded border px-3 py-2 text-sm"><input type="checkbox" checked={selection[key]} onChange={(e) => setSelection({ ...selection, [key]: e.target.checked })} />{label}</label>)}
+          </div>
+          <p className="text-xs text-muted-foreground">勾选全部项目会生成完整恢复快照；只勾选部分项目时，恢复将仅覆盖对应内容。</p>
           <p className="text-xs text-amber-600 dark:text-amber-400">{t('backup.restore_warning')}</p>
         </CardContent>
       </Card>
@@ -169,7 +187,7 @@ export const BackupPage: React.FC = () => {
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2"><Clock3 className="h-4 w-4" />自动备份</CardTitle>
-          <CardDescription>自动备份始终保存完整配置和 data/ 数据；可按间隔或每日时刻执行，并自动仅保留最新指定数量。</CardDescription>
+          <CardDescription>自动备份保存到 data/backups/；可按间隔或每日时刻执行，并按最近保留天数自动清理。</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={autoConfig.enabled} onChange={(e) => setAutoConfig({ ...autoConfig, enabled: e.target.checked })} />启用自动备份</label>
@@ -181,7 +199,10 @@ export const BackupPage: React.FC = () => {
             </label>
             {autoConfig.schedule === 'interval' ? <label className="space-y-1 text-sm">间隔（小时，1–720）<Input type="number" min={1} max={720} value={autoConfig.intervalHours} onChange={(e) => setAutoConfig({ ...autoConfig, intervalHours: Number(e.target.value) })} /></label>
               : <label className="space-y-1 text-sm">每日执行时间<Input type="time" value={autoConfig.dailyTime} onChange={(e) => setAutoConfig({ ...autoConfig, dailyTime: e.target.value })} /></label>}
-            <label className="space-y-1 text-sm">保留最新（1–100）<Input type="number" min={1} max={100} value={autoConfig.keepCount} onChange={(e) => setAutoConfig({ ...autoConfig, keepCount: Number(e.target.value) })} /></label>
+            <label className="space-y-1 text-sm">保留最近天数（1–3650）<Input type="number" min={1} max={3650} value={autoConfig.keepDays} onChange={(e) => setAutoConfig({ ...autoConfig, keepDays: Number(e.target.value) })} /></label>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-3">
+            {selectionFields.map(([key, label]) => <label key={key} className="flex items-center gap-2 rounded border px-3 py-2 text-sm"><input type="checkbox" checked={autoConfig.selection[key]} onChange={(e) => setAutoConfig({ ...autoConfig, selection: { ...autoConfig.selection, [key]: e.target.checked } })} />{label}</label>)}
           </div>
           <Button variant="outline" onClick={() => void saveAutoConfig()} disabled={savingAuto}>{savingAuto ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}保存自动备份设置</Button>
         </CardContent>
@@ -190,7 +211,7 @@ export const BackupPage: React.FC = () => {
       <Card>
         <CardHeader><CardTitle className="text-base">已保存的备份</CardTitle><CardDescription>手动备份保存在程序目录的 backups/，自动备份保存在 data/backups/；均可随时重新下载或删除。</CardDescription></CardHeader>
         <CardContent className="p-0">
-          {archives.length === 0 ? <p className="px-6 py-8 text-center text-sm text-muted-foreground">暂无已保存的备份。</p> : <div className="overflow-x-auto"><table className="w-full text-sm"><thead className="border-y bg-muted/50 text-muted-foreground"><tr><th className="p-3 text-left">文件</th><th className="p-3 text-left">来源</th><th className="p-3 text-left">大小</th><th className="p-3 text-left">创建时间</th><th className="p-3 text-right">操作</th></tr></thead><tbody>{archives.map((item) => <tr key={item.name} className="border-b last:border-0"><td className="p-3 font-mono text-xs">{item.name}</td><td className="p-3">{item.automatic ? '自动' : '手动'}</td><td className="p-3">{formatSize(item.size)}</td><td className="p-3 whitespace-nowrap">{new Date(item.createdAt * 1000).toLocaleString()}</td><td className="p-3 text-right whitespace-nowrap"><Button size="sm" variant="ghost" onClick={() => void downloadStored(item.name)}><Download className="mr-1 h-4 w-4" />下载</Button><Button size="icon" variant="ghost" className="text-destructive" onClick={() => void deleteStored(item.name)}><Trash2 className="h-4 w-4" /></Button></td></tr>)}</tbody></table></div>}
+          {archives.length === 0 ? <p className="px-6 py-8 text-center text-sm text-muted-foreground">暂无已保存的备份。</p> : <div className="overflow-x-auto"><table className="w-full text-sm"><thead className="border-y bg-muted/50 text-muted-foreground"><tr><th className="p-3 text-left">文件</th><th className="p-3 text-left">来源</th><th className="p-3 text-left">大小</th><th className="p-3 text-left">创建时间</th><th className="p-3 text-right">操作</th></tr></thead><tbody>{archives.map((item) => <tr key={`${item.automatic}-${item.name}`} className="border-b last:border-0"><td className="p-3 font-mono text-xs">{item.name}</td><td className="p-3">{item.automatic ? '自动' : '手动'}</td><td className="p-3">{formatSize(item.size)}</td><td className="p-3 whitespace-nowrap">{new Date(item.createdAt * 1000).toLocaleString()}</td><td className="p-3 text-right whitespace-nowrap"><Button size="sm" variant="ghost" disabled={restoring} onClick={() => void restoreStored(item.name, item.automatic)}><RotateCcw className="mr-1 h-4 w-4" />恢复</Button><Button size="sm" variant="ghost" onClick={() => void downloadStored(item.name, item.automatic)}><Download className="mr-1 h-4 w-4" />下载</Button><Button size="icon" variant="ghost" className="text-destructive" onClick={() => void deleteStored(item.name, item.automatic)}><Trash2 className="h-4 w-4" /></Button></td></tr>)}</tbody></table></div>}
         </CardContent>
       </Card>
     </div>
