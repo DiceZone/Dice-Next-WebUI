@@ -21,8 +21,13 @@ export const BackupPage: React.FC = () => {
       const j = await r.json();
       if (j.code !== 0) throw new Error(j.message);
       const d = j.data;
+      const importedFiles = (value: unknown) => typeof value === 'number'
+        ? value
+        : (value && typeof value === 'object' && 'success' in value
+          ? Number((value as { success?: unknown }).success ?? 0)
+          : 0);
       setImportResult(t('backup.legacy_result', { cards: d.cards, users: d.profiles, black: d.blacklist, replies: d.replies, help: d.help, msgs: d.msgs, masters: d.masters })
-        + '\n' + t('backup.legacy_result2', { mods: d.mods ?? 0, decks: d.decks ?? 0, groups: d.chatGroups ?? 0, settings: d.chatSettings ?? 0 }));
+        + '\n' + t('backup.legacy_result2', { mods: importedFiles(d.mods), decks: importedFiles(d.decks), groups: d.chatGroups ?? 0, settings: d.chatSettings ?? 0 }));
       toast({ title: t('backup.legacy_done') });
     } catch (e) { setImportResult(''); toast({ title: t('backup.legacy_fail'), description: String(e), variant: 'destructive' }); }
     finally { setImporting(false); }

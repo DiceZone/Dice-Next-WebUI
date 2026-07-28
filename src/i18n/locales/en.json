@@ -1661,9 +1661,11 @@
     "overwrite": "Overwrite existing files (skipped by default)",
     "deck_result": "Deck import result",
     "mod_result": "Mod import result",
+    "plugin_result": "Plugin import result",
     "need_dir": "Enter the legacy data directory path",
     "done": "Import complete",
-    "done_desc": "Decks: {{decks}} ok, mods: {{mods}} ok",
+    "done_desc": "Decks: {{decks}} ok, mods: {{mods}} ok, plugins: {{plugins}} ok",
+    "summary": "Converted {{links}} message links, {{notices}} notification windows, {{sessions}} legacy game sessions and {{logs}} transcripts ({{logMessages}} records). Keep the original directory and verify the result in a test group.",
     "fail": "Import failed: {{msg}}"
   },
   "chatcfg": {

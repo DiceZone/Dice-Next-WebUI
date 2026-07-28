@@ -1613,16 +1613,18 @@
   },
   "legacy_import": {
     "title": "旧版数据导入",
-    "desc": "导入原版 Dice! V2 数据目录（牌堆、模组、人物卡等）",
+    "desc": "导入原版 Dice! V2 数据目录。旧目录会保留；登录凭据和 WebUI 密码不会迁移。",
     "dir_label": "旧版数据目录路径",
     "importing": "导入中…",
     "start": "开始导入",
     "overwrite": "覆盖已存在的文件（默认跳过）",
     "deck_result": "牌堆导入结果",
     "mod_result": "模组导入结果",
+    "plugin_result": "插件导入结果",
     "need_dir": "请输入旧版数据目录路径",
     "done": "导入完成",
-    "done_desc": "牌堆: {{decks}} 成功, 模组: {{mods}} 成功",
+    "done_desc": "牌堆: {{decks}} 成功，模组: {{mods}} 成功，插件: {{plugins}} 成功",
+    "summary": "已转换 {{links}} 条跨群链接、{{notices}} 个通知窗口、{{sessions}} 个旧版团务会话、{{logs}} 份跑团日志（{{logMessages}} 条记录）。请保留旧目录并在测试群核对结果。",
     "fail": "导入失败：{{msg}}"
   },
   "chatcfg": {

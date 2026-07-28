@@ -1661,9 +1661,11 @@
     "overwrite": "覆蓋已存在的檔案（預設跳過）",
     "deck_result": "牌堆匯入結果",
     "mod_result": "模組匯入結果",
+    "plugin_result": "插件匯入結果",
     "need_dir": "請輸入舊版資料目錄路徑",
     "done": "匯入完成",
-    "done_desc": "牌堆: {{decks}} 成功, 模組: {{mods}} 成功",
+    "done_desc": "牌堆: {{decks}} 成功，模組: {{mods}} 成功，插件: {{plugins}} 成功",
+    "summary": "已轉換 {{links}} 條跨群連結、{{notices}} 個通知視窗、{{sessions}} 個舊版團務會話、{{logs}} 份跑團日誌（{{logMessages}} 條記錄）。請保留舊目錄並在測試群核對結果。",
     "fail": "匯入失敗：{{msg}}"
   },
   "chatcfg": {
