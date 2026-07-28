@@ -1650,6 +1650,12 @@
     "subtitle": "Import legacy Dice! data, and back up / restore.",
     "backup_restore_title": "Backup / Restore",
     "backup_restore_desc": "One-click back up all current data and config, or restore from a backup file.",
+    "backup_downloaded": "Backup downloaded",
+    "backup_fail": "Backup or restore failed",
+    "restore_confirm": "The restore will be applied the next time Dice!Next starts. Current data will be retained as a rollback copy. Continue?",
+    "restore_staged": "Backup staged",
+    "restore_staged_desc": "Restart Dice!Next to complete the restore.",
+    "restore_warning": "The restore is applied after the next restart. The current data/ directory and configuration are retained as a rollback copy.",
     "not_implemented": "This feature is not implemented yet — stay tuned."
   },
   "legacy_import": {

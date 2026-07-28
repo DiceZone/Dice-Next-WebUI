@@ -1051,6 +1051,12 @@
     "legacy_fail": "导入失败",
     "backup_restore_title": "备份 / 恢复",
     "backup_restore_desc": "一键备份当前所有数据与配置，或从备份文件恢复。",
+    "backup_downloaded": "备份已下载",
+    "backup_fail": "备份或恢复失败",
+    "restore_confirm": "恢复将在下次重启 Dice!Next 时生效，并会保留当前数据作为回滚副本。确认继续吗？",
+    "restore_staged": "备份已暂存",
+    "restore_staged_desc": "请重启 Dice!Next 以完成恢复。",
+    "restore_warning": "恢复会在下次重启后应用，当前 data/ 与配置会保留为回滚副本。",
     "not_implemented": "此功能尚未实现，敬请期待。"
   },
   "groups": {

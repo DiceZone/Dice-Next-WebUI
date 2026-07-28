@@ -1650,6 +1650,12 @@
     "subtitle": "旧版 Dice! データのインポートとバックアップ/復元。",
     "backup_restore_title": "バックアップ / 復元",
     "backup_restore_desc": "現在の全データと設定をワンクリックでバックアップ、またはバックアップファイルから復元。",
+    "backup_downloaded": "バックアップをダウンロードしました",
+    "backup_fail": "バックアップまたは復元に失敗しました",
+    "restore_confirm": "復元は次回 Dice!Next を起動したときに適用され、現在のデータはロールバック用に保持されます。続行しますか？",
+    "restore_staged": "バックアップを準備しました",
+    "restore_staged_desc": "Dice!Next を再起動して復元を完了してください。",
+    "restore_warning": "復元は次回の再起動後に適用されます。現在の data/ と設定はロールバック用に保持されます。",
     "not_implemented": "この機能はまだ実装されていません。お楽しみに。"
   },
   "legacy_import": {
