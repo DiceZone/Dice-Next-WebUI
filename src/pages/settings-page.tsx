@@ -885,11 +885,14 @@ const HeartbeatCard: React.FC = () => {
             onChange={(e) => setC({ ...c, url: e.target.value })} placeholder="https://heart.dice.zone" />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">Access Token</Label>
+          <Label className="text-xs">{t('settings.heartbeat_api_key')}</Label>
           <Input className="h-8 text-sm" type="password" value={token} onChange={(e) => setToken(e.target.value)}
             placeholder={c.token_set ? t('settings.heartbeat_token_set_ph', { tail: c.token_tail }) : t('settings.heartbeat_token_unset_ph')} />
           <p className="text-[11px] text-muted-foreground">
-            {t('settings.heartbeat_token_hint')}<a href="https://heart.dice.zone" target="_blank" rel="noreferrer" className="underline text-primary">heart.dice.zone</a>
+            {t('settings.heartbeat_token_hint')}
+            <a href="https://account.dice.zone/dashboard/bindings" target="_blank" rel="noreferrer" className="underline text-primary">
+              {t('settings.heartbeat_api_key_link')}
+            </a>
           </p>
         </div>
         <div className="flex items-center justify-between gap-4">
