@@ -139,6 +139,55 @@ const ImageSendCard: React.FC = () => {
   );
 };
 
+// ── 消息发送形式（传统文本 / 平台富卡片）──────────────────────
+interface MessageFormatConf { mode?: 'traditional' | 'card'; }
+
+const MessageFormatCard: React.FC = () => {
+  const toast = useToast();
+  const [mode, setMode] = useState<MessageFormatConf['mode']>('traditional');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const d = await getJson('/system/message-format') as MessageFormatConf;
+        setMode(d.mode === 'card' ? 'card' : 'traditional');
+      } catch { /* ignore */ }
+    })();
+  }, []);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await putJson('/system/message-format', { mode: mode === 'card' ? 'card' : 'traditional' });
+      toast({ title: '消息发送形式已保存' });
+    } catch (e) { toast({ title: (e as Error).message, variant: 'destructive' }); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base flex items-center gap-2"><Type className="h-4 w-4" />消息发送形式</CardTitle>
+        <CardDescription>控制支持富消息的平台如何展示骰娘回复；OneBot 始终保持传统文本。</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <Select value={mode || 'traditional'} onValueChange={(value) => setMode(value === 'card' ? 'card' : 'traditional')}>
+          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="traditional">传统文本</SelectItem>
+            <SelectItem value="card">卡片消息</SelectItem>
+          </SelectContent>
+        </Select>
+        {mode === 'card' && (
+          <p className="text-xs text-muted-foreground">Discord 使用 Embed，KOOK 使用 CardMessage，QQ 官方机器人优先发送 Markdown。若 QQ 机器人未获 Markdown 权限，系统会自动退回传统文本；过长回复也会保持文本，避免截断。</p>
+        )}
+        <div className="flex justify-end"><Button size="sm" onClick={save} disabled={saving}>{saving ? '保存中…' : '保存'}</Button></div>
+      </CardContent>
+    </Card>
+  );
+};
+
 // ── 图床配置组件 ────────────────────────────────────────
 interface ImageHostConf { mode?: string; url?: string; file_field?: string; result_path?: string; public_base?: string; headers?: string[]; }
 
@@ -666,6 +715,8 @@ export const SettingsPage: React.FC = () => {
           <Button size="sm" onClick={saveNickWrap} disabled={nickSaving}>{t('common.save')}</Button>
         </SettingRow>
       </SettingGroup>
+
+      <MessageFormatCard />
 
       <SectionHeading>{t('settings.sec_image')}</SectionHeading>
 
