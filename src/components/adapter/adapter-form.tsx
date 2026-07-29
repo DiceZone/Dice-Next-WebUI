@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { HelpCircle } from 'lucide-react';
+import { HelpCircle, QrCode, ScanLine } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useToast } from '@/hooks/use-toast';
 import type { Adapter, AdapterFormData, AdapterType } from '@/types/adapter';
@@ -91,6 +91,14 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
   }, [open, adapter, reset]);
 
   React.useEffect(() => () => { qrPollingRef.current = false; }, []);
+
+  React.useEffect(() => {
+    if (!open) {
+      qrPollingRef.current = false;
+      setQr(null);
+      setQrBusy(false);
+    }
+  }, [open]);
 
   const handleFormSubmit = async (data: FormValues) => {
     if (data.type === 'discord' || data.type === 'kook') {
@@ -198,7 +206,7 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className={official ? 'max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-[760px]' : 'max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-[500px]'}>
         <DialogHeader>
           <DialogTitle>{isEdit ? t('adapters.edit_title') : t('adapters.add_title')}</DialogTitle>
           <DialogDescription>{isEdit ? t('adapters.edit_subtitle') : t('adapters.add_subtitle')}</DialogDescription>
@@ -232,11 +240,30 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
              {errors.accessToken && <p className="text-xs text-destructive">{errors.accessToken.message}</p>}
            </div>
           </> : official ? <>
-          <div className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">QQ 官方机器人使用官方 Gateway WebSocket，不使用 OneBot 或 Webhook。可直接填写凭据，或扫码后自动填入。</div>
-           <div className="rounded-md border p-3 space-y-2"><Button type="button" variant="outline" size="sm" onClick={startQrLogin} disabled={qrBusy}>{qrBusy ? '等待扫码中…' : '扫码绑定 QQ 官方机器人'}</Button>{qr && <><QRCodeSVG className="mx-auto h-44 w-44" value={qr.url} size={176} level="M" includeMargin aria-label="QQ 官方机器人绑定二维码" /><p className="text-xs text-muted-foreground">请使用手机 QQ 扫码；成功后会自动填入 AppID 和 AppSecret。</p></>}</div>
-           <div className="space-y-2"><Label htmlFor="appId">AppID</Label><Input id="appId" autoComplete="off" {...register('appId')} />{errors.appId && <p className="text-xs text-destructive">{errors.appId.message}</p>}</div>
-           <div className="space-y-2"><Label htmlFor="appSecret">AppSecret{isEdit ? '（留空保持不变）' : ''}</Label><Input id="appSecret" type="password" autoComplete="new-password" {...register('appSecret')} /></div>
-           <div className="space-y-2"><Label htmlFor="qqNumber">官方机器人真实 QQ 号（可选）</Label><Input id="qqNumber" inputMode="numeric" autoComplete="off" placeholder="仅用于显示 QQ 头像，不参与官方 API 通信" {...register('qqNumber')} />{errors.qqNumber && <p className="text-xs text-destructive">{errors.qqNumber.message}</p>}</div>
+          <div className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">QQ 官方机器人使用官方 Gateway WebSocket，不使用 OneBot 或 Webhook。可填写 AppID 与 AppSecret，也可用扫码登录自动添加连接。</div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(230px,0.9fr)_minmax(0,1.1fr)]">
+            <section className="flex min-h-[278px] flex-col rounded-lg border bg-muted/20 p-4">
+              <div className="flex items-center gap-2 text-sm font-medium"><QrCode className="h-4 w-4" />扫码登录</div>
+              <div className="relative mx-auto my-3 flex min-h-[190px] w-full max-w-[196px] flex-1 items-center justify-center overflow-hidden rounded-md bg-background">
+                {qr ? (
+                  <QRCodeSVG className="h-[190px] w-[190px] max-w-full" value={qr.url} size={190} level="M" includeMargin aria-label="QQ 官方机器人绑定二维码" />
+                ) : (
+                  <QRCodeSVG className="h-[190px] w-[190px] max-w-full blur-[5px] opacity-60" value="DiceNext-QQOfficial-Login" size={190} level="M" includeMargin aria-hidden="true" />
+                )}
+                {!qr && (
+                  <Button type="button" size="sm" className="absolute inset-x-3 top-1/2 -translate-y-1/2 shadow-md" onClick={startQrLogin} disabled={qrBusy}>
+                    <ScanLine className="mr-1.5 h-4 w-4" />{qrBusy ? '正在获取二维码…' : '点击扫码登录'}
+                  </Button>
+                )}
+              </div>
+              <p className="text-center text-xs text-muted-foreground">{qr ? '请使用手机 QQ 扫码，成功后会自动添加并连接。' : '扫码登录会自动获取 AppID 与 AppSecret。'}</p>
+            </section>
+            <section className="space-y-4">
+              <div className="space-y-2"><Label htmlFor="appId">AppID</Label><Input id="appId" autoComplete="off" {...register('appId')} />{errors.appId && <p className="text-xs text-destructive">{errors.appId.message}</p>}</div>
+              <div className="space-y-2"><Label htmlFor="appSecret">AppSecret{isEdit ? '（留空保持不变）' : ''}</Label><Input id="appSecret" type="password" autoComplete="new-password" {...register('appSecret')} /></div>
+              <div className="space-y-2"><Label htmlFor="qqNumber">官方机器人真实 QQ 号（可选）</Label><Input id="qqNumber" inputMode="numeric" autoComplete="off" placeholder="仅用于显示 QQ 头像，不参与官方 API 通信" {...register('qqNumber')} />{errors.qqNumber && <p className="text-xs text-destructive">{errors.qqNumber.message}</p>}</div>
+            </section>
+          </div>
           </> : <><div className="space-y-2">
             <div className="flex items-center gap-1.5">
               <Label htmlFor="mode">{t('adapters.connection_mode')}</Label>
