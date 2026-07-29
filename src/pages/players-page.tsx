@@ -389,8 +389,9 @@ const PlayerDetailView: React.FC<{
             platform={player.platform} t={t} toast={toast} privateChat
             channels={(player.bindings?.length ? player.bindings : [{ adapterType: player.platform, adapterAccount: '', endpointId: player.userId }]).map((b) => ({
               key: `${b.adapterType}:${b.adapterAccount}`, platform: b.adapterType, adapterAccount: b.adapterAccount,
+              endpointId: b.endpointId,
               base: `/players/${encodeURIComponent(b.adapterType)}/${encodeURIComponent(player.userId)}`,
-              label: b.adapterType === 'qq_official' ? `QQ 官方机器人 ${b.adapterAccount}` : `OneBot（适配器 ${b.adapterAccount || '默认'}）`,
+              label: b.adapterType === 'qq_official' ? `QQ 官方机器人 ${b.adapterAccount}` : `${b.adapterType === 'discord' ? 'Discord' : b.adapterType === 'kook' ? 'KOOK' : 'OneBot'}（适配器 ${b.adapterAccount || '默认'}）`,
             }))} />}
         </div>
       )}

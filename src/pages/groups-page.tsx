@@ -390,8 +390,9 @@ const GroupDetail: React.FC<{ group: Group; dlg: any; onBack: () => void; onChan
       {tab === 'chat' && <ChatTab base={base} platform={group.platform} t={t} toast={toast}
         channels={(group.bindings?.length ? group.bindings : [{ adapterType: group.platform, adapterAccount: '', endpointId: group.groupId }]).map((b) => ({
           key: `${b.adapterType}:${b.adapterAccount}`, platform: b.adapterType, adapterAccount: b.adapterAccount,
+          endpointId: b.endpointId,
           base: `/groups/${encodeURIComponent(b.adapterType)}/${encodeURIComponent(group.groupId)}`,
-          label: b.adapterType === 'qq_official' ? `QQ 官方机器人 ${b.adapterAccount}` : `OneBot（适配器 ${b.adapterAccount || '默认'}）`,
+          label: b.adapterType === 'qq_official' ? `QQ 官方机器人 ${b.adapterAccount}` : `${b.adapterType === 'discord' ? 'Discord' : b.adapterType === 'kook' ? 'KOOK' : 'OneBot'}（适配器 ${b.adapterAccount || '默认'}）`,
         }))} />}
     </div>
   );
@@ -1144,7 +1145,7 @@ export const ChatTab: React.FC<any> = ({ base, platform, t, toast, privateChat =
   // C#43: only auto-stick to the bottom when the user is already there, so
   // scrolling up to read history isn't yanked back down by the 3s poll.
   const [stick, setStick] = useState(true);
-  const fallbackChannel = { key: `${platform}:default`, platform, adapterAccount: '', base, label: platform === 'qq_official' ? 'QQ 官方机器人' : 'OneBot' };
+  const fallbackChannel = { key: `${platform}:default`, platform, adapterAccount: '', endpointId: '', base, label: platform === 'qq_official' ? 'QQ 官方机器人' : 'OneBot' };
   const availableChannels = channels.length ? channels : [fallbackChannel];
   const [channelKey, setChannelKey] = useState(() => (availableChannels.find((c: any) => c.platform === platform)?.key ?? availableChannels[0].key));
   const activeChannel = availableChannels.find((c: any) => c.key === channelKey) ?? availableChannels[0];
@@ -1173,12 +1174,12 @@ export const ChatTab: React.FC<any> = ({ base, platform, t, toast, privateChat =
     const text = input.trim();
     if (!text) return;
     setInput(''); setStick(true);   // C#43: jump to latest after sending your own message
-    try { await jsend('POST', `${activeBase}/messages`, { text, adapterAccount: activeChannel.adapterAccount || '' }); await poll(); }
+    try { await jsend('POST', `${activeBase}/messages`, { text, adapterAccount: activeChannel.adapterAccount || '', endpointId: activeChannel.endpointId || '' }); await poll(); }
     catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
   };
   const sendRaw = async (text: string) => {
     setStick(true);
-    try { await jsend('POST', `${activeBase}/messages`, { text, adapterAccount: activeChannel.adapterAccount || '' }); await poll(); }
+    try { await jsend('POST', `${activeBase}/messages`, { text, adapterAccount: activeChannel.adapterAccount || '', endpointId: activeChannel.endpointId || '' }); await poll(); }
     catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
   };
 
