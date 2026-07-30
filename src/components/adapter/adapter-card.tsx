@@ -13,7 +13,7 @@ import {
 import { ConnectionStatus } from '@/components/adapter/connection-status';
 import { cn } from '@/lib/utils';
 import { formatDateTime } from '@/lib/utils';
-import { MoreHorizontal, Plug, Unplug, Pencil, Trash2, Wifi, PlugZap, Network } from 'lucide-react';
+import { KeyRound, MoreHorizontal, Plug, Unplug, Pencil, Trash2, Wifi, PlugZap, Network } from 'lucide-react';
 import type { Adapter } from '@/types/adapter';
 
 interface AdapterCardProps {
@@ -142,6 +142,12 @@ export const AdapterCard: React.FC<AdapterCardProps> = ({
           <div className={cn('flex items-center gap-2', !adapter.enabled && 'opacity-50')}>
             <Badge variant={adapter.enabled ? 'success' : 'secondary'} className="text-[10px] whitespace-nowrap shrink-0">
               {adapter.enabled ? t('adapters.status_on') : t('adapters.status_off')}
+            </Badge>
+            <Badge variant={adapter.heartApiKeyConfigured ? 'outline' : 'secondary'} className="gap-1 text-[10px] whitespace-nowrap">
+              <KeyRound className="h-3 w-3" />
+              {adapter.heartApiKeyConfigured
+                ? t('adapters.heart_key_ready', { tail: adapter.heartApiKeyTail })
+                : t('adapters.heart_key_missing')}
             </Badge>
             {adapter.lastActive && (
               <span className="text-[10px] text-muted-foreground">

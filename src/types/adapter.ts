@@ -19,6 +19,8 @@ export interface Adapter {
   appId?: string;
   appSecret?: string;
   qqNumber?: string;
+  heartApiKeyConfigured?: boolean;
+  heartApiKeyTail?: string;
   enabled: boolean;
   status: AdapterStatus;
   lastActive?: string;
@@ -36,5 +38,7 @@ export interface AdapterFormData {
   appId?: string;
   appSecret?: string;
   qqNumber?: string;
+  heartApiKey?: string;
+  clearHeartApiKey?: boolean;
   enabled?: boolean;
 }

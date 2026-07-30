@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { HelpCircle, QrCode, ScanLine } from 'lucide-react';
+import { ExternalLink, HelpCircle, KeyRound, QrCode, ScanLine } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 import { QRCodeSVG } from 'qrcode.react';
 import { useToast } from '@/hooks/use-toast';
 import type { Adapter, AdapterFormData, AdapterType } from '@/types/adapter';
@@ -38,6 +39,8 @@ const adapterFormSchema = z.object({
   appId: z.string().optional(),
   appSecret: z.string().optional(),
   qqNumber: z.string().regex(/^\d{0,12}$/, 'QQ 号只能由最多 12 位数字组成').optional(),
+  heartApiKey: z.string().optional(),
+  clearHeartApiKey: z.boolean().optional().default(false),
   enabled: z.boolean().optional().default(true),
 });
 
@@ -70,6 +73,8 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
       appId: adapter?.appId ?? '',
       appSecret: '',
       qqNumber: adapter?.qqNumber ?? '',
+      heartApiKey: '',
+      clearHeartApiKey: false,
       enabled: adapter?.enabled ?? true,
     },
   });
@@ -85,6 +90,8 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
         appId: adapter?.appId ?? '',
         appSecret: '',
         qqNumber: adapter?.qqNumber ?? '',
+        heartApiKey: '',
+        clearHeartApiKey: false,
         enabled: adapter?.enabled ?? true,
       });
     }
@@ -101,6 +108,12 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
   }, [open]);
 
   const handleFormSubmit = async (data: FormValues) => {
+    const heartApiKey = (data.heartApiKey ?? '').trim();
+    if (data.clearHeartApiKey) data.heartApiKey = '';
+    else if (isEdit && !heartApiKey) delete (data as Partial<FormValues>).heartApiKey;
+    else data.heartApiKey = heartApiKey;
+    delete (data as Partial<FormValues>).clearHeartApiKey;
+
     if (data.type === 'discord' || data.type === 'kook') {
       // Token 型适配器：只需 Bot Token；编辑时留空 = 保持原 Token 不变。
       const token = (data.accessToken ?? '').trim();
@@ -176,7 +189,7 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
           setValue('appId', result.data.appId); setValue('appSecret', result.data.appSecret); qrPollingRef.current = false; setQr(null); setQrBusy(false);
           const current = getValues();
           const name = current.name.trim() || `QQ 官方机器人 ${result.data.appId}`;
-          await onSubmit({ name, type: 'qq_official', connectionMode: 'forward_ws', endpoint: '', accessToken: '', appId: result.data.appId, appSecret: result.data.appSecret, enabled: current.enabled ?? true });
+          await onSubmit({ name, type: 'qq_official', connectionMode: 'forward_ws', endpoint: '', accessToken: '', appId: result.data.appId, appSecret: result.data.appSecret, heartApiKey: current.heartApiKey?.trim(), enabled: current.enabled ?? true });
           toast({ title: 'QQ 官方机器人已添加，正在连接' }); onOpenChange(false); return;
         }
         if (result.data.status === 'expired') { qrPollingRef.current = false; setQr(null); setQrBusy(false); return; }
@@ -305,6 +318,45 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
             </>
           )}
           </>}
+          <section className="space-y-3 rounded-lg border bg-muted/20 p-4">
+            <div className="flex items-start gap-2">
+              <KeyRound className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+              <div className="min-w-0">
+                <Label htmlFor="heartApiKey">{t('adapters.heart_api_key')}</Label>
+                <p className="mt-0.5 text-xs text-muted-foreground">{t('adapters.heart_api_key_desc')}</p>
+              </div>
+            </div>
+            <Input
+              id="heartApiKey"
+              type="password"
+              autoComplete="new-password"
+              disabled={watch('clearHeartApiKey')}
+              placeholder={adapter?.heartApiKeyConfigured
+                ? t('adapters.heart_api_key_set', { tail: adapter.heartApiKeyTail })
+                : t('adapters.heart_api_key_unset')}
+              {...register('heartApiKey')}
+            />
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <a
+                href="https://account.dice.zone/dashboard/bindings"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 text-xs text-primary underline-offset-4 hover:underline"
+              >
+                {t('adapters.heart_api_key_link')}
+                <ExternalLink className="h-3 w-3" />
+              </a>
+              {isEdit && adapter?.heartApiKeyConfigured && (
+                <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Switch
+                    checked={watch('clearHeartApiKey')}
+                    onCheckedChange={(checked) => setValue('clearHeartApiKey', checked)}
+                  />
+                  {t('adapters.heart_api_key_clear')}
+                </label>
+              )}
+            </div>
+          </section>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>{t('common.cancel')}</Button>
             <Button type="submit" disabled={isSubmitting || (!official && !tokenBot && !modeChosen)}>{isSubmitting ? t('common.saving') : isEdit ? t('adapters.save_edit') : t('adapters.add')}</Button>
