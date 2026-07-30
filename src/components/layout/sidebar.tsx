@@ -8,7 +8,7 @@ import {
   LayoutDashboard, PlugZap, MessageSquareReply, FolderKanban, Boxes,
   Settings, Info, ChevronLeft, ChevronDown, FlaskConical, Users, UserCog,
   Map, BookText, Clock, Scroll, ShieldBan, Database, Puzzle, SlidersHorizontal,
-  Monitor, HelpCircle, Archive, Sparkles, Wand2, Languages, Cpu, MessageCircle, Drama, Bell,
+  Monitor, HelpCircle, Archive, Sparkles, Wand2, Languages, Cpu, MessageCircle, Drama, Bell, BarChart3,
 } from 'lucide-react';
 
 type Icon = React.ComponentType<{ className?: string }>;
@@ -19,6 +19,7 @@ const isGroup = (n: Node): n is Group => 'children' in n;
 
 const NAV: Node[] = [
   { labelKey: 'nav.dashboard', path: '/', icon: LayoutDashboard },
+  { labelKey: 'nav.statistics', path: '/statistics', icon: BarChart3 },
   { labelKey: 'nav.playground', path: '/playground', icon: FlaskConical },
   { labelKey: 'nav.adapters', path: '/adapters', icon: PlugZap },
   { labelKey: 'nav.replies', path: '/replies', icon: MessageSquareReply },

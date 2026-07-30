@@ -809,7 +809,7 @@ export const SettingsPage: React.FC = () => {
 
 // ── 心跳上报（向 heart.dice.zone 上报骰娘在线状态）────────────────
 interface HeartbeatConf {
-  enabled: boolean; url: string; token_set: boolean; token_tail: string;
+  enabled: boolean; url: string; configured_adapters: number;
   public_show: boolean; interval: number;
   last_status: string; last_report_at: string; last_error: string;
 }
@@ -818,10 +818,9 @@ const HeartbeatCard: React.FC = () => {
   const { t } = useTranslation();
   const toast = useToast();
   const [c, setC] = useState<HeartbeatConf>({
-    enabled: false, url: 'https://heart.dice.zone', token_set: false, token_tail: '',
+    enabled: false, url: 'https://heart.dice.zone', configured_adapters: 0,
     public_show: true, interval: 300, last_status: '', last_report_at: '', last_error: '',
   });
-  const [token, setToken] = useState('');
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
 
@@ -838,10 +837,10 @@ const HeartbeatCard: React.FC = () => {
     try {
       const interval = Math.min(600, Math.max(180, Number(c.interval) || 300));
       await putJson('/system/heartbeat', {
-        enabled: c.enabled, url: c.url.trim(), token,   // token 留空 = 不修改
+        enabled: c.enabled, url: c.url.trim(),
         public_show: c.public_show, interval,
       });
-      setToken(''); await load();
+      await load();
       toast({ title: t('common.save_success') });
     } catch (e) { toast({ title: (e as Error).message, variant: 'destructive' }); }
     finally { setSaving(false); }
@@ -853,7 +852,32 @@ const HeartbeatCard: React.FC = () => {
       const r = await fetch('/api/system/heartbeat/test', { method: 'POST' });
       const j = await r.json(); if (j.code !== 0) throw new Error(j.message);
       const d = j.data || {};
-      toast({ title: t('settings.heartbeat_test_done', { status: d.http ?? '?' }), description: String(d.body ?? '').slice(0, 200) });
+      let payload: { results?: Array<{ adapter_name?: string; http?: number; body?: string }> } = {};
+      try {
+        payload = typeof d.body === 'string' ? JSON.parse(d.body) : (d.body || d);
+      } catch {
+        payload = {};
+      }
+      const results = Array.isArray(payload.results) ? payload.results : [];
+      const rateLimited = results.filter((item) => {
+        try {
+          const body = typeof item.body === 'string' ? JSON.parse(item.body) : item.body;
+          return body?.status === 'rate_limited';
+        } catch {
+          return false;
+        }
+      }).length;
+      const failed = results.filter((item) => item.http !== 200);
+      if (failed.length > 0) {
+        const first = failed[0];
+        throw new Error(`${first.adapter_name || t('nav.adapters')}: HTTP ${first.http ?? '?'}`);
+      }
+      toast({
+        title: t('settings.heartbeat_test_success'),
+        description: rateLimited > 0
+          ? t('settings.heartbeat_test_rate_limited', { count: rateLimited, total: results.length })
+          : t('settings.heartbeat_test_success_desc', { count: results.length }),
+      });
       void load();
     } catch (e) { toast({ title: t('settings.heartbeat_test_fail'), description: (e as Error).message, variant: 'destructive' }); }
     finally { setTesting(false); }
@@ -884,16 +908,14 @@ const HeartbeatCard: React.FC = () => {
           <Input className="h-8 font-mono text-xs" value={c.url}
             onChange={(e) => setC({ ...c, url: e.target.value })} placeholder="https://heart.dice.zone" />
         </div>
-        <div className="space-y-1">
-          <Label className="text-xs">{t('settings.heartbeat_api_key')}</Label>
-          <Input className="h-8 text-sm" type="password" value={token} onChange={(e) => setToken(e.target.value)}
-            placeholder={c.token_set ? t('settings.heartbeat_token_set_ph', { tail: c.token_tail }) : t('settings.heartbeat_token_unset_ph')} />
-          <p className="text-[11px] text-muted-foreground">
-            {t('settings.heartbeat_token_hint')}
-            <a href="https://account.dice.zone/dashboard/bindings" target="_blank" rel="noreferrer" className="underline text-primary">
-              {t('settings.heartbeat_api_key_link')}
-            </a>
-          </p>
+        <div className="flex items-center justify-between gap-4 rounded-md border bg-muted/20 p-3">
+          <div>
+            <Label className="text-sm">{t('settings.heartbeat_adapter_keys')}</Label>
+            <p className="text-xs text-muted-foreground">{t('settings.heartbeat_adapter_keys_desc')}</p>
+          </div>
+          <a href="#/adapters" className="shrink-0 text-sm text-primary underline-offset-4 hover:underline">
+            {t('settings.heartbeat_adapter_keys_count', { count: c.configured_adapters })}
+          </a>
         </div>
         <div className="flex items-center justify-between gap-4">
           <div>
