@@ -63,10 +63,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPath, onNavigate }) => 
   const { sidebarCollapsed, setSidebarCollapsed } = zustandAppStore();
   const { t } = useTranslation();
   // 默认展开包含当前路由的分组。
-  const [expanded, setExpanded] = useState<Record<string, boolean>>(() => {
-    const init: Record<string, boolean> = {};
-    for (const n of NAV) if (isGroup(n) && n.children.some((c) => isActivePath(c.path, currentPath))) init[n.labelKey] = true;
-    return init;
+  const [expandedGroup, setExpandedGroup] = useState<string | null>(() => {
+    const active = NAV.find((n) => isGroup(n) && n.children.some((c) => isActivePath(c.path, currentPath)));
+    return active && isGroup(active) ? active.labelKey : null;
   });
 
   const go = (path: string) => {
@@ -115,11 +114,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPath, onNavigate }) => 
               if (!isGroup(n)) return leafBtn(n);
               // 折叠态(图标栏)：组无标题，直接平铺子项图标。
               if (sidebarCollapsed) return <React.Fragment key={n.labelKey}>{n.children.map((c) => leafBtn(c))}</React.Fragment>;
-              const open = !!expanded[n.labelKey];
+              const open = expandedGroup === n.labelKey;
               const childActive = n.children.some((c) => isActivePath(c.path, currentPath));
               return (
                 <div key={n.labelKey}>
-                  <button onClick={() => setExpanded((s) => ({ ...s, [n.labelKey]: !open }))}
+                  <button onClick={() => setExpandedGroup((current) => current === n.labelKey ? null : n.labelKey)}
                     className={cn('flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
                       childActive ? 'text-primary' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground')}>
                     <n.icon className="h-5 w-5 shrink-0" />

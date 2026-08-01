@@ -32,7 +32,7 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
     setBusy(true); setErr('');
     try {
       const r = await fetch('/api/auth/login', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password: pw, trust_device: trustDevice }),
       });
       if (!r.ok) { setErr(t('auth.wrong')); setBusy(false); return; }
