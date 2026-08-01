@@ -405,7 +405,7 @@ export const PlayersPage: React.FC = () => {
   const dlg = useDialogs(t);
   const [rows, setRows] = useState<Player[]>([]);
   const [masters, setMasters] = useState<{ platform: string; id: string }[]>([]);
-  const [friends, setFriends] = useState<Record<string, string[]>>({});   // C#93：平台→好友uid
+  const [friendInfo, setFriendInfo] = useState<{ lists: Record<string, string[]>; deletePlatforms: string[]; officialRealFriends: string[] }>({ lists: {}, deletePlatforms: [], officialRealFriends: [] });
   const [loading, setLoading] = useState(true);
   const [editFav, setEditFav] = useState<string | null>(null);
   const [favVal, setFavVal] = useState(0);
@@ -432,16 +432,17 @@ export const PlayersPage: React.FC = () => {
     void load();
     void (async () => {
       try { const r = await fetch('/api/masters'); const j = await r.json(); if (j.code === 0) setMasters(j.data || []); } catch { /* ignore */ }
-      try { const r = await fetch('/api/friends'); const j = await r.json(); if (j.code === 0) setFriends(j.data || {}); } catch { /* ignore */ }
+      try { const r = await fetch('/api/friends'); const j = await r.json(); if (j.code === 0) setFriendInfo(j.data || { lists: {}, deletePlatforms: [], officialRealFriends: [] }); } catch { /* ignore */ }
     })();
   }, [load]);
 
   const masterSet = useMemo(() => new Set(masters.map((m) => m.id)), [masters]);
-  // C#93：好友列表未同步（无该平台键）时视为未知 → 按可删处理（不误禁用）。
-  const isFriend = (p: Player) => {
-    const list = friends[p.platform];
-    if (!list || list.length === 0) return true;   // 未知 → 放行
-    return list.includes(p.userId);
+  const canDeleteFriend = (p: Player) => {
+    // QQ 官方 API 没有删好友能力。仅当该 OpenID 已绑定真实 QQ，且该 QQ
+    // 已由 OneBot 的好友列表确认时，才允许用 OneBot 执行删除。
+    if (p.platform === 'qq_official') return friendInfo.officialRealFriends.includes(p.userId);
+    if (!friendInfo.deletePlatforms.includes(p.platform)) return false;
+    return (friendInfo.lists[p.platform] || []).includes(p.userId);
   };
 
   // 信任等级切换。「骰主」(256) 是可选等级之一：选中=加入 dice.masters；
@@ -498,6 +499,8 @@ export const PlayersPage: React.FC = () => {
       const j = await r.json();
       if (j.code !== 0) throw new Error(j.message);
       toast({ title: t('players.del_friend_done') });
+      const fr = await fetch('/api/friends'); const fj = await fr.json();
+      if (fj.code === 0) setFriendInfo(fj.data || { lists: {}, deletePlatforms: [], officialRealFriends: [] });
     } catch (e) { toast({ title: t('common.operation_fail'), description: String(e), variant: 'destructive' }); }
   };
 
@@ -637,8 +640,7 @@ export const PlayersPage: React.FC = () => {
                   <td className="p-2.5">
                     <div className="flex items-center gap-1">
                       <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setSelected(p)}>{t('players.detail_btn')}</Button>
-                      {/* C#93：是好友=红字可删；非好友（群里指令建档）=灰字+悬停禁止 */}
-                      {isFriend(p) ? (
+                      {canDeleteFriend(p) ? (
                         <Button variant="ghost" size="sm" className="h-7 text-xs text-destructive hover:text-destructive" onClick={() => delFriend(p)}>{t('players.del_friend')}</Button>
                       ) : (
                         <Button variant="ghost" size="sm" disabled
