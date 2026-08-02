@@ -287,7 +287,10 @@
     "detail_internal_id": "内部アダプター ID",
     "detail_official_gateway": "QQ公式 Gateway WebSocket",
     "detail_gateway": "Gateway WebSocket",
-    "detail_managed_endpoint": "プラットフォームにより自動管理"
+    "detail_managed_endpoint": "プラットフォームにより自動管理",
+    "detail_bdc_cloud": "BDC クラウドサービス",
+    "bdc_cloud_connected": "BDC クラウド接続済み",
+    "bdc_cloud_disconnected": "BDC クラウド未接続"
   },
   "dice": {
     "title": "ダイスルール",

@@ -287,7 +287,10 @@
     "detail_internal_id": "内部适配器 ID",
     "detail_official_gateway": "QQ 官方 Gateway WebSocket",
     "detail_gateway": "Gateway WebSocket",
-    "detail_managed_endpoint": "由平台自动管理"
+    "detail_managed_endpoint": "由平台自动管理",
+    "detail_bdc_cloud": "BDC 云服务",
+    "bdc_cloud_connected": "BDC 云服务已连接",
+    "bdc_cloud_disconnected": "BDC 云服务未连接"
   },
   "dice": {
     "title": "骰子规则",
