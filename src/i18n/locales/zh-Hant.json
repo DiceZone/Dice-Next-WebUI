@@ -272,7 +272,22 @@
     "mode_forward_hint": "正向 WebSocket：本骰作為 WebSocket 用戶端，主動連線登入框架的 OneBot v11 WebSocket 伺服端。下方填入框架所監聽連接埠的對應位址（例如 ws://127.0.0.1:3001）。框架處選「WebSocket伺服端 / 主動WebSocket / 正向WebSocket」，填寫框架監聽的連接埠（例如 3001）。",
     "mode_reverse_hint": "反向 WebSocket：本程式作為 WebSocket 伺服端在本地連接埠監聽，等待登入框架作為 WS 用戶端連入，下方填入所監聽的連接埠號（例如 3002）。框架處選「反向WebSocket / 被動WebSocket / WebSocket用戶端」，填寫本程式監聽連接埠的對應位址（例如 ws://127.0.0.1:3002）。",
     "status_on": "開啟",
-    "status_off": "禁用"
+    "status_off": "禁用",
+    "detail_btn": "詳情",
+    "detail_title": "適配器詳情",
+    "detail_platform": "所屬平台",
+    "detail_bot_name": "機器人名稱",
+    "detail_bot_id": "BotID",
+    "detail_app_id": "AppID",
+    "detail_real_qq": "真實 QQ",
+    "detail_protocol": "連線協定",
+    "detail_connection_status": "連線狀態",
+    "detail_enabled": "啟用狀態",
+    "detail_created": "建立時間",
+    "detail_internal_id": "內部適配器 ID",
+    "detail_official_gateway": "QQ 官方 Gateway WebSocket",
+    "detail_gateway": "Gateway WebSocket",
+    "detail_managed_endpoint": "由平台自動管理"
   },
   "dice": {
     "title": "骰子規則",

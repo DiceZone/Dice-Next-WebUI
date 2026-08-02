@@ -17,6 +17,7 @@ import {
   ChevronDown, Pencil, Image as ImageIcon, Smile, Plus, Sparkles, FolderOpen, FileText,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { PlatformIcon, platformLabel } from '@/components/platform-icon';
 
 interface Group {
   platform: string; groupId: string; name: string;
@@ -263,12 +264,10 @@ export const GroupsPage: React.FC = () => {
                           <button onClick={() => setSelected(g)} className="font-medium text-left hover:text-primary transition-colors truncate block max-w-full">{g.name}</button>
                           <div className="flex items-center gap-1.5 mt-0.5">
                             <StatusBadge g={g} t={t} />
-                            {g.platform === 'onebot_v11' && (
-                              <span className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-xs shrink-0">
-                                <img src="/QQ.svg" alt="" className="h-4 w-4" />
-                                <span className="font-mono text-muted-foreground">{g.groupId}</span>
-                              </span>
-                            )}
+                            <span className="inline-flex min-w-0 items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-xs">
+                              <PlatformIcon platform={g.platform} />
+                              <span className="truncate font-mono text-muted-foreground">{g.groupId}</span>
+                            </span>
                             {g.activeLog && <Badge variant="secondary" className="text-[10px]">{t('groups.recording')}</Badge>}
                           </div>
                         </div>
@@ -357,15 +356,19 @@ const GroupDetail: React.FC<{ group: Group; dlg: any; onBack: () => void; onChan
           <h1 className="text-xl font-bold tracking-tight leading-tight">{group.name}</h1>
           <div className="flex items-center gap-2 mt-0.5">
             <StatusBadge g={group} t={t} />
-            {group.platform === 'onebot_v11' && (
-              <span className="inline-flex items-center gap-1 rounded bg-muted px-2 py-0.5 text-xs">
-                <img src="/QQ.svg" alt="" className="h-4 w-4" />
-                <span className="font-mono text-muted-foreground">{group.groupId}</span>
-              </span>
-            )}
+            <span className="inline-flex min-w-0 items-center gap-1 rounded bg-muted px-2 py-0.5 text-xs">
+              <PlatformIcon platform={group.platform} />
+              <span className="truncate font-mono text-muted-foreground">{group.groupId}</span>
+            </span>
             {group.bindings && group.bindings.length > 0 && (
-              <span className="text-xs text-muted-foreground">
-                已绑定：{group.bindings.map((b) => `${b.adapterType === 'qq_official' ? 'QQ 官方机器人' : b.adapterType} ${b.adapterAccount}:${b.endpointId}`).join('；')}
+              <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                <span>已绑定：</span>
+                {group.bindings.map((b) => (
+                  <span key={`${b.adapterType}:${b.adapterAccount}:${b.endpointId}`} className="inline-flex items-center gap-1">
+                    <PlatformIcon platform={b.adapterType} className="h-3.5 w-3.5" />
+                    {platformLabel(b.adapterType)} {b.adapterAccount}:{b.endpointId}
+                  </span>
+                ))}
               </span>
             )}
           </div>

@@ -2,7 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,8 +13,9 @@ import {
 import { ConnectionStatus } from '@/components/adapter/connection-status';
 import { cn } from '@/lib/utils';
 import { formatDateTime } from '@/lib/utils';
-import { KeyRound, MoreHorizontal, Plug, Unplug, Pencil, Trash2, Wifi, PlugZap, Network } from 'lucide-react';
+import { Info, MoreHorizontal, Plug, Unplug, Pencil, Trash2, Wifi, PlugZap, Network } from 'lucide-react';
 import type { Adapter } from '@/types/adapter';
+import { PlatformIcon, platformLabel } from '@/components/platform-icon';
 
 interface AdapterCardProps {
   adapter: Adapter;
@@ -27,18 +28,20 @@ interface AdapterCardProps {
   onShowReverseInfo?: (port: string) => void;
 }
 
-const MODE_LABELS: Record<string, string> = {
-  forward_ws: '正向 WebSocket',
-  reverse_ws: '反向 WebSocket',
-  http: 'HTTP',
+const STATUS_LABEL_KEYS: Record<Adapter['status'], string> = {
+  connected: 'adapters.conn_connected',
+  connecting: 'adapters.conn_connecting',
+  error: 'adapters.conn_error',
+  disconnected: 'adapters.conn_disconnected',
+  timeout: 'adapters.conn_timeout',
 };
 
-const ADAPTER_TYPE_LABELS: Record<string, string> = {
-  onebot_v11: 'OneBot v11',
-  qq_official: 'QQ 官方机器人 2.0',
-  discord: 'Discord',
-  kook: 'KOOK',
-};
+const DetailRow: React.FC<{ label: string; children: React.ReactNode; mono?: boolean }> = ({ label, children, mono }) => (
+  <div className="grid gap-1 border-b py-3 last:border-b-0 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-4">
+    <dt className="text-sm text-muted-foreground">{label}</dt>
+    <dd className={cn('min-w-0 break-all text-sm sm:text-right', mono && 'font-mono text-xs')}>{children}</dd>
+  </div>
+);
 
 export const AdapterCard: React.FC<AdapterCardProps> = ({
   adapter,
@@ -66,6 +69,23 @@ export const AdapterCard: React.FC<AdapterCardProps> = ({
   const avatarQQ = adapter.type === 'qq_official' ? (adapter.qqNumber || '')
     : adapter.type === 'onebot_v11' ? (adapter.loginId || '') : '';   // Discord/KOOK 无 QQ 头像
   const { t } = useTranslation();
+  const [detailOpen, setDetailOpen] = React.useState(false);
+  const identityLabel = adapter.type === 'qq_official' ? t('adapters.detail_app_id') : t('adapters.detail_bot_id');
+  const identityValue = adapter.type === 'qq_official' ? adapter.appId : adapter.loginId;
+  const modeLabel = adapter.type === 'qq_official'
+    ? t('adapters.detail_official_gateway')
+    : adapter.type === 'discord' || adapter.type === 'kook'
+      ? t('adapters.detail_gateway')
+      : adapter.connectionMode === 'reverse_ws'
+        ? t('adapters.mode_reverse_ws')
+        : adapter.connectionMode === 'http'
+          ? t('adapters.mode_http')
+          : t('adapters.mode_forward_ws');
+  const endpointValue = adapter.type === 'qq_official'
+    ? t('adapters.detail_managed_endpoint')
+    : adapter.type === 'discord' || adapter.type === 'kook'
+      ? t('adapters.detail_managed_endpoint')
+      : adapter.endpoint || '—';
 
   return (
     <Card
@@ -95,13 +115,15 @@ export const AdapterCard: React.FC<AdapterCardProps> = ({
             {/* C#105：flex-1 给出确定宽度，超长名称 truncate 成省略号 */}
             <div className="min-w-0 flex-1">
               <h3 className="font-semibold truncate">{displayName}</h3>
-              <p className="text-xs text-muted-foreground">
-                {adapter.loginId && <span>{adapter.type === 'onebot_v11' ? 'QQ:' : 'Bot:'}{adapter.loginId} · </span>}
-                {adapter.type === 'qq_official' && adapter.qqNumber && <span>QQ:{adapter.qqNumber} · </span>}
-                {ADAPTER_TYPE_LABELS[adapter.type] || adapter.type} · {adapter.type === 'onebot_v11'
-                  ? (MODE_LABELS[adapter.connectionMode] || adapter.connectionMode)
-                  : adapter.type === 'qq_official' ? '官方 Gateway WebSocket' : 'Gateway WebSocket'}
-              </p>
+              <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                <span className="inline-flex min-w-0 items-center gap-1.5">
+                <PlatformIcon platform={adapter.type} className="h-3.5 w-3.5" />
+                <span className="truncate">{identityLabel}: {identityValue || '—'}</span>
+                </span>
+                {adapter.type === 'qq_official' && (
+                  <span className="whitespace-nowrap">{t('adapters.detail_real_qq')}: {adapter.qqNumber || '—'}</span>
+                )}
+              </div>
             </div>
           </div>
 
@@ -126,37 +148,11 @@ export const AdapterCard: React.FC<AdapterCardProps> = ({
           </DropdownMenu>
         </div>
 
-        {/* Endpoint / Port */}
-        <div className={cn('mt-3', !adapter.enabled && 'opacity-50')}>
-          <p className="font-mono text-xs text-muted-foreground truncate" title={adapter.endpoint}>
-            {adapter.type === 'qq_official'
-              ? `AppID: ${adapter.appId || '—'}`
-              : adapter.connectionMode === 'reverse_ws'
-              ? `${t('adapters.port')}: ${adapter.endpoint}`
-              : `${t('adapters.address')}: ${adapter.endpoint}`}
-          </p>
-        </div>
-
         {/* Footer */}
-        <div className="mt-3 flex items-center justify-between">
-          <div className={cn('flex items-center gap-2', !adapter.enabled && 'opacity-50')}>
-            <Badge variant={adapter.enabled ? 'success' : 'secondary'} className="text-[10px] whitespace-nowrap shrink-0">
-              {adapter.enabled ? t('adapters.status_on') : t('adapters.status_off')}
-            </Badge>
-            <Badge variant={adapter.heartApiKeyConfigured ? 'outline' : 'secondary'} className="gap-1 text-[10px] whitespace-nowrap">
-              <KeyRound className="h-3 w-3" />
-              {adapter.heartApiKeyConfigured
-                ? t('adapters.heart_key_ready', { tail: adapter.heartApiKeyTail })
-                : t('adapters.heart_key_missing')}
-            </Badge>
-            {adapter.lastActive && (
-              <span className="text-[10px] text-muted-foreground">
-                {t('adapters.last_active')}: {formatDateTime(adapter.lastActive)}
-              </span>
-            )}
-          </div>
-
-          <div className="flex items-center gap-1">
+        <div className="mt-4 flex flex-wrap items-center justify-end gap-1.5">
+            <Button variant="outline" size="sm" onClick={() => setDetailOpen(true)}>
+              <Info className="mr-1 h-3.5 w-3.5" />{t('adapters.detail_btn')}
+            </Button>
             {adapter.connectionMode === 'reverse_ws' && onShowReverseInfo && (
               <Button variant="outline" size="sm" onClick={() => onShowReverseInfo(adapter.endpoint)}
                 className="text-purple-600 border-purple-200 bg-purple-50 hover:bg-purple-100 hover:text-purple-700" title={t('adapters.reverse_title')}>
@@ -182,9 +178,40 @@ export const AdapterCard: React.FC<AdapterCardProps> = ({
                 {isConnecting ? t('adapters.connecting') : t('common.undisable')}
               </Button>
             )}
-          </div>
         </div>
       </CardContent>
+
+      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
+        <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>{t('adapters.detail_title')}</DialogTitle>
+            <DialogDescription>{displayName}</DialogDescription>
+          </DialogHeader>
+          <dl className="rounded-lg border px-4">
+            <DetailRow label={t('adapters.detail_platform')}>
+              <span className="inline-flex items-center gap-2"><PlatformIcon platform={adapter.type} />{platformLabel(adapter.type)}</span>
+            </DetailRow>
+            <DetailRow label={t('adapters.name')}>{adapter.name}</DetailRow>
+            {adapter.loginName && adapter.loginName !== adapter.name && <DetailRow label={t('adapters.detail_bot_name')}>{adapter.loginName}</DetailRow>}
+            <DetailRow label={identityLabel} mono>{identityValue || '—'}</DetailRow>
+            {adapter.type === 'qq_official' && <DetailRow label={t('adapters.detail_real_qq')} mono>{adapter.qqNumber || '—'}</DetailRow>}
+            <DetailRow label={t('adapters.detail_protocol')}>{modeLabel}</DetailRow>
+            <DetailRow label={t('adapters.endpoint')} mono>{endpointValue}</DetailRow>
+            <DetailRow label={t('adapters.detail_connection_status')}>
+              <span className="inline-flex items-center gap-2"><ConnectionStatus status={effectiveStatus} />{t(STATUS_LABEL_KEYS[effectiveStatus])}</span>
+            </DetailRow>
+            <DetailRow label={t('adapters.detail_enabled')}>{adapter.enabled ? t('adapters.status_on') : t('adapters.status_off')}</DetailRow>
+            <DetailRow label={t('adapters.heart_api_key')}>
+              {adapter.heartApiKeyConfigured
+                ? t('adapters.heart_key_ready', { tail: adapter.heartApiKeyTail })
+                : t('adapters.heart_key_missing')}
+            </DetailRow>
+            <DetailRow label={t('adapters.last_active')}>{adapter.lastActive ? formatDateTime(adapter.lastActive) : '—'}</DetailRow>
+            <DetailRow label={t('adapters.detail_created')}>{adapter.createdAt ? formatDateTime(adapter.createdAt) : '—'}</DetailRow>
+            <DetailRow label={t('adapters.detail_internal_id')} mono>{adapter.id}</DetailRow>
+          </dl>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };

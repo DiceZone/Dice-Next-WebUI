@@ -17,6 +17,7 @@ import {
   Image, Type, Server, Clock, ScrollText, HeartPulse,
 } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
+import { PlatformIcon } from '@/components/platform-icon';
 
 interface Master { platform: string; id: string; }
 const PLATFORMS: { value: string; label: string }[] = [
@@ -542,7 +543,7 @@ export const SettingsPage: React.FC = () => {
               {masters.map((m) => (
                 <div key={`${m.platform}/${m.id}`} className="flex items-center justify-between rounded border p-2.5">
                   <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center rounded bg-muted px-2 py-0.5 text-xs font-medium">{platLabel(m.platform)}</span>
+                    <span className="inline-flex items-center gap-1.5 rounded bg-muted px-2 py-0.5 text-xs font-medium"><PlatformIcon platform={m.platform} className="h-3.5 w-3.5" />{platLabel(m.platform)}</span>
                     <span className="font-mono text-sm">{m.id}</span>
                   </div>
                   <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => delMaster(m)}><Trash2 className="h-4 w-4" /></Button>
@@ -554,7 +555,7 @@ export const SettingsPage: React.FC = () => {
             <Select value={mPlatform} onValueChange={(v) => setMPlatform(v)}>
               <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {PLATFORMS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
+                {PLATFORMS.map((p) => <SelectItem key={p.value} value={p.value}><span className="flex items-center gap-2"><PlatformIcon platform={p.value} />{p.label}</span></SelectItem>)}
               </SelectContent>
             </Select>
             <Input className="flex-1" placeholder={t('settings.master_id_placeholder')} value={mId} onChange={(e) => setMId(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') void addMaster(); }} />

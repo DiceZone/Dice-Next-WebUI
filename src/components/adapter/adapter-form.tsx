@@ -13,6 +13,7 @@ import { Switch } from '@/components/ui/switch';
 import { QRCodeSVG } from 'qrcode.react';
 import { useToast } from '@/hooks/use-toast';
 import type { Adapter, AdapterFormData, AdapterType } from '@/types/adapter';
+import { PlatformIcon } from '@/components/platform-icon';
 import apiClient from '@/lib/api-client';
 
 /** Auto-correct URL to proper ws:// or wss:// format */
@@ -236,10 +237,10 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
             <Select value={watch('type')} onValueChange={(v) => setValue('type', v as AdapterType)} disabled={isEdit}>
               <SelectTrigger id="type"><SelectValue placeholder={t('adapters.type_label')} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="onebot_v11">OneBot v11</SelectItem>
-                <SelectItem value="qq_official">QQ 官方机器人 2.0</SelectItem>
-                <SelectItem value="discord">Discord</SelectItem>
-                <SelectItem value="kook">KOOK</SelectItem>
+                <SelectItem value="onebot_v11"><span className="inline-flex items-center gap-2"><PlatformIcon platform="onebot_v11" />OneBot v11</span></SelectItem>
+                <SelectItem value="qq_official"><span className="inline-flex items-center gap-2"><PlatformIcon platform="qq_official" />QQ 官方机器人 2.0</span></SelectItem>
+                <SelectItem value="discord"><span className="inline-flex items-center gap-2"><PlatformIcon platform="discord" />Discord</span></SelectItem>
+                <SelectItem value="kook"><span className="inline-flex items-center gap-2"><PlatformIcon platform="kook" />KOOK</span></SelectItem>
               </SelectContent>
             </Select>
           </div>

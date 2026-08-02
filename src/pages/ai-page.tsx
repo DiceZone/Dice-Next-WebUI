@@ -15,6 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { PlatformIcon } from '@/components/platform-icon';
 import { Sparkles, Plus, Trash2, FlaskConical, Loader2, AlertTriangle, Wand2, Languages, MessageCircle, Drama } from 'lucide-react';
 
 interface AiModel {
@@ -713,6 +714,7 @@ export const AiPage: React.FC = () => {
                           {gs.map((g) => (
                             <button key={'g' + g.platform + g.groupId} className="flex w-full items-center gap-2 rounded px-2 py-1 text-sm hover:bg-muted text-left"
                               onClick={() => add(g.platform, g.groupId, true, g.name)}>
+                              <PlatformIcon platform={g.platform} />
                               <Badge variant="secondary" className="shrink-0">{t('ai.wl_group')}</Badge>
                               <span>{g.name}</span><span className="font-mono text-xs text-muted-foreground">{g.groupId}</span>
                             </button>
@@ -720,6 +722,7 @@ export const AiPage: React.FC = () => {
                           {ps.map((p) => (
                             <button key={'p' + p.platform + p.userId} className="flex w-full items-center gap-2 rounded px-2 py-1 text-sm hover:bg-muted text-left"
                               onClick={() => add(p.platform, p.userId, false, p.nickname)}>
+                              <PlatformIcon platform={p.platform} />
                               <Badge variant="secondary" className="shrink-0">{t('ai.wl_user')}</Badge>
                               <span>{p.nickname || p.userId}</span><span className="font-mono text-xs text-muted-foreground">{p.userId}</span>
                             </button>

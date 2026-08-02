@@ -8,6 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { PlatformIcon, platformLabel } from '@/components/platform-icon';
 import { Clock, Plus, Trash2, RefreshCw, Loader2, Pencil, Save, X, Play } from 'lucide-react';
 
 interface Task {
@@ -207,7 +208,7 @@ export const SchedulesPage: React.FC = () => {
                 <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {[...new Set([...platforms, form.platform])].filter(Boolean).map((p) => (
-                    <SelectItem key={p} value={p}>{p}</SelectItem>
+                    <SelectItem key={p} value={p}><span className="flex items-center gap-2"><PlatformIcon platform={p} />{platformLabel(p)}</span></SelectItem>
                   ))}
                 </SelectContent>
               </Select></div>
