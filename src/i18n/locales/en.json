@@ -287,7 +287,10 @@
     "detail_internal_id": "Internal adapter ID",
     "detail_official_gateway": "QQ Official Gateway WebSocket",
     "detail_gateway": "Gateway WebSocket",
-    "detail_managed_endpoint": "Managed automatically by the platform"
+    "detail_managed_endpoint": "Managed automatically by the platform",
+    "detail_bdc_cloud": "BDC cloud service",
+    "bdc_cloud_connected": "BDC cloud connected",
+    "bdc_cloud_disconnected": "BDC cloud disconnected"
   },
   "dice": {
     "title": "Dice Rules",

@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   DropdownMenu,
@@ -13,7 +14,7 @@ import {
 import { ConnectionStatus } from '@/components/adapter/connection-status';
 import { cn } from '@/lib/utils';
 import { formatDateTime } from '@/lib/utils';
-import { Info, MoreHorizontal, Plug, Unplug, Pencil, Trash2, Wifi, PlugZap, Network } from 'lucide-react';
+import { Cloud, CloudOff, Info, MoreHorizontal, Plug, Unplug, Pencil, Trash2, Wifi, PlugZap, Network } from 'lucide-react';
 import type { Adapter } from '@/types/adapter';
 import { PlatformIcon, platformLabel } from '@/components/platform-icon';
 
@@ -124,6 +125,11 @@ export const AdapterCard: React.FC<AdapterCardProps> = ({
                   <span className="whitespace-nowrap">{t('adapters.detail_real_qq')}: {adapter.qqNumber || '—'}</span>
                 )}
               </div>
+              {adapter.type === 'onebot_v11' && (
+                <p className="mt-1 truncate font-mono text-xs text-muted-foreground" title={adapter.endpoint}>
+                  {adapter.connectionMode === 'reverse_ws' ? t('adapters.port') : t('adapters.address')}: {adapter.endpoint || '—'}
+                </p>
+              )}
             </div>
           </div>
 
@@ -149,7 +155,12 @@ export const AdapterCard: React.FC<AdapterCardProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="mt-4 flex flex-wrap items-center justify-end gap-1.5">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+          <Badge variant={adapter.heartApiKeyConfigured ? 'success' : 'secondary'} className="gap-1.5 whitespace-nowrap text-[10px]">
+            {adapter.heartApiKeyConfigured ? <Cloud className="h-3 w-3" /> : <CloudOff className="h-3 w-3" />}
+            {adapter.heartApiKeyConfigured ? t('adapters.bdc_cloud_connected') : t('adapters.bdc_cloud_disconnected')}
+          </Badge>
+          <div className="flex flex-wrap items-center justify-end gap-1.5">
             <Button variant="outline" size="sm" onClick={() => setDetailOpen(true)}>
               <Info className="mr-1 h-3.5 w-3.5" />{t('adapters.detail_btn')}
             </Button>
@@ -178,6 +189,7 @@ export const AdapterCard: React.FC<AdapterCardProps> = ({
                 {isConnecting ? t('adapters.connecting') : t('common.undisable')}
               </Button>
             )}
+          </div>
         </div>
       </CardContent>
 
@@ -201,10 +213,11 @@ export const AdapterCard: React.FC<AdapterCardProps> = ({
               <span className="inline-flex items-center gap-2"><ConnectionStatus status={effectiveStatus} />{t(STATUS_LABEL_KEYS[effectiveStatus])}</span>
             </DetailRow>
             <DetailRow label={t('adapters.detail_enabled')}>{adapter.enabled ? t('adapters.status_on') : t('adapters.status_off')}</DetailRow>
-            <DetailRow label={t('adapters.heart_api_key')}>
-              {adapter.heartApiKeyConfigured
-                ? t('adapters.heart_key_ready', { tail: adapter.heartApiKeyTail })
-                : t('adapters.heart_key_missing')}
+            <DetailRow label={t('adapters.detail_bdc_cloud')}>
+              <Badge variant={adapter.heartApiKeyConfigured ? 'success' : 'secondary'} className="gap-1.5 whitespace-nowrap text-[10px]">
+                {adapter.heartApiKeyConfigured ? <Cloud className="h-3 w-3" /> : <CloudOff className="h-3 w-3" />}
+                {adapter.heartApiKeyConfigured ? t('adapters.bdc_cloud_connected') : t('adapters.bdc_cloud_disconnected')}
+              </Badge>
             </DetailRow>
             <DetailRow label={t('adapters.last_active')}>{adapter.lastActive ? formatDateTime(adapter.lastActive) : '—'}</DetailRow>
             <DetailRow label={t('adapters.detail_created')}>{adapter.createdAt ? formatDateTime(adapter.createdAt) : '—'}</DetailRow>
