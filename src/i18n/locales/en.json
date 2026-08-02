@@ -272,7 +272,22 @@
     "mode_forward_hint": "Forward WebSocket: this bot acts as a WebSocket client and actively connects to the login framework's OneBot v11 WebSocket server. Enter below the address of the port the framework listens on (e.g. ws://127.0.0.1:3001). In the framework choose \"WebSocket server / active WebSocket / forward WebSocket\" and fill in its listening port (e.g. 3001).",
     "mode_reverse_hint": "Reverse WebSocket: this program runs a WebSocket server listening on a local port, waiting for the login framework to connect as a WS client. Enter the listening port below (e.g. 3002). In the framework choose \"reverse WebSocket / passive WebSocket / WebSocket client\" and fill in the address of this program's listening port (e.g. ws://127.0.0.1:3002).",
     "status_on": "On",
-    "status_off": "Disabled"
+    "status_off": "Disabled",
+    "detail_btn": "Details",
+    "detail_title": "Adapter details",
+    "detail_platform": "Platform",
+    "detail_bot_name": "Bot name",
+    "detail_bot_id": "Bot ID",
+    "detail_app_id": "App ID",
+    "detail_real_qq": "Real QQ number",
+    "detail_protocol": "Protocol",
+    "detail_connection_status": "Connection status",
+    "detail_enabled": "Enabled",
+    "detail_created": "Created",
+    "detail_internal_id": "Internal adapter ID",
+    "detail_official_gateway": "QQ Official Gateway WebSocket",
+    "detail_gateway": "Gateway WebSocket",
+    "detail_managed_endpoint": "Managed automatically by the platform"
   },
   "dice": {
     "title": "Dice Rules",

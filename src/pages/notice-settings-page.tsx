@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { PlatformIcon } from '@/components/platform-icon';
 import { Bell, Plus, Trash2, RefreshCw, Search, Mail, Webhook, ScrollText, Send, Loader2 } from 'lucide-react';
 
 interface CatalogItem { op: string; area: number; }
@@ -180,6 +181,7 @@ export const NoticeSettingsPage: React.FC = () => {
                     {pickResults.gs.map((g) => (
                       <button key={g.platform + g.groupId} className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted text-left"
                         onClick={() => addWindow(g.platform, g.groupId, true, g.name)}>
+                        <PlatformIcon platform={g.platform} />
                         <Badge variant="secondary" className="shrink-0">{t('noticeset.win_group')}</Badge>
                         <span>{g.name}</span><span className="font-mono text-xs text-muted-foreground">{g.groupId}</span>
                       </button>
@@ -192,6 +194,7 @@ export const NoticeSettingsPage: React.FC = () => {
                     {pickResults.ps.map((p) => (
                       <button key={p.platform + p.userId} className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted text-left"
                         onClick={() => addWindow(p.platform, p.userId, false, p.nickname)}>
+                        <PlatformIcon platform={p.platform} />
                         <Badge variant="secondary" className="shrink-0">{t('noticeset.win_user')}</Badge>
                         <span>{p.nickname || p.userId}</span><span className="font-mono text-xs text-muted-foreground">{p.userId}</span>
                       </button>

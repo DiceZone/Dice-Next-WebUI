@@ -8,6 +8,7 @@ import { Loader2, RefreshCw, Check, X, Pencil, ArrowLeft, ChevronRight, ChevronD
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PaginationBar } from '@/components/ui/pagination-bar';
 import { ChatTab } from '@/pages/groups-page';
+import { PlatformIcon, platformLabel } from '@/components/platform-icon';
 
 interface Player {
   platform: string;
@@ -177,14 +178,14 @@ const PlayerDetailView: React.FC<{
               <span className="text-lg font-semibold">{player.nickname || player.userId}</span>
               {isMaster && <Badge variant="outline" className="border-red-300 text-red-600 dark:border-red-700 dark:text-red-400">{t('banlist.perm_master')}</Badge>}
             </div>
-            <div className="text-xs text-muted-foreground font-mono">{player.userId}</div>
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-mono"><PlatformIcon platform={player.platform} className="h-3.5 w-3.5" />{player.userId}</div>
             {player.virtualId && <div className="text-xs text-amber-600 dark:text-amber-400">虚拟 QQ 号（尚未绑定真实 QQ）</div>}
             <div className="text-xs text-muted-foreground">{t('players.col_count')}: {player.cmdCount} · {t('players.col_favor')}: {player.favor}</div>
           </div>
         </div>
         {(player.bindings?.length ?? 0) > 0 && <div className="rounded border bg-muted/30 px-3 py-2 text-xs">
           <div className="mb-1 text-muted-foreground">已绑定身份来源</div>
-          {player.bindings!.map((b, i) => <div key={`${b.adapterType}-${b.adapterAccount}-${b.endpointId}-${i}`} className="font-mono break-all">{b.adapterType} / {b.adapterAccount || '—'} / {b.endpointId}</div>)}
+          {player.bindings!.map((b, i) => <div key={`${b.adapterType}-${b.adapterAccount}-${b.endpointId}-${i}`} className="flex items-center gap-1.5 font-mono break-all"><PlatformIcon platform={b.adapterType} className="h-3.5 w-3.5" />{platformLabel(b.adapterType)} / {b.adapterAccount || '—'} / {b.endpointId}</div>)}
         </div>}
         <span className="flex-1" />
         <Button size="sm" onClick={saveAll} disabled={saving || dirtyCount === 0}>
@@ -544,10 +545,10 @@ export const PlayersPage: React.FC = () => {
             <SelectTrigger className="h-9 w-36 text-sm"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t('players.all_platforms')}</SelectItem>
-              <SelectItem value="onebot_v11">OneBot (QQ)</SelectItem>
-              <SelectItem value="qq_official">QQ 官方</SelectItem>
-              <SelectItem value="discord">Discord</SelectItem>
-              <SelectItem value="kook">KOOK</SelectItem>
+              <SelectItem value="onebot_v11"><span className="inline-flex items-center gap-2"><PlatformIcon platform="onebot_v11" />OneBot (QQ)</span></SelectItem>
+              <SelectItem value="qq_official"><span className="inline-flex items-center gap-2"><PlatformIcon platform="qq_official" />QQ 官方</span></SelectItem>
+              <SelectItem value="discord"><span className="inline-flex items-center gap-2"><PlatformIcon platform="discord" />Discord</span></SelectItem>
+              <SelectItem value="kook"><span className="inline-flex items-center gap-2"><PlatformIcon platform="kook" />KOOK</span></SelectItem>
             </SelectContent>
           </Select>
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('players.search')}
@@ -594,6 +595,7 @@ export const PlayersPage: React.FC = () => {
                   </td>
                   <td data-label={t('players.col_id')} className="p-2.5 font-mono text-xs">
                     <span className="inline-flex items-center gap-1.5">
+                      <PlatformIcon platform={p.platform} className="h-3.5 w-3.5" />
                       {p.userId}
                       {p.platform && p.platform !== 'onebot_v11' && (
                         <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-sans">

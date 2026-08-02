@@ -4,6 +4,7 @@ import { Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { PlatformIcon } from '@/components/platform-icon';
 import { cn } from '@/lib/utils';
 
 /**
@@ -99,8 +100,10 @@ export const PlaygroundPage: React.FC = () => {
           <Select value={platform} onValueChange={(v) => setPlatform(v)}>
             <SelectTrigger className="h-9 w-44"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="onebot_v11">QQ (OneBot v11)</SelectItem>
-              <SelectItem value="discord">Discord</SelectItem>
+              <SelectItem value="onebot_v11"><span className="flex items-center gap-2"><PlatformIcon platform="onebot_v11" />QQ (OneBot v11)</span></SelectItem>
+              <SelectItem value="qq_official"><span className="flex items-center gap-2"><PlatformIcon platform="qq_official" />QQ 官方机器人</span></SelectItem>
+              <SelectItem value="discord"><span className="flex items-center gap-2"><PlatformIcon platform="discord" />Discord</span></SelectItem>
+              <SelectItem value="kook"><span className="flex items-center gap-2"><PlatformIcon platform="kook" />KOOK</span></SelectItem>
             </SelectContent>
           </Select>
         </div>

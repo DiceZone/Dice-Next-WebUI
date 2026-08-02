@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { PaginationBar } from '@/components/ui/pagination-bar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { PlatformIcon } from '@/components/platform-icon';
 import { ShieldCheck, Plus, Trash2, RefreshCw, Bot, Search, Users, Cloud } from 'lucide-react';
 
 interface BanEntry {
@@ -142,8 +143,8 @@ const PermTab: React.FC<{ entries: BanEntry[]; reload: () => Promise<void>; del:
               <Select value={dlgPlatform} onValueChange={(v) => { setDlgPlatform(v); setDlgUser(''); }}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="onebot_v11">QQ</SelectItem>
-                  <SelectItem value="discord" disabled>Discord</SelectItem>
+                  <SelectItem value="onebot_v11"><span className="flex items-center gap-2"><PlatformIcon platform="onebot_v11" />QQ</span></SelectItem>
+                  <SelectItem value="discord" disabled><span className="flex items-center gap-2"><PlatformIcon platform="discord" />Discord</span></SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -225,7 +226,7 @@ const PermTab: React.FC<{ entries: BanEntry[]; reload: () => Promise<void>; del:
                           onError={(ev) => { (ev.target as HTMLImageElement).style.display = 'none'; }} />
                       </td>
                       <td data-label={t('banlist.perm_col_trust')} className="p-2">
-                        <span className="font-mono">{p.userId}</span>
+                        <span className="inline-flex items-center gap-1.5 font-mono"><PlatformIcon platform={p.platform} className="h-3.5 w-3.5" />{p.userId}</span>
                         {p.nickname && <span className="ml-2 text-muted-foreground">{p.nickname}</span>}
                       </td>
                       <td className="p-2">
@@ -397,8 +398,8 @@ const BlackTab: React.FC<{ entries: BanEntry[]; reload: () => Promise<void>; del
               <Select value={dlgPlatform} onValueChange={(v) => { setDlgPlatform(v); setDlgId(''); }}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="onebot_v11">QQ</SelectItem>
-                  <SelectItem value="discord" disabled>Discord</SelectItem>
+                  <SelectItem value="onebot_v11"><span className="flex items-center gap-2"><PlatformIcon platform="onebot_v11" />QQ</span></SelectItem>
+                  <SelectItem value="discord" disabled><span className="flex items-center gap-2"><PlatformIcon platform="discord" />Discord</span></SelectItem>
                 </SelectContent>
               </Select>
             </div>

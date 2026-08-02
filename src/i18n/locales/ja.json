@@ -272,7 +272,22 @@
     "mode_forward_hint": "正方向 WebSocket：本ボットが WebSocket クライアントとして、ログインフレームワークの OneBot v11 WebSocket サーバーへ能動的に接続します。下にフレームワークが待ち受けるポートのアドレス（例 ws://127.0.0.1:3001）を入力してください。フレームワーク側では「WebSocketサーバー / 能動WebSocket / 正方向WebSocket」を選び、待ち受けポート（例 3001）を設定します。",
     "mode_reverse_hint": "逆方向 WebSocket：本プログラムが WebSocket サーバーとしてローカルポートで待ち受け、ログインフレームワークが WS クライアントとして接続してくるのを待ちます。下に待ち受けポート番号（例 3002）を入力してください。フレームワーク側では「逆方向WebSocket / 受動WebSocket / WebSocketクライアント」を選び、本プログラムの待ち受けポートに対応するアドレス（例 ws://127.0.0.1:3002）を設定します。",
     "status_on": "オン",
-    "status_off": "無効"
+    "status_off": "無効",
+    "detail_btn": "詳細",
+    "detail_title": "アダプター詳細",
+    "detail_platform": "プラットフォーム",
+    "detail_bot_name": "Bot名",
+    "detail_bot_id": "Bot ID",
+    "detail_app_id": "App ID",
+    "detail_real_qq": "実QQ番号",
+    "detail_protocol": "接続方式",
+    "detail_connection_status": "接続状態",
+    "detail_enabled": "有効状態",
+    "detail_created": "作成日時",
+    "detail_internal_id": "内部アダプター ID",
+    "detail_official_gateway": "QQ公式 Gateway WebSocket",
+    "detail_gateway": "Gateway WebSocket",
+    "detail_managed_endpoint": "プラットフォームにより自動管理"
   },
   "dice": {
     "title": "ダイスルール",
