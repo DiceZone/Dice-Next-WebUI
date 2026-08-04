@@ -1140,6 +1140,9 @@
   "groups": {
     "title": "群組管理",
     "subtitle": "遠端啟用/停用群、編輯骰娘群名片與群備註、退群或發訊息。",
+    "account_scope": "介面卡帳號",
+    "account_scope_hint": "開關、群名片、歡迎語、插件與目前日誌會依所選帳號獨立儲存。",
+    "account_count": "{{count}} 個帳號",
     "add": "新增群",
     "add_placeholder": "輸入群號新增…",
     "empty": "暫無群組記錄",

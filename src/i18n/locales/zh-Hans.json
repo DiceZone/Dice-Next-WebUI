@@ -1120,6 +1120,9 @@
   "groups": {
     "title": "群组管理",
     "subtitle": "远程启用/停用群、编辑骰娘群名片与群备注、退群或发消息。",
+    "account_scope": "适配器账号",
+    "account_scope_hint": "开关、群名片、欢迎语、插件和当前日志均按这里选择的账号独立保存。",
+    "account_count": "{{count}} 个账号",
     "add": "添加群",
     "add_placeholder": "输入群号添加…",
     "empty": "暂无群组记录",

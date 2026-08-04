@@ -19,6 +19,13 @@ import {
 import { cn } from '@/lib/utils';
 import { PlatformIcon, platformLabel } from '@/components/platform-icon';
 
+interface GroupAccount {
+  adapterId: string; adapterName: string; loginId: string; platform: string; endpointId: string;
+  connected: boolean; enabled: boolean; ai_enabled?: boolean; locked: boolean; card: string;
+  activeLog: boolean; activeLogId?: string; activeLogName?: string; observers: number;
+  botRole: string; memberCount: number; inviter?: string; locale?: string; left?: boolean;
+  welcome?: string; welcome_delay?: string; welcome_cooldown?: string;
+}
 interface Group {
   platform: string; groupId: string; name: string;
   enabled: boolean; ai_enabled?: boolean; locked: boolean; card: string; remark: string;
@@ -29,11 +36,17 @@ interface Group {
   welcome_min_delay?: number; welcome_min_cooldown?: number;  // C#76: global minimums
   left?: boolean;     // C#62: 已退群（记录保留）
   bindings?: { adapterType: string; adapterAccount: string; endpointId: string }[];
+  accounts?: GroupAccount[];
 }
 interface Member { userId: string; nickname: string; card: string; role: string; title: string; }
 interface ChatLine { id: number; sender: string; userId?: string; content: string; self: boolean; time: number; recalled?: boolean; msgId?: string; }
 
 const tagsOf = (g: Group) => g.remark.split(',').map((s) => s.trim()).filter(Boolean);
+const primaryAccount = (g: Group) => g.accounts?.find((a) => a.connected && !a.left) || g.accounts?.[0];
+const accountPayload = (g: Group) => {
+  const a = primaryAccount(g);
+  return a ? { adapterId: a.adapterId, endpointId: a.endpointId } : {};
+};
 
 function roleLabel(t: (k: string) => string, role: string) {
   return role === 'owner' ? t('groups.role_owner') : role === 'admin' ? t('groups.role_admin')
@@ -112,7 +125,7 @@ export const GroupsPage: React.FC = () => {
     try {
       const data = await jget<Group[]>('/groups');
       setGroups(data || []);
-      setSelected((cur) => cur ? (data || []).find((g) => g.platform === cur.platform && g.groupId === cur.groupId) || cur : cur);
+      setSelected((cur) => cur ? (data || []).find((g) => g.groupId === cur.groupId) || cur : cur);
     } catch { toast({ title: t('common.load_fail'), variant: 'destructive' }); }
     finally { setLoading(false); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -121,7 +134,7 @@ export const GroupsPage: React.FC = () => {
 
   const put = async (g: Group, body: Record<string, unknown>, silent = false) => {
     try {
-      await jsend('PUT', `/groups/${g.platform}/${g.groupId}`, body);
+      await jsend('PUT', `/groups/${g.platform}/${g.groupId}`, { ...body, ...accountPayload(g) });
       if (!silent) toast({ title: t('common.save_success') });
       await fetchGroups();
     } catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
@@ -268,6 +281,7 @@ export const GroupsPage: React.FC = () => {
                               <PlatformIcon platform={g.platform} />
                               <span className="truncate font-mono text-muted-foreground">{g.groupId}</span>
                             </span>
+                            {(g.accounts?.length || 0) > 1 && <Badge variant="outline" className="text-[10px]">{t('groups.account_count', { count: g.accounts!.length })}</Badge>}
                             {g.activeLog && <Badge variant="secondary" className="text-[10px]">{t('groups.recording')}</Badge>}
                           </div>
                         </div>
@@ -332,14 +346,25 @@ const GroupDetail: React.FC<{ group: Group; dlg: any; onBack: () => void; onChan
   const { t } = useTranslation();
   const toast = useToast();
   const [tab, setTab] = useState<'function' | 'plugins' | 'members' | 'logs' | 'chat' | 'ai' | 'files'>('function');
-  const base = `/groups/${group.platform}/${group.groupId}`;
+  const accounts = group.accounts?.length ? group.accounts : [{
+    adapterId: '', adapterName: '', loginId: '', platform: group.platform, endpointId: group.groupId,
+    connected: false, enabled: group.enabled, ai_enabled: group.ai_enabled, locked: group.locked,
+    card: group.card, activeLog: group.activeLog, observers: group.observers, botRole: group.botRole,
+    memberCount: group.memberCount, inviter: group.inviter, locale: group.locale, left: group.left,
+    welcome: group.welcome, welcome_delay: group.welcome_delay, welcome_cooldown: group.welcome_cooldown,
+  } satisfies GroupAccount];
+  const [accountId, setAccountId] = useState(() => (accounts.find((a) => a.connected && !a.left) || accounts[0]).adapterId);
+  const account = accounts.find((a) => a.adapterId === accountId) || accounts[0];
+  const activeGroup: Group = { ...group, ...account, platform: account.platform, accounts: group.accounts };
+  const base = `/groups/${activeGroup.platform}/${group.groupId}`;
+  const scopedBody = { adapterId: account.adapterId, endpointId: account.endpointId };
   // 平台能力位：按能力隐藏该平台不支持的 tab（成员列表/群文件），取不到时全显示。
   const [caps, setCaps] = useState<Record<string, Record<string, boolean>> | null>(null);
   useEffect(() => {
     fetch('/api/platform-caps').then((r) => r.json())
       .then((j) => setCaps(j.data || {})).catch(() => setCaps(null));
   }, []);
-  const pcaps = caps?.[group.platform];
+  const pcaps = caps?.[activeGroup.platform];
   const tabVisible = (k: string) => {
     if (!pcaps) return true;
     if (k === 'members') return pcaps.member_list !== false;
@@ -351,13 +376,13 @@ const GroupDetail: React.FC<{ group: Group; dlg: any; onBack: () => void; onChan
     <div className="space-y-5">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={onBack}><ArrowLeft className="h-4 w-4" /></Button>
-        <GroupAvatar groupId={group.groupId} platform={group.platform} />
+        <GroupAvatar groupId={group.groupId} platform={activeGroup.platform} />
         <div>
           <h1 className="text-xl font-bold tracking-tight leading-tight">{group.name}</h1>
           <div className="flex items-center gap-2 mt-0.5">
-            <StatusBadge g={group} t={t} />
+            <StatusBadge g={activeGroup} t={t} />
             <span className="inline-flex min-w-0 items-center gap-1 rounded bg-muted px-2 py-0.5 text-xs">
-              <PlatformIcon platform={group.platform} />
+              <PlatformIcon platform={activeGroup.platform} />
               <span className="truncate font-mono text-muted-foreground">{group.groupId}</span>
             </span>
             {group.bindings && group.bindings.length > 0 && (
@@ -375,6 +400,21 @@ const GroupDetail: React.FC<{ group: Group; dlg: any; onBack: () => void; onChan
         </div>
       </div>
 
+      <div className="rounded-lg border bg-muted/20 p-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <div className="text-sm font-medium">{t('groups.account_scope')}</div>
+          <p className="text-xs text-muted-foreground">{t('groups.account_scope_hint')}</p>
+        </div>
+        <Select value={account.adapterId || '__legacy__'} onValueChange={(v) => setAccountId(v === '__legacy__' ? '' : v)}>
+          <SelectTrigger className="w-full sm:w-[320px]"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {accounts.map((a) => <SelectItem key={a.adapterId || '__legacy__'} value={a.adapterId || '__legacy__'}>
+              <span className="inline-flex items-center gap-2"><PlatformIcon platform={a.platform} />{a.adapterName || platformLabel(a.platform)}{a.loginId ? ` · ${a.loginId}` : ''}{a.left ? '（已退群）' : a.connected ? '（在线）' : '（离线）'}</span>
+            </SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+
       <div className="flex gap-1 border-b">
         {([['function', Settings2, t('groups.tab_function')], ['ai', Sparkles, t('groups.tab_ai')], ['plugins', Blocks, t('groups.tab_plugins')], ['members', Users, t('groups.tab_members')], ['logs', ScrollText, t('groups.tab_logs')], ['files', FolderOpen, t('groups.tab_files')], ['chat', MessagesSquare, t('groups.tab_chat')]] as const).filter(([k]) => tabVisible(k)).map(([k, Icon, label]) => (
           <button key={k} onClick={() => setTab(k)}
@@ -384,18 +424,18 @@ const GroupDetail: React.FC<{ group: Group; dlg: any; onBack: () => void; onChan
         ))}
       </div>
 
-      {tab === 'function' && <FunctionTab group={group} base={base} onChanged={onChanged} onBack={onBack} goChat={() => setTab('chat')} t={t} toast={toast} dlg={dlg} welcomeRef={welcomeRef} />}
-      {tab === 'ai' && <AiGroupTab group={group} base={base} onChanged={onChanged} t={t} toast={toast} dlg={dlg} />}
-      {tab === 'plugins' && <PluginsTab group={group} t={t} toast={toast} />}
-      {tab === 'members' && <MembersTab base={base} t={t} toast={toast} dlg={dlg} />}
+      {tab === 'function' && <FunctionTab group={activeGroup} base={base} scopedBody={scopedBody} onChanged={onChanged} onBack={onBack} goChat={() => setTab('chat')} t={t} toast={toast} dlg={dlg} welcomeRef={welcomeRef} />}
+      {tab === 'ai' && <AiGroupTab group={activeGroup} base={base} scopedBody={scopedBody} onChanged={onChanged} t={t} toast={toast} dlg={dlg} />}
+      {tab === 'plugins' && <PluginsTab group={activeGroup} adapterId={account.adapterId} t={t} toast={toast} />}
+      {tab === 'members' && <MembersTab base={base} adapterId={account.adapterId} endpointId={account.endpointId} t={t} toast={toast} dlg={dlg} />}
       {tab === 'logs' && <LogsTab group={group} t={t} toast={toast} dlg={dlg} />}
       {tab === 'files' && <FilesTab base={base} t={t} toast={toast} />}
       {tab === 'chat' && <ChatTab base={base} platform={group.platform} t={t} toast={toast}
-        channels={(group.bindings?.length ? group.bindings : [{ adapterType: group.platform, adapterAccount: '', endpointId: group.groupId }]).map((b) => ({
-          key: `${b.adapterType}:${b.adapterAccount}`, platform: b.adapterType, adapterAccount: b.adapterAccount,
-          endpointId: b.endpointId,
-          base: `/groups/${encodeURIComponent(b.adapterType)}/${encodeURIComponent(group.groupId)}`,
-          label: b.adapterType === 'qq_official' ? `QQ 官方机器人 ${b.adapterAccount}` : `${b.adapterType === 'discord' ? 'Discord' : b.adapterType === 'kook' ? 'KOOK' : 'OneBot'}（适配器 ${b.adapterAccount || '默认'}）`,
+        channels={accounts.map((a) => ({
+          key: `${a.platform}:${a.adapterId}`, platform: a.platform, adapterAccount: a.adapterId,
+          endpointId: a.endpointId,
+          base: `/groups/${encodeURIComponent(a.platform)}/${encodeURIComponent(group.groupId)}`,
+          label: `${platformLabel(a.platform)} · ${a.adapterName || a.adapterId || '默认账号'}${a.loginId ? `（${a.loginId}）` : ''}`,
         }))} />}
     </div>
   );
@@ -404,7 +444,7 @@ const GroupDetail: React.FC<{ group: Group; dlg: any; onBack: () => void; onChan
 // ── 插件分群启停（C#27 地基）──
 // C#84：分群「人工智能」选项卡 —— 本群 AI 开关 + 群记忆（摘要/事实）查看与清空。
 interface GMemItem { content: string; }
-const AiGroupTab: React.FC<any> = ({ group, base, onChanged, t, toast, dlg }) => {
+const AiGroupTab: React.FC<any> = ({ group, base, scopedBody, onChanged, t, toast, dlg }) => {
   const [aiOn, setAiOn] = useState(group.ai_enabled !== false);
   const [summaries, setSummaries] = useState<GMemItem[]>([]);
   const [facts, setFacts] = useState<GMemItem[]>([]);
@@ -412,7 +452,7 @@ const AiGroupTab: React.FC<any> = ({ group, base, onChanged, t, toast, dlg }) =>
   const scopeId = `${group.platform}:${group.groupId}`;
   const toggle = async (v: boolean) => {
     setAiOn(v);
-    try { await jsend('PUT', base, { ai_enabled: v }); onChanged(); }
+    try { await jsend('PUT', base, { ai_enabled: v, ...scopedBody }); onChanged(); }
     catch (e) { setAiOn(!v); toast({ title: String(e), variant: 'destructive' }); }
   };
   const loadMem = useCallback(async () => {
@@ -471,25 +511,25 @@ const AiGroupTab: React.FC<any> = ({ group, base, onChanged, t, toast, dlg }) =>
 };
 
 interface GroupPlugin { id: string; name: string; kind: 'js' | 'lua'; enabledGlobal: boolean; enabledInGroup: boolean; }
-const PluginsTab: React.FC<any> = ({ group, t, toast }) => {
+const PluginsTab: React.FC<any> = ({ group, adapterId, t, toast }) => {
   const [plugins, setPlugins] = useState<GroupPlugin[]>([]);
   const [loading, setLoading] = useState(false);
   const [q, setQ] = useState('');
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const p = new URLSearchParams({ platform: group.platform, group: group.groupId });
+      const p = new URLSearchParams({ platform: group.platform, group: group.groupId, adapterId: adapterId || '' });
       const d = await jget<{ plugins: GroupPlugin[] }>('/groups/plugins?' + p.toString());
       setPlugins(d.plugins || []);
     } catch (e) { toast({ title: String(e), variant: 'destructive' }); }
     finally { setLoading(false); }
-  }, [group.platform, group.groupId, toast]);
+  }, [group.platform, group.groupId, adapterId, toast]);
   useEffect(() => { void load(); }, [load]);
 
   const toggle = async (pl: GroupPlugin, on: boolean) => {
     setPlugins((arr) => arr.map((x) => (x.id === pl.id ? { ...x, enabledInGroup: on } : x)));   // 乐观更新
     try {
-      await jsend('POST', '/groups/plugins/toggle', { platform: group.platform, group: group.groupId, pluginId: pl.id, enabled: on });
+      await jsend('POST', '/groups/plugins/toggle', { platform: group.platform, group: group.groupId, adapterId, pluginId: pl.id, enabled: on });
     } catch (e) {
       setPlugins((arr) => arr.map((x) => (x.id === pl.id ? { ...x, enabledInGroup: !on } : x)));   // 回滚
       toast({ title: String(e), variant: 'destructive' });
@@ -534,7 +574,7 @@ const PluginsTab: React.FC<any> = ({ group, t, toast }) => {
 };
 
 // ── 功能管理 ──
-const FunctionTab: React.FC<any> = ({ group, base, onChanged, onBack, goChat, t, toast, dlg, welcomeRef }) => {
+const FunctionTab: React.FC<any> = ({ group, base, scopedBody, onChanged, onBack, goChat, t, toast, dlg, welcomeRef }) => {
   const [card, setCard] = useState(group.card || '');
   const [editingCard, setEditingCard] = useState(false);   // C#50: 名片默认只读，点「修改」才编辑
   const [botNick, setBotNick] = useState('');               // 骰娘 QQ 本身昵称（无群名片时展示）
@@ -562,14 +602,14 @@ const FunctionTab: React.FC<any> = ({ group, base, onChanged, onBack, goChat, t,
   }, [group.platform]);
 
   const save = async (body: Record<string, unknown>) => {
-    try { await jsend('PUT', base, body); toast({ title: t('common.save_success') }); onChanged(); }
+    try { await jsend('PUT', base, { ...body, ...scopedBody }); toast({ title: t('common.save_success') }); onChanged(); }
     catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
   };
   const doLeave = async (removeRecord: boolean) => {
     setLeaving(true);
     try {
-      await jsend('POST', `${base}/action`, { action: 'leave' });
-      if (removeRecord) await jsend('DELETE', base);
+      await jsend('POST', `${base}/action`, { action: 'leave', ...scopedBody });
+      if (removeRecord) await jsend('DELETE', base, scopedBody);
       setLeaveOpen(false); onChanged(); onBack();
     } catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
     finally { setLeaving(false); }
@@ -679,7 +719,7 @@ const FunctionTab: React.FC<any> = ({ group, base, onChanged, onBack, goChat, t,
           <Button variant="outline" onClick={() => setLeaveOpen(true)}><LogOut className="mr-2 h-4 w-4" />{t('groups.leave')}</Button>
           <Button variant="ghost" className="text-muted-foreground" onClick={async () => {
             if (!await dlg.confirm({ title: t('groups.remove'), description: t('groups.remove_confirm', { id: group.groupId }) })) return;
-            try { await jsend('DELETE', base); onChanged(); onBack(); } catch (e) { toast({ title: t('common.delete_fail'), description: String(e), variant: 'destructive' }); }
+            try { await jsend('DELETE', base, scopedBody); onChanged(); onBack(); } catch (e) { toast({ title: t('common.delete_fail'), description: String(e), variant: 'destructive' }); }
           }}>{t('groups.remove')}</Button>
         </div>
       </div>
@@ -707,7 +747,7 @@ const FunctionTab: React.FC<any> = ({ group, base, onChanged, onBack, goChat, t,
 };
 
 // ── 人员管理 ──
-const MembersTab: React.FC<any> = ({ base, t, toast, dlg }) => {
+const MembersTab: React.FC<any> = ({ base, adapterId, endpointId, t, toast, dlg }) => {
   const [members, setMembers] = useState<Member[]>([]);
   const [botRole, setBotRole] = useState('');
   const [loading, setLoading] = useState(true);
@@ -718,23 +758,24 @@ const MembersTab: React.FC<any> = ({ base, t, toast, dlg }) => {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const d = await jget<{ botRole: string; members: Member[] }>(`${base}/members`);
+      const query = new URLSearchParams({ adapterId: adapterId || '', endpointId: endpointId || '' });
+      const d = await jget<{ botRole: string; members: Member[] }>(`${base}/members?${query}`);
       setBotRole(d.botRole); setMembers(d.members || []);
       if ((d.members || []).length === 0) {
         setTimeout(async () => {
-          try { const d2 = await jget<{ botRole: string; members: Member[] }>(`${base}/members`); setBotRole(d2.botRole); setMembers(d2.members || []); } catch { /* ignore */ }
+          try { const d2 = await jget<{ botRole: string; members: Member[] }>(`${base}/members?${query}`); setBotRole(d2.botRole); setMembers(d2.members || []); } catch { /* ignore */ }
         }, 2000);
       }
     } catch (e) { toast({ title: t('common.load_fail'), description: String(e), variant: 'destructive' }); }
     finally { setLoading(false); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [base]);
+  }, [base, adapterId, endpointId]);
   useEffect(() => { void load(); }, [load]);
 
   const canManage = botRole === 'admin' || botRole === 'owner';
   const isOwner = botRole === 'owner';
   const act = async (userId: string, action: string, extra: Record<string, unknown> = {}) => {
-    try { await jsend('POST', `${base}/member-action`, { userId, action, ...extra }); toast({ title: t('common.save_success') }); }
+    try { await jsend('POST', `${base}/member-action`, { userId, action, adapterId, endpointId, ...extra }); toast({ title: t('common.save_success') }); }
     catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
   };
   const filtered = members
