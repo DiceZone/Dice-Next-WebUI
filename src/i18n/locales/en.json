@@ -1140,6 +1140,9 @@
   "groups": {
     "title": "Group Management",
     "subtitle": "Remotely enable/disable groups, edit the bot's group card and remarks, leave or message.",
+    "account_scope": "Adapter account",
+    "account_scope_hint": "Switches, cards, welcome messages, plugins, and the active log are stored separately for the selected account.",
+    "account_count": "{{count}} accounts",
     "add": "Add group",
     "add_placeholder": "Enter a group ID to add...",
     "empty": "No groups yet",
