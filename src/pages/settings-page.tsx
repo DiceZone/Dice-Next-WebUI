@@ -17,16 +17,16 @@ import {
   Image, Type, Server, Clock, ScrollText, HeartPulse,
 } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
-import { PlatformIcon } from '@/components/platform-icon';
+import { PlatformIcon, platformLabel } from '@/components/platform-icon';
 
-interface Master { platform: string; id: string; }
+interface Master { platform: string; id: string; nickname?: string; }
 const PLATFORMS: { value: string; label: string }[] = [
   { value: 'onebot_v11', label: 'QQ' },
-  { value: 'qq_official', label: 'QQ 官方机器人' },
+  { value: 'qq_official', label: 'OpenID' },
   { value: 'discord', label: 'Discord' },
   { value: 'kook', label: 'KOOK' },
 ];
-const platLabel = (p: string) => PLATFORMS.find((x) => x.value === p)?.label || (p || '任意');
+const masterPlatLabel = (p: string) => (p ? platformLabel(p) : '任意');
 // 常用时区（相对 UTC 的分钟偏移，东为正；null = 跟随系统）。
 const TZ_OFFSETS: number[] = [
   -720, -660, -600, -540, -480, -420, -360, -300, -240, -180, -120, -60, 0,
@@ -153,11 +153,13 @@ const ImageSendCard: React.FC = () => {
 };
 
 // ── 消息发送形式（传统文本 / 平台富卡片）──────────────────────
-interface MessageFormatConf { mode?: 'traditional' | 'card'; }
+interface MessageFormatAdapter { id: string; type: string; name: string; loginId?: string; loginName?: string; appId?: string; mode?: string; }
+interface MessageFormatConf { mode?: 'traditional' | 'card'; adapters?: MessageFormatAdapter[]; }
 
 const MessageFormatCard: React.FC = () => {
   const toast = useToast();
   const [mode, setMode] = useState<MessageFormatConf['mode']>('traditional');
+  const [adapters, setAdapters] = useState<MessageFormatAdapter[]>([]);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -165,6 +167,7 @@ const MessageFormatCard: React.FC = () => {
       try {
         const d = await getJson('/system/message-format') as MessageFormatConf;
         setMode(d.mode === 'card' ? 'card' : 'traditional');
+        setAdapters(d.adapters || []);
       } catch { /* ignore */ }
     })();
   }, []);
@@ -172,7 +175,10 @@ const MessageFormatCard: React.FC = () => {
   const save = async () => {
     setSaving(true);
     try {
-      await putJson('/system/message-format', { mode: mode === 'card' ? 'card' : 'traditional' });
+      await putJson('/system/message-format', {
+        mode: mode === 'card' ? 'card' : 'traditional',
+        adapters: adapters.map((a) => ({ id: a.id, mode: a.mode || '' })),
+      });
       toast({ title: '消息发送形式已保存' });
     } catch (e) { toast({ title: (e as Error).message, variant: 'destructive' }); }
     finally { setSaving(false); }
@@ -185,15 +191,36 @@ const MessageFormatCard: React.FC = () => {
         <CardDescription>控制支持富消息的平台如何展示骰娘回复；OneBot 始终保持传统文本。</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
-        <Select value={mode || 'traditional'} onValueChange={(value) => setMode(value === 'card' ? 'card' : 'traditional')}>
-          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="traditional">传统文本</SelectItem>
-            <SelectItem value="card">卡片消息</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-3">
+          <Label className="font-normal w-28 shrink-0">全局默认</Label>
+          <Select value={mode || 'traditional'} onValueChange={(value) => setMode(value === 'card' ? 'card' : 'traditional')}>
+            <SelectTrigger className="h-9 flex-1"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="traditional">传统文本</SelectItem>
+              <SelectItem value="card">卡片消息</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1.5">
+          <Label className="font-normal text-xs text-muted-foreground">按适配器/帐号覆盖（留空=跟随全局）</Label>
+          {adapters.map((a) => (
+            <div key={a.id} className="flex items-center gap-3">
+              <span className="flex w-32 shrink-0 items-center gap-1.5 text-xs"><PlatformIcon platform={a.type} />{platformLabel(a.type)}</span>
+              <span className="w-36 truncate font-mono text-xs text-muted-foreground">{a.loginName || a.name}({a.type === 'qq_official' ? (a.appId || a.loginId || a.id) : (a.loginId || a.id)})</span>
+              <Select value={a.mode || '__inherit__'} onValueChange={(v) => setAdapters((arr) => arr.map((x) => x.id === a.id ? { ...x, mode: v === 'card' || v === 'traditional' ? v : '' } : x))}>
+                <SelectTrigger className="h-8 flex-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__inherit__">跟随全局</SelectItem>
+                  <SelectItem value="traditional">传统文本</SelectItem>
+                  <SelectItem value="card">卡片消息</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          ))}
+          {adapters.length === 0 && <p className="text-xs text-muted-foreground">暂无已配置适配器</p>}
+        </div>
         {mode === 'card' && (
-          <p className="text-xs text-muted-foreground">Discord 使用 Embed，KOOK 使用 CardMessage，QQ 官方机器人优先发送 Markdown。若 QQ 机器人未获 Markdown 权限，系统会自动退回传统文本；过长回复也会保持文本，避免截断。</p>
+          <p className="text-xs text-muted-foreground">Discord 使用 Embed，KOOK 使用 CardMessage，QQ 官方机器人优先发送 Markdown。若 QQ 机器人未获 Markdown 权限，系统会自动退回传统文本；过长回复也会保持文本，避免截断。OneBot 始终为传统文本。</p>
         )}
         <div className="flex justify-end"><Button size="sm" onClick={save} disabled={saving}>{saving ? '保存中…' : '保存'}</Button></div>
       </CardContent>
@@ -571,8 +598,8 @@ export const SettingsPage: React.FC = () => {
               {masters.map((m) => (
                 <div key={`${m.platform}/${m.id}`} className="flex items-center justify-between rounded border p-2.5">
                   <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center gap-1.5 rounded bg-muted px-2 py-0.5 text-xs font-medium"><PlatformIcon platform={m.platform} className="h-3.5 w-3.5" />{platLabel(m.platform)}</span>
-                    <span className="font-mono text-sm">{m.id}</span>
+                    <span className="inline-flex items-center gap-1.5 rounded bg-muted px-2 py-0.5 text-xs font-medium"><PlatformIcon platform={m.platform} className="h-3.5 w-3.5" />{masterPlatLabel(m.platform)}</span>
+                    <span className="font-mono text-sm">{m.nickname ? `${m.nickname}(${m.id})` : m.id}</span>
                   </div>
                   <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => delMaster(m)}><Trash2 className="h-4 w-4" /></Button>
                 </div>
