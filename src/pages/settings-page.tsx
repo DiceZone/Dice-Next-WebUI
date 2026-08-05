@@ -22,10 +22,22 @@ import { PlatformIcon } from '@/components/platform-icon';
 interface Master { platform: string; id: string; }
 const PLATFORMS: { value: string; label: string }[] = [
   { value: 'onebot_v11', label: 'QQ' },
+  { value: 'qq_official', label: 'QQ 官方机器人' },
   { value: 'discord', label: 'Discord' },
   { value: 'kook', label: 'KOOK' },
 ];
 const platLabel = (p: string) => PLATFORMS.find((x) => x.value === p)?.label || (p || '任意');
+// 常用时区（相对 UTC 的分钟偏移，东为正；null = 跟随系统）。
+const TZ_OFFSETS: number[] = [
+  -720, -660, -600, -540, -480, -420, -360, -300, -240, -180, -120, -60, 0,
+  60, 120, 180, 240, 300, 330, 360, 420, 480, 540, 570, 600, 660, 720, 780, 840,
+];
+const tzLabel = (m: number) => {
+  const sign = m < 0 ? '-' : '+';
+  const abs = Math.abs(m);
+  const h = Math.floor(abs / 60), min = abs % 60;
+  return `UTC${sign}${h}${min ? ':' + String(min).padStart(2, '0') : ''}`;
+};
 
 type GOpt = { key: string; label: string; type: 'bool' | 'int'; hint?: string; wired?: boolean };
 type GGroup = { title: string; opts: GOpt[] };
@@ -318,6 +330,8 @@ export const SettingsPage: React.FC = () => {
   // — Prefixes —
   const [prefixes, setPrefixes] = useState<string[]>([]);
   const [savingPrefix, setSavingPrefix] = useState(false);
+  // — Timezone (server/timezone_minutes; null = follow system) —
+  const [tzMinutes, setTzMinutes] = useState<number | null>(null);
   // — Approval —
   const [friendPolicy, setFriendPolicy] = useState('manual');
   const [friendKeyword, setFriendKeyword] = useState('');
@@ -347,6 +361,7 @@ export const SettingsPage: React.FC = () => {
   const [forwardLong, setForwardLong] = useState(false);
   const [forwardThreshold, setForwardThreshold] = useState(1200);
   const [segLen, setSegLen] = useState(600);
+  const [segEnabled, setSegEnabled] = useState(true);
   const [segSaving, setSegSaving] = useState(false);
   const [nickPre, setNickPre] = useState('<');
   const [nickSuf, setNickSuf] = useState('>');
@@ -386,7 +401,7 @@ export const SettingsPage: React.FC = () => {
     try { setAutoCard((await getJson('/system/auto-card')).enabled !== false); } catch { /* ignore */ }
     try { setRespondSelf(!!(await getJson('/system/respond-self')).enabled); } catch { /* ignore */ }
     try { const d = await getJson('/system/forward-long'); setForwardLong(!!d.enabled); setForwardThreshold(Number(d.threshold) || 1200); } catch { /* ignore */ }
-    try { setSegLen(Number((await getJson('/system/reply-segment')).len) || 600); } catch { /* ignore */ }
+    try { const d = await getJson('/system/reply-segment'); setSegLen(Number(d.len) || 600); setSegEnabled(d.enabled !== false); } catch { /* ignore */ }
     try { const d = await getJson('/system/nick-wrap'); setNickPre(d.prefix ?? '<'); setNickSuf(d.suffix ?? '>'); } catch { /* ignore */ }
   }, []);
   const loadGlobals = async () => {
@@ -398,9 +413,15 @@ export const SettingsPage: React.FC = () => {
       if (j.code === 0) { setLogsiteUrl(j.data.url || ''); setLogsiteFormat(j.data.format || 'dicenext'); setLogsiteOfficial(j.data.official || ''); }
     } catch { /* ignore */ }
   };
+  const loadTimezone = async () => {
+    try {
+      const r = await fetch('/api/system/timezone'); const j = await r.json();
+      if (j.code === 0) setTzMinutes(j.data?.offset_minutes ?? null);
+    } catch { /* ignore */ }
+  };
 
   useEffect(() => {
-    void loadMasters(); void loadPrefixes(); void loadEvents(); void loadWebui(); void loadGlobals(); void loadLogsite();
+    void loadMasters(); void loadPrefixes(); void loadEvents(); void loadWebui(); void loadGlobals(); void loadLogsite(); void loadTimezone();
   }, [loadWebui]);
 
   // —— Handlers ——————————————————————————————————————————
@@ -429,6 +450,13 @@ export const SettingsPage: React.FC = () => {
       setPrefixes(j.data?.prefixes || cleaned); toast({ title: t('common.save_success') });
     } catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
     finally { setSavingPrefix(false); }
+  };
+  const saveTimezone = async () => {
+    try {
+      const r = await fetch('/api/system/timezone', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ offset_minutes: tzMinutes }) });
+      const j = await r.json(); if (j.code !== 0) throw new Error(j.message);
+      toast({ title: t('common.save_success') });
+    } catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
   };
   const saveEvents = async () => {
     setSavingEvents(true);
@@ -514,7 +542,7 @@ export const SettingsPage: React.FC = () => {
   };
   const saveSegLen = async () => {
     setSegSaving(true);
-    try { const d = await putJson('/system/reply-segment', { len: segLen }); setSegLen(Number(d.len) || 600); toast({ title: t('common.save_success') }); }
+    try { const d = await putJson('/system/reply-segment', { enabled: segEnabled, len: segLen }); setSegLen(Number(d.len) || 600); setSegEnabled(d.enabled !== false); toast({ title: t('common.save_success') }); }
     catch (e) { toast({ title: (e as Error).message, variant: 'destructive' }); }
     finally { setSegSaving(false); }
   };
@@ -558,9 +586,12 @@ export const SettingsPage: React.FC = () => {
                 {PLATFORMS.map((p) => <SelectItem key={p.value} value={p.value}><span className="flex items-center gap-2"><PlatformIcon platform={p.value} />{p.label}</span></SelectItem>)}
               </SelectContent>
             </Select>
-            <Input className="flex-1" placeholder={t('settings.master_id_placeholder')} value={mId} onChange={(e) => setMId(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') void addMaster(); }} />
+            <Input className="flex-1" placeholder={mPlatform === 'qq_official' ? t('settings.master_id_placeholder_qq') : t('settings.master_id_placeholder')} value={mId} onChange={(e) => setMId(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') void addMaster(); }} />
             <Button onClick={addMaster}><Plus className="mr-2 h-4 w-4" />{t('settings.master_add')}</Button>
           </div>
+          {mPlatform === 'qq_official' && (
+            <p className="text-xs text-muted-foreground">{t('settings.master_openid_hint')}</p>
+          )}
         </CardContent>
       </Card>
 
@@ -584,6 +615,27 @@ export const SettingsPage: React.FC = () => {
             <Button size="sm" onClick={savePrefixes} disabled={savingPrefix}>{t('common.save')}</Button>
             <span className="text-xs text-muted-foreground">{t('settings.prefix_hint')}</span>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* ── 时区 ── */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2"><Clock className="h-4 w-4" />{t('settings.timezone_title')}</CardTitle>
+          <CardDescription>{t('settings.timezone_desc')}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Select value={tzMinutes === null ? 'auto' : String(tzMinutes)} onValueChange={(v) => setTzMinutes(v === 'auto' ? null : Number(v))}>
+              <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="auto">{t('settings.timezone_auto')}</SelectItem>
+                {TZ_OFFSETS.map((m) => <SelectItem key={m} value={String(m)}>{tzLabel(m)}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Button size="sm" onClick={saveTimezone}>{t('common.save')}</Button>
+          </div>
+          <p className="text-xs text-muted-foreground">{t('settings.timezone_hint')}</p>
         </CardContent>
       </Card>
 
@@ -705,9 +757,19 @@ export const SettingsPage: React.FC = () => {
             value={forwardThreshold} onChange={(e) => setForwardThreshold(Number(e.target.value))} />
           <Button size="sm" onClick={saveForwardThreshold} disabled={!forwardLong}>{t('common.save')}</Button>
         </SettingRow>
+        <SettingSwitch
+          title={t('settings.seg_enabled')}
+          desc={t('settings.seg_enabled_desc')}
+          checked={segEnabled}
+          onToggle={async (v) => {
+            setSegEnabled(v);
+            try { const d = await putJson('/system/reply-segment', { enabled: v, len: segLen }); setSegLen(Number(d.len) || 600); toast({ title: t('common.save_success') }); }
+            catch (e) { setSegEnabled(!v); toast({ title: (e as Error).message, variant: 'destructive' }); }
+          }}
+        />
         <SettingRow title={t('settings.seg_len')} desc={t('settings.seg_len_desc')}>
-          <Input type="number" min={100} max={1000} className="h-9 w-24 text-sm" value={segLen} onChange={(e) => setSegLen(Number(e.target.value))} />
-          <Button size="sm" onClick={saveSegLen} disabled={segSaving}>{t('common.save')}</Button>
+          <Input type="number" min={100} max={1000} disabled={!segEnabled} className="h-9 w-24 text-sm" value={segLen} onChange={(e) => setSegLen(Number(e.target.value))} />
+          <Button size="sm" onClick={saveSegLen} disabled={segSaving || !segEnabled}>{t('common.save')}</Button>
         </SettingRow>
         <SettingRow title={t('settings.nick_wrap')} desc={t('settings.nick_wrap_desc')}
           extra={<p className="text-xs text-muted-foreground mt-0.5 font-mono">{nickPre}{t('settings.nick_sample')}{nickSuf}</p>}>
