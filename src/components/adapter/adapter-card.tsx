@@ -121,15 +121,16 @@ export const AdapterCard: React.FC<AdapterCardProps> = ({
                 <PlatformIcon platform={adapter.type} className="h-3.5 w-3.5" />
                 <span className="truncate">{identityLabel}: {identityValue || '—'}</span>
                 </span>
-                {adapter.type === 'qq_official' && (
-                  <span className="whitespace-nowrap">{t('adapters.detail_real_qq')}: {adapter.qqNumber || '—'}</span>
-                )}
               </div>
-              {adapter.type === 'onebot_v11' && (
-                <p className="mt-1 truncate font-mono text-xs text-muted-foreground" title={adapter.endpoint}>
-                  {adapter.connectionMode === 'reverse_ws' ? t('adapters.port') : t('adapters.address')}: {adapter.endpoint || '—'}
-                </p>
-              )}
+              {/* 副信息行：OneBot=连接地址、官方机器人=真实QQ、其余=适配器名称；
+                  没有可写内容时回退为适配器名称，避免空行导致卡片样式变形。 */}
+              <p className="mt-1 truncate font-mono text-xs text-muted-foreground" title={adapter.type === 'qq_official' ? (adapter.qqNumber || adapter.name) : adapter.type === 'onebot_v11' ? (adapter.endpoint || adapter.name) : adapter.name}>
+                {adapter.type === 'qq_official'
+                  ? (adapter.qqNumber ? `${t('adapters.detail_real_qq')}: ${adapter.qqNumber}` : adapter.name)
+                  : adapter.type === 'onebot_v11'
+                    ? (adapter.endpoint ? `${adapter.connectionMode === 'reverse_ws' ? t('adapters.port') : t('adapters.address')}: ${adapter.endpoint}` : adapter.name)
+                    : adapter.name}
+              </p>
             </div>
           </div>
 

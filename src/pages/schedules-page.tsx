@@ -12,7 +12,7 @@ import { PlatformIcon, platformLabel } from '@/components/platform-icon';
 import { Clock, Plus, Trash2, RefreshCw, Loader2, Pencil, Save, X, Play } from 'lucide-react';
 
 interface Task {
-  id: number; name: string; platform: string; targetType: string; targetId: string;
+  id: number; name: string; adapterId?: string; platform: string; targetType: string; targetId: string;
   cronTime: string; days: string; content: string; enabled: boolean; lastRun: string;
   action: string; condition: string;
   triggerType: string;   // daily | interval | once
@@ -20,7 +20,7 @@ interface Task {
   onceDate: string;
 }
 
-const blankForm = { name: '', platform: 'onebot_v11', targetType: 'group', targetId: '', cronTime: '09:00', days: '', content: '', action: 'send', condition: '', triggerType: 'daily', intervalMin: 30, onceDate: '' };
+const blankForm = { name: '', adapterId: '', platform: 'onebot_v11', targetType: 'group', targetId: '', cronTime: '09:00', days: '', content: '', action: 'send', condition: '', triggerType: 'daily', intervalMin: 30, onceDate: '' };
 
 // 条件搭建器：把 condition 字符串拆成可视化选项（旧数据里非 inactive>=N 的串归入 custom 原样保留）。
 type CondKind = 'none' | 'inactive' | 'custom';
@@ -74,7 +74,7 @@ export const SchedulesPage: React.FC = () => {
   const [form, setForm] = useState({ ...blankForm });
   const [daySet, setDaySet] = useState<Set<number>>(new Set());
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [platforms, setPlatforms] = useState<string[]>([]);
+  const [accounts, setAccounts] = useState<{ id: string; label: string; short: string; platform: string }[]>([]);
   const [condKind, setCondKind] = useState<CondKind>('none');
   const [condN, setCondN] = useState(7);
 
@@ -87,21 +87,28 @@ export const SchedulesPage: React.FC = () => {
     catch { toast({ title: t('common.load_fail'), variant: 'destructive' }); }
     finally { setLoading(false); }
   };
-  // 平台下拉从已配置的适配器取（以前写死 onebot_v11，Discord/KOOK 任务没法建）。
-  const loadPlatforms = async () => {
+  // 帐号下拉从已配置的适配器取，显示为“适配器:ID”（ID 优先登录号，未登录时用适配器名）。
+  const loadAccounts = async () => {
     try {
       const r = await fetch('/api/adapters'); const j = await r.json();
       if (j.code === 0 && Array.isArray(j.data)) {
-        const ps = [...new Set((j.data as { type: string }[]).map((a) => a.type).filter(Boolean))];
-        if (ps.length) setPlatforms(ps);
+        const acc = (j.data as { id: string; type: string; name: string; loginId?: string; loginName?: string; appId?: string }[])
+          .map((a) => {
+            const idPart = a.type === 'qq_official' ? (a.appId || a.loginId || a.id) : (a.loginId || a.id);
+            const nick = a.loginName || a.name;
+            return { id: String(a.id), platform: a.type,
+              label: `${platformLabel(a.type)} : ${nick}(${idPart})`, short: `${nick}(${idPart})` };
+          })
+          .filter((a) => a.id);
+        if (acc.length) setAccounts(acc);
       }
     } catch { /* 拿不到就只显示当前值 */ }
   };
-  useEffect(() => { void load(); void loadPlatforms(); }, []);
+  useEffect(() => { void load(); void loadAccounts(); }, []);
 
   const startEdit = (tk: Task) => {
     setEditingId(tk.id);
-    setForm({ name: tk.name, platform: tk.platform, targetType: tk.targetType, targetId: tk.targetId,
+    setForm({ name: tk.name, adapterId: tk.adapterId || '', platform: tk.platform, targetType: tk.targetType, targetId: tk.targetId,
               cronTime: tk.cronTime, days: tk.days, content: tk.content, action: tk.action || 'send', condition: tk.condition || '',
               triggerType: tk.triggerType || 'daily', intervalMin: tk.intervalMin || 30, onceDate: tk.onceDate || '' });
     setDaySet(new Set((tk.days || '').split(',').filter(Boolean).map(Number)));
@@ -110,8 +117,12 @@ export const SchedulesPage: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
   const cancelEdit = () => { setEditingId(null); setForm({ ...blankForm }); setDaySet(new Set()); setCondKind('none'); setCondN(7); };
+  const isLegacyEdit = editingId != null && !form.adapterId && !!form.platform;
 
   const save = async () => {
+    if (!isLegacyEdit && !form.adapterId) {
+      toast({ title: t('schedules.need_account'), variant: 'destructive' }); return;
+    }
     if (!form.targetId.trim() || (form.action !== 'leave' && !form.content.trim())) {
       toast({ title: t('schedules.need_fields'), variant: 'destructive' }); return;
     }
@@ -203,12 +214,26 @@ export const SchedulesPage: React.FC = () => {
               <div className="space-y-1.5"><Label className="font-normal">{t('schedules.time')}</Label>
                 <Input type="time" value={form.cronTime} onChange={(e) => setForm({ ...form, cronTime: e.target.value })} /></div>
             )}
-            <div className="space-y-1.5"><Label className="font-normal">{t('schedules.platform')}</Label>
-              <Select value={form.platform} onValueChange={(v) => setForm({ ...form, platform: v })}>
+            <div className="space-y-1.5"><Label className="font-normal">{t('schedules.account')}</Label>
+              <Select value={form.adapterId || (isLegacyEdit ? '__legacy__' : '__none__')} onValueChange={(v) => {
+                const adapterId = (v === '__legacy__' || v === '__none__') ? '' : v;
+                const acc = accounts.find((a) => a.id === adapterId);
+                setForm({ ...form, adapterId, platform: acc ? acc.platform : form.platform });
+              }}>
                 <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {[...new Set([...platforms, form.platform])].filter(Boolean).map((p) => (
-                    <SelectItem key={p} value={p}><span className="flex items-center gap-2"><PlatformIcon platform={p} />{platformLabel(p)}</span></SelectItem>
+                  {isLegacyEdit
+                    ? <SelectItem value="__legacy__">{t('schedules.account_legacy', { platform: platformLabel(form.platform) })}</SelectItem>
+                    : !form.adapterId && <SelectItem value="__none__">{t('schedules.account_none')}</SelectItem>}
+                  {[...accounts, ...(form.adapterId && !accounts.some((a) => a.id === form.adapterId)
+                    ? [{ id: form.adapterId, platform: form.platform, label: t('schedules.account_legacy', { platform: platformLabel(form.platform) }), short: t('schedules.account_legacy', { platform: platformLabel(form.platform) }) }] : [])]
+                    .map((a) => (
+                    <SelectItem key={a.id} value={a.id} className="pr-2">
+                      <span className="flex min-w-0 flex-1 items-center gap-2">
+                        <PlatformIcon platform={a.platform} className="h-3.5 w-3.5 shrink-0" />
+                        <span className="truncate">{a.short}</span>
+                      </span>
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select></div>

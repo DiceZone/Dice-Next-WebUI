@@ -7,12 +7,13 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { PlatformIcon } from '@/components/platform-icon';
+import { PlatformIcon, platformLabel } from '@/components/platform-icon';
 import { Bell, Plus, Trash2, RefreshCw, Search, Mail, Webhook, ScrollText, Send, Loader2 } from 'lucide-react';
 
 interface CatalogItem { op: string; area: number; }
-interface NoticeWindow { platform: string; chat_id: string; is_group: boolean; name?: string; level_mask: number; events: string[]; }
+interface NoticeWindow { platform: string; adapter_id?: string; chat_id: string; is_group: boolean; name?: string; level_mask: number; events: string[]; }
 interface SmtpConf { enabled: boolean; host: string; port: number; ssl: boolean; user: string; pass: string; from: string; to: string; level_mask: number; }
 interface WebhookConf { enabled: boolean; url: string; level_mask: number; }
 interface AuditItem { ts: string; level: number; op: string; msg: string; origin?: string; }
@@ -40,6 +41,7 @@ export const NoticeSettingsPage: React.FC = () => {
   // 选择器数据源
   const [groups, setGroups] = useState<GroupItem[]>([]);
   const [players, setPlayers] = useState<PlayerItem[]>([]);
+  const [accounts, setAccounts] = useState<{ id: string; platform: string; label: string; short: string }[]>([]);
   const [pick, setPick] = useState('');       // 搜索词
   const [picking, setPicking] = useState(false);
   // 审计
@@ -57,6 +59,16 @@ export const NoticeSettingsPage: React.FC = () => {
     (async () => {
       try { const g = await jget('/groups'); setGroups((Array.isArray(g) ? g : []) as GroupItem[]); } catch { /* ignore */ }
       try { const p = await jget('/players'); setPlayers((Array.isArray(p) ? p : []) as PlayerItem[]); } catch { /* ignore */ }
+      try {
+        const a = await jget('/adapters');
+        if (Array.isArray(a)) setAccounts((a as { id: string; type: string; name: string; loginId?: string; loginName?: string; appId?: string }[])
+          .map((x) => {
+            const idPart = x.type === 'qq_official' ? (x.appId || x.loginId || x.id) : (x.loginId || x.id);
+            const nick = x.loginName || x.name;
+            return { id: String(x.id), platform: x.type,
+              label: `${platformLabel(x.type)} : ${nick}(${idPart})`, short: `${nick}(${idPart})` };
+          }));
+      } catch { /* ignore */ }
     })();
   }, []);
 
@@ -110,8 +122,8 @@ export const NoticeSettingsPage: React.FC = () => {
     return { gs, ps };
   }, [pick, groups, players]);
   const addWindow = (platform: string, chatId: string, isGroup: boolean, name: string) => {
-    if (wins.some((w) => w.platform === platform && w.chat_id === chatId)) { toast({ title: t('noticeset.win_dup'), variant: 'destructive' }); return; }
-    setWins((ws) => [...ws, { platform, chat_id: chatId, is_group: isGroup, name, level_mask: 15, events: catalog.map((c) => c.op) }]);
+    if (wins.some((w) => w.platform === platform && w.chat_id === chatId && (w.adapter_id || '') === '')) { toast({ title: t('noticeset.win_dup'), variant: 'destructive' }); return; }
+    setWins((ws) => [...ws, { platform, adapter_id: '', chat_id: chatId, is_group: isGroup, name, level_mask: 15, events: catalog.map((c) => c.op) }]);
     setPicking(false); setPick('');
   };
 
@@ -136,9 +148,23 @@ export const NoticeSettingsPage: React.FC = () => {
         <div className="space-y-4">
           {wins.length === 0 && <p className="text-sm text-muted-foreground">{t('noticeset.win_empty')}</p>}
           {wins.map((w, i) => (
-            <Card key={w.platform + w.chat_id}>
+            <Card key={`${w.platform}/${w.adapter_id || 'global'}/${w.chat_id}`}>
               <CardContent className="py-3 space-y-3">
                 <div className="flex items-center gap-2">
+                  <Select value={w.adapter_id || '__global__'} onValueChange={(v) => patchWin(i, { adapter_id: v === '__global__' ? '' : v })}>
+                    <SelectTrigger className="h-7 w-56"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__global__">{t('noticeset.win_account_global')}</SelectItem>
+                      {accounts.map((a) => (
+                        <SelectItem key={a.id} value={a.id} className="pr-2">
+                          <span className="flex min-w-0 flex-1 items-center gap-1.5">
+                            <PlatformIcon platform={a.platform} className="h-3.5 w-3.5 shrink-0" />
+                            <span className="truncate">{a.short}</span>
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <Badge variant="secondary">{w.is_group ? t('noticeset.win_group') : t('noticeset.win_user')}</Badge>
                   <span className="text-sm font-medium">{w.name || w.chat_id}</span>
                   <span className="font-mono text-xs text-muted-foreground">{w.chat_id}</span>
