@@ -432,7 +432,7 @@ export const PlayersPage: React.FC = () => {
   useEffect(() => {
     void load();
     void (async () => {
-      try { const r = await fetch('/api/masters'); const j = await r.json(); if (j.code === 0) setMasters(j.data || []); } catch { /* ignore */ }
+      try { const r = await fetch('/api/masters'); const j = await r.json(); if (j.code === 0) setMasters(j.data?.items || []); } catch { /* ignore */ }
       try { const r = await fetch('/api/friends'); const j = await r.json(); if (j.code === 0) setFriendInfo(j.data || { lists: {}, deletePlatforms: [], officialRealFriends: [] }); } catch { /* ignore */ }
     })();
   }, [load]);
@@ -456,7 +456,7 @@ export const PlayersPage: React.FC = () => {
           const r = await fetch('/api/masters', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ platform: p.platform, id: p.userId }) });
           const j = await r.json();
           if (j.code !== 0) throw new Error(j.message);
-          setMasters(j.data || []);
+          setMasters(j.data?.items || []);
         }
       } else {
         if (isM) {
