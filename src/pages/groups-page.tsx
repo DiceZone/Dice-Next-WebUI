@@ -21,6 +21,7 @@ import { PlatformIcon, platformLabel } from '@/components/platform-icon';
 
 interface GroupAccount {
   adapterId: string; adapterName: string; loginId: string; platform: string; endpointId: string;
+  loginName?: string; appId?: string;
   connected: boolean; enabled: boolean; ai_enabled?: boolean; locked: boolean; card: string;
   activeLog: boolean; activeLogId?: string; activeLogName?: string; observers: number;
   botRole: string; memberCount: number; inviter?: string; locale?: string; left?: boolean;
@@ -408,9 +409,18 @@ const GroupDetail: React.FC<{ group: Group; dlg: any; onBack: () => void; onChan
         <Select value={account.adapterId || '__legacy__'} onValueChange={(v) => setAccountId(v === '__legacy__' ? '' : v)}>
           <SelectTrigger className="w-full sm:w-[320px]"><SelectValue /></SelectTrigger>
           <SelectContent>
-            {accounts.map((a) => <SelectItem key={a.adapterId || '__legacy__'} value={a.adapterId || '__legacy__'}>
-              <span className="inline-flex items-center gap-2"><PlatformIcon platform={a.platform} />{a.adapterName || platformLabel(a.platform)}{a.loginId ? ` · ${a.loginId}` : ''}{a.left ? '（已退群）' : a.connected ? '（在线）' : '（离线）'}</span>
-            </SelectItem>)}
+            {accounts.map((a) => {
+              const idPart = a.platform === 'qq_official' ? (a.appId || a.loginId) : a.loginId;
+              const nick = a.loginName || a.adapterName || platformLabel(a.platform);
+              return (
+              <SelectItem key={a.adapterId || '__legacy__'} value={a.adapterId || '__legacy__'} className="pr-2">
+                <span className="flex min-w-0 flex-1 items-center gap-2">
+                  <PlatformIcon platform={a.platform} className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">{nick}{idPart ? `(${idPart})` : ''}</span>
+                </span>
+              </SelectItem>
+              );
+            })}
           </SelectContent>
         </Select>
       </div>
@@ -431,11 +441,16 @@ const GroupDetail: React.FC<{ group: Group; dlg: any; onBack: () => void; onChan
       {tab === 'logs' && <LogsTab group={group} t={t} toast={toast} dlg={dlg} />}
       {tab === 'files' && <FilesTab base={base} t={t} toast={toast} />}
       {tab === 'chat' && <ChatTab base={base} platform={group.platform} t={t} toast={toast}
+        channelKey={`${account.platform}:${account.adapterId}`}
         channels={accounts.map((a) => ({
           key: `${a.platform}:${a.adapterId}`, platform: a.platform, adapterAccount: a.adapterId,
           endpointId: a.endpointId,
           base: `/groups/${encodeURIComponent(a.platform)}/${encodeURIComponent(group.groupId)}`,
-          label: `${platformLabel(a.platform)} · ${a.adapterName || a.adapterId || '默认账号'}${a.loginId ? `（${a.loginId}）` : ''}`,
+          label: (() => {
+            const idPart = a.platform === 'qq_official' ? (a.appId || a.loginId) : a.loginId;
+            const nick = a.loginName || a.adapterName || platformLabel(a.platform);
+            return `${nick}${idPart ? `(${idPart})` : ''}`;
+          })(),
         }))} />}
     </div>
   );
@@ -1181,7 +1196,7 @@ const FilesTab: React.FC<any> = ({ base, t, toast }) => {
 };
 
 // C#106：玩家私聊页复用同一套模拟聊天 UI；私聊没有群历史/戳一戳/群文件能力。
-export const ChatTab: React.FC<any> = ({ base, platform, t, toast, privateChat = false, channels = [] }) => {
+export const ChatTab: React.FC<any> = ({ base, platform, t, toast, privateChat = false, channels = [], channelKey: controlledKey }) => {
   const [lines, setLines] = useState<ChatLine[]>([]);
   const [input, setInput] = useState('');
   const [zoom, setZoom] = useState<string | null>(null);
@@ -1192,7 +1207,9 @@ export const ChatTab: React.FC<any> = ({ base, platform, t, toast, privateChat =
   const fallbackChannel = { key: `${platform}:default`, platform, adapterAccount: '', endpointId: '', base, label: platform === 'qq_official' ? 'QQ 官方机器人' : 'OneBot' };
   const availableChannels = channels.length ? channels : [fallbackChannel];
   const [channelKey, setChannelKey] = useState(() => (availableChannels.find((c: any) => c.platform === platform)?.key ?? availableChannels[0].key));
-  const activeChannel = availableChannels.find((c: any) => c.key === channelKey) ?? availableChannels[0];
+  const isControlled = controlledKey != null;
+  const activeKey = isControlled ? controlledKey : channelKey;
+  const activeChannel = availableChannels.find((c: any) => c.key === activeKey) ?? availableChannels[0];
   const activeBase = activeChannel.base || base;
   const activePlatform = activeChannel.platform || platform;
   useEffect(() => {
@@ -1280,7 +1297,7 @@ export const ChatTab: React.FC<any> = ({ base, platform, t, toast, privateChat =
 
   return (
     <div className="relative flex flex-col h-[60vh] rounded-lg border">
-      {availableChannels.length > 1 && (
+      {availableChannels.length > 1 && !isControlled && (
         <div className="flex items-center gap-2 border-b bg-muted/20 px-3 py-2 text-xs">
           <span className="text-muted-foreground">发送渠道</span>
           <Select value={channelKey} onValueChange={setChannelKey}>
