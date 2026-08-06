@@ -19,7 +19,7 @@ import {
 import { apiClient } from '@/lib/api-client';
 import { PlatformIcon, platformLabel } from '@/components/platform-icon';
 
-interface Master { platform: string; id: string; nickname?: string; }
+interface Master { platform: string; adapter_id?: string; id: string; nickname?: string; }
 const PLATFORMS: { value: string; label: string }[] = [
   { value: 'onebot_v11', label: 'QQ' },
   { value: 'qq_official', label: 'OpenID' },
@@ -353,6 +353,9 @@ export const SettingsPage: React.FC = () => {
   // — Master —
   const [masters, setMasters] = useState<Master[]>([]);
   const [mPlatform, setMPlatform] = useState('onebot_v11');
+  const [mAdapter, setMAdapter] = useState('');
+  const [masterAccounts, setMasterAccounts] = useState<MessageFormatAdapter[]>([]);
+  const [masterInherit, setMasterInherit] = useState(true);
   const [mId, setMId] = useState('');
   // — Prefixes —
   const [prefixes, setPrefixes] = useState<string[]>([]);
@@ -398,7 +401,20 @@ export const SettingsPage: React.FC = () => {
 
   // —— Loaders ———————————————————————————————————————————
   const loadMasters = async () => {
-    try { const r = await fetch('/api/masters'); const j = await r.json(); if (j.code === 0) setMasters(j.data || []); } catch { /* ignore */ }
+    try {
+      const r = await fetch('/api/masters'); const j = await r.json();
+      if (j.code === 0) { setMasters(j.data?.items || []); setMasterInherit(j.data?.master_inherit !== false); }
+    } catch { /* ignore */ }
+  };
+  const loadMasterAccounts = async () => {
+    try {
+      const r = await fetch('/api/adapters'); const j = await r.json();
+      if (j.code === 0) {
+        setMasterAccounts((j.data || []).map((a: any) => ({
+          id: String(a.id), type: a.type, name: a.name, loginId: a.loginId, loginName: a.loginName, appId: a.appId,
+        })));
+      }
+    } catch { /* ignore */ }
   };
   const loadPrefixes = async () => {
     try { const r = await fetch('/api/system/prefixes'); const j = await r.json(); if (j.code === 0) setPrefixes(j.data?.prefixes || []); } catch { /* ignore */ }
@@ -448,24 +464,51 @@ export const SettingsPage: React.FC = () => {
   };
 
   useEffect(() => {
-    void loadMasters(); void loadPrefixes(); void loadEvents(); void loadWebui(); void loadGlobals(); void loadLogsite(); void loadTimezone();
+    void loadMasters(); void loadMasterAccounts(); void loadPrefixes(); void loadEvents(); void loadWebui(); void loadGlobals(); void loadLogsite(); void loadTimezone();
   }, [loadWebui]);
 
   // —— Handlers ——————————————————————————————————————————
   const addMaster = async () => {
     const id = mId.trim(); if (!id) return;
+    if (mPlatform === 'qq_official' && !mAdapter) {
+      toast({ title: t('settings.master_qq_need_account'), variant: 'destructive' }); return;
+    }
     try {
-      const r = await fetch('/api/masters', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ platform: mPlatform, id }) });
+      const r = await fetch('/api/masters', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ platform: mPlatform, adapter_id: mAdapter, id, master_inherit: masterInherit }) });
       const j = await r.json(); if (j.code !== 0) throw new Error(j.message);
-      setMId(''); setMasters(j.data || []); toast({ title: t('common.save_success') });
+      setMId(''); setMasters(j.data?.items || []); setMasterInherit(j.data?.master_inherit !== false); toast({ title: t('common.save_success') });
     } catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
   };
   const delMaster = async (m: Master) => {
     try {
-      const r = await fetch(`/api/masters/${encodeURIComponent(m.platform || '_')}/${encodeURIComponent(m.id)}`, { method: 'DELETE' });
+      const r = await fetch(`/api/masters/${encodeURIComponent(m.platform || '_')}/${encodeURIComponent(m.adapter_id || '_')}/${encodeURIComponent(m.id)}`, { method: 'DELETE' });
       const j = await r.json(); if (j.code !== 0) throw new Error(j.message);
       setMasters(j.data || []); toast({ title: t('common.delete_success') });
     } catch (e) { toast({ title: t('common.delete_fail'), description: String(e), variant: 'destructive' }); }
+  };
+  const masterAccountLabel = (a?: MessageFormatAdapter) => {
+    if (!a) return '';
+    const ident = a.type === 'qq_official' ? (a.appId || a.loginId || a.id) : (a.loginId || a.id);
+    return `${a.loginName || a.name}(${ident})`;
+  };
+  const switchMasterPlatform = (v: string) => {
+    setMPlatform(v);
+    if (v === 'qq_official') {
+      // OpenID 按 AppID 独立，平台级“全局”无意义：必须落到具体官机账号。
+      const first = masterAccounts.find((a) => a.type === 'qq_official');
+      setMAdapter(first ? first.id : '');
+    } else if (mAdapter && !masterAccounts.some((a) => a.id === mAdapter && a.type === v)) {
+      setMAdapter('');
+    }
+  };
+  const saveMasterInherit = async (v: boolean) => {
+    setMasterInherit(v);
+    try {
+      const r = await fetch('/api/masters', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ master_inherit: v }) });
+      const j = await r.json(); if (j.code !== 0) throw new Error(j.message);
+      setMasters(j.data?.items || []); setMasterInherit(j.data?.master_inherit !== false);
+      toast({ title: t('common.save_success') });
+    } catch (e) { setMasterInherit(!v); toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
   };
   const savePrefixes = async () => {
     const cleaned = prefixes.map((p) => p.trim()).filter(Boolean);
@@ -596,9 +639,14 @@ export const SettingsPage: React.FC = () => {
           {masters.length > 0 && (
             <div className="space-y-1">
               {masters.map((m) => (
-                <div key={`${m.platform}/${m.id}`} className="flex items-center justify-between rounded border p-2.5">
+                <div key={`${m.platform}/${m.adapter_id || ''}/${m.id}`} className="flex items-center justify-between rounded border p-2.5">
                   <div className="flex items-center gap-2">
                     <span className="inline-flex items-center gap-1.5 rounded bg-muted px-2 py-0.5 text-xs font-medium"><PlatformIcon platform={m.platform} className="h-3.5 w-3.5" />{masterPlatLabel(m.platform)}</span>
+                    {m.adapter_id ? (
+                      <span className="inline-flex items-center gap-1.5 rounded bg-muted px-2 py-0.5 text-xs font-medium">{masterAccountLabel(masterAccounts.find((a) => a.id === m.adapter_id)) || m.adapter_id}</span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 rounded bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">{t('settings.master_all_accounts')}</span>
+                    )}
                     <span className="font-mono text-sm">{m.nickname ? `${m.nickname}(${m.id})` : m.id}</span>
                   </div>
                   <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => delMaster(m)}><Trash2 className="h-4 w-4" /></Button>
@@ -607,10 +655,24 @@ export const SettingsPage: React.FC = () => {
             </div>
           )}
           <div className="flex items-center gap-2">
-            <Select value={mPlatform} onValueChange={(v) => setMPlatform(v)}>
+            <Select value={mPlatform} onValueChange={switchMasterPlatform}>
               <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {PLATFORMS.map((p) => <SelectItem key={p.value} value={p.value}><span className="flex items-center gap-2"><PlatformIcon platform={p.value} />{p.label}</span></SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={mPlatform === 'qq_official' ? (mAdapter || '__none__') : (mAdapter || '__all__')} onValueChange={(v) => setMAdapter(v === '__all__' ? '' : v)}>
+              <SelectTrigger className="w-52"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {mPlatform !== 'qq_official' && <SelectItem value="__all__">{t('settings.master_all_accounts')}</SelectItem>}
+                {masterAccounts.filter((a) => a.type === mPlatform).map((a) => (
+                  <SelectItem key={a.id} value={a.id} className="pr-2">
+                    <span className="flex min-w-0 flex-1 items-center gap-1.5">
+                      <PlatformIcon platform={a.type} className="h-3.5 w-3.5 shrink-0" />
+                      <span className="truncate">{masterAccountLabel(a)}</span>
+                    </span>
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <Input className="flex-1" placeholder={mPlatform === 'qq_official' ? t('settings.master_id_placeholder_qq') : t('settings.master_id_placeholder')} value={mId} onChange={(e) => setMId(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') void addMaster(); }} />
@@ -619,6 +681,13 @@ export const SettingsPage: React.FC = () => {
           {mPlatform === 'qq_official' && (
             <p className="text-xs text-muted-foreground">{t('settings.master_openid_hint')}</p>
           )}
+          <div className="flex items-center justify-between rounded border p-2.5">
+            <div className="space-y-0.5">
+              <Label className="text-sm font-medium">{t('settings.master_inherit_title')}</Label>
+              <p className="text-xs text-muted-foreground">{t('settings.master_inherit_desc')}</p>
+            </div>
+            <Switch checked={masterInherit} onCheckedChange={(v) => void saveMasterInherit(v)} />
+          </div>
         </CardContent>
       </Card>
 

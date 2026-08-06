@@ -58,7 +58,7 @@ const PermTab: React.FC<{ entries: BanEntry[]; reload: () => Promise<void>; del:
       const d = await jsend('GET', '/players');
       setPlayers((Array.isArray(d) ? d : d?.players || []) as Player[]);
       const w = await jsend('GET', '/banlist/whitelist-only'); setWhitelistOnly(!!w.enabled);
-      const m = await jsend('GET', '/masters'); setMasters(Array.isArray(m) ? m : []);
+      const m = await jsend('GET', '/masters'); setMasters(Array.isArray(m) ? m : ((m as any)?.items || []));
       setAllPlayers(Array.isArray(d) ? d : d?.players || []);
     } catch (e) { toast({ title: (e as Error).message, variant: 'destructive' }); }
   }, [toast]);
@@ -70,7 +70,7 @@ const PermTab: React.FC<{ entries: BanEntry[]; reload: () => Promise<void>; del:
     try {
       const isM = masters.some((m) => m.id === p.userId);
       if (lv === 256) {
-        if (!isM) { const m = await jsend('POST', '/masters', { platform: p.platform, id: p.userId }); setMasters(Array.isArray(m) ? m : []); }
+        if (!isM) { const m = await jsend('POST', '/masters', { platform: p.platform, id: p.userId }); setMasters(Array.isArray(m) ? m : ((m as any)?.items || [])); }
       } else {
         if (isM) { const m = await jsend('DELETE', `/masters/${p.platform || '_'}/${p.userId}`); setMasters(Array.isArray(m) ? m : []); }
         await jsend('PUT', `/players/${p.platform}/${p.userId}`, { trustLevel: lv });
