@@ -14,7 +14,7 @@ import { useDialogs } from '@/hooks/use-dialogs';
 import type { LucideIcon } from 'lucide-react';
 import {
   SlidersHorizontal, Crown, Plus, Trash2, ShieldCheck, Zap,
-  Image, Type, Server, Clock, ScrollText, HeartPulse,
+  Image, Type, Server, Clock, ScrollText, HeartPulse, Layers3, RotateCcw,
 } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import { PlatformIcon, platformLabel } from '@/components/platform-icon';
@@ -37,6 +37,14 @@ const tzLabel = (m: number) => {
   const abs = Math.abs(m);
   const h = Math.floor(abs / 60), min = abs % 60;
   return `UTC${sign}${h}${min ? ':' + String(min).padStart(2, '0') : ''}`;
+};
+const formatDateTimeAtOffset = (value: string, offsetMinutes: number) => {
+  const epoch = Date.parse(value);
+  if (!Number.isFinite(epoch)) return value;
+  const date = new Date(epoch + offsetMinutes * 60_000);
+  const pad = (part: number) => String(part).padStart(2, '0');
+  return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())} `
+    + `${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}`;
 };
 
 type GOpt = { key: string; label: string; type: 'bool' | 'int'; hint?: string; wired?: boolean };
@@ -154,6 +162,12 @@ const ImageSendCard: React.FC = () => {
 
 // ── 消息发送形式（传统文本 / 平台富卡片）──────────────────────
 interface MessageFormatAdapter { id: string; type: string; name: string; loginId?: string; loginName?: string; appId?: string; mode?: string; }
+type SettingsScope = 'global' | 'adapter' | 'account';
+const APPROVAL_SCOPE_KEYS = [
+  'friend_policy', 'friend_keyword', 'group_invite_policy',
+  'group_invite_reject_blacklist', 'group_invite_reject_nonfriend', 'group_name_keyword_leave',
+];
+const POKE_SCOPE_KEYS = ['poke', 'poke_command', 'poke_enabled'];
 interface MessageFormatConf { mode?: 'traditional' | 'card'; adapters?: MessageFormatAdapter[]; }
 
 const MessageFormatCard: React.FC = () => {
@@ -357,11 +371,17 @@ export const SettingsPage: React.FC = () => {
   const [masterAccounts, setMasterAccounts] = useState<MessageFormatAdapter[]>([]);
   const [masterInherit, setMasterInherit] = useState(true);
   const [mId, setMId] = useState('');
+  // — Scoped settings (#17): account > adapter type > global —
+  const [settingsScope, setSettingsScope] = useState<SettingsScope>('global');
+  const [settingsTarget, setSettingsTarget] = useState('');
+  const [eventOverrides, setEventOverrides] = useState<Record<string, unknown>>({});
+  const [eventSources, setEventSources] = useState<Record<string, string>>({});
   // — Prefixes —
   const [prefixes, setPrefixes] = useState<string[]>([]);
   const [savingPrefix, setSavingPrefix] = useState(false);
   // — Timezone (server/timezone_minutes; null = follow system) —
   const [tzMinutes, setTzMinutes] = useState<number | null>(null);
+  const [tzEffectiveMinutes, setTzEffectiveMinutes] = useState(0);
   // — Approval —
   const [friendPolicy, setFriendPolicy] = useState('manual');
   const [friendKeyword, setFriendKeyword] = useState('');
@@ -419,24 +439,35 @@ export const SettingsPage: React.FC = () => {
   const loadPrefixes = async () => {
     try { const r = await fetch('/api/system/prefixes'); const j = await r.json(); if (j.code === 0) setPrefixes(j.data?.prefixes || []); } catch { /* ignore */ }
   };
-  const loadEvents = async () => {
+  const selectedScopeAccount = masterAccounts.find((a) => a.id === settingsTarget);
+  const settingsPlatform = settingsScope === 'adapter'
+    ? settingsTarget
+    : settingsScope === 'account' ? (selectedScopeAccount?.type || '') : '';
+  const applyEventData = useCallback((data: any) => {
+    setFriendPolicy(data.friend_policy || 'manual');
+    setFriendKeyword(data.friend_keyword || '');
+    setGroupInvitePolicy(data.group_invite_policy || 'manual');
+    setGroupRejectBlacklist(data.group_invite_reject_blacklist !== false);
+    setGroupRejectNonfriend(data.group_invite_reject_nonfriend === true);
+    setGroupNameKeywordLeave(data.group_name_keyword_leave || '');
+    setPokeText(data.poke || '');
+    setPokeCommand(data.poke_command || '');
+    setPokeEnabled(data.poke_enabled !== false);
+    setWelcomeMinDelay(data.welcome_min_delay || 0);
+    setWelcomeMinCooldown(data.welcome_min_cooldown || 0);
+    setEventOverrides(data.overrides || {});
+    setEventSources(data.sources || {});
+  }, []);
+  const loadEvents = useCallback(async () => {
+    if (settingsScope !== 'global' && !settingsTarget) return;
     try {
-      const r = await fetch('/api/system/events'); const j = await r.json();
-      if (j.code === 0) {
-        setFriendPolicy(j.data.friend_policy || 'manual');
-        setFriendKeyword(j.data.friend_keyword || '');
-        setGroupInvitePolicy(j.data.group_invite_policy || 'manual');
-        setGroupRejectBlacklist(j.data.group_invite_reject_blacklist !== false);
-        setGroupRejectNonfriend(j.data.group_invite_reject_nonfriend === true);
-        setGroupNameKeywordLeave(j.data.group_name_keyword_leave || '');
-        setPokeText(j.data.poke || '');
-        setPokeCommand(j.data.poke_command || '');
-        setPokeEnabled(j.data.poke_enabled !== false);
-        setWelcomeMinDelay(j.data.welcome_min_delay || 0);
-        setWelcomeMinCooldown(j.data.welcome_min_cooldown || 0);
-      }
+      const q = new URLSearchParams({ scope: settingsScope });
+      if (settingsTarget) q.set('target', settingsTarget);
+      if (settingsPlatform) q.set('platform', settingsPlatform);
+      const r = await fetch('/api/system/events?' + q.toString()); const j = await r.json();
+      if (j.code === 0) applyEventData(j.data);
     } catch { /* ignore */ }
-  };
+  }, [settingsScope, settingsTarget, settingsPlatform, applyEventData]);
   const loadWebui = useCallback(async () => {
     try { setAutostart(!!(await getJson('/system/autostart')).enabled); } catch { /* ignore */ }
     try { setSaveImages(!!(await getJson('/system/save-log-images')).enabled); } catch { /* ignore */ }
@@ -459,13 +490,17 @@ export const SettingsPage: React.FC = () => {
   const loadTimezone = async () => {
     try {
       const r = await fetch('/api/system/timezone'); const j = await r.json();
-      if (j.code === 0) setTzMinutes(j.data?.offset_minutes ?? null);
+      if (j.code === 0) {
+        const configured = j.data?.offset_minutes ?? null;
+        setTzMinutes(configured);
+        setTzEffectiveMinutes(Number(j.data?.effective_offset_minutes ?? configured ?? 0));
+      }
     } catch { /* ignore */ }
   };
 
   useEffect(() => {
     void loadMasters(); void loadMasterAccounts(); void loadPrefixes(); void loadEvents(); void loadWebui(); void loadGlobals(); void loadLogsite(); void loadTimezone();
-  }, [loadWebui]);
+  }, [loadWebui, loadEvents]);
 
   // —— Handlers ——————————————————————————————————————————
   const addMaster = async () => {
@@ -525,18 +560,73 @@ export const SettingsPage: React.FC = () => {
     try {
       const r = await fetch('/api/system/timezone', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ offset_minutes: tzMinutes }) });
       const j = await r.json(); if (j.code !== 0) throw new Error(j.message);
+      const configured = j.data?.offset_minutes ?? null;
+      setTzMinutes(configured);
+      setTzEffectiveMinutes(Number(j.data?.effective_offset_minutes ?? configured ?? 0));
       toast({ title: t('common.save_success') });
     } catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
   };
+  const configuredPlatforms = PLATFORMS.filter((p) => masterAccounts.some((a) => a.type === p.value));
+  const changeSettingsScope = (scope: SettingsScope) => {
+    setSettingsScope(scope);
+    if (scope === 'global') setSettingsTarget('');
+    else if (scope === 'adapter') setSettingsTarget(configuredPlatforms[0]?.value || PLATFORMS[0].value);
+    else setSettingsTarget(masterAccounts[0]?.id || '');
+  };
+  const scopedEventBody = (values: Record<string, unknown>, clear?: string[]) => ({
+    scope: settingsScope,
+    target: settingsTarget,
+    platform: settingsPlatform,
+    values,
+    ...(clear ? { clear } : {}),
+  });
   const saveEvents = async () => {
     setSavingEvents(true);
     try {
       const r = await fetch('/api/system/events', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ friend_policy: friendPolicy, friend_keyword: friendKeyword, group_invite_policy: groupInvitePolicy, group_invite_reject_blacklist: groupRejectBlacklist, group_invite_reject_nonfriend: groupRejectNonfriend, group_name_keyword_leave: groupNameKeywordLeave.trim(), poke: pokeText, poke_command: pokeCommand , welcome_min_delay: welcomeMinDelay, welcome_min_cooldown: welcomeMinCooldown }) });
+        body: JSON.stringify(scopedEventBody({
+          friend_policy: friendPolicy,
+          friend_keyword: friendKeyword,
+          group_invite_policy: groupInvitePolicy,
+          group_invite_reject_blacklist: groupRejectBlacklist,
+          group_invite_reject_nonfriend: groupRejectNonfriend,
+          group_name_keyword_leave: groupNameKeywordLeave.trim(),
+        })) });
       const j = await r.json(); if (j.code !== 0) throw new Error(j.message);
+      applyEventData(j.data);
       toast({ title: t('common.save_success') });
     } catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
     finally { setSavingEvents(false); }
+  };
+  const saveWelcomeMinimums = async () => {
+    setSavingEvents(true);
+    try {
+      const r = await fetch('/api/system/events', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scope: 'global', values: { welcome_min_delay: welcomeMinDelay, welcome_min_cooldown: welcomeMinCooldown } }) });
+      const j = await r.json(); if (j.code !== 0) throw new Error(j.message);
+      setWelcomeMinDelay(j.data?.welcome_min_delay || 0);
+      setWelcomeMinCooldown(j.data?.welcome_min_cooldown || 0);
+      toast({ title: t('common.save_success') });
+    } catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
+    finally { setSavingEvents(false); }
+  };
+  const resetEventScope = async (keys: string[]) => {
+    if (settingsScope === 'global') return;
+    try {
+      const r = await fetch('/api/system/events', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(scopedEventBody({}, keys)) });
+      const j = await r.json(); if (j.code !== 0) throw new Error(j.message);
+      applyEventData(j.data);
+      toast({ title: t('settings.scope_reset_success') });
+    } catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
+  };
+  const hasScopeOverride = (keys: string[]) => settingsScope !== 'global' && keys.some((key) => Object.prototype.hasOwnProperty.call(eventOverrides, key));
+  const scopeSourceLabel = (keys: string[]) => {
+    if (settingsScope === 'global') return t('settings.scope_badge_global');
+    if (hasScopeOverride(keys)) return settingsScope === 'account'
+      ? t('settings.scope_badge_account') : t('settings.scope_badge_adapter');
+    const sources = new Set(keys.map((key) => eventSources[key]).filter(Boolean));
+    return sources.has('adapter') ? t('settings.scope_inherit_adapter') : t('settings.scope_inherit_global');
   };
   const saveLogsite = async () => {
     setSavingLogsite(true);
@@ -553,8 +643,9 @@ export const SettingsPage: React.FC = () => {
     setSavingPoke(true);
     try {
       const r = await fetch('/api/system/events', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ friend_policy: friendPolicy, friend_keyword: friendKeyword, group_invite_policy: groupInvitePolicy, group_invite_reject_blacklist: groupRejectBlacklist, group_invite_reject_nonfriend: groupRejectNonfriend, poke: pokeText, poke_command: pokeCommand, poke_enabled: pokeEnabled }) });
+        body: JSON.stringify(scopedEventBody({ poke: pokeText, poke_command: pokeCommand, poke_enabled: pokeEnabled })) });
       const j = await r.json(); if (j.code !== 0) throw new Error(j.message);
+      applyEventData(j.data);
       toast({ title: t('common.save_success') });
     } catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
     finally { setSavingPoke(false); }
@@ -735,12 +826,64 @@ export const SettingsPage: React.FC = () => {
         </CardContent>
       </Card>
 
+      <Card className="border-primary/20">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2"><Layers3 className="h-4 w-4" />{t('settings.scope_title')}</CardTitle>
+          <CardDescription>{t('settings.scope_desc')}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-3 gap-2">
+            {([
+              ['global', t('settings.scope_global')],
+              ['adapter', t('settings.scope_adapter')],
+              ['account', t('settings.scope_account')],
+            ] as [SettingsScope, string][]).map(([value, label]) => (
+              <Button key={value} type="button" size="sm"
+                variant={settingsScope === value ? 'default' : 'outline'}
+                onClick={() => changeSettingsScope(value)}>{label}</Button>
+            ))}
+          </div>
+          {settingsScope === 'adapter' && (
+            <Select value={settingsTarget} onValueChange={setSettingsTarget}>
+              <SelectTrigger><SelectValue placeholder={t('settings.scope_select_adapter')} /></SelectTrigger>
+              <SelectContent>
+                {(configuredPlatforms.length ? configuredPlatforms : PLATFORMS).map((p) => (
+                  <SelectItem key={p.value} value={p.value}>
+                    <span className="flex items-center gap-2"><PlatformIcon platform={p.value} />{p.label}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          {settingsScope === 'account' && (
+            <Select value={settingsTarget} onValueChange={setSettingsTarget}>
+              <SelectTrigger><SelectValue placeholder={t('settings.scope_select_account')} /></SelectTrigger>
+              <SelectContent>
+                {masterAccounts.map((a) => (
+                  <SelectItem key={a.id} value={a.id}>
+                    <span className="flex items-center gap-2"><PlatformIcon platform={a.type} />{masterAccountLabel(a)}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          <div className="rounded-md bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
+            {settingsScope === 'global' ? t('settings.scope_current_global')
+              : settingsScope === 'adapter' ? t('settings.scope_current_adapter', { name: platformLabel(settingsTarget) })
+              : selectedScopeAccount ? t('settings.scope_current_account', {
+                  platform: platformLabel(selectedScopeAccount.type),
+                  account: masterAccountLabel(selectedScopeAccount),
+                }) : t('settings.scope_current_none')}
+          </div>
+        </CardContent>
+      </Card>
+
       <SectionHeading>{t('settings.sec_approval')}</SectionHeading>
 
       {/* ── 好友 / 加群邀请审批 ── */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2"><ShieldCheck className="h-4 w-4" />{t('settings.approval_title')}</CardTitle>
+          <div className="flex flex-wrap items-center justify-between gap-2"><CardTitle className="text-base flex items-center gap-2"><ShieldCheck className="h-4 w-4" />{t('settings.approval_title')}</CardTitle><Badge variant={hasScopeOverride(APPROVAL_SCOPE_KEYS) ? 'default' : 'secondary'}>{scopeSourceLabel(APPROVAL_SCOPE_KEYS)}</Badge></div>
           <CardDescription>{t('settings.approval_desc')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -785,20 +928,25 @@ export const SettingsPage: React.FC = () => {
               <p className="text-xs text-muted-foreground">{t('settings.approval_group_name_keyword_hint')}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button size="sm" onClick={saveEvents} disabled={savingEvents}>{t('common.save')}</Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button size="sm" onClick={saveEvents} disabled={savingEvents || (settingsScope !== 'global' && !settingsTarget)}>{t('common.save')}</Button>
+            {settingsScope !== 'global' && hasScopeOverride(APPROVAL_SCOPE_KEYS) && (
+              <Button size="sm" variant="outline" onClick={() => void resetEventScope(APPROVAL_SCOPE_KEYS)}>
+                <RotateCcw className="mr-1.5 h-3.5 w-3.5" />{t('settings.scope_reset')}
+              </Button>
+            )}
             <span className="text-xs text-muted-foreground">{t('settings.approval_note')}</span>
           </div>
         </CardContent>
       </Card>
 
       {/* ── 心跳上报（heart.dice.zone）── */}
-      <HeartbeatCard />
+      <HeartbeatCard timezoneMinutes={tzEffectiveMinutes} />
 
       {/* ── 戳一戳 (独立容器) ── */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2"><Zap className="h-4 w-4" />{t('settings.poke_title')}</CardTitle>
+          <div className="flex flex-wrap items-center justify-between gap-2"><CardTitle className="text-base flex items-center gap-2"><Zap className="h-4 w-4" />{t('settings.poke_title')}</CardTitle><Badge variant={hasScopeOverride(POKE_SCOPE_KEYS) ? 'default' : 'secondary'}>{scopeSourceLabel(POKE_SCOPE_KEYS)}</Badge></div>
           <CardDescription>{t('settings.poke_desc')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -814,8 +962,13 @@ export const SettingsPage: React.FC = () => {
             <Label className="text-xs text-muted-foreground">{t('settings.poke_text')}</Label>
             <Input className="h-8 text-sm" value={pokeText} onChange={(e) => setPokeText(e.target.value)} placeholder={t('settings.poke_text_ph')} />
           </div>
-          <div className="flex justify-end">
-            <Button size="sm" onClick={savePoke} disabled={savingPoke}>{t('common.save')}</Button>
+          <div className="flex flex-wrap justify-end gap-2">
+            {settingsScope !== 'global' && hasScopeOverride(POKE_SCOPE_KEYS) && (
+              <Button size="sm" variant="outline" onClick={() => void resetEventScope(POKE_SCOPE_KEYS)}>
+                <RotateCcw className="mr-1.5 h-3.5 w-3.5" />{t('settings.scope_reset')}
+              </Button>
+            )}
+            <Button size="sm" onClick={savePoke} disabled={savingPoke || (settingsScope !== 'global' && !settingsTarget)}>{t('common.save')}</Button>
           </div>
         </CardContent>
       </Card>
@@ -824,7 +977,7 @@ export const SettingsPage: React.FC = () => {
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2"><Clock className="h-4 w-4" />{t('settings.welcome_min_title')}</CardTitle>
-          <CardDescription>{t('settings.welcome_min_desc')}</CardDescription>
+          <CardDescription>{t('settings.welcome_min_desc')} {t('settings.scope_global_only')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div>
@@ -836,7 +989,7 @@ export const SettingsPage: React.FC = () => {
             <Input className="h-8 text-sm w-32" type="number" min={0} max={3600} value={welcomeMinCooldown} onChange={(e) => setWelcomeMinCooldown(Number(e.target.value) || 0)} />
           </div>
           <div className="flex justify-end">
-            <Button size="sm" onClick={saveEvents} disabled={savingEvents}>{t('common.save')}</Button>
+            <Button size="sm" onClick={saveWelcomeMinimums} disabled={savingEvents}>{t('common.save')}</Button>
           </div>
         </CardContent>
       </Card>
@@ -973,7 +1126,7 @@ interface HeartbeatConf {
   last_status: string; last_report_at: string; last_error: string;
 }
 
-const HeartbeatCard: React.FC = () => {
+const HeartbeatCard: React.FC<{ timezoneMinutes: number }> = ({ timezoneMinutes }) => {
   const { t } = useTranslation();
   const toast = useToast();
   const [c, setC] = useState<HeartbeatConf>({
@@ -1091,7 +1244,7 @@ const HeartbeatCard: React.FC = () => {
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <span className="text-muted-foreground">{t('settings.heartbeat_last')}</span>
           {statusBadge()}
-          {c.last_report_at && <span className="text-muted-foreground">{c.last_report_at.replace('T', ' ').slice(0, 19)}</span>}
+          {c.last_report_at && <span className="text-muted-foreground">{formatDateTimeAtOffset(c.last_report_at, timezoneMinutes)}</span>}
           {c.last_error && <span className="text-destructive truncate max-w-[280px]" title={c.last_error}>{c.last_error}</span>}
         </div>
         <div className="flex justify-end gap-2">

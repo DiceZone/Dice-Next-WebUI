@@ -27,7 +27,7 @@ const LANGS = [
   { code: 'en', label: 'English' },
   { code: 'ja', label: '日本語' },
 ];
-const CAT_ORDER = ['通用', 'COC', 'DND', '娱乐', '工具', '管理'];
+const CAT_ORDER = ['通用', 'COC', 'BRP', 'DND', '人物卡', '跑团', '娱乐', '互动', '工具', '管理', '系统'];
 
 // Globally-available variables (filled at send time for ANY text). Shown behind
 // the「插入全局变量」button; command-specific vars stay as first-level chips.
@@ -48,6 +48,12 @@ const replyLabel = (key: string): string => {
 const extractVars = (s: string): string[] =>
   [...s.matchAll(/\{([^{}]+)\}/g)].map((m) => m[1]);
 
+const fineGroupFor = (key: string): string => {
+  const parts = key.split('.');
+  return ['dice', 'card', 'fun', 'dnd', 'help'].includes(parts[0]) && parts[1]
+    ? `${parts[0]}.${parts[1]}` : parts[0];
+};
+
 export const CommandsPage: React.FC = () => {
   const { t } = useTranslation();
   const toast = useToast();
@@ -61,11 +67,13 @@ export const CommandsPage: React.FC = () => {
   const [allRows, setAllRows] = useState<AllKey[]>([]);
   const [allLoading, setAllLoading] = useState(false);
   const [allQ, setAllQ] = useState('');
+  const [allGroup, setAllGroup] = useState('__all_groups__');
   // C#40: persona editing — pick a persona and edit ITS reply text directly.
   const [personas, setPersonas] = useState<{ id: number; name: string }[]>([]);
   const [personaId, setPersonaId] = useState(0);            // 0 = 默认人格 (global overrides)
   const [personaMap, setPersonaMap] = useState<Record<string, string>>({});  // key → value for personaId+lang
   const [mgrOpen, setMgrOpen] = useState(false);
+  const editScrollY = useRef(0);
 
   const fetchPersonas = useCallback(async () => {
     try { const r = await fetch('/api/personas'); const j = await r.json(); if (j.code === 0) setPersonas(j.data || []); }
@@ -129,7 +137,31 @@ export const CommandsPage: React.FC = () => {
   const toggle = (cmd: string) =>
     setExpanded((p) => { const n = new Set(p); n.has(cmd) ? n.delete(cmd) : n.add(cmd); return n; });
 
-  const editKey = (k: AllKey) => setEditing({ cmd: k.key, reply: {
+  const beginEdit = (next: { cmd: string; reply: Reply }) => {
+    editScrollY.current = window.scrollY;
+    setEditing(next);
+  };
+  const restoreEditScroll = () => requestAnimationFrame(() => requestAnimationFrame(() =>
+    window.scrollTo({ top: editScrollY.current, behavior: 'auto' })));
+  const closeEditor = () => { setEditing(null); restoreEditScroll(); };
+  const savedEditor = (key: string, value: string | null) => {
+    if (personaId > 0) {
+      setPersonaMap((prev) => {
+        const next = { ...prev };
+        if (value == null) delete next[key]; else next[key] = value;
+        return next;
+      });
+    } else {
+      setRows((prev) => prev.map((command) => ({
+        ...command,
+        replies: command.replies.map((reply) => reply.key === key ? { ...reply, override: value } : reply),
+      })));
+      setAllRows((prev) => prev.map((reply) => reply.key === key ? { ...reply, override: value } : reply));
+    }
+    closeEditor();
+  };
+
+  const editKey = (k: AllKey) => beginEdit({ cmd: k.key, reply: {
     key: k.key, default: k.default, override: k.override, v2key: k.v2key,
     vars: extractVars(k.default).map((n) => ({ name: n, desc: '' })) } });
 
@@ -163,9 +195,13 @@ export const CommandsPage: React.FC = () => {
 
   const filterRows = (pred: (k: AllKey) => boolean) => dispAll.filter((k) => {
     if (!pred(k)) return false;
+    if (cat === ALL_TAB && allGroup !== '__all_groups__' && fineGroupFor(k.key) !== allGroup) return false;
     const q = allQ.toLowerCase();
     return !q || k.key.toLowerCase().includes(q) || (k.override ?? k.default).toLowerCase().includes(q);
   });
+  const allGroups = [...new Set(dispAll
+    .filter((k) => k.group !== 'tplvar' && k.group !== 'legacy')
+    .map((k) => fineGroupFor(k.key)))].sort((a, b) => a.localeCompare(b));
 
   return (
     <div className="space-y-5">
@@ -221,8 +257,19 @@ export const CommandsPage: React.FC = () => {
 
       {SPECIAL_TABS.includes(cat) ? (
         <div className="space-y-3">
-          <input value={allQ} onChange={(e) => setAllQ(e.target.value)} placeholder={t('commands.all_search')}
-            className="h-9 w-full max-w-sm rounded-md border border-input bg-background px-3 text-sm" />
+          <div className="flex flex-wrap items-center gap-2">
+            <input value={allQ} onChange={(e) => setAllQ(e.target.value)} placeholder={t('commands.all_search')}
+              className="h-9 w-full max-w-sm rounded-md border border-input bg-background px-3 text-sm" />
+            {cat === ALL_TAB && (
+              <Select value={allGroup} onValueChange={setAllGroup}>
+                <SelectTrigger className="h-9 w-48"><SelectValue placeholder={t('commands.all_group')} /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all_groups__">{t('commands.all_group_all')}</SelectItem>
+                  {allGroups.map((group) => <SelectItem key={group} value={group}>{group}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
           {allLoading ? (
             <div className="flex items-center justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
           ) : (
@@ -330,7 +377,7 @@ export const CommandsPage: React.FC = () => {
                         {c.replies.length === 0 ? <span className="text-xs text-muted-foreground">—</span>
                           : multi
                             ? <button onClick={() => toggle(c.cmd)} className="text-xs text-primary hover:underline">{t('commands.edit')} ({c.replies.length})</button>
-                            : <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setEditing({ cmd: c.cmd, reply: c.replies[0] })}><Pencil className="mr-1 h-3.5 w-3.5" />{t('commands.edit')}</Button>}
+                            : <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => beginEdit({ cmd: c.cmd, reply: c.replies[0] })}><Pencil className="mr-1 h-3.5 w-3.5" />{t('commands.edit')}</Button>}
                       </td>
                     </tr>
                     {isOpen && multi && c.replies.map((rep) => (
@@ -349,7 +396,7 @@ export const CommandsPage: React.FC = () => {
                           <span className="font-mono whitespace-pre-wrap break-words">{rep.override ?? rep.default}</span>
                         </td>
                         <td data-label={t('commands.col_desc')} className="p-2">
-                          <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setEditing({ cmd: c.cmd, reply: rep })}><Pencil className="mr-1 h-3.5 w-3.5" />{t('commands.edit')}</Button>
+                          <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => beginEdit({ cmd: c.cmd, reply: rep })}><Pencil className="mr-1 h-3.5 w-3.5" />{t('commands.edit')}</Button>
                         </td>
                       </tr>
                     ))}
@@ -363,7 +410,7 @@ export const CommandsPage: React.FC = () => {
 
       {editing && (
         <EditReplyModal lang={lang} cmd={editing.cmd} reply={editing.reply} personaId={personaId}
-          onClose={() => setEditing(null)} onSaved={() => { setEditing(null); void load(); void loadAll(); void loadPersonaMap(); }} />
+          onClose={closeEditor} onSaved={savedEditor} />
       )}
 
       {/* C#40: persona management dialog (create / copy / edit / delete / set default) */}
@@ -381,7 +428,7 @@ export const CommandsPage: React.FC = () => {
 };
 
 // ─── Edit modal ──────────────────────────────────────────────
-const EditReplyModal: React.FC<{ lang: string; cmd: string; reply: Reply; personaId: number; onClose: () => void; onSaved: () => void }>
+const EditReplyModal: React.FC<{ lang: string; cmd: string; reply: Reply; personaId: number; onClose: () => void; onSaved: (key: string, value: string | null) => void }>
   = ({ lang, cmd, reply, personaId, onClose, onSaved }) => {
   const { t } = useTranslation();
   const toast = useToast();
@@ -428,7 +475,7 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; reply: Reply; person
             body: JSON.stringify({ locale: lang, key: reply.key, value: text }) });
       const j = await r.json();
       if (j.code !== 0) throw new Error(j.message);
-      toast({ title: t('common.save_success') }); onSaved();
+      toast({ title: t('common.save_success') }); onSaved(reply.key, text);
     } catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
   };
   const reset = async () => {
@@ -440,7 +487,7 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; reply: Reply; person
         : await fetch(`/api/templates/${encodeURIComponent(lang)}/${encodeURIComponent(reply.key)}`, { method: 'DELETE' });
       const j = await r.json();
       if (j.code !== 0) throw new Error(j.message);
-      toast({ title: t('commands.reset_done') }); onSaved();
+      toast({ title: t('commands.reset_done') }); onSaved(reply.key, null);
     } catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
   };
 

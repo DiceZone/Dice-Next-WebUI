@@ -14,7 +14,7 @@ import {
 import { ConnectionStatus } from '@/components/adapter/connection-status';
 import { cn } from '@/lib/utils';
 import { formatDateTime } from '@/lib/utils';
-import { Cloud, CloudOff, Info, MoreHorizontal, Plug, Unplug, Pencil, Trash2, Wifi, PlugZap, Network } from 'lucide-react';
+import { Cloud, Info, MoreHorizontal, Plug, Unplug, Pencil, Trash2, Wifi, PlugZap, Network } from 'lucide-react';
 import type { Adapter } from '@/types/adapter';
 import { PlatformIcon, platformLabel } from '@/components/platform-icon';
 
@@ -157,9 +157,9 @@ export const AdapterCard: React.FC<AdapterCardProps> = ({
 
         {/* Footer */}
         <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-          <Badge variant={adapter.heartApiKeyConfigured ? 'success' : 'secondary'} className="gap-1.5 whitespace-nowrap text-[10px]">
-            {adapter.heartApiKeyConfigured ? <Cloud className="h-3 w-3" /> : <CloudOff className="h-3 w-3" />}
-            {adapter.heartApiKeyConfigured ? t('adapters.bdc_cloud_connected') : t('adapters.bdc_cloud_disconnected')}
+          <Badge variant={adapter.heartApiKeyConfigured ? 'success' : 'warning'} className="gap-1.5 whitespace-nowrap text-[10px]">
+            <Cloud className="h-3 w-3" />
+            {adapter.heartApiKeyConfigured ? t('adapters.bdc_cloud_connected') : t('adapters.bdc_cloud_basic')}
           </Badge>
           <div className="flex flex-wrap items-center justify-end gap-1.5">
             <Button variant="outline" size="sm" onClick={() => setDetailOpen(true)}>
@@ -215,9 +215,9 @@ export const AdapterCard: React.FC<AdapterCardProps> = ({
             </DetailRow>
             <DetailRow label={t('adapters.detail_enabled')}>{adapter.enabled ? t('adapters.status_on') : t('adapters.status_off')}</DetailRow>
             <DetailRow label={t('adapters.detail_bdc_cloud')}>
-              <Badge variant={adapter.heartApiKeyConfigured ? 'success' : 'secondary'} className="gap-1.5 whitespace-nowrap text-[10px]">
-                {adapter.heartApiKeyConfigured ? <Cloud className="h-3 w-3" /> : <CloudOff className="h-3 w-3" />}
-                {adapter.heartApiKeyConfigured ? t('adapters.bdc_cloud_connected') : t('adapters.bdc_cloud_disconnected')}
+              <Badge variant={adapter.heartApiKeyConfigured ? 'success' : 'warning'} className="gap-1.5 whitespace-nowrap text-[10px]">
+                <Cloud className="h-3 w-3" />
+                {adapter.heartApiKeyConfigured ? t('adapters.bdc_cloud_connected') : t('adapters.bdc_cloud_basic')}
               </Badge>
             </DetailRow>
             <DetailRow label={t('adapters.last_active')}>{adapter.lastActive ? formatDateTime(adapter.lastActive) : '—'}</DetailRow>
