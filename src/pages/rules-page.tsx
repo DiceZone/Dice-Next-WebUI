@@ -8,7 +8,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Scroll, Upload, Trash2, Pencil, Download, RefreshCw, Dices, Plus, Package } from 'lucide-react';
+import { Scroll, Upload, Trash2, Pencil, Download, RefreshCw, Dices, Plus, Package, Info } from 'lucide-react';
 import { RuleEditor } from './rule-editor';
 import { PaginationBar } from '@/components/ui/pagination-bar';
 
@@ -17,6 +17,7 @@ interface RuleBundle {
   name: string; folder: string; version: string; author: string; description: string;
   enabled: boolean; setKeys: string[];
   ruleFiles: number; cmdCount: number; helpdocEntries: number; luaMods: number; jsPlugins: number;
+  ruleNames: string[]; helpdocFiles: string[]; luaNames: string[]; jsNames: string[];
 }
 
 interface RulePack {
@@ -24,13 +25,13 @@ interface RulePack {
   diceSides: number; setKeys: string[];
   aliasGroups: number; computedCount: number; manualCount: number; helpCount: number;
   customCmds: string[]; cmdAlias: { from: string; to: string }[]; disableCmds: string[];
-  builtin: boolean; enabled: boolean;
+  builtin: boolean; enabled: boolean; ownerBundle?: string; ownerBundleFolder?: string;
 }
 
 interface CompatRule {
   kind: 'js' | 'lua';
   name: string; title?: string; author: string; version: string; file: string;
-  commandList: string[]; enabled: boolean;
+  commandList: string[]; enabled: boolean; ownerBundle?: string; ownerBundleFolder?: string;
 }
 
 async function jsend(method: string, path: string, body?: unknown) {
@@ -47,6 +48,7 @@ export const RulesPage: React.FC = () => {
   const [editorFile, setEditorFile] = useState<string | null>(null);
   const [confirmDel, setConfirmDel] = useState<string | null>(null);
   const [confirmDelBundle, setConfirmDelBundle] = useState<RuleBundle | null>(null);
+  const [detailBundle, setDetailBundle] = useState<RuleBundle | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const zipRef = useRef<HTMLInputElement>(null);
   const [page, setPage] = useState(1);
@@ -58,11 +60,11 @@ export const RulesPage: React.FC = () => {
     try { const d = await jsend('GET', '/rulepacks'); setBundles(d.bundles || []); } catch { /* ignore */ }
     try {
       const r = await fetch('/api/plugins/js'); const j = await r.json();
-      if (j.code === 0) setCompatRules((j.data as any[]).filter((p: any) => p.ruleCompat).map((p: any) => ({ kind: 'js' as const, name: p.name, author: p.author, version: p.version, file: p.file, commandList: p.commandList || [], enabled: p.enabled })));
+      if (j.code === 0) setCompatRules((j.data as any[]).filter((p: any) => p.ruleCompat).map((p: any) => ({ kind: 'js' as const, name: p.name, author: p.author, version: p.version, file: p.file, commandList: p.commandList || [], enabled: p.enabled, ownerBundle: p.ownerBundle, ownerBundleFolder: p.ownerBundleFolder })));
     } catch { /* ignore */ }
     try {
       const r = await fetch('/api/mod/lua'); const j = await r.json();
-      if (j.code === 0) setCompatRules((prev) => [...prev, ...(j.data as any[]).filter((p: any) => p.ruleCompat).map((p: any) => ({ kind: 'lua' as const, name: p.title || p.name, author: p.author, version: p.version, file: p.name, commandList: [], enabled: p.enabled }))]);
+      if (j.code === 0) setCompatRules((prev) => [...prev, ...(j.data as any[]).filter((p: any) => p.ruleCompat).map((p: any) => ({ kind: 'lua' as const, name: p.title || p.name, author: p.author, version: p.version, file: p.name, commandList: [], enabled: p.enabled, ownerBundle: p.ownerBundle, ownerBundleFolder: p.ownerBundleFolder }))]);
     } catch { /* ignore */ }
     setLoading(false);
   }, [toast]);
@@ -118,7 +120,8 @@ export const RulesPage: React.FC = () => {
     catch (e) { toast({ title: (e as Error).message, variant: 'destructive' }); }
   };
 
-  const allItems = [...packs.map((p) => ({ type: 'pack' as const, data: p })), ...compatRules.map((c) => ({ type: 'compat' as const, data: c }))];
+  // bundle 的规则/JS/Lua 由父包统一管理，不能再作为独立条目重复出现。
+  const allItems = [...packs.filter((p) => !p.ownerBundle).map((p) => ({ type: 'pack' as const, data: p })), ...compatRules.filter((c) => !c.ownerBundle).map((c) => ({ type: 'compat' as const, data: c }))];
   const totalPages = Math.max(1, Math.ceil(allItems.length / pageSize));
   const curPage = Math.min(page, totalPages);   // 删除后页码越界 → 钳到最后一页
   const pageItems = allItems.slice((curPage - 1) * pageSize, curPage * pageSize);
@@ -167,6 +170,7 @@ export const RulesPage: React.FC = () => {
                     {(b.luaMods > 0 || b.jsPlugins > 0) && <span>· {t('rules.bundle_plugins', { lua: b.luaMods, js: b.jsPlugins })}</span>}
                   </div>
                 </div>
+                <Button size="icon" variant="ghost" className="h-9 w-9 shrink-0" title={t('rules.bundle_contents')} onClick={() => setDetailBundle(b)}><Info className="h-4 w-4" /></Button>
                 <Switch checked={b.enabled} onCheckedChange={() => toggleBundle(b)} title={t('rules.toggle')} />
                 <Button size="icon" variant="ghost" className="h-9 w-9 shrink-0 text-destructive" title={t('common.delete')} onClick={() => setConfirmDelBundle(b)}><Trash2 className="h-4 w-4" /></Button>
               </CardContent>
@@ -263,6 +267,27 @@ export const RulesPage: React.FC = () => {
         <Dialog open onOpenChange={(o) => { if (!o) setConfirmDel(null); }}>
           <DialogContent className="max-w-sm"><DialogHeader><DialogTitle>{t('rules.delete_confirm', { file: confirmDel })}</DialogTitle></DialogHeader>
           <DialogFooter className="gap-2"><Button variant="ghost" size="sm" onClick={() => setConfirmDel(null)}>{t('common.cancel')}</Button><Button variant="destructive" size="sm" onClick={() => doDelete(confirmDel)}>{t('common.delete')}</Button></DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+      {detailBundle && (
+        <Dialog open onOpenChange={(o) => { if (!o) setDetailBundle(null); }}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader><DialogTitle>{t('rules.bundle_contents_title', { name: detailBundle.name })}</DialogTitle></DialogHeader>
+            <div className="space-y-4 text-sm">
+              {detailBundle.description && <p className="text-muted-foreground whitespace-pre-wrap">{detailBundle.description}</p>}
+              {([
+                [t('rules.bundle_rules'), detailBundle.ruleNames],
+                [t('rules.bundle_helpdocs'), detailBundle.helpdocFiles],
+                ['Lua', detailBundle.luaNames],
+                ['JavaScript', detailBundle.jsNames],
+              ] as [string, string[]][]).map(([label, values]) => (
+                <div key={label}><p className="mb-1 font-medium">{label}（{values?.length || 0}）</p>
+                  {values?.length ? <div className="flex flex-wrap gap-1.5">{values.map((v) => <Badge key={v} variant="outline" className="font-mono text-xs">{v}</Badge>)}</div> : <p className="text-xs text-muted-foreground">—</p>}
+                </div>
+              ))}
+            </div>
+            <DialogFooter><Button variant="ghost" onClick={() => setDetailBundle(null)}>{t('common.close')}</Button></DialogFooter>
           </DialogContent>
         </Dialog>
       )}
