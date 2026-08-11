@@ -32,6 +32,7 @@ interface Plugin {
   commandList: string[]; superseded: boolean; supersededBy: string;
   commands: number; enabled: boolean; configs: PluginConfig[];
   ruleCompat?: boolean; inMod?: boolean;
+  ownerBundle?: string; ownerBundleFolder?: string;
   replies?: number; scripts?: number; singleFile?: boolean;
   // Lua mod：真实指令触发词（{trigger,kind}）与帮助词条分开展示。
   luaCommands?: { trigger: string; kind: string }[]; helpTopics?: string[];
@@ -272,8 +273,10 @@ export const ModulesPage: React.FC = () => {
     const all: Plugin[] = [];
     try { const d = await jsend('GET', '/plugins/js'); (Array.isArray(d) ? d : []).forEach((p: any) => all.push({ ...p, kind: 'js' as const, name: p.name, file: p.file, lang: p.lang || 'js' })); } catch { /* ignore */ }
     try { const d = await jsend('GET', '/mod/lua'); (Array.isArray(d) ? d : []).forEach((m: any) => { const cmds = (m.commands || []) as { trigger: string; kind: string }[]; all.push({ ...m, kind: 'lua' as const, name: m.title || m.name, file: m.name, lang: 'lua', description: m.brief || '', commandList: cmds.map((c) => c.trigger), luaCommands: cmds, helpTopics: m.helpTopics || [], configs: [], updateUrl: '', homepage: '', license: '', superseded: false, supersededBy: '', commands: cmds.length }); }); } catch { /* ignore */ }
-    all.sort((a, b) => a.name.localeCompare(b.name));
-    setPlugins(all); setLoading(false);
+    // 规则包内插件跟随父包启停，在插件页隐藏，避免出现无法独立管理的重复卡片。
+    const standalone = all.filter((p) => !p.ownerBundle);
+    standalone.sort((a, b) => a.name.localeCompare(b.name));
+    setPlugins(standalone); setLoading(false);
   }, []);
 
   useEffect(() => { loadAll(); }, [loadAll]);
