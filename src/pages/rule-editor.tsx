@@ -240,7 +240,7 @@ export const RuleEditor: React.FC<Props> = ({ file, onClose, onSaved }) => {
           <Textarea className="font-mono text-xs h-[60vh]" value={raw} onChange={(e) => setRaw(e.target.value)} spellCheck={false} />
         ) : (
           <div className="space-y-4 py-1">
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <div><Label className="text-xs">{t('ruleed.name')}</Label><Input className="h-8 text-sm" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="coc7" /></div>
               <div><Label className="text-xs">{t('ruleed.full_name')}</Label><Input className="h-8 text-sm" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} /></div>
               <div><Label className="text-xs">{t('ruleed.version')}</Label><Input className="h-8 text-sm" value={form.version} onChange={(e) => setForm({ ...form, version: e.target.value })} /></div>

@@ -40,6 +40,7 @@ const adapterFormSchema = z.object({
   appId: z.string().optional(),
   appSecret: z.string().optional(),
   qqNumber: z.string().regex(/^\d{0,12}$/, 'QQ 号只能由最多 12 位数字组成').optional(),
+  forceVerifyImageResource: z.boolean().optional().default(false),
   heartApiKey: z.string().optional(),
   clearHeartApiKey: z.boolean().optional().default(false),
   enabled: z.boolean().optional().default(true),
@@ -74,6 +75,7 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
       appId: adapter?.appId ?? '',
       appSecret: '',
       qqNumber: adapter?.qqNumber ?? '',
+      forceVerifyImageResource: adapter?.forceVerifyImageResource ?? false,
       heartApiKey: '',
       clearHeartApiKey: false,
       enabled: adapter?.enabled ?? true,
@@ -91,6 +93,7 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
         appId: adapter?.appId ?? '',
         appSecret: '',
         qqNumber: adapter?.qqNumber ?? '',
+        forceVerifyImageResource: adapter?.forceVerifyImageResource ?? false,
         heartApiKey: '',
         clearHeartApiKey: false,
         enabled: adapter?.enabled ?? true,
@@ -276,6 +279,13 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
               <div className="space-y-2"><Label htmlFor="appId">AppID</Label><Input id="appId" autoComplete="off" {...register('appId')} />{errors.appId && <p className="text-xs text-destructive">{errors.appId.message}</p>}</div>
               <div className="space-y-2"><Label htmlFor="appSecret">AppSecret{isEdit ? '（留空保持不变）' : ''}</Label><Input id="appSecret" type="password" autoComplete="new-password" {...register('appSecret')} /></div>
               <div className="space-y-2"><Label htmlFor="qqNumber">官方机器人真实 QQ 号（可选）</Label><Input id="qqNumber" inputMode="numeric" autoComplete="off" placeholder="仅用于显示 QQ 头像，不参与官方 API 通信" {...register('qqNumber')} />{errors.qqNumber && <p className="text-xs text-destructive">{errors.qqNumber.message}</p>}</div>
+              <div className="flex items-start justify-between gap-4 rounded-md border bg-muted/20 p-3">
+                <div className="space-y-1">
+                  <Label htmlFor="forceVerifyImageResource">Markdown 图片资源强校验</Label>
+                  <p className="text-xs text-muted-foreground">开启后，图片转存失败会中断整条 Markdown 消息；关闭时保持 QQ 官方默认兼容行为。</p>
+                </div>
+                <Switch id="forceVerifyImageResource" checked={watch('forceVerifyImageResource') ?? false} onCheckedChange={(v) => setValue('forceVerifyImageResource', v)} />
+              </div>
             </section>
           </div>
           </> : <><div className="space-y-2">

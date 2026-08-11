@@ -1,4 +1,4 @@
-﻿{
+{
   "pagination": {
     "total": "{{n}} 项",
     "per_page": "{{n}} 个/页",
@@ -152,6 +152,7 @@
     "add": "添加",
     "delete": "删除",
     "edit": "编辑",
+    "actions": "操作",
     "save": "保存",
     "cancel": "放弃",
     "close": "关闭",
@@ -428,6 +429,9 @@
     "col_group": "所属群号",
     "col_status": "状态",
     "col_count": "已记录条数",
+    "col_storage": "占用空间",
+    "storage_hint": "数据库内容按已保存字段字节数估算；图片按本地文件实际大小统计",
+    "storage_images": "其中图片 {{size}}",
     "col_game": "所属团",
     "col_creator": "创建人",
     "col_created": "创建时间",
@@ -445,6 +449,9 @@
     "log_stats": "日志统计",
     "log_stats_value": "共 {{total}} 条 · 进行中 {{active}} 条 · 暂停 {{paused}} 条 · 已结束 {{ended}} 条",
     "cross_export_fail": "跨团日志导出失败",
+    "delete_log_title": "删除跑团日志？",
+    "delete_log_desc": "即将永久删除 #{{id}}「{{name}}」。\n当前占用 {{size}}，其中图片 {{imageSize}}；日志消息与本地图片将一并删除，此操作无法撤销。",
+    "deleted": "已删除日志「{{name}}」",
     "title": "日志管理",
     "subtitle": "集中查看所有日志，或按团务管理跨群跑团记录。",
     "no_logs": "暂无跑团记录",
@@ -931,6 +938,16 @@
     "heartbeat_desc": "定期向公开服务上报骰娘在线状态，供玩家查询骰娘是否可用",
     "heartbeat_enable": "启用心跳上报",
     "heartbeat_url": "服务地址",
+    "heartbeat_master_title": "骰主信息（可选）",
+    "heartbeat_master_desc": "任一项填写后将整体覆盖自动识别；两项均留空时，使用骰主列表中的首位 OneBot 骰主及其玩家档案昵称。",
+    "heartbeat_master_nickname": "上报骰主昵称",
+    "heartbeat_master_nickname_placeholder": "留空时自动读取",
+    "heartbeat_master_qq": "上报骰主 QQ",
+    "heartbeat_master_qq_placeholder": "留空时自动读取",
+    "heartbeat_master_effective": "当前上报（{{source}}）：{{nickname}} · QQ {{qq}}",
+    "heartbeat_master_effective_none": "当前未找到可上报的 OneBot 骰主信息",
+    "heartbeat_master_source_manual": "手工设置",
+    "heartbeat_master_source_auto": "自动识别",
     "heartbeat_adapter_keys": "适配器身份凭证",
     "heartbeat_adapter_keys_desc": "API Key 按骰娘分别配置，请在平台连接页面为每个适配器填写。",
     "heartbeat_adapter_keys_count": "已配置 {{count}} 个",
@@ -1527,7 +1544,10 @@
   "import_result": {
     "success": "成功",
     "skipped": "跳过",
-    "failed": "失败"
+    "failed": "失败",
+    "status": "状态",
+    "name": "项目",
+    "reason": "结果"
   },
   "flavor": {
     "title": "文案风味",

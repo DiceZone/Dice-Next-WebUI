@@ -140,8 +140,8 @@ export const StatisticsPage: React.FC = () => {
 
       <Card>
         <CardHeader><CardTitle className="text-lg">{t('statistics.top_users')}</CardTitle></CardHeader>
-        <CardContent className="overflow-x-auto">
-          <table className="w-full min-w-[560px] text-sm">
+        <CardContent>
+          <table className="rt w-full text-sm">
             <thead><tr className="border-b text-muted-foreground">
               <th className="px-3 py-2 text-center">{t('statistics.rank')}</th>
               <th className="px-3 py-2 text-center">{t('statistics.user')}</th>
@@ -150,10 +150,10 @@ export const StatisticsPage: React.FC = () => {
             </tr></thead>
             <tbody>{data.top_users.map((user, index) => (
               <tr key={user.user_id} className="border-b last:border-0">
-                <td className="px-3 py-2 text-center">{index + 1}</td>
-                <td className="px-3 py-2 text-center">{user.nickname || user.user_id}</td>
-                <td className="px-3 py-2 text-center tabular-nums">{number(user.command_count)}</td>
-                <td className="px-3 py-2 text-center text-muted-foreground">{localTime(user.last_command_at)}</td>
+                <td data-label={t('statistics.rank')} className="px-3 py-2 text-center">{index + 1}</td>
+                <td data-label={t('statistics.user')} className="px-3 py-2 text-center">{user.nickname || user.user_id}</td>
+                <td data-label={t('statistics.commands')} className="px-3 py-2 text-center tabular-nums">{number(user.command_count)}</td>
+                <td data-label={t('statistics.last_used')} className="px-3 py-2 text-center text-muted-foreground">{localTime(user.last_command_at)}</td>
               </tr>
             ))}</tbody>
           </table>

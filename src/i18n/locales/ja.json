@@ -1,4 +1,4 @@
-﻿{
+{
   "pagination": {
     "total": "{{n}} 件",
     "per_page": "{{n}} 件/ページ",
@@ -152,6 +152,7 @@
     "add": "追加",
     "delete": "削除",
     "edit": "編集",
+    "actions": "操作",
     "save": "保存",
     "cancel": "キャンセル",
     "close": "閉じる",
@@ -428,6 +429,9 @@
     "col_group": "所属グループ",
     "col_status": "状態",
     "col_count": "記録数",
+    "col_storage": "使用容量",
+    "storage_hint": "データベース内容は保存フィールドのバイト数による概算、画像はローカルファイルの実サイズです",
+    "storage_images": "画像 {{size}}",
     "col_game": "所属セッション",
     "col_creator": "作成者",
     "col_created": "作成日時",
@@ -445,6 +449,9 @@
     "log_stats": "ログ統計",
     "log_stats_value": "合計 {{total}} 件 · 進行中 {{active}} 件 · 一時停止 {{paused}} 件 · 終了 {{ended}} 件",
     "cross_export_fail": "セッションログのエクスポートに失敗しました",
+    "delete_log_title": "セッションログを削除しますか？",
+    "delete_log_desc": "#{{id}}「{{name}}」を完全に削除します。\n使用容量は {{size}}（画像 {{imageSize}}）です。メッセージとローカル画像も削除され、元に戻せません。",
+    "deleted": "ログ「{{name}}」を削除しました",
     "title": "ログ管理",
     "subtitle": "すべてのログを一覧表示、またはセッション単位でグループ横断の記録を管理。",
     "no_logs": "セッションログなし",
@@ -964,6 +971,16 @@
     "heartbeat_desc": "ダイスボットのオンライン状態を公開サービスへ定期的に報告し、プレイヤーが稼働状況を確認できるようにします",
     "heartbeat_enable": "ハートビート報告を有効化",
     "heartbeat_url": "サービスURL",
+    "heartbeat_master_title": "ボット所有者情報（任意）",
+    "heartbeat_master_desc": "どちらかを入力すると自動検出を一括で上書きします。両方空欄の場合は、最初の OneBot 所有者と保存済みプレイヤー名を使用します。",
+    "heartbeat_master_nickname": "報告する所有者名",
+    "heartbeat_master_nickname_placeholder": "空欄の場合は自動検出",
+    "heartbeat_master_qq": "報告する所有者 QQ",
+    "heartbeat_master_qq_placeholder": "空欄の場合は自動検出",
+    "heartbeat_master_effective": "現在の報告内容（{{source}}）：{{nickname}} · QQ {{qq}}",
+    "heartbeat_master_effective_none": "報告可能な OneBot 所有者情報が見つかりません",
+    "heartbeat_master_source_manual": "手動設定",
+    "heartbeat_master_source_auto": "自動検出",
     "heartbeat_adapter_keys": "アダプター認証情報",
     "heartbeat_adapter_keys_desc": "API Key はボットごとに異なります。プラットフォーム接続で各アダプターに設定してください。",
     "heartbeat_adapter_keys_count": "{{count}} 件設定済み",
@@ -1547,7 +1564,10 @@
   "import_result": {
     "success": "成功",
     "skipped": "スキップ",
-    "failed": "失敗"
+    "failed": "失敗",
+    "status": "状態",
+    "name": "項目",
+    "reason": "結果"
   },
   "flavor": {
     "title": "文案フレーバー",

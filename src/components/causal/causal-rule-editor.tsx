@@ -195,7 +195,7 @@ export const CausalRuleEditor: React.FC<Props> = ({ rule, open, onOpenChange, on
           )}
 
           {/* ── 规则名 + 生效范围 ── */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label>{t('causal.ed.name')}</Label>
               <Input value={editing.name} onChange={(e) => setEditing((p) => ({ ...p, name: e.target.value }))} placeholder={t('causal.ed.name_ph')} />
@@ -350,7 +350,7 @@ export const CausalRuleEditor: React.FC<Props> = ({ rule, open, onOpenChange, on
           {/* ── 高级：优先级 / 冷却 ── */}
           <details className="rounded-md border px-3 py-2">
             <summary className="cursor-pointer text-xs text-muted-foreground select-none">{t('causal.v2.advanced')}</summary>
-            <div className="grid grid-cols-3 gap-3 pt-2">
+            <div className="grid grid-cols-1 gap-3 pt-2 sm:grid-cols-3">
               <div className="space-y-1">
                 <Label className="text-xs">{t('causal.ed.priority')}</Label>
                 <Input type="number" className="h-8 text-sm" value={editing.priority} onChange={(e) => setEditing((p) => ({ ...p, priority: Number(e.target.value) }))} />

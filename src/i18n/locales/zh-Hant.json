@@ -1,4 +1,4 @@
-﻿{
+{
   "pagination": {
     "total": "{{n}} 項",
     "per_page": "{{n}} 個/頁",
@@ -152,6 +152,7 @@
     "add": "新增",
     "delete": "刪除",
     "edit": "編輯",
+    "actions": "操作",
     "save": "儲存",
     "cancel": "取消",
     "close": "關閉",
@@ -428,6 +429,9 @@
     "col_group": "所屬群號",
     "col_status": "狀態",
     "col_count": "已記錄條數",
+    "col_storage": "佔用空間",
+    "storage_hint": "資料庫內容按已儲存欄位位元組數估算；圖片按本機檔案實際大小統計",
+    "storage_images": "其中圖片 {{size}}",
     "col_game": "所屬團",
     "col_creator": "建立者",
     "col_created": "建立時間",
@@ -445,6 +449,9 @@
     "log_stats": "日誌統計",
     "log_stats_value": "共 {{total}} 條 · 進行中 {{active}} 條 · 暫停 {{paused}} 條 · 已結束 {{ended}} 條",
     "cross_export_fail": "跨團日誌匯出失敗",
+    "delete_log_title": "刪除跑團日誌？",
+    "delete_log_desc": "即將永久刪除 #{{id}}「{{name}}」。\n目前佔用 {{size}}，其中圖片 {{imageSize}}；日誌訊息與本機圖片將一併刪除，此操作無法復原。",
+    "deleted": "已刪除日誌「{{name}}」",
     "title": "日誌管理",
     "subtitle": "集中檢視所有日誌，或按團務管理跨群跑團記錄。",
     "no_logs": "暫無跑團記錄",
@@ -964,6 +971,16 @@
     "heartbeat_desc": "定期向公開服務上報骰娘線上狀態，供玩家查詢骰娘是否可用",
     "heartbeat_enable": "啟用心跳上報",
     "heartbeat_url": "服務位址",
+    "heartbeat_master_title": "骰主資訊（可選）",
+    "heartbeat_master_desc": "任一欄填寫後將整組覆蓋自動識別；兩欄均留空時，使用骰主清單中的首位 OneBot 骰主及其玩家檔案暱稱。",
+    "heartbeat_master_nickname": "上報骰主暱稱",
+    "heartbeat_master_nickname_placeholder": "留空時自動讀取",
+    "heartbeat_master_qq": "上報骰主 QQ",
+    "heartbeat_master_qq_placeholder": "留空時自動讀取",
+    "heartbeat_master_effective": "目前上報（{{source}}）：{{nickname}} · QQ {{qq}}",
+    "heartbeat_master_effective_none": "目前未找到可上報的 OneBot 骰主資訊",
+    "heartbeat_master_source_manual": "手動設定",
+    "heartbeat_master_source_auto": "自動識別",
     "heartbeat_adapter_keys": "適配器身分憑證",
     "heartbeat_adapter_keys_desc": "API Key 依骰娘分別設定，請在平台連線頁面為每個適配器填寫。",
     "heartbeat_adapter_keys_count": "已設定 {{count}} 個",
@@ -1547,7 +1564,10 @@
   "import_result": {
     "success": "成功",
     "skipped": "跳過",
-    "failed": "失敗"
+    "failed": "失敗",
+    "status": "狀態",
+    "name": "項目",
+    "reason": "結果"
   },
   "flavor": {
     "title": "文案風味",

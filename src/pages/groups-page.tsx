@@ -14,6 +14,7 @@ import {
   RefreshCw, Loader2, Users, Users2, Search, LogOut, ArrowLeft, X, Tag,
   Power, PowerOff, ShieldBan, Settings2, MessagesSquare, Send, Blocks, Moon,
   LayoutGrid, Table2, ChevronLeft, ChevronRight, ScrollText, Trash2, Download, Upload,
+  ShieldCheck, UserPlus, Play,
   ChevronDown, Pencil, Image as ImageIcon, Smile, Plus, Sparkles, FolderOpen, FileText,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -328,7 +329,7 @@ export const GroupsPage: React.FC = () => {
                       </td>
                       <td data-label={t('groups.members_label')} className="p-2.5">{g.memberCount || '—'}</td>
                       <td data-label={t('groups.perm_label')} className="p-2.5">{roleLabel(t, g.botRole)}</td>
-                      <td className="p-2.5"><div className="flex justify-end"><Actions g={g} /></div></td>
+                      <td data-label={t('common.actions')} className="p-2.5"><div className="flex flex-wrap justify-end"><Actions g={g} /></div></td>
                     </tr>
                   ))}
                 </tbody>
@@ -346,7 +347,7 @@ export const GroupsPage: React.FC = () => {
 const GroupDetail: React.FC<{ group: Group; dlg: any; onBack: () => void; onChanged: () => void; welcomeRef: React.RefObject<HTMLTextAreaElement> }> = ({ group, dlg, onBack, onChanged, welcomeRef }) => {
   const { t } = useTranslation();
   const toast = useToast();
-  const [tab, setTab] = useState<'function' | 'plugins' | 'members' | 'logs' | 'chat' | 'ai' | 'files'>('function');
+  const [tab, setTab] = useState<'function' | 'plugins' | 'members' | 'qqadmin' | 'logs' | 'chat' | 'ai' | 'files'>('function');
   const accounts = group.accounts?.length ? group.accounts : [{
     adapterId: '', adapterName: '', loginId: '', platform: group.platform, endpointId: group.groupId,
     connected: false, enabled: group.enabled, ai_enabled: group.ai_enabled, locked: group.locked,
@@ -370,6 +371,7 @@ const GroupDetail: React.FC<{ group: Group; dlg: any; onBack: () => void; onChan
     if (!pcaps) return true;
     if (k === 'members') return pcaps.member_list !== false;
     if (k === 'files') return pcaps.group_file !== false;
+    if (k === 'qqadmin') return pcaps.qq_group_admin === true;
     return true;
   };
 
@@ -426,7 +428,7 @@ const GroupDetail: React.FC<{ group: Group; dlg: any; onBack: () => void; onChan
       </div>
 
       <div className="flex gap-1 border-b">
-        {([['function', Settings2, t('groups.tab_function')], ['ai', Sparkles, t('groups.tab_ai')], ['plugins', Blocks, t('groups.tab_plugins')], ['members', Users, t('groups.tab_members')], ['logs', ScrollText, t('groups.tab_logs')], ['files', FolderOpen, t('groups.tab_files')], ['chat', MessagesSquare, t('groups.tab_chat')]] as const).filter(([k]) => tabVisible(k)).map(([k, Icon, label]) => (
+        {([['function', Settings2, t('groups.tab_function')], ['ai', Sparkles, t('groups.tab_ai')], ['plugins', Blocks, t('groups.tab_plugins')], ['members', Users, t('groups.tab_members')], ['qqadmin', ShieldCheck, '官方群管'], ['logs', ScrollText, t('groups.tab_logs')], ['files', FolderOpen, t('groups.tab_files')], ['chat', MessagesSquare, t('groups.tab_chat')]] as const).filter(([k]) => tabVisible(k)).map(([k, Icon, label]) => (
           <button key={k} onClick={() => setTab(k)}
             className={`flex items-center gap-1.5 px-3 py-2 text-sm border-b-2 -mb-px transition-colors ${tab === k ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
             <Icon className="h-4 w-4" />{label}
@@ -438,6 +440,7 @@ const GroupDetail: React.FC<{ group: Group; dlg: any; onBack: () => void; onChan
       {tab === 'ai' && <AiGroupTab group={activeGroup} base={base} scopedBody={scopedBody} onChanged={onChanged} t={t} toast={toast} dlg={dlg} />}
       {tab === 'plugins' && <PluginsTab group={activeGroup} adapterId={account.adapterId} t={t} toast={toast} />}
       {tab === 'members' && <MembersTab base={base} adapterId={account.adapterId} endpointId={account.endpointId} t={t} toast={toast} dlg={dlg} />}
+      {tab === 'qqadmin' && <QQOfficialAdminTab base={base} adapterId={account.adapterId} endpointId={account.endpointId} toast={toast} dlg={dlg} />}
       {tab === 'logs' && <LogsTab group={group} t={t} toast={toast} dlg={dlg} />}
       {tab === 'files' && <FilesTab base={base} t={t} toast={toast} />}
       {tab === 'chat' && <ChatTab base={base} platform={group.platform} t={t} toast={toast}
@@ -712,7 +715,7 @@ const FunctionTab: React.FC<any> = ({ group, base, scopedBody, onChanged, onBack
             ))}
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <div>
             <Label className="text-xs text-muted-foreground">{t('groups.welcome_delay')}</Label>
             <Input className="h-8 text-sm" type="number" min={group.welcome_min_delay || 0} max={300} value={group.welcome_delay || ''} onChange={(e) => void save({ welcome_delay: e.target.value })} placeholder="0" />
@@ -862,6 +865,171 @@ const MembersTab: React.FC<any> = ({ base, adapterId, endpointId, t, toast, dlg 
   );
 };
 
+// ── QQ 官方机器人 2.0 群管理（2026-08-10 API）──
+interface QQMuteMember { member_openid: string; username?: string; mute_expire_at?: string; union_openid?: string; }
+interface QQJoinRequest {
+  join_request_id: string; member_openid: string; username?: string; apply_at?: string;
+  apply_source?: string; invited_by?: string; risk_tips?: string; bot?: boolean;
+  verify_info?: { method?: string; verify_message?: string; review_qa_list?: { question?: string; answer?: string }[] };
+}
+interface QQJoinStrategy {
+  strategy_id: string; group_openids?: string[]; group_ids?: Array<string | number>;
+  whitelist_user_count?: number; is_enable?: 'on' | 'off'; expire_at?: string;
+  created_at?: string; updated_at?: string; remark?: string;
+}
+const QQOfficialAdminTab: React.FC<any> = ({ base, adapterId, endpointId, toast, dlg }) => {
+  const [section, setSection] = useState<'requests' | 'mute' | 'strategies'>('requests');
+  const [loading, setLoading] = useState(false);
+  const [muteData, setMuteData] = useState<any>({ global_rule: {}, members: [] });
+  const [requests, setRequests] = useState<QQJoinRequest[]>([]);
+  const [strategies, setStrategies] = useState<QQJoinStrategy[]>([]);
+  const [memberOpenId, setMemberOpenId] = useState('');
+  const [muteMinutes, setMuteMinutes] = useState('10');
+  const apiPath = `${base}/qq-official-admin`;
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const q = new URLSearchParams({ section, adapterId: adapterId || '', endpointId: endpointId || '', limit: '100' });
+      const d = await jget<any>(`${apiPath}?${q}`);
+      if (section === 'mute') setMuteData({ global_rule: d?.global_rule || {}, members: d?.members || [] });
+      else if (section === 'requests') setRequests(d?.list || []);
+      else setStrategies(d?.strategies || []);
+    } catch (e) {
+      toast({ title: '加载 QQ 官方群管理数据失败', description: String(e), variant: 'destructive' });
+    } finally { setLoading(false); }
+  }, [section, adapterId, endpointId, apiPath, toast]);
+  useEffect(() => { void load(); }, [load]);
+
+  const post = async (body: Record<string, unknown>, success = '操作成功') => {
+    try {
+      await jsend('POST', apiPath, { adapterId, endpointId, ...body });
+      toast({ title: success });
+      await load();
+      return true;
+    } catch (e) {
+      toast({ title: '操作失败', description: String(e), variant: 'destructive' });
+      return false;
+    }
+  };
+  const setMute = async () => {
+    const minutes = Math.max(1, Number.parseInt(muteMinutes, 10) || 10);
+    if (!memberOpenId.trim()) return;
+    const expire = new Date(Date.now() + minutes * 60_000).toISOString();
+    if (await post({ action: 'setMute', members: [{ op: 'add', member_openid: memberOpenId.trim(), mute_expire_at: expire }] }, '已设置禁言')) setMemberOpenId('');
+  };
+  const unmute = (id: string) => post({ action: 'setMute', members: [{ op: 'del', member_openid: id, mute_expire_at: '' }] }, '已解除禁言');
+  const approve = (r: QQJoinRequest) => post({ action: 'approveJoin', memberOpenId: r.member_openid, joinRequestId: r.join_request_id, op: 'approve' }, '已通过入群申请');
+  const decline = async (r: QQJoinRequest) => {
+    const reason = await dlg.prompt({ title: '拒绝入群申请', description: '可填写拒绝理由；留空也可拒绝。', defaultValue: '' });
+    if (reason === null) return;
+    await post({ action: 'approveJoin', memberOpenId: r.member_openid, joinRequestId: r.join_request_id, op: 'decline', rejectReason: reason }, '已拒绝入群申请');
+  };
+  const createStrategy = async () => {
+    const remark = await dlg.prompt({ title: '创建自动审批策略', description: '策略将关联当前官方群；命中白名单 QQ 的申请会自动通过。', defaultValue: '' });
+    if (remark === null) return;
+    await post({ action: 'createStrategy', body: { group_openids: [endpointId], is_enable: 'on', remark } }, '已创建自动审批策略');
+  };
+  const editRemark = async (s: QQJoinStrategy) => {
+    const remark = await dlg.prompt({ title: '修改策略备注', defaultValue: s.remark || '' });
+    if (remark !== null) await post({ action: 'updateStrategy', strategyId: s.strategy_id, body: { remark } });
+  };
+  const whitelist = async (s: QQJoinStrategy, op: 'add' | 'del') => {
+    const value = await dlg.prompt({ title: op === 'add' ? '增加白名单 QQ' : '移除白名单 QQ', description: '可用逗号、空格或换行分隔多个 QQ 号。', defaultValue: '' });
+    if (value === null) return;
+    const users = value.split(/[\s,，]+/).map((v: string) => v.trim()).filter((v: string) => /^\d+$/.test(v));
+    if (!users.length) return;
+    await post({ action: 'updateWhitelist', strategyId: s.strategy_id, op, whitelistUsers: users }, '白名单已更新');
+  };
+  const verifyText = (r: QQJoinRequest) => {
+    const v = r.verify_info;
+    if (!v) return '无验证信息';
+    if (v.verify_message) return v.verify_message;
+    const qa = (v.review_qa_list || []).map((x) => `${x.question || '问题'}：${x.answer || '—'}`).join('\n');
+    return qa || '无验证信息';
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col gap-3 rounded-lg border bg-muted/20 p-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <div className="text-sm font-medium">QQ 官方群管理</div>
+          <p className="text-xs text-muted-foreground">机器人必须是群管理员；接口权限和频率限制由 QQ 官方平台控制。</p>
+        </div>
+        <Button variant="outline" size="sm" onClick={load} disabled={loading}><RefreshCw className={cn('mr-2 h-4 w-4', loading && 'animate-spin')} />刷新</Button>
+      </div>
+      <div className="flex gap-1 border-b overflow-x-auto">
+        {([['requests', UserPlus, '入群申请'], ['mute', ShieldBan, '群禁言'], ['strategies', ShieldCheck, '自动审批策略']] as const).map(([key, Icon, label]) => (
+          <button key={key} onClick={() => setSection(key)} className={cn('flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2 text-sm -mb-px', section === key ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground')}>
+            <Icon className="h-4 w-4" />{label}
+          </button>
+        ))}
+      </div>
+      {loading ? <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div> : section === 'requests' ? (
+        <div className="space-y-2">
+          {requests.length === 0 ? <div className="rounded-lg border py-12 text-center text-sm text-muted-foreground">当前没有待处理的入群申请</div> : requests.map((r) => (
+            <div key={r.join_request_id} className="rounded-lg border p-3 space-y-2">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <div className="font-medium">{r.username || '申请人'} <span className="font-mono text-xs text-muted-foreground">{r.member_openid}</span></div>
+                  <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">{verifyText(r)}</p>
+                  <div className="mt-1 flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+                    <span>{r.apply_source === 'invited' ? '受邀加入' : '主动申请'}</span>
+                    {r.apply_at && <span>{new Date(r.apply_at).toLocaleString()}</span>}
+                    {r.invited_by && <span>邀请人：{r.invited_by}</span>}
+                    {r.risk_tips && <span className="text-amber-600">{r.risk_tips}</span>}
+                  </div>
+                </div>
+                <div className="flex shrink-0 gap-2">
+                  <Button size="sm" onClick={() => void approve(r)}>通过</Button>
+                  <Button size="sm" variant="destructive" onClick={() => void decline(r)}>拒绝</Button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : section === 'mute' ? (
+        <div className="space-y-4">
+          <div className="grid gap-2 rounded-lg border p-3 sm:grid-cols-[minmax(0,1fr)_140px_auto] sm:items-end">
+            <div className="space-y-1"><Label>成员 OpenID</Label><Input value={memberOpenId} onChange={(e) => setMemberOpenId(e.target.value)} placeholder="member_openid" /></div>
+            <div className="space-y-1"><Label>禁言分钟数</Label><Input inputMode="numeric" value={muteMinutes} onChange={(e) => setMuteMinutes(e.target.value.replace(/\D/g, ''))} /></div>
+            <Button onClick={() => void setMute()} disabled={!memberOpenId.trim()}>设置禁言</Button>
+          </div>
+          <div className="rounded-lg border p-3 text-sm">全员禁言模式：<b>{muteData.global_rule?.mode || 'none'}</b></div>
+          {(muteData.members as QQMuteMember[]).length === 0 ? <div className="rounded-lg border py-10 text-center text-sm text-muted-foreground">当前没有处于禁言中的成员</div> : (
+            <div className="rounded-lg border overflow-x-auto"><table className="rt w-full text-sm"><thead className="bg-muted/50"><tr><th className="p-2.5 text-left">成员</th><th className="p-2.5 text-left">OpenID</th><th className="p-2.5 text-left">到期时间</th><th className="p-2.5 text-right">操作</th></tr></thead><tbody>
+              {(muteData.members as QQMuteMember[]).map((m) => <tr key={m.member_openid} className="border-t"><td data-label="成员" className="p-2.5">{m.username || '—'}</td><td data-label="OpenID" className="p-2.5 font-mono text-xs">{m.member_openid}</td><td data-label="到期时间" className="p-2.5">{m.mute_expire_at ? new Date(m.mute_expire_at).toLocaleString() : '—'}</td><td data-label="操作" className="p-2.5 text-right"><Button size="sm" variant="outline" onClick={() => void unmute(m.member_openid)}>解除</Button></td></tr>)}
+            </tbody></table></div>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <div className="flex justify-end"><Button size="sm" onClick={() => void createStrategy()}><Plus className="mr-2 h-4 w-4" />为当前群创建策略</Button></div>
+          {strategies.length === 0 ? <div className="rounded-lg border py-12 text-center text-sm text-muted-foreground">尚未创建自动审批策略</div> : strategies.map((s) => (
+            <div key={s.strategy_id} className="rounded-lg border p-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0 space-y-1">
+                  <div className="flex flex-wrap items-center gap-2"><span className="font-medium">{s.remark || '未命名策略'}</span><Badge variant={s.is_enable === 'on' ? 'success' : 'secondary'}>{s.is_enable === 'on' ? '启用' : '停用'}</Badge></div>
+                  <div className="font-mono text-xs text-muted-foreground">{s.strategy_id}</div>
+                  <div className="text-xs text-muted-foreground">关联 OpenID 群：{(s.group_openids || []).length} · 关联 QQ 群：{(s.group_ids || []).length} · 白名单约 {s.whitelist_user_count || 0} 个</div>
+                  {s.expire_at && <div className="text-xs text-muted-foreground">到期：{new Date(s.expire_at).toLocaleString()}</div>}
+                </div>
+                <div className="flex max-w-full flex-wrap gap-1.5 sm:justify-end">
+                  <Button size="sm" variant="outline" onClick={() => void post({ action: 'updateStrategy', strategyId: s.strategy_id, body: { is_enable: s.is_enable === 'on' ? 'off' : 'on' } })}>{s.is_enable === 'on' ? '停用' : '启用'}</Button>
+                  <Button size="sm" variant="outline" onClick={() => void editRemark(s)}><Pencil className="mr-1 h-3.5 w-3.5" />备注</Button>
+                  <Button size="sm" variant="outline" onClick={() => void whitelist(s, 'add')}>加白名单</Button>
+                  <Button size="sm" variant="outline" onClick={() => void whitelist(s, 'del')}>移出白名单</Button>
+                  <Button size="sm" variant="outline" onClick={() => void post({ action: 'executeStrategy', strategyId: s.strategy_id }, '已提交全量扫描任务')}><Play className="mr-1 h-3.5 w-3.5" />执行</Button>
+                  <Button size="sm" variant="destructive" onClick={async () => { if (await dlg.confirm({ title: '删除自动审批策略', description: `确定删除「${s.remark || s.strategy_id}」吗？`, destructive: true, confirmText: '删除' })) await post({ action: 'deleteStrategy', strategyId: s.strategy_id }, '策略已删除'); }}><Trash2 className="mr-1 h-3.5 w-3.5" />删除</Button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 // ── 日志管理 ──
 interface LogRow { id: number; name: string; gmId: string; status: number; createdAt: string; lastAt: string; count: number; }
 const LogsTab: React.FC<any> = ({ group, t, toast, dlg }) => {
@@ -935,8 +1103,8 @@ const LogsTab: React.FC<any> = ({ group, t, toast, dlg }) => {
               <td data-label={t('groups.log_start')} className="p-2.5 text-muted-foreground text-xs whitespace-nowrap">{fmt(r.createdAt)}</td>
               <td data-label={t('groups.log_last')} className="p-2.5 text-muted-foreground text-xs whitespace-nowrap">{fmt(r.lastAt)}</td>
               <td data-label={t('groups.log_count')} className="p-2.5">{r.count}</td>
-              <td className="p-2.5">
-                <div className="flex items-center gap-1">
+              <td data-label={t('common.actions')} className="p-2.5">
+                <div className="flex flex-wrap items-center gap-1">
                   <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => exportLog(r.id, 'txt')}><Download className="mr-1 h-3.5 w-3.5" />TXT</Button>
                   <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => exportLog(r.id, 'csv')}><Download className="mr-1 h-3.5 w-3.5" />Excel</Button>
                   <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => exportLog(r.id, 'html')}><Download className="mr-1 h-3.5 w-3.5" />{t('groups.log_export_html')}</Button>
@@ -1180,7 +1348,7 @@ const FilesTab: React.FC<any> = ({ base, t, toast }) => {
                   <td data-label={t('groups.files_size')} className="p-2.5 text-xs text-muted-foreground whitespace-nowrap">{fmtSize(f.size)}</td>
                   <td data-label={t('groups.files_uploader')} className="p-2.5 text-xs text-muted-foreground">{f.uploaderName || f.uploader}</td>
                   <td data-label={t('groups.files_time')} className="p-2.5 text-xs text-muted-foreground whitespace-nowrap">{f.uploadTime ? new Date(f.uploadTime * 1000).toLocaleString() : '—'}</td>
-                  <td className="p-2.5">
+                  <td data-label={t('common.actions')} className="p-2.5">
                     <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => download(f)} disabled={dling.has(f.fileId)}>
                       {dling.has(f.fileId) ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Download className="mr-1 h-3 w-3" />}{t('common.download')}
                     </Button>

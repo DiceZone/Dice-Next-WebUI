@@ -1,4 +1,4 @@
-﻿{
+{
   "pagination": {
     "total": "{{n}} items",
     "per_page": "{{n}} / page",
@@ -152,6 +152,7 @@
     "add": "Add",
     "delete": "Delete",
     "edit": "Edit",
+    "actions": "Actions",
     "save": "Save",
     "cancel": "Cancel",
     "close": "Close",
@@ -428,6 +429,9 @@
     "col_group": "Group",
     "col_status": "Status",
     "col_count": "Records",
+    "col_storage": "Storage",
+    "storage_hint": "Database content is estimated from stored field bytes; images use their actual local file sizes",
+    "storage_images": "Images {{size}}",
     "col_game": "Session",
     "col_creator": "Creator",
     "col_created": "Created",
@@ -445,6 +449,9 @@
     "log_stats": "Log Stats",
     "log_stats_value": "{{total}} total · {{active}} active · {{paused}} paused · {{ended}} ended",
     "cross_export_fail": "Failed to export cross-group session log",
+    "delete_log_title": "Delete game log?",
+    "delete_log_desc": "This permanently deletes #{{id}} “{{name}}”.\nIt currently uses {{size}}, including {{imageSize}} of images. All messages and local images will be removed. This cannot be undone.",
+    "deleted": "Deleted log “{{name}}”",
     "title": "Log Management",
     "subtitle": "Browse all logs, or manage cross-group game sessions.",
     "no_logs": "No game logs",
@@ -964,6 +971,16 @@
     "heartbeat_desc": "Periodically report this bot's online status to a public service so players can check its availability",
     "heartbeat_enable": "Enable heartbeat reporting",
     "heartbeat_url": "Service URL",
+    "heartbeat_master_title": "Bot owner information (optional)",
+    "heartbeat_master_desc": "Entering either field overrides automatic detection as a pair. Leave both empty to use the first OneBot owner and their saved player nickname.",
+    "heartbeat_master_nickname": "Reported owner nickname",
+    "heartbeat_master_nickname_placeholder": "Detect automatically when empty",
+    "heartbeat_master_qq": "Reported owner QQ",
+    "heartbeat_master_qq_placeholder": "Detect automatically when empty",
+    "heartbeat_master_effective": "Currently reported ({{source}}): {{nickname}} · QQ {{qq}}",
+    "heartbeat_master_effective_none": "No reportable OneBot owner information was found",
+    "heartbeat_master_source_manual": "manual",
+    "heartbeat_master_source_auto": "automatic",
     "heartbeat_adapter_keys": "Adapter credentials",
     "heartbeat_adapter_keys_desc": "Each bot has its own API key. Configure one on every adapter in Platform Connections.",
     "heartbeat_adapter_keys_count": "{{count}} configured",
@@ -1547,7 +1564,10 @@
   "import_result": {
     "success": "Success",
     "skipped": "Skipped",
-    "failed": "Failed"
+    "failed": "Failed",
+    "status": "Status",
+    "name": "Item",
+    "reason": "Result"
   },
   "flavor": {
     "title": "Text flavor",

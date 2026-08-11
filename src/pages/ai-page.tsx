@@ -245,7 +245,7 @@ export const AiPage: React.FC = () => {
           <CardContent className="py-4 space-y-2">
             <Label className="text-sm font-medium">{t('ai.params')}</Label>
             <p className="text-xs text-muted-foreground">{t('ai.params_desc')}</p>
-            <div className="grid grid-cols-3 gap-2 pt-1">
+            <div className="grid grid-cols-1 gap-2 pt-1 sm:grid-cols-3">
               {([['temperature', 'ai.temperature'], ['top_p', 'ai.top_p'], ['max_tokens', 'ai.max_tokens'], ['frequency_penalty', 'ai.freq_penalty'], ['presence_penalty', 'ai.pres_penalty']] as const).map(([k, lk]) => (
                 <div key={k} className="space-y-1">
                   <Label className="text-xs">{t(lk)}</Label>
@@ -271,8 +271,8 @@ export const AiPage: React.FC = () => {
                   <Input className="h-8 text-sm font-medium flex-1" value={m.name} onChange={(e) => patch(i, { name: e.target.value })} placeholder={t('ai.name_ph')} />
                   <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive shrink-0" onClick={() => delModel(i)}><Trash2 className="h-4 w-4" /></Button>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-1 col-span-2"><Label className="text-xs">{t('ai.base_url')}</Label>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <div className="space-y-1 sm:col-span-2"><Label className="text-xs">{t('ai.base_url')}</Label>
                     <Input className="h-8 text-sm" value={m.base_url} onChange={(e) => patch(i, { base_url: e.target.value })} placeholder="https://api.openai.com/v1" /></div>
                   <div className="space-y-1"><Label className="text-xs">{t('ai.model_id')}</Label>
                     <Input className="h-8 text-sm" value={m.model} onChange={(e) => patch(i, { model: e.target.value })} placeholder="gpt-4o-mini / qwen2.5 …" /></div>
@@ -326,7 +326,7 @@ export const AiPage: React.FC = () => {
             </div>
             {polish.enabled && (
               <div className="space-y-2.5 border-t pt-3">
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   <div className="space-y-1"><Label className="text-xs">{t('ai.polish_model')}</Label>{modelSelect(polish.model_id, (v) => setPolish((p) => ({ ...p, model_id: v })))}</div>
                   <div className="space-y-1">
                     <Label className="text-xs">{t('ai.polish_mode')}</Label>
@@ -456,7 +456,7 @@ export const AiPage: React.FC = () => {
                       <Input type="number" className="h-8 text-sm w-28" value={chat.standby_prob} onChange={(e) => setChat((p) => ({ ...p, standby_prob: num(e.target.value) }))} /></div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                     <div className="space-y-1"><Label className="text-xs">{t('ai.chat_rounds')}</Label>
                       <Input type="number" className="h-8 text-sm" value={chat.context_rounds} onChange={(e) => setChat((p) => ({ ...p, context_rounds: num(e.target.value) }))} /></div>
                     <div className="space-y-1"><Label className="text-xs">{t('ai.chat_maxchars')}</Label>
@@ -517,7 +517,7 @@ export const AiPage: React.FC = () => {
               {memory.short.enabled && (
                 <div className="mt-3 space-y-3">
                   <div className="space-y-1 max-w-xs"><Label className="text-xs">{t('ai.mem_model')}</Label>{modelSelect(memory.short.summary_model_id, (v) => setMemory((p) => ({ ...p, short: { ...p.short, summary_model_id: v } })))}</div>
-                  <div className="grid grid-cols-2 gap-3 max-w-md">
+                  <div className="grid max-w-md grid-cols-1 gap-3 sm:grid-cols-2">
                     <div className="space-y-1"><Label className="text-xs">{t('ai.mem_rounds')}</Label>
                       <Input type="number" className="h-8 text-sm" value={memory.short.rounds} onChange={(e) => setMemory((p) => ({ ...p, short: { ...p.short, rounds: num(e.target.value) } }))} /></div>
                     <div className="space-y-1"><Label className="text-xs">{t('ai.mem_maxchars')}</Label>
@@ -570,13 +570,13 @@ export const AiPage: React.FC = () => {
                 </div>
                 {memory.long.enabled && (
                   <div className="mt-3 space-y-3">
-                    <div className="grid grid-cols-2 gap-3 max-w-md">
+                    <div className="grid max-w-md grid-cols-1 gap-3 sm:grid-cols-2">
                       <div className="space-y-1"><Label className="text-xs">{t('ai.mlong_embed_model_conn')}</Label>{modelSelect(memory.long.embed_model_id, (v) => setMemory((p) => ({ ...p, long: { ...p.long, embed_model_id: v } })))}</div>
                       <div className="space-y-1"><Label className="text-xs">{t('ai.mlong_embed_model')}</Label>
                         <Input className="h-8 text-sm" value={memory.long.embed_model} placeholder="text-embedding-3-small" onChange={(e) => setMemory((p) => ({ ...p, long: { ...p.long, embed_model: e.target.value } }))} /></div>
                     </div>
                     <div className="space-y-1 max-w-xs"><Label className="text-xs">{t('ai.mlong_extract_model')}</Label>{modelSelect(memory.long.extract_model_id, (v) => setMemory((p) => ({ ...p, long: { ...p.long, extract_model_id: v } })))}</div>
-                    <div className="grid grid-cols-3 gap-3 max-w-lg">
+                    <div className="grid max-w-lg grid-cols-1 gap-3 sm:grid-cols-3">
                       <div className="space-y-1"><Label className="text-xs">{t('ai.mlong_topk')}</Label>
                         <Input type="number" className="h-8 text-sm" value={memory.long.top_k} onChange={(e) => setMemory((p) => ({ ...p, long: { ...p.long, top_k: num(e.target.value) } }))} /></div>
                       <div className="space-y-1"><Label className="text-xs">{t('ai.mlong_minsim')}</Label>
@@ -754,7 +754,7 @@ export const AiPage: React.FC = () => {
               </div>
               {vision.enabled && (
                 <div className="mt-3 space-y-3">
-                  <div className="grid grid-cols-2 gap-3 max-w-md">
+                  <div className="grid max-w-md grid-cols-1 gap-3 sm:grid-cols-2">
                     <div className="space-y-1"><Label className="text-xs">{t('ai.vision_model')}</Label>{modelSelect(vision.model_id, (v) => setVision((p) => ({ ...p, model_id: v })))}</div>
                     <div className="space-y-1"><Label className="text-xs">{t('ai.vision_max_images')}</Label>
                       <Input type="number" className="h-8 text-sm" value={vision.max_images} onChange={(e) => setVision((p) => ({ ...p, max_images: num(e.target.value) }))} /></div>
@@ -817,7 +817,7 @@ export const AiPage: React.FC = () => {
                         </label>
                         <Button variant="ghost" size="sm" className="ml-auto h-7 w-7 p-0 text-destructive" onClick={() => delNpc(i)}><Trash2 className="h-4 w-4" /></Button>
                       </div>
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                         <div className="space-y-1"><Label className="text-xs">{t('ai.npc_triggers')}</Label>
                           <Input className="h-8 text-sm" placeholder={t('ai.npc_triggers_ph')} value={n.triggers.join(', ')} onChange={(e) => patchNpc(i, { triggers: e.target.value.split(/[,，]/).map((s) => s.trim()).filter(Boolean) })} /></div>
                         <div className="space-y-1"><Label className="text-xs">{t('ai.npc_model')}</Label>{modelSelect(n.model_id, (v) => patchNpc(i, { model_id: v }))}</div>

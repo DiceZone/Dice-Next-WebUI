@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ArrowDown, ArrowUp, ArrowUpDown, Download, Loader2, RefreshCw, Scroll, Search, ScrollText, Upload, UsersRound } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, Download, Loader2, RefreshCw, Scroll, Search, ScrollText, Trash2, Upload, UsersRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LoadingState } from '@/components/ui/state';
 import { useToast } from '@/hooks/use-toast';
+import { useDialogs } from '@/hooks/use-dialogs';
 
 interface GameLog {
   id: number;
@@ -15,6 +16,8 @@ interface GameLog {
   createdAt: string;
   lastAt: string;
   count: number;
+  storageBytes: number;
+  imageBytes: number;
   gameCode?: string;
   gameName?: string;
 }
@@ -34,7 +37,7 @@ interface GameSession {
 }
 
 interface Group { groupId: string; name?: string; groupName?: string; }
-type SortKey = 'name' | 'group' | 'status' | 'count' | 'game' | 'creator' | 'createdAt' | 'lastAt';
+type SortKey = 'name' | 'group' | 'status' | 'count' | 'storage' | 'game' | 'creator' | 'createdAt' | 'lastAt';
 type SortDirection = 'asc' | 'desc';
 
 async function getJson<T>(url: string): Promise<T> {
@@ -44,9 +47,20 @@ async function getJson<T>(url: string): Promise<T> {
   return body.data as T;
 }
 
+function formatBytes(value: number): string {
+  const bytes = Number.isFinite(value) && value > 0 ? value : 0;
+  if (bytes < 1024) return `${Math.round(bytes)} B`;
+  const units = ['KB', 'MB', 'GB', 'TB'];
+  let amount = bytes / 1024;
+  let unit = 0;
+  while (amount >= 1024 && unit < units.length - 1) { amount /= 1024; unit += 1; }
+  return `${amount >= 100 ? amount.toFixed(0) : amount >= 10 ? amount.toFixed(1) : amount.toFixed(2)} ${units[unit]}`;
+}
+
 export const LogsPage: React.FC = () => {
   const { t } = useTranslation();
   const toast = useToast();
+  const dlg = useDialogs(t);
   const [logs, setLogs] = useState<GameLog[]>([]);
   const [sessions, setSessions] = useState<GameSession[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
@@ -56,6 +70,7 @@ export const LogsPage: React.FC = () => {
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [uploading, setUploading] = useState<number | null>(null);
   const [uploadingCross, setUploadingCross] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<number | null>(null);
 
   const groupName = useCallback((id: string) => {
     const group = groups.find((item) => item.groupId === id);
@@ -87,7 +102,7 @@ export const LogsPage: React.FC = () => {
   const status = (value: number) => value === 0 ? t('logs.status_active') : value === 1 ? t('logs.status_paused') : t('logs.status_ended');
   const cycleSort = (key: SortKey) => {
     if (key === sortKey) setSortDirection((value) => value === 'asc' ? 'desc' : 'asc');
-    else { setSortKey(key); setSortDirection(key === 'count' ? 'desc' : 'asc'); }
+    else { setSortKey(key); setSortDirection(key === 'count' || key === 'storage' ? 'desc' : 'asc'); }
   };
 
   const visibleLogs = useMemo(() => {
@@ -100,6 +115,7 @@ export const LogsPage: React.FC = () => {
         case 'group': return groupLabel(log.groupId);
         case 'status': return log.status;
         case 'count': return log.count;
+        case 'storage': return log.storageBytes || 0;
         case 'game': return `${log.gameName || ''} ${log.gameCode || ''}`;
         case 'creator': return log.gmId;
         case 'createdAt': return log.createdAt || '';
@@ -126,6 +142,33 @@ export const LogsPage: React.FC = () => {
     const anchor = document.createElement('a');
     anchor.href = `/api/logs/${id}/export?format=${format}`;
     anchor.click();
+  };
+
+  const deleteLog = async (log: GameLog) => {
+    const confirmed = await dlg.confirm({
+      title: t('logs.delete_log_title'),
+      description: t('logs.delete_log_desc', {
+        name: log.name,
+        id: log.id,
+        size: formatBytes(log.storageBytes),
+        imageSize: formatBytes(log.imageBytes),
+      }),
+      destructive: true,
+      confirmText: t('common.delete'),
+    });
+    if (!confirmed) return;
+    setDeleting(log.id);
+    try {
+      const response = await fetch(`/api/logs/${log.id}`, { method: 'DELETE' });
+      const body = await response.json();
+      if (!response.ok || body.code !== 0) throw new Error(body.message || t('common.delete_fail'));
+      toast({ title: t('logs.deleted', { name: log.name }) });
+      await load();
+    } catch (error) {
+      toast({ title: t('common.delete_fail'), description: String(error), variant: 'destructive' });
+    } finally {
+      setDeleting(null);
+    }
   };
 
   const uploadLog = async (log: GameLog) => {
@@ -184,6 +227,9 @@ export const LogsPage: React.FC = () => {
       <Button size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={uploading === log.id} onClick={() => void uploadLog(log)}>
         {uploading === log.id ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Upload className="mr-1 h-3.5 w-3.5" />}{t('common.upload')}
       </Button>
+      <Button size="sm" variant="destructive" className="h-7 px-2 text-xs" disabled={deleting === log.id} onClick={() => void deleteLog(log)}>
+        {deleting === log.id ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Trash2 className="mr-1 h-3.5 w-3.5" />}{t('common.delete')}
+      </Button>
     </div>
   );
 
@@ -195,6 +241,7 @@ export const LogsPage: React.FC = () => {
   );
 
   return <div className="space-y-6">
+    {dlg.node}
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div>
         <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2"><Scroll className="h-5 w-5" />{t('logs.title')}</h1>
@@ -218,12 +265,13 @@ export const LogsPage: React.FC = () => {
         <TabsContent value="logs" className="mt-0">
           {visibleLogs.length === 0 ? <div className="rounded-lg border border-dashed py-14 text-center text-muted-foreground">{t('logs.no_logs')}</div> :
             <div className="overflow-x-auto rounded-lg border">
-              <table className="rt w-full sm:min-w-[1100px] text-sm">
+              <table className="rt w-full sm:min-w-[1220px] text-sm">
                 <thead className="bg-muted/50 text-muted-foreground"><tr className="border-b">
                   <th className="p-3 text-center"><SortHeader column="name">{t('logs.col_name')}</SortHeader></th>
                   <th className="p-3 text-center"><SortHeader column="group">{t('logs.col_group')}</SortHeader></th>
                   <th className="p-3 text-center"><SortHeader column="status">{t('logs.col_status')}</SortHeader></th>
                   <th className="p-3 text-center"><SortHeader column="count">{t('logs.col_count')}</SortHeader></th>
+                  <th className="p-3 text-center" title={t('logs.storage_hint')}><SortHeader column="storage">{t('logs.col_storage')}</SortHeader></th>
                   <th className="p-3 text-center"><SortHeader column="game">{t('logs.col_game')}</SortHeader></th>
                   <th className="p-3 text-center"><SortHeader column="creator">{t('logs.col_creator')}</SortHeader></th>
                   <th className="p-3 text-center"><SortHeader column="createdAt">{t('logs.col_created')}</SortHeader></th>
@@ -235,11 +283,12 @@ export const LogsPage: React.FC = () => {
                   <td data-label={t('logs.col_group')} className="p-3 text-center"><div>{groupName(log.groupId)}</div><div className="font-mono text-xs text-muted-foreground">{log.groupId}</div></td>
                   <td data-label={t('logs.col_status')} className="p-3 whitespace-nowrap text-center">{status(log.status)}</td>
                   <td data-label={t('logs.col_count')} className="p-3 text-center tabular-nums">{log.count}</td>
+                  <td data-label={t('logs.col_storage')} className="p-3 whitespace-nowrap text-center tabular-nums"><div>{formatBytes(log.storageBytes)}</div>{log.imageBytes > 0 && <div className="text-xs text-muted-foreground">{t('logs.storage_images', { size: formatBytes(log.imageBytes) })}</div>}</td>
                   <td data-label={t('logs.col_game')} className="p-3 text-center">{log.gameCode ? <><div>{log.gameName || t('logs.unnamed_session')}</div><div className="font-mono text-xs text-muted-foreground">{log.gameCode}</div></> : <span className="text-muted-foreground">—</span>}</td>
                   <td data-label={t('logs.col_creator')} className="p-3 text-center font-mono text-xs">{log.gmId || '—'}</td>
                   <td data-label={t('logs.col_created')} className="p-3 whitespace-nowrap text-center text-xs">{log.createdAt || '—'}</td>
                   <td data-label={t('logs.col_last')} className="p-3 whitespace-nowrap text-center text-xs">{log.lastAt || '—'}</td>
-                  <td className="p-3 text-center"><LogActions log={log} /></td>
+                  <td data-label={t('common.actions')} className="p-3 text-center"><LogActions log={log} /></td>
                 </tr>)}</tbody>
               </table>
             </div>}

@@ -129,8 +129,8 @@ const StoragePanel: React.FC<{ name: string; file: string }> = ({ name, file }) 
           {!loading && entries && entries.length === 0 && <p className="text-xs text-muted-foreground">{t('modules.storage_empty')}</p>}
           {!loading && entries && entries.length > 0 && (
             <>
-              <div className="max-h-48 overflow-y-auto rounded-md border"><table className="w-full text-xs"><tbody>{entries.map((e) => (<tr key={e.fullKey} className="border-b last:border-0 align-top"><td className="w-1/3 break-all p-1.5 font-mono text-muted-foreground">{e.key}</td><td className="break-all p-1.5 font-mono">{e.value}</td></tr>))}</tbody></table></div>
-              <div className="flex gap-2"><Button variant="outline" size="sm" onClick={exportJson}><Download className="mr-2 h-4 w-4" />{t('modules.storage_export')}</Button>
+              <div className="max-h-48 overflow-y-auto rounded-md border"><table className="rt w-full text-xs"><tbody>{entries.map((e) => (<tr key={e.fullKey} className="border-b last:border-0 align-top"><td data-label={t('players.col_key')} className="w-1/3 break-all p-1.5 font-mono text-muted-foreground">{e.key}</td><td data-label={t('players.col_value')} className="break-all p-1.5 font-mono">{e.value}</td></tr>))}</tbody></table></div>
+              <div className="flex flex-wrap gap-2"><Button variant="outline" size="sm" onClick={exportJson}><Download className="mr-2 h-4 w-4" />{t('modules.storage_export')}</Button>
                 {confirmClear ? (<><Button variant="destructive" size="sm" onClick={clear}>{t('modules.storage_clear_confirm')}</Button><Button variant="ghost" size="sm" onClick={() => setConfirmClear(false)}>{t('common.cancel')}</Button></>) : (<Button variant="ghost" size="sm" className="text-destructive" onClick={() => setConfirmClear(true)}><Trash2 className="mr-2 h-4 w-4" />{t('modules.storage_clear')}</Button>)}
               </div>
             </>

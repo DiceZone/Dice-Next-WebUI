@@ -187,7 +187,7 @@ export const SchedulesPage: React.FC = () => {
           <CardDescription>{t('schedules.add_hint')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1.5"><Label className="font-normal">{t('schedules.name')}</Label>
               <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder={t('schedules.name_ph')} /></div>
             <div className="space-y-1.5"><Label className="font-normal">{t('schedules.trigger_type')}</Label>
@@ -346,8 +346,8 @@ export const SchedulesPage: React.FC = () => {
                           : <span className="text-muted-foreground font-mono">{tk.lastRun || '—'}</span>}
                       </td>
                       <td data-label={t('schedules.next_run')} className="p-2.5 whitespace-nowrap text-xs text-muted-foreground font-mono">{nextRunOf(tk)}</td>
-                      <td className="p-2.5">
-                        <div className="flex items-center gap-1.5">
+                      <td data-label={t('common.actions')} className="p-2.5">
+                        <div className="flex flex-wrap items-center gap-1.5">
                           <Switch checked={tk.enabled} onCheckedChange={() => toggle(tk)} />
                           <Button size="icon" variant="ghost" className="h-7 w-7" title={t('schedules.run_now')} onClick={() => runNow(tk)}><Play className="h-4 w-4" /></Button>
                           <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => startEdit(tk)}><Pencil className="h-4 w-4" /></Button>

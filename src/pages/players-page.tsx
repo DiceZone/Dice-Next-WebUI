@@ -263,12 +263,12 @@ const PlayerDetailView: React.FC<{
                 </div>
                 {open && (
                   <div className="border-t px-2.5 pb-2.5">
-                    <div className="overflow-x-auto"><table className="w-full text-xs">
+                    <div className="overflow-x-auto"><table className="rt w-full text-xs">
                       <tbody>
                         {Object.entries(c.attrs).map(([k, v]) => (
                           <tr key={k} className="border-t first:border-0">
-                            <td className="py-1 pr-2 w-36 break-all">{k}</td>
-                            <td className="py-1">
+                            <td data-label={t('players.col_attr')} className="py-1 pr-2 w-36 break-all">{k}</td>
+                            <td data-label={t('players.col_value')} className="py-1">
                               <div className="flex items-center gap-1">
                                 {draftInput(`attr:${c.name}|${k}`, typeof v === 'string' ? v : JSON.stringify(v))}
                                 <Button variant="ghost" size="sm" className="h-7 text-xs px-2 text-muted-foreground hover:text-destructive"
@@ -278,12 +278,12 @@ const PlayerDetailView: React.FC<{
                           </tr>
                         ))}
                         <tr className="border-t">
-                          <td className="py-1 pr-2">
+                          <td data-label={t('players.col_attr')} className="py-1 pr-2">
                             <input value={na.k} placeholder={t('players.col_attr')}
                               onChange={(e) => setNewAttr((m) => ({ ...m, [cardKey]: { ...na, k: e.target.value } }))}
                               className="h-7 w-full rounded border border-input bg-background px-2 text-xs" />
                           </td>
-                          <td className="py-1">
+                          <td data-label={t('players.col_value')} className="py-1">
                             <div className="flex items-center gap-1">
                               <input value={na.v} placeholder={t('players.col_value')}
                                 onChange={(e) => setNewAttr((m) => ({ ...m, [cardKey]: { ...na, v: e.target.value } }))}
@@ -309,16 +309,16 @@ const PlayerDetailView: React.FC<{
           {tab === 'settings' && <>
           {sectionTitle(t('players.detail_settings'), detail.settings.length)}
           {detail.settings.length === 0 ? <p className="text-xs text-muted-foreground">{t('players.detail_none')}</p> : (
-            <div className="overflow-x-auto"><table className="w-full text-xs">
+            <div className="overflow-x-auto"><table className="rt w-full text-xs">
               <thead className="bg-muted/50 text-muted-foreground">
                 <tr><th className="text-left py-1 w-28">{t('players.col_group')}</th><th className="text-left py-1 w-32">{t('players.col_key')}</th><th className="text-left py-1">{t('players.col_value')}</th></tr>
               </thead>
               <tbody>
                 {detail.settings.map((s) => (
                   <tr key={s.id} className="border-t">
-                    <td className="py-1 pr-2 font-mono">{s.groupId || t('players.scope_global')}</td>
-                    <td className="py-1 pr-2 break-all">{s.key}</td>
-                    <td className="py-1">
+                    <td data-label={t('players.col_group')} className="py-1 pr-2 font-mono">{s.groupId || t('players.scope_global')}</td>
+                    <td data-label={t('players.col_key')} className="py-1 pr-2 break-all">{s.key}</td>
+                    <td data-label={t('players.col_value')} className="py-1">
                       <div className="flex items-center gap-1">
                         {draftInput(`set:${s.id}`, s.value)}
                         <Button variant="ghost" size="sm" className="h-7 text-xs px-2 text-muted-foreground hover:text-destructive"
@@ -336,15 +336,15 @@ const PlayerDetailView: React.FC<{
           {tab === 'plugins' && <>
           {sectionTitle(t('players.detail_luavars'), detail.luaVars.length)}
           {detail.luaVars.length === 0 ? <p className="text-xs text-muted-foreground">{t('players.detail_none')}</p> : (
-            <div className="overflow-x-auto"><table className="w-full text-xs">
+            <div className="overflow-x-auto"><table className="rt w-full text-xs">
               <thead className="bg-muted/50 text-muted-foreground">
                 <tr><th className="text-left py-1 w-40">{t('players.col_key')}</th><th className="text-left py-1">{t('players.col_value')}</th></tr>
               </thead>
               <tbody>
                 {detail.luaVars.map((v) => (
                   <tr key={v.key} className="border-t">
-                    <td className="py-1 pr-2 break-all">{v.key}</td>
-                    <td className="py-1">
+                    <td data-label={t('players.col_key')} className="py-1 pr-2 break-all">{v.key}</td>
+                    <td data-label={t('players.col_value')} className="py-1">
                       <div className="flex items-center gap-1">
                         {draftInput(`lua:${v.key}`, v.value)}
                         <Button variant="ghost" size="sm" className="h-7 text-xs px-2 text-muted-foreground hover:text-destructive"
@@ -639,8 +639,8 @@ export const PlayersPage: React.FC = () => {
                   </td>
                   <td data-label={t('players.col_count')} className="p-2.5">{p.cmdCount}</td>
                   <td data-label={t('players.col_last')} className="p-2.5 text-muted-foreground text-xs whitespace-nowrap">{fmtTime(p.lastCmdAt)}</td>
-                  <td className="p-2.5">
-                    <div className="flex items-center gap-1">
+                  <td data-label={t('common.actions')} className="p-2.5">
+                    <div className="flex flex-wrap items-center gap-1">
                       <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setSelected(p)}>{t('players.detail_btn')}</Button>
                       {canDeleteFriend(p) ? (
                         <Button variant="ghost" size="sm" className="h-7 text-xs text-destructive hover:text-destructive" onClick={() => delFriend(p)}>{t('players.del_friend')}</Button>

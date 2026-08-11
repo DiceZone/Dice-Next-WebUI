@@ -293,7 +293,7 @@ const ImageHostCard: React.FC = () => {
           <div className="space-y-2">
             <div><Label className="text-xs">{t('settings.imghost_url')}</Label>
               <Input className="h-8 text-sm" value={c.url || ''} onChange={(e) => setC({ ...c, url: e.target.value })} placeholder="https://your-imagehost/api/upload" /></div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <div><Label className="text-xs">{t('settings.imghost_field')}</Label>
                 <Input className="h-8 text-sm" value={c.file_field || ''} onChange={(e) => setC({ ...c, file_field: e.target.value })} placeholder="file" /></div>
               <div><Label className="text-xs">{t('settings.imghost_result')}</Label>
@@ -832,7 +832,7 @@ export const SettingsPage: React.FC = () => {
           <CardDescription>{t('settings.scope_desc')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
             {([
               ['global', t('settings.scope_global')],
               ['adapter', t('settings.scope_adapter')],
@@ -1123,6 +1123,8 @@ export const SettingsPage: React.FC = () => {
 interface HeartbeatConf {
   enabled: boolean; url: string; configured_adapters: number;
   public_show: boolean; interval: number;
+  master_qq: string; master_nickname: string;
+  effective_master_qq: string; effective_master_nickname: string; master_source: string;
   last_status: string; last_report_at: string; last_error: string;
 }
 
@@ -1131,7 +1133,9 @@ const HeartbeatCard: React.FC<{ timezoneMinutes: number }> = ({ timezoneMinutes 
   const toast = useToast();
   const [c, setC] = useState<HeartbeatConf>({
     enabled: false, url: 'https://heart.dice.zone', configured_adapters: 0,
-    public_show: true, interval: 300, last_status: '', last_report_at: '', last_error: '',
+    public_show: true, interval: 300,
+    master_qq: '', master_nickname: '', effective_master_qq: '', effective_master_nickname: '', master_source: 'none',
+    last_status: '', last_report_at: '', last_error: '',
   });
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -1151,6 +1155,7 @@ const HeartbeatCard: React.FC<{ timezoneMinutes: number }> = ({ timezoneMinutes 
       await putJson('/system/heartbeat', {
         enabled: c.enabled, url: c.url.trim(),
         public_show: c.public_show, interval,
+        master_qq: c.master_qq.trim(), master_nickname: c.master_nickname.trim(),
       });
       await load();
       toast({ title: t('common.save_success') });
@@ -1219,6 +1224,32 @@ const HeartbeatCard: React.FC<{ timezoneMinutes: number }> = ({ timezoneMinutes 
           <Label className="text-xs">{t('settings.heartbeat_url')}</Label>
           <Input className="h-8 font-mono text-xs" value={c.url}
             onChange={(e) => setC({ ...c, url: e.target.value })} placeholder="https://heart.dice.zone" />
+        </div>
+        <div className="space-y-3 rounded-md border bg-muted/20 p-3">
+          <div>
+            <Label className="text-sm">{t('settings.heartbeat_master_title')}</Label>
+            <p className="text-xs text-muted-foreground">{t('settings.heartbeat_master_desc')}</p>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="space-y-1">
+              <Label className="text-xs">{t('settings.heartbeat_master_nickname')}</Label>
+              <Input className="h-8 text-sm" value={c.master_nickname} maxLength={128}
+                onChange={(e) => setC({ ...c, master_nickname: e.target.value })}
+                placeholder={t('settings.heartbeat_master_nickname_placeholder')} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">{t('settings.heartbeat_master_qq')}</Label>
+              <Input className="h-8 font-mono text-sm" value={c.master_qq} inputMode="numeric" maxLength={20}
+                onChange={(e) => setC({ ...c, master_qq: e.target.value.replace(/\D/g, '').slice(0, 20) })}
+                placeholder={t('settings.heartbeat_master_qq_placeholder')} />
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground">{c.master_source === 'none'
+            ? t('settings.heartbeat_master_effective_none')
+            : t('settings.heartbeat_master_effective', {
+                source: t(c.master_source === 'manual' ? 'settings.heartbeat_master_source_manual' : 'settings.heartbeat_master_source_auto'),
+                nickname: c.effective_master_nickname || '—', qq: c.effective_master_qq || '—',
+              })}</p>
         </div>
         <div className="flex items-center justify-between gap-4 rounded-md border bg-muted/20 p-3">
           <div>
