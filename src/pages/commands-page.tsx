@@ -27,7 +27,7 @@ const LANGS = [
   { code: 'en', label: 'English' },
   { code: 'ja', label: '日本語' },
 ];
-const CAT_ORDER = ['通用', 'COC', 'BRP', 'DND', '人物卡', '跑团', '娱乐', '互动', '工具', '管理', '系统'];
+const CAT_ORDER = ['掷骰', 'COC', 'BRP', 'DND', '人物卡', '牌堆', '跑团', '娱乐', '互动', 'AI', '工具', '权限', '管理', '系统'];
 
 // Globally-available variables (filled at send time for ANY text). Shown behind
 // the「插入全局变量」button; command-specific vars stay as first-level chips.
@@ -60,7 +60,7 @@ export const CommandsPage: React.FC = () => {
   const [lang, setLang] = useState('zh-Hans');
   const [rows, setRows] = useState<Cmd[]>([]);
   const [loading, setLoading] = useState(true);
-  const [cat, setCat] = useState('通用');
+  const [cat, setCat] = useState('掷骰');
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [editing, setEditing] = useState<{ cmd: string; reply: Reply } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
