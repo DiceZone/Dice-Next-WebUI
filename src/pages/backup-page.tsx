@@ -7,17 +7,108 @@ import { useToast } from '@/hooks/use-toast';
 import { Archive, Clock3, Database, Download, Loader2, RotateCcw, Save, Trash2, Upload } from 'lucide-react';
 
 type StoredBackup = { name: string; size: number; createdAt: number; automatic: boolean };
-type BackupSelection = { config: boolean; databases: boolean; logs: boolean; resources: boolean; plugins: boolean; media: boolean };
+type BackupSelection = {
+  config: boolean;
+  coreDatabase: boolean;
+  characterCards: boolean;
+  chatHistory: boolean;
+  gameLogs: boolean;
+  runtimeLogs: boolean;
+  auditLogs: boolean;
+  decks: boolean;
+  rules: boolean;
+  help: boolean;
+  cardTemplates: boolean;
+  jsPlugins: boolean;
+  luaMods: boolean;
+  uploadedAssets: boolean;
+  resourceImages: boolean;
+  gameLogImages: boolean;
+  chatMedia: boolean;
+};
 type AutoBackupConfig = { enabled: boolean; schedule: 'interval' | 'daily'; intervalHours: number; dailyTime: string; keepDays: number; selection: BackupSelection; lastAutoAt: number };
-const defaultSelection: BackupSelection = { config: true, databases: true, logs: true, resources: true, plugins: true, media: true };
+const defaultSelection: BackupSelection = {
+  config: true,
+  coreDatabase: true,
+  characterCards: true,
+  chatHistory: true,
+  gameLogs: true,
+  runtimeLogs: false,
+  auditLogs: false,
+  decks: true,
+  rules: true,
+  help: true,
+  cardTemplates: true,
+  jsPlugins: true,
+  luaMods: true,
+  uploadedAssets: false,
+  resourceImages: false,
+  gameLogImages: false,
+  chatMedia: false,
+};
+
+const normalizeSelection = (value?: Partial<BackupSelection>): BackupSelection => ({
+  ...defaultSelection,
+  ...(value || {}),
+});
 
 const formatSize = (bytes: number) => bytes < 1024 * 1024
   ? `${Math.max(1, Math.round(bytes / 1024))} KB`
   : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-const selectionFields: Array<[keyof BackupSelection, string]> = [
-  ['config', '系统配置'], ['databases', '人物卡与数据库'], ['logs', '跑团与运行日志'],
-  ['resources', '牌堆、规则包与帮助'], ['plugins', 'JS / Lua 插件'], ['media', '本地图片与聊天媒体'],
+type SelectionItem = { key: keyof BackupSelection; label: string; description: string; large?: boolean };
+const selectionGroups: Array<{ title: string; items: SelectionItem[] }> = [
+  { title: '配置与数据库', items: [
+    { key: 'config', label: '系统配置', description: '适配器、系统设置与服务配置。' },
+    { key: 'coreDatabase', label: '核心数据库', description: '群设置、用户资料、自定义回复等主要数据。' },
+    { key: 'characterCards', label: '人物卡数据库', description: '独立保存的人物卡与属性数据。' },
+    { key: 'chatHistory', label: '模拟聊天记录', description: '聊天消息、AI 摘要与记忆；不含聊天图片。' },
+  ] },
+  { title: '日志', items: [
+    { key: 'gameLogs', label: '跑团日志', description: '跑团日志正文与已经导出的日志文件；不含图片。' },
+    { key: 'runtimeLogs', label: '程序运行日志', description: '程序运行记录与崩溃诊断文件；默认不备份。' },
+    { key: 'auditLogs', label: '通知审计日志', description: '通知窗口产生的结构化审计记录；默认不备份。' },
+  ] },
+  { title: '资源', items: [
+    { key: 'decks', label: '牌堆', description: '已安装和自定义牌堆。' },
+    { key: 'rules', label: '规则与规则包', description: '规则词条、规则包及其配置。' },
+    { key: 'help', label: '帮助文档', description: '内置和自定义帮助内容。' },
+    { key: 'cardTemplates', label: '人物卡模板', description: '人物卡模板文件。' },
+    { key: 'jsPlugins', label: 'JavaScript 插件', description: 'JS 插件、插件数据库与持久化数据。' },
+    { key: 'luaMods', label: 'Lua / 原版 Mod', description: 'Lua 插件、Mod、配置和 SelfData。' },
+  ] },
+  { title: '图片与媒体（可能显著增大备份）', items: [
+    { key: 'uploadedAssets', label: '上传的回复图片', description: '在网页中上传、供回复或插件使用的图片。', large: true },
+    { key: 'resourceImages', label: '资源图片', description: '帮助、规则等内容引用的 data/images 图片。', large: true },
+    { key: 'gameLogImages', label: '跑团日志图片', description: '随跑团日志保存的本地图片；与日志正文独立。', large: true },
+    { key: 'chatMedia', label: '模拟聊天媒体缓存', description: '模拟聊天中为防链接失效而缓存的图片。', large: true },
+  ] },
 ];
+
+const SelectionOptions: React.FC<{
+  value: BackupSelection;
+  onChange: (value: BackupSelection) => void;
+}> = ({ value, onChange }) => (
+  <div className="space-y-4">
+    {selectionGroups.map((group) => (
+      <div key={group.title} className="space-y-2">
+        <div className="text-xs font-medium text-muted-foreground">{group.title}</div>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {group.items.map((item) => (
+            <label key={item.key} className="flex cursor-pointer items-start gap-2 rounded border px-3 py-2.5 text-sm">
+              <input className="mt-0.5" type="checkbox" checked={value[item.key]}
+                onChange={(e) => onChange({ ...value, [item.key]: e.target.checked })} />
+              <span className="min-w-0">
+                <span className="font-medium">{item.label}</span>
+                {item.large && <span className="ml-1.5 text-[10px] text-amber-600 dark:text-amber-400">占用空间</span>}
+                <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">{item.description}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+      </div>
+    ))}
+  </div>
+);
 
 export const BackupPage: React.FC = () => {
   const { t } = useTranslation();
@@ -38,7 +129,7 @@ export const BackupPage: React.FC = () => {
       const [listRes, configRes] = await Promise.all([fetch('/api/backup/list'), fetch('/api/backup/config')]);
       const list = await listRes.json(); const config = await configRes.json();
       if (list.code === 0) setArchives(list.data ?? []);
-      if (config.code === 0) setAutoConfig(config.data);
+      if (config.code === 0) setAutoConfig({ ...config.data, selection: normalizeSelection(config.data?.selection) });
     } catch { /* 页面首次加载失败时保留可用的手动备份入口 */ }
   }, []);
   useEffect(() => { void loadBackupState(); }, [loadBackupState]);
@@ -176,10 +267,8 @@ export const BackupPage: React.FC = () => {
             </Button>
             <input ref={restoreFileRef} className="hidden" type="file" accept=".zip,application/zip" onChange={(e) => void stageRestore(e.target.files?.[0])} />
           </div>
-          <div className="grid gap-2 sm:grid-cols-3">
-            {selectionFields.map(([key, label]) => <label key={key} className="flex items-center gap-2 rounded border px-3 py-2 text-sm"><input type="checkbox" checked={selection[key]} onChange={(e) => setSelection({ ...selection, [key]: e.target.checked })} />{label}</label>)}
-          </div>
-          <p className="text-xs text-muted-foreground">勾选全部项目会生成完整恢复快照；只勾选部分项目时，恢复将仅覆盖对应内容。</p>
+          <SelectionOptions value={selection} onChange={setSelection} />
+          <p className="text-xs text-muted-foreground">跑团日志正文默认备份；运行/审计日志和所有图片、媒体默认不勾选。局部备份恢复时只覆盖已选择的内容。</p>
           <p className="text-xs text-amber-600 dark:text-amber-400">{t('backup.restore_warning')}</p>
         </CardContent>
       </Card>
@@ -201,9 +290,8 @@ export const BackupPage: React.FC = () => {
               : <label className="space-y-1 text-sm">每日执行时间<Input type="time" value={autoConfig.dailyTime} onChange={(e) => setAutoConfig({ ...autoConfig, dailyTime: e.target.value })} /></label>}
             <label className="space-y-1 text-sm">保留最近天数（1–3650）<Input type="number" min={1} max={3650} value={autoConfig.keepDays} onChange={(e) => setAutoConfig({ ...autoConfig, keepDays: Number(e.target.value) })} /></label>
           </div>
-          <div className="grid gap-2 sm:grid-cols-3">
-            {selectionFields.map(([key, label]) => <label key={key} className="flex items-center gap-2 rounded border px-3 py-2 text-sm"><input type="checkbox" checked={autoConfig.selection[key]} onChange={(e) => setAutoConfig({ ...autoConfig, selection: { ...autoConfig.selection, [key]: e.target.checked } })} />{label}</label>)}
-          </div>
+          <SelectionOptions value={autoConfig.selection}
+            onChange={(next) => setAutoConfig({ ...autoConfig, selection: next })} />
           <Button variant="outline" onClick={() => void saveAutoConfig()} disabled={savingAuto}>{savingAuto ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}保存自动备份设置</Button>
         </CardContent>
       </Card>
