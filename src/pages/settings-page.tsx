@@ -68,10 +68,6 @@ const GLOBAL_GROUPS: GGroup[] = [
     { key: 'listen_friend_request', label: '响应好友请求', type: 'bool', wired: true },
     { key: 'listen_friend_add', label: '响应好友添加反馈', type: 'bool', wired: true },
   ] },
-  { title: '云 / 网络（暂未联动）', opts: [
-    { key: 'cloud_visible', label: '允许云端公开本骰信息', type: 'bool' },
-    { key: 'cloud_black_share', label: '与云端互通不良记录', type: 'bool' },
-  ] },
   { title: '外部请求（自定义回复 {api:URL}）', opts: [
     { key: 'api_enabled', label: '启用 {api:URL} 外部请求', hint: '默认关闭；仅 http/https，自动拦截私网地址。白名单 dice/api_whitelist 在配置文件设置', type: 'bool', wired: true },
     { key: 'api_timeout', label: '请求超时(秒)', hint: '1-30', type: 'int', wired: true },
@@ -93,6 +89,10 @@ const GLOBAL_GROUPS: GGroup[] = [
   { title: '身份绑定（高风险）', opts: [
     { key: 'allow_official_direct_bind', label: '允许 QQ 官方窗口直接绑定真实 QQ', type: 'bool', wired: true,
       hint: '默认关闭。QQ 官方机器人无法验证发言者真实 QQ 或群管理身份；开启后可能有人冒认 QQ，导致人物卡、好感度等用户数据被错误合并或访问。仅在人工协助绑定时短暂开启，完成后请立即关闭。' },
+  ] },
+  { title: '云 / 网络（暂未联动）', opts: [
+    { key: 'cloud_visible', label: '允许云端公开本骰信息', type: 'bool' },
+    { key: 'cloud_black_share', label: '与云端互通不良记录', type: 'bool' },
   ] },
 ];
 
@@ -826,6 +826,8 @@ export const SettingsPage: React.FC = () => {
         </CardContent>
       </Card>
 
+      <SectionHeading>{t('settings.sec_scoped')}</SectionHeading>
+
       <Card className="border-primary/20">
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2"><Layers3 className="h-4 w-4" />{t('settings.scope_title')}</CardTitle>
@@ -877,8 +879,6 @@ export const SettingsPage: React.FC = () => {
           </div>
         </CardContent>
       </Card>
-
-      <SectionHeading>{t('settings.sec_approval')}</SectionHeading>
 
       {/* ── 好友 / 加群邀请审批 ── */}
       <Card>
@@ -940,9 +940,6 @@ export const SettingsPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* ── 心跳上报（heart.dice.zone）── */}
-      <HeartbeatCard timezoneMinutes={tzEffectiveMinutes} />
-
       {/* ── 戳一戳 (独立容器) ── */}
       <Card>
         <CardHeader>
@@ -973,6 +970,8 @@ export const SettingsPage: React.FC = () => {
         </CardContent>
       </Card>
 
+      <SectionHeading>{t('settings.sec_group_services')}</SectionHeading>
+
       {/* C#76: Welcome delay/cooldown minimums */}
       <Card>
         <CardHeader>
@@ -993,6 +992,12 @@ export const SettingsPage: React.FC = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* 用户群 */}
+      <UserGroupCard />
+
+      {/* 心跳上报（heart.dice.zone）*/}
+      <HeartbeatCard timezoneMinutes={tzEffectiveMinutes} />
 
       <SectionHeading>{t('settings.sec_reply')}</SectionHeading>
 
@@ -1031,6 +1036,10 @@ export const SettingsPage: React.FC = () => {
       <MessageFormatCard />
 
       <SectionHeading>{t('settings.sec_image')}</SectionHeading>
+
+      <SettingGroup>
+        <SettingSwitch title={t('settings.save_images')} desc={t('settings.save_images_desc')} checked={saveImages} onToggle={toggleSaveImages} />
+      </SettingGroup>
 
       {/* 图片发送方式 */}
       <ImageSendCard />
@@ -1077,10 +1086,7 @@ export const SettingsPage: React.FC = () => {
 
       <SettingGroup>
         <SettingSwitch title={t('settings.autostart')} desc={t('settings.autostart_desc')} checked={autostart} onToggle={toggleAutostart} />
-        <SettingSwitch title={t('settings.save_images')} desc={t('settings.save_images_desc')} checked={saveImages} onToggle={toggleSaveImages} />
       </SettingGroup>
-      {/* 用户群 */}
-      <UserGroupCard />
       {/* 自动清理好友 */}
       <FriendCleanCard />
 
