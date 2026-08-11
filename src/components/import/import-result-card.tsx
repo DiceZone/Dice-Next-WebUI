@@ -59,13 +59,13 @@ export const ImportResultCard: React.FC<Props> = ({ title, result }) => {
         {/* Detail list */}
         {result.details.length > 0 && (
           <div className="max-h-48 overflow-auto rounded-md border">
-            <table className="w-full text-xs">
+            <table className="rt w-full text-xs">
               <tbody>
                 {result.details.map((d, i) => (
                   <tr key={i} className="border-b last:border-0">
-                    <td className="p-1.5 align-top w-8">{statusIcon(d.status)}</td>
-                    <td className="p-1.5 align-top font-mono break-all">{d.name}</td>
-                    <td className={`p-1.5 align-top ${statusColor(d.status)}`}>
+                    <td data-label={t('import_result.status')} className="p-1.5 align-top w-8">{statusIcon(d.status)}</td>
+                    <td data-label={t('import_result.name')} className="p-1.5 align-top font-mono break-all">{d.name}</td>
+                    <td data-label={t('import_result.reason')} className={`p-1.5 align-top ${statusColor(d.status)}`}>
                       {d.reason || d.status}
                     </td>
                   </tr>

@@ -181,7 +181,7 @@ export const ReplyTable: React.FC<ReplyTableProps> = ({
 
   return (
     <div className="rounded-md border">
-      <Table>
+      <Table className="rt">
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>
@@ -210,7 +210,7 @@ export const ReplyTable: React.FC<ReplyTableProps> = ({
                 className={cn(!row.original.enabled && 'opacity-50')}
               >
                 {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id}>
+                  <TableCell key={cell.id} data-label={typeof cell.column.columnDef.header === 'string' ? cell.column.columnDef.header : undefined}>
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </TableCell>
                 ))}

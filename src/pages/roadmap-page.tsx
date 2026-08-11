@@ -158,14 +158,14 @@ export const RoadmapPage: React.FC = () => {
                 </div>
                 {open && (
                   <div className="overflow-x-auto border-t">
-                    <table className="w-full min-w-[720px] text-sm">
+                    <table className="rt w-full text-sm">
                       <thead className="bg-muted/50 text-left text-muted-foreground">
                         <tr>{table.headers.map((header, hi) => <th key={hi} className="px-3 py-2 font-medium">{header}</th>)}</tr>
                       </thead>
                       <tbody>
                         {table.rows.map((row, ri) => (
                           <tr key={ri} className="border-t align-top hover:bg-muted/30">
-                            {row.map((cell, ci) => <td key={ci} className="px-3 py-2 leading-5">{cell}</td>)}
+                            {row.map((cell, ci) => <td key={ci} data-label={table.headers[ci] || ''} className="px-3 py-2 leading-5">{cell}</td>)}
                           </tr>
                         ))}
                       </tbody>

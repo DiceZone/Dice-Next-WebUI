@@ -19,6 +19,7 @@ export interface Adapter {
   appId?: string;
   appSecret?: string;
   qqNumber?: string;
+  forceVerifyImageResource?: boolean;
   heartApiKeyConfigured?: boolean;
   heartApiKeyTail?: string;
   enabled: boolean;
@@ -38,6 +39,7 @@ export interface AdapterFormData {
   appId?: string;
   appSecret?: string;
   qqNumber?: string;
+  forceVerifyImageResource?: boolean;
   heartApiKey?: string;
   clearHeartApiKey?: boolean;
   enabled?: boolean;

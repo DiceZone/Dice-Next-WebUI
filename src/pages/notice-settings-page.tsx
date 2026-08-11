@@ -255,7 +255,7 @@ export const NoticeSettingsPage: React.FC = () => {
                 <Label className="text-sm">{t('common.enabled')}</Label>
                 <Switch checked={smtp.enabled} onCheckedChange={(v) => setSmtp((p) => ({ ...p, enabled: v }))} />
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <div><Label className="text-xs">{t('noticeset.smtp_host')}</Label>
                   <Input className="h-8 text-sm" value={smtp.host} placeholder="smtp.example.com" onChange={(e) => setSmtp((p) => ({ ...p, host: e.target.value }))} /></div>
                 <div className="flex items-end gap-3">

@@ -117,6 +117,9 @@
   }
   /* 无标签单元格＝操作按钮区，靠右 */
   table.rt td:not([data-label]) { justify-content: flex-end; }
+  table.rt td:last-child { flex-wrap: wrap; }
+  table.rt td:last-child > .flex,
+  table.rt td:last-child > .inline-flex { flex-wrap: wrap; }
   table.rt td:empty { display: none; }
 }
 

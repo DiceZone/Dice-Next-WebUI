@@ -317,7 +317,7 @@ export const CommandsPage: React.FC = () => {
                       <td data-label={t('commands.col_text')} className="p-2.5 text-muted-foreground w-full max-w-0">
                         <div className="truncate" title={k.override ?? k.default}>{k.override ?? k.default}</div>
                       </td>
-                      <td className="p-2.5">
+                      <td data-label={t('common.actions')} className="p-2.5">
                         <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => editKey(k)}>
                           <Pencil className="mr-1 h-3.5 w-3.5" />{t('commands.edit')}
                         </Button>
@@ -352,7 +352,7 @@ export const CommandsPage: React.FC = () => {
                 return (
                   <React.Fragment key={c.cmd}>
                     <tr className="border-t align-top hover:bg-muted/30">
-                      <td className="p-2.5">
+                      <td data-label={t('common.actions')} className="p-2.5">
                         {multi && (
                           <button onClick={() => toggle(c.cmd)} className="text-muted-foreground hover:text-foreground">
                             {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
@@ -383,19 +383,19 @@ export const CommandsPage: React.FC = () => {
                     {isOpen && multi && c.replies.map((rep) => (
                       <tr key={rep.key} className="border-t bg-muted/20">
                         <td></td>
-                        <td className="p-2 pl-4 text-xs text-muted-foreground" colSpan={2}>
+                        <td data-label={t('commands.col_title')} className="p-2 pl-4 text-xs text-muted-foreground" colSpan={2}>
                           <span className="font-medium">{replyLabel(rep.key)}</span>
                           <span className="ml-2 font-mono opacity-60">{rep.key}</span>
                           {rep.override != null && <span className="ml-2 text-amber-600">{t('commands.modified')}</span>}
                           {rep.v2key && <div className="text-[11px] text-muted-foreground/70 font-mono">{t('commands.v2_label')}: {rep.v2key}</div>}
                         </td>
-                        <td data-label={t('commands.col_cmd')} className="p-2">
+                        <td data-label={t('commands.col_example')} className="p-2">
                           {rep.example && <code className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono text-foreground/80 whitespace-nowrap">{rep.example}</code>}
                         </td>
-                        <td className="p-2 text-xs text-muted-foreground" colSpan={1}>
+                        <td data-label={t('commands.col_reply')} className="p-2 text-xs text-muted-foreground" colSpan={1}>
                           <span className="font-mono whitespace-pre-wrap break-words">{rep.override ?? rep.default}</span>
                         </td>
-                        <td data-label={t('commands.col_desc')} className="p-2">
+                        <td data-label={t('common.actions')} className="p-2">
                           <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => beginEdit({ cmd: c.cmd, reply: rep })}><Pencil className="mr-1 h-3.5 w-3.5" />{t('commands.edit')}</Button>
                         </td>
                       </tr>

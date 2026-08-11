@@ -211,7 +211,7 @@ export const ReplyForm: React.FC<ReplyFormProps> = ({ open, onOpenChange, onSubm
           {/* 触发限制（原版每条规则自带：概率 / 冷却 / 生效范围） */}
           <div className="space-y-2">
             <Label>{t('replies.limits_label')}</Label>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="space-y-1">
                 <span className="text-xs text-muted-foreground">{t('replies.limit_prob')}</span>
                 <div className="flex items-center gap-1.5">
