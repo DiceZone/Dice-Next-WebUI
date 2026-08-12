@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { PersonaManagerCard } from '@/components/persona/persona-manager';
 import {
-  Loader2, RefreshCw, RotateCcw, Save, ChevronRight, ChevronDown, Pencil, Download, Upload,
+  Loader2, RefreshCw, RotateCcw, Save, ChevronRight, ChevronDown, Pencil, Trash2, Download, Upload,
   Image as ImageIcon, Globe, HelpCircle, Users, BookText,
 } from 'lucide-react';
 
@@ -165,6 +165,16 @@ export const CommandsPage: React.FC = () => {
     key: k.key, default: k.default, override: k.override, v2key: k.v2key,
     vars: extractVars(k.default).map((n) => ({ name: n, desc: '' })) } });
 
+  // 删除导入的无效文本（legacy.* 覆盖）：清除 DB 覆盖并刷新列表。
+  const delKey = async (k: AllKey) => {
+    if (!window.confirm(t('commands.delete_orphan_confirm', { key: k.key.replace(/^legacy\./, '') }))) return;
+    try {
+      const r = await fetch(`/api/templates/${encodeURIComponent(lang)}/${encodeURIComponent(k.key)}`, { method: 'DELETE' });
+      const j = await r.json(); if (j.code !== 0) throw new Error(j.message);
+      toast({ title: t('common.delete_success') });
+      await loadAll();
+    } catch (e) { toast({ title: t('common.delete_fail'), description: String(e), variant: 'destructive' }); }
+  };
   const doExport = async () => {
     try {
       const r = await fetch('/api/templates/export'); const j = await r.json();
@@ -318,9 +328,16 @@ export const CommandsPage: React.FC = () => {
                         <div className="truncate" title={k.override ?? k.default}>{k.override ?? k.default}</div>
                       </td>
                       <td data-label={t('common.actions')} className="p-2.5">
-                        <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => editKey(k)}>
-                          <Pencil className="mr-1 h-3.5 w-3.5" />{t('commands.edit')}
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => editKey(k)}>
+                            <Pencil className="mr-1 h-3.5 w-3.5" />{t('commands.edit')}
+                          </Button>
+                          {cat === ORPHAN_TAB && (
+                            <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-destructive" onClick={() => void delKey(k)}>
+                              <Trash2 className="mr-1 h-3.5 w-3.5" />{t('common.delete')}
+                            </Button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}

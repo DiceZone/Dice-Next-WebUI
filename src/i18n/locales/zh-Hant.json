@@ -1434,6 +1434,7 @@
     "col_text": "目前文字",
     "tab_vars": "全部變數",
     "tab_orphans": "無效文字",
+    "delete_orphan_confirm": "確定刪除無效文字「{{key}}」嗎？刪除後該條匯入文字將不再顯示。",
     "col_var": "變數名",
     "col_orphan_text": "原版文字（無對應槽位）",
     "orphan_empty": "沒有無效文字（匯入舊版資料後，無法對應的原版文案會出現在這裡）",

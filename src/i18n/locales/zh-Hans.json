@@ -1414,6 +1414,7 @@
     "col_text": "当前文本",
     "tab_vars": "全部变量",
     "tab_orphans": "无效文本",
+    "delete_orphan_confirm": "确定删除无效文本「{{key}}」吗？删除后该条导入文案将不再显示。",
     "col_var": "变量名",
     "col_orphan_text": "原版文本（无对应槽位）",
     "orphan_empty": "没有无效文本（导入旧版数据后，无法对应的原版文案会出现在这里）",

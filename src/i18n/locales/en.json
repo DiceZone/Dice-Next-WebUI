@@ -1434,6 +1434,7 @@
     "col_text": "Current text",
     "tab_vars": "All variables",
     "tab_orphans": "Orphan text",
+    "delete_orphan_confirm": "Delete orphan text {{key}}? It will no longer be shown after deletion.",
     "col_var": "Variable",
     "col_orphan_text": "Original text (no DiceNext slot)",
     "orphan_empty": "No orphan text (after importing legacy data, unmappable original messages appear here)",

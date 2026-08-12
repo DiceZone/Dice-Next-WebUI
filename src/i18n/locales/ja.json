@@ -1434,6 +1434,7 @@
     "col_text": "現在のテキスト",
     "tab_vars": "全変数",
     "tab_orphans": "孤立テキスト",
+    "delete_orphan_confirm": "孤立テキスト「{{key}}」を削除しますか？削除後はこのインポート文は表示されなくなります。",
     "col_var": "変数",
     "col_orphan_text": "元のテキスト（DiceNextの枠なし）",
     "orphan_empty": "孤立テキストなし（レガシーデータのインポート後、対応付けできない元メッセージがここに表示）",
