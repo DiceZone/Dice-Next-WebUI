@@ -895,6 +895,7 @@ export const SettingsPage: React.FC = () => {
                 <SelectItem value="manual">{t('settings.approval_friend_manual')}</SelectItem>
                 <SelectItem value="all">{t('settings.approval_friend_all')}</SelectItem>
                 <SelectItem value="keyword">{t('settings.approval_friend_keyword')}</SelectItem>
+                <SelectItem value="group_used">{t('settings.approval_friend_group_used')}</SelectItem>
                 <SelectItem value="reject">{t('settings.approval_friend_reject')}</SelectItem>
               </SelectContent>
             </Select>

@@ -1094,6 +1094,7 @@
     "approval_friend_manual": "Don't auto-handle (manual)",
     "approval_friend_all": "Auto-approve anyone",
     "approval_friend_keyword": "Auto-approve only if keyword present",
+    "approval_friend_group_used": "Auto-approve only users with group command history",
     "approval_friend_reject": "Reject everyone (no friends)",
     "approval_keyword_ph": "Keyword the verify message must contain",
     "approval_group": "Group invites",

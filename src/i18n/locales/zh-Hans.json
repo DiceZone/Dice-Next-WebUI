@@ -1061,6 +1061,7 @@
     "approval_friend_manual": "不自动处理（人工）",
     "approval_friend_all": "任意人自动通过",
     "approval_friend_keyword": "含关键词才自动通过",
+    "approval_friend_group_used": "有群聊指令使用记录才自动通过",
     "approval_friend_reject": "禁止任何人添加（自动拒绝）",
     "approval_keyword_ph": "验证消息需包含的关键词",
     "approval_group": "加群邀请",
