@@ -1094,6 +1094,7 @@
     "approval_friend_manual": "不自動處理（人工）",
     "approval_friend_all": "任意人自動通過",
     "approval_friend_keyword": "含關鍵詞才自動通過",
+    "approval_friend_group_used": "有群聊指令使用記錄才自動通過",
     "approval_friend_reject": "禁止任何人添加（自動拒絕）",
     "approval_keyword_ph": "驗證消息需包含的關鍵詞",
     "approval_group": "加群邀請",

@@ -1094,6 +1094,7 @@
     "approval_friend_manual": "自動処理しない（手動）",
     "approval_friend_all": "誰でも自動承認",
     "approval_friend_keyword": "キーワードがある場合のみ自動承認",
+    "approval_friend_group_used": "グループでコマンド使用履歴がある場合のみ自動承認",
     "approval_friend_reject": "全員拒否（友達なし）",
     "approval_keyword_ph": "認証メッセージに含めるべきキーワード",
     "approval_group": "グループ招待",
