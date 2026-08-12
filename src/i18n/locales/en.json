@@ -727,6 +727,10 @@
     "disable": "Disabled commands (comma-separated)"
   },
   "modules": {
+    "upload_confirm": "Install {{name}}?\nPermissions: {{perms}}",
+    "upload_no_perm": "Not declared (defaults to all)",
+    "upload_risk": "⚠️ High-risk patterns detected: {{risks}}",
+    "upload_no_risk": "No high-risk patterns detected",
     "title": "Modules",
     "subtitle": "Manage JS plugins (SealDice-compatible)",
     "reload": "Reload",
@@ -797,6 +801,13 @@
     "help_only": "{{n}} help topics only (query via .help, no commands)"
   },
   "auth": {
+    "setup_title": "Set admin password",
+    "setup_desc": "No admin password is set yet. For security, please set one before first use.",
+    "setup_password": "New password (min 4 chars)",
+    "setup_confirm": "Confirm password",
+    "setup_submit": "Set and enter",
+    "setup_short": "Password must be at least 4 characters",
+    "setup_mismatch": "Passwords do not match",
     "prompt": "Enter the admin panel password",
     "password": "Password",
     "login": "Log in",
@@ -971,6 +982,14 @@
     "load_default": "Load default"
   },
   "settings": {
+    "js_fetch_title": "JS plugin network access",
+    "js_fetch_desc": "Open by default (matching SealDice raw fetch); strict mode restores the API switch and SSRF/whitelist checks.",
+    "js_fetch_strict_title": "Strict mode",
+    "js_fetch_strict_desc": "When on, JS plugin fetch must pass the external-API switch and whitelist, and blocks LAN/loopback hosts.",
+    "plugin_verify_title": "Plugin signature verification",
+    "plugin_verify_desc": "With a PEM public key configured, uploaded JS/Lua plugins must carry a signature or installation is rejected. Empty = verification off.",
+    "plugin_verify_placeholder": "Paste PEM public key…",
+    "plugin_verify_hint": "Use tools/sign-plugin.py to generate keys and sign plugins; without a key, current behavior is kept.",
     "heartbeat_title": "Heartbeat Reporting",
     "heartbeat_desc": "Periodically report this bot's online status to a public service so players can check its availability",
     "heartbeat_enable": "Enable heartbeat reporting",

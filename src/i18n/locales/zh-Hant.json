@@ -727,6 +727,10 @@
     "disable": "停用的指令（逗號分隔）"
   },
   "modules": {
+    "upload_confirm": "確認安裝「{{name}}」？\n權限：{{perms}}",
+    "upload_no_perm": "未宣告（預設請求全部）",
+    "upload_risk": "⚠️ 偵測到高危模式：{{risks}}",
+    "upload_no_risk": "未偵測到高危模式",
     "title": "模組管理",
     "subtitle": "管理 JS 外掛（相容海豹 SealDice 外掛）",
     "reload": "重新載入",
@@ -797,6 +801,13 @@
     "help_only": "僅幫助詞條 {{n}} 條（用 .help 查詢，無指令）"
   },
   "auth": {
+    "setup_title": "設定管理口令",
+    "setup_desc": "偵測到尚未設定管理面板口令。基於安全考量，首次使用前請先設定。",
+    "setup_password": "新口令（至少 4 位）",
+    "setup_confirm": "確認口令",
+    "setup_submit": "設定並進入",
+    "setup_short": "口令至少 4 位",
+    "setup_mismatch": "兩次輸入的口令不一致",
     "prompt": "請輸入管理面板密碼",
     "password": "密碼",
     "login": "登入",
@@ -971,6 +982,14 @@
     "load_default": "載入預設"
   },
   "settings": {
+    "js_fetch_title": "JS 插件網路存取",
+    "js_fetch_desc": "預設放行（對齊海豹裸 fetch）；可開啟嚴格模式恢復外置API開關與 SSRF/白名單攔截。",
+    "js_fetch_strict_title": "嚴格模式",
+    "js_fetch_strict_desc": "開啟後 JS 插件 fetch 需命中外置API開關與白名單，並攔截內網/回環位址。",
+    "plugin_verify_title": "插件簽名驗證",
+    "plugin_verify_desc": "設定 PEM 公鑰後，上傳的 JS/Lua 插件必須攜帶簽名，否則拒絕安裝。留空 = 不驗證。",
+    "plugin_verify_placeholder": "貼上 PEM 公鑰…",
+    "plugin_verify_hint": "使用 tools/sign-plugin.py 產生金鑰並為插件簽名；未設定公鑰時維持原有行為。",
     "heartbeat_title": "心跳上報",
     "heartbeat_desc": "定期向公開服務上報骰娘線上狀態，供玩家查詢骰娘是否可用",
     "heartbeat_enable": "啟用心跳上報",

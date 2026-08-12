@@ -302,15 +302,18 @@ export const ModulesPage: React.FC = () => {
         const content = await file.text();
         await jsend('POST', '/plugins/js/upload', { filename: file.name, content });
         toast({ title: t('modules.uploaded', { name: file.name }) });
-      } else if (ext === 'lua') {
+      } else if (ext === 'lua' || ext === 'zip' || ext === 'json') {
         const content = await new Promise<string>((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result)); r.onerror = rej; r.readAsDataURL(file); });
+        // 安全预检：权限声明 + 静态风险扫描，人工确认后才真正安装。
+        const pre = await jsend('POST', '/mod/lua/upload', { filename: file.name, content, dry_run: true });
+        const perms: string[] = (pre?.permissions || []) as string[];
+        const risks: string[] = (pre?.risks || []) as string[];
+        const permText = perms.length ? perms.join(', ') : t('modules.upload_no_perm');
+        const riskText = risks.length ? t('modules.upload_risk', { risks: risks.join(', ') }) : t('modules.upload_no_risk');
+if (!window.confirm(`${t('modules.upload_confirm', { name: file.name, perms: permText })}\n\n${riskText}`)) { setBusy(false); return; }
         await jsend('POST', '/mod/lua/upload', { filename: file.name, content });
         toast({ title: t('luamod.imported') });
-      } else if (ext === 'zip' || ext === 'json') {
-        const content = await new Promise<string>((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result)); r.onerror = rej; r.readAsDataURL(file); });
-        await jsend('POST', '/mod/lua/upload', { filename: file.name, content });
-        toast({ title: t('luamod.imported') });
-      } else { toast({ title: t('common.upload_fail'), description: '支持 .js / .lua / .zip / .json', variant: 'destructive' }); }
+      }
       if (ext === 'js' || ext === 'lua' || ext === 'zip' || ext === 'json') setTab(ext === 'js' ? 'js' : 'lua');   // 上传后跳到对应选项卡
       await loadAll();
     } catch (err) { toast({ title: t('common.upload_fail'), description: String(err), variant: 'destructive' }); }

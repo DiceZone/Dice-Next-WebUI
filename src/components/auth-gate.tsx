@@ -9,8 +9,9 @@ import { useTranslation } from 'react-i18next';
  */
 export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { t } = useTranslation();
-  const [state, setState] = useState<'loading' | 'login' | 'ok'>('loading');
+  const [state, setState] = useState<'loading' | 'login' | 'setup' | 'ok'>('loading');
   const [pw, setPw] = useState('');
+  const [pw2, setPw2] = useState('');
   const [trustDevice, setTrustDevice] = useState(false);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
@@ -20,12 +21,32 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
       const r = await fetch('/api/auth/status');
       const j = await r.json();
       const d = j.data || {};
-      setState(d.required && !d.authed ? 'login' : 'ok');
+      if (d.need_setup) setState('setup');
+      else if (d.required && !d.authed) setState('login');
+      else setState('ok');
     } catch {
       setState('ok');
     }
   };
   useEffect(() => { void check(); }, []);
+
+  const setup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (pw.length < 4) { setErr(t('auth.setup_short')); return; }
+    if (pw !== pw2) { setErr(t('auth.setup_mismatch')); return; }
+    setBusy(true); setErr('');
+    try {
+      const r = await fetch('/api/auth/setup', {
+        method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pw }),
+      });
+      if (!r.ok) { setErr(t('auth.setup_short')); setBusy(false); return; }
+      setPw(''); setPw2(''); setState('ok');
+    } catch {
+      setErr(t('auth.error'));
+    }
+    setBusy(false);
+  };
 
   const login = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,6 +67,53 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
   if (state === 'loading') return null;
   if (state === 'ok') return <>{children}</>;
+
+  if (state === 'setup') {
+    return (
+      <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background text-foreground px-4">
+        <div aria-hidden className="login-orb login-orb-a" />
+        <div aria-hidden className="login-orb login-orb-b" />
+
+        <form onSubmit={setup} className="relative w-full max-w-sm rounded-xl border bg-card/95 p-8 shadow-lg backdrop-blur-sm">
+          <div className="mb-7 text-center">
+            <img src="/favicon.svg" alt="Dice!Next" className="mx-auto mb-4 h-16 w-16" />
+            <h1 className="text-2xl font-bold tracking-tight">Dice!Next</h1>
+            <p className="mt-0.5 text-sm font-medium text-muted-foreground">{t('auth.setup_title')}</p>
+          </div>
+          <p className="mb-4 text-xs text-muted-foreground">{t('auth.setup_desc')}</p>
+          <label className="mb-1.5 block text-sm font-medium" htmlFor="setup-pw">{t('auth.setup_password')}</label>
+          <input
+            id="setup-pw"
+            type="password"
+            autoFocus
+            autoComplete="new-password"
+            value={pw}
+            onChange={(e) => setPw(e.target.value)}
+            className="mb-4 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none transition-shadow focus:ring-2 focus:ring-ring/40"
+          />
+          <label className="mb-1.5 block text-sm font-medium" htmlFor="setup-pw2">{t('auth.setup_confirm')}</label>
+          <input
+            id="setup-pw2"
+            type="password"
+            autoComplete="new-password"
+            value={pw2}
+            onChange={(e) => setPw2(e.target.value)}
+            className="mb-4 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none transition-shadow focus:ring-2 focus:ring-ring/40"
+          />
+          {err && <p className="mb-3 text-sm text-destructive">{err}</p>}
+          <button
+            type="submit"
+            disabled={busy || !pw || !pw2}
+            className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+          >
+            {busy ? t('auth.logging_in') : t('auth.setup_submit')}
+          </button>
+        </form>
+
+        <p className="relative mt-6 text-xs text-muted-foreground">Dice!Next © 2025-2026 DiceZone</p>
+      </div>
+    );
+  }
 
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background text-foreground px-4">

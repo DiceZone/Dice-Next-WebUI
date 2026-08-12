@@ -13,7 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useDialogs } from '@/hooks/use-dialogs';
 import type { LucideIcon } from 'lucide-react';
 import {
-  SlidersHorizontal, Crown, Plus, Trash2, ShieldCheck, Zap,
+  SlidersHorizontal, Crown, Globe, Plus, Trash2, ShieldCheck, Zap,
   Image, Type, Server, Clock, ScrollText, HeartPulse, Layers3, RotateCcw,
 } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
@@ -418,6 +418,10 @@ export const SettingsPage: React.FC = () => {
   const [nickSaving, setNickSaving] = useState(false);
   // — Globals —
   const [globals, setGlobals] = useState<Record<string, boolean | number>>({});
+  // — 插件签名公钥（可选）—
+  const [pluginKey, setPluginKey] = useState('');
+  // — JS 插件网络访问（T8）—
+  const [jsFetchStrict, setJsFetchStrict] = useState(false);
 
   // —— Loaders ———————————————————————————————————————————
   const loadMasters = async () => {
@@ -481,6 +485,21 @@ export const SettingsPage: React.FC = () => {
   const loadGlobals = async () => {
     try { const r = await fetch('/api/system/global'); const j = await r.json(); if (j.code === 0) setGlobals(j.data || {}); } catch { /* ignore */ }
   };
+  const loadPluginVerify = async () => {
+    try { const d = await getJson('/system/plugin-verify'); setPluginKey(d.public_key || ''); } catch { /* ignore */ }
+  };
+  const savePluginVerify = async () => {
+    try { await putJson('/system/plugin-verify', { public_key: pluginKey }); toast({ title: t('common.save_success') }); }
+    catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
+  };
+  const loadJsFetch = async () => {
+    try { const d = await getJson('/system/js-fetch'); setJsFetchStrict(!!d.strict); } catch { /* ignore */ }
+  };
+  const toggleJsFetchStrict = async (v: boolean) => {
+    setJsFetchStrict(v);
+    try { await putJson('/system/js-fetch', { strict: v }); toast({ title: t('common.save_success') }); }
+    catch (e) { setJsFetchStrict(!v); toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
+  };
   const loadLogsite = async () => {
     try {
       const r = await fetch('/api/system/logsite'); const j = await r.json();
@@ -499,7 +518,7 @@ export const SettingsPage: React.FC = () => {
   };
 
   useEffect(() => {
-    void loadMasters(); void loadMasterAccounts(); void loadPrefixes(); void loadEvents(); void loadWebui(); void loadGlobals(); void loadLogsite(); void loadTimezone();
+    void loadMasters(); void loadMasterAccounts(); void loadPrefixes(); void loadEvents(); void loadWebui(); void loadGlobals(); void loadPluginVerify(); void loadJsFetch(); void loadLogsite(); void loadTimezone();
   }, [loadWebui, loadEvents]);
 
   // —— Handlers ——————————————————————————————————————————
@@ -782,6 +801,35 @@ export const SettingsPage: React.FC = () => {
         </CardContent>
       </Card>
 
+      {/* ── 插件签名（可选）── */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2"><ShieldCheck className="h-4 w-4" />{t('settings.plugin_verify_title')}</CardTitle>
+          <CardDescription>{t('settings.plugin_verify_desc')}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Textarea value={pluginKey} onChange={(e) => setPluginKey(e.target.value)} rows={4} placeholder={t('settings.plugin_verify_placeholder')} />
+          <p className="text-xs text-muted-foreground">{t('settings.plugin_verify_hint')}</p>
+          <div className="flex justify-end"><Button size="sm" onClick={() => void savePluginVerify()}>{t('common.save')}</Button></div>
+        </CardContent>
+      </Card>
+
+      {/* ── JS 插件网络访问（T8，默认放行对齐海豹）── */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2"><Globe className="h-4 w-4" />{t('settings.js_fetch_title')}</CardTitle>
+          <CardDescription>{t('settings.js_fetch_desc')}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between rounded border p-2.5">
+            <div className="space-y-0.5">
+              <Label className="text-sm font-medium">{t('settings.js_fetch_strict_title')}</Label>
+              <p className="text-xs text-muted-foreground">{t('settings.js_fetch_strict_desc')}</p>
+            </div>
+            <Switch checked={jsFetchStrict} onCheckedChange={(v) => void toggleJsFetchStrict(v)} />
+          </div>
+        </CardContent>
+      </Card>
       {/* ── 指令前缀 ── */}
       <Card>
         <CardHeader>

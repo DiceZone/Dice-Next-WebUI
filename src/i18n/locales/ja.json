@@ -727,6 +727,10 @@
     "disable": "無効にするコマンド（カンマ区切り）"
   },
   "modules": {
+    "upload_confirm": "「{{name}}」をインストールしますか？\n権限: {{perms}}",
+    "upload_no_perm": "未宣言（デフォルトで全て）",
+    "upload_risk": "⚠️ 高リスクパターンを検出: {{risks}}",
+    "upload_no_risk": "高リスクパターンは検出されませんでした",
     "title": "モジュール",
     "subtitle": "JSプラグインを管理（SealDice互換）",
     "reload": "リロード",
@@ -797,6 +801,13 @@
     "help_only": "ヘルプ項目のみ {{n}} 個（.help で照会、コマンドなし）"
   },
   "auth": {
+    "setup_title": "管理パスワードを設定",
+    "setup_desc": "管理パスワードがまだ設定されていません。セキュリティのため、最初に設定してください。",
+    "setup_password": "新しいパスワード（4文字以上）",
+    "setup_confirm": "パスワードの確認",
+    "setup_submit": "設定して入る",
+    "setup_short": "パスワードは4文字以上必要です",
+    "setup_mismatch": "パスワードが一致しません",
     "prompt": "管理パネルのパスワードを入力",
     "password": "パスワード",
     "login": "ログイン",
@@ -971,6 +982,14 @@
     "load_default": "デフォルトを読み込み"
   },
   "settings": {
+    "js_fetch_title": "JSプラグインのネットワークアクセス",
+    "js_fetch_desc": "デフォルトで許可（シールドの素のfetchに合わせる）。厳格モードで外部APIスイッチとSSRF/ホワイトリストを復元。",
+    "js_fetch_strict_title": "厳格モード",
+    "js_fetch_strict_desc": "有効にするとJSプラグインのfetchは外部APIスイッチとホワイトリストを満たし、LAN/ループバックをブロックします。",
+    "plugin_verify_title": "プラグイン署名検証",
+    "plugin_verify_desc": "PEM公開鍵を設定すると、アップロードされたJS/Luaプラグインは署名が必要になり、署名がない場合は拒否されます。空欄 = 検証なし。",
+    "plugin_verify_placeholder": "PEM公開鍵を貼り付け…",
+    "plugin_verify_hint": "tools/sign-plugin.py で鍵を生成して署名してください。鍵未設定時は従来どおり動作します。",
     "heartbeat_title": "ハートビート報告",
     "heartbeat_desc": "ダイスボットのオンライン状態を公開サービスへ定期的に報告し、プレイヤーが稼働状況を確認できるようにします",
     "heartbeat_enable": "ハートビート報告を有効化",

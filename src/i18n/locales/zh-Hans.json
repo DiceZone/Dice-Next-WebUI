@@ -694,6 +694,10 @@
     "disable": "停用的指令（逗号分隔）"
   },
   "modules": {
+    "upload_confirm": "确认安装「{{name}}」？\n权限：{{perms}}",
+    "upload_no_perm": "未声明（默认请求全部）",
+    "upload_risk": "⚠️ 检测到高危模式：{{risks}}",
+    "upload_no_risk": "未检测到高危模式",
     "title": "插件管理",
     "subtitle": "管理 JS 与 Lua 插件，支持上传、启停与配置。",
     "reload": "重新加载",
@@ -764,6 +768,13 @@
     "help_only": "仅帮助词条 {{n}} 条（用 .help 查询，无指令）"
   },
   "auth": {
+    "setup_title": "设置管理口令",
+    "setup_desc": "检测到尚未设置管理面板口令。出于安全考虑，首次使用前请先设置。",
+    "setup_password": "新口令（至少 4 位）",
+    "setup_confirm": "确认口令",
+    "setup_submit": "设置并进入",
+    "setup_short": "口令至少 4 位",
+    "setup_mismatch": "两次输入的口令不一致",
     "prompt": "请输入管理面板密码",
     "password": "密码",
     "login": "登录",
@@ -938,6 +949,14 @@
     "load_default": "载入默认"
   },
   "settings": {
+    "js_fetch_title": "JS 插件网络访问",
+    "js_fetch_desc": "默认放行（对齐海豹裸 fetch）；可开启严格模式恢复外置API开关与 SSRF/白名单拦截。",
+    "js_fetch_strict_title": "严格模式",
+    "js_fetch_strict_desc": "开启后 JS 插件 fetch 需命中外置API开关与白名单，并拦截内网/环回地址。",
+    "plugin_verify_title": "插件签名校验",
+    "plugin_verify_desc": "配置 PEM 公钥后，上传的 JS/Lua 插件必须携带签名，否则拒绝安装。留空 = 不校验。",
+    "plugin_verify_placeholder": "粘贴 PEM 公钥…",
+    "plugin_verify_hint": "用 tools/sign-plugin.py 生成密钥并对插件签名；未配置公钥时保持原有行为。",
     "heartbeat_title": "心跳上报",
     "heartbeat_desc": "定期向公开服务上报骰娘在线状态，供玩家查询骰娘是否可用",
     "heartbeat_enable": "启用心跳上报",
