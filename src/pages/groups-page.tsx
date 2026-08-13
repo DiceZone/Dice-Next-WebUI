@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PlatformIcon, platformLabel } from '@/components/platform-icon';
+import { LogActionButtons } from '@/components/log-action-buttons';
 
 interface GroupAccount {
   adapterId: string; adapterName: string; loginId: string; platform: string; endpointId: string;
@@ -1104,15 +1105,12 @@ const LogsTab: React.FC<any> = ({ group, t, toast, dlg }) => {
               <td data-label={t('groups.log_last')} className="p-2.5 text-muted-foreground text-xs whitespace-nowrap">{fmt(r.lastAt)}</td>
               <td data-label={t('groups.log_count')} className="p-2.5">{r.count}</td>
               <td data-label={t('common.actions')} className="p-2.5">
-                <div className="flex flex-wrap items-center gap-1">
-                  <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => exportLog(r.id, 'txt')}><Download className="mr-1 h-3.5 w-3.5" />TXT</Button>
-                  <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => exportLog(r.id, 'csv')}><Download className="mr-1 h-3.5 w-3.5" />Excel</Button>
-                  <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => exportLog(r.id, 'html')}><Download className="mr-1 h-3.5 w-3.5" />{t('groups.log_export_html')}</Button>
-                  <Button size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={uploading === r.id} onClick={() => upload(r)}>
-                    {uploading === r.id ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Upload className="mr-1 h-3.5 w-3.5" />}{t('groups.log_upload')}
-                  </Button>
-                  <button onClick={() => del(r)} className="text-muted-foreground hover:text-destructive p-1" title={t('common.delete')}><Trash2 className="h-4 w-4" /></button>
-                </div>
+                <LogActionButtons
+                  onDownload={(format) => exportLog(r.id, format)}
+                  onUpload={() => void upload(r)}
+                  onDelete={() => void del(r)}
+                  uploading={uploading === r.id}
+                />
               </td>
             </tr>
           ))}

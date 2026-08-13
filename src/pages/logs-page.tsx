@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ArrowDown, ArrowUp, ArrowUpDown, CircleStop, Download, Loader2, RefreshCw, Scroll, Search, ScrollText, Trash2, Upload, UsersRound } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, CircleStop, Loader2, RefreshCw, Scroll, Search, ScrollText, UsersRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LoadingState } from '@/components/ui/state';
 import { useToast } from '@/hooks/use-toast';
 import { useDialogs } from '@/hooks/use-dialogs';
+import { LogActionButtons } from '@/components/log-action-buttons';
 
 interface GameLog {
   id: number;
@@ -268,19 +269,13 @@ export const LogsPage: React.FC = () => {
       setDeletingSession(null);
     }
   };
-  const LogActions: React.FC<{ log: GameLog }> = ({ log }) => (
-    <div className="flex flex-wrap justify-center gap-1 whitespace-nowrap">
-      <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => exportLog(log.id, 'txt')}><Download className="mr-1 h-3.5 w-3.5" />TXT</Button>
-      <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => exportLog(log.id, 'csv')}><Download className="mr-1 h-3.5 w-3.5" />Excel</Button>
-      <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => exportLog(log.id, 'html')}><Download className="mr-1 h-3.5 w-3.5" />{t('logs.export_html')}</Button>
-      <Button size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={uploading === log.id} onClick={() => void uploadLog(log)}>
-        {uploading === log.id ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Upload className="mr-1 h-3.5 w-3.5" />}{t('common.upload')}
-      </Button>
-      <Button size="sm" variant="destructive" className="h-7 px-2 text-xs" disabled={deleting === log.id} onClick={() => void deleteLog(log)}>
-        {deleting === log.id ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Trash2 className="mr-1 h-3.5 w-3.5" />}{t('common.delete')}
-      </Button>
-    </div>
-  );
+  const LogActions: React.FC<{ log: GameLog }> = ({ log }) => <LogActionButtons
+    onDownload={(format) => exportLog(log.id, format)}
+    onUpload={() => void uploadLog(log)}
+    onDelete={() => void deleteLog(log)}
+    uploading={uploading === log.id}
+    deleting={deleting === log.id}
+  />;
 
   const SortHeader: React.FC<{ column: SortKey; children: React.ReactNode }> = ({ column, children }) => (
     <button type="button" onClick={() => cycleSort(column)} className="inline-flex items-center justify-center gap-1 whitespace-nowrap font-medium hover:text-foreground">
@@ -347,7 +342,21 @@ export const LogsPage: React.FC = () => {
           {visibleSessions.length === 0 ? <p className="rounded-lg border border-dashed p-5 text-sm text-muted-foreground">{t('logs.no_sessions')}</p> :
             <div className="grid gap-4 xl:grid-cols-2">{visibleSessions.map((session) => {
               return <article key={session.code} className="rounded-lg border p-4">
-                <div className="flex items-start justify-between gap-3"><div><h2 className="font-semibold">{session.name}</h2><p className="mt-1 font-mono text-xs text-muted-foreground">{t('logs.session_code')} {session.code}</p></div><div className="flex flex-wrap items-center justify-end gap-1"><span className="mr-1 text-xs text-muted-foreground">{session.active ? t('logs.session_active') : t('logs.session_ended')}</span><Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => void exportCross(session, 'txt')} disabled={!session.logCount}><Download className="mr-1 h-3.5 w-3.5" />TXT</Button><Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => void exportCross(session, 'csv')} disabled={!session.logCount}><Download className="mr-1 h-3.5 w-3.5" />Excel</Button><Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => void exportCross(session, 'html')} disabled={!session.logCount}><Download className="mr-1 h-3.5 w-3.5" />{t('logs.export_html')}</Button><Button size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={!session.logCount || uploadingCross === session.code} onClick={() => void uploadCross(session)}>{uploadingCross === session.code ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Upload className="mr-1 h-3.5 w-3.5" />}{t('common.upload')}</Button>{session.active && <Button size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={endingSession === session.code} onClick={() => void endSession(session)}>{endingSession === session.code ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <CircleStop className="mr-1 h-3.5 w-3.5" />}{t('logs.end_session')}</Button>}<Button size="sm" variant="destructive" className="h-7 px-2 text-xs" disabled={deletingSession === session.code} onClick={() => void deleteSession(session)}>{deletingSession === session.code ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Trash2 className="mr-1 h-3.5 w-3.5" />}{t('common.delete')}</Button></div></div>
+                <div className="flex items-start justify-between gap-3">
+                  <div><h2 className="font-semibold">{session.name}</h2><p className="mt-1 font-mono text-xs text-muted-foreground">{t('logs.session_code')} {session.code}</p></div>
+                  <div className="flex flex-wrap items-center justify-end gap-1">
+                    <span className="mr-1 text-xs text-muted-foreground">{session.active ? t('logs.session_active') : t('logs.session_ended')}</span>
+                    {session.active && <Button size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={endingSession === session.code} onClick={() => void endSession(session)}>{endingSession === session.code ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <CircleStop className="mr-1 h-3.5 w-3.5" />}{t('logs.end_session')}</Button>}
+                    <LogActionButtons
+                      onDownload={(format) => void exportCross(session, format)}
+                      onUpload={() => void uploadCross(session)}
+                      onDelete={() => void deleteSession(session)}
+                      downloadDisabled={!session.logCount}
+                      uploading={uploadingCross === session.code}
+                      deleting={deletingSession === session.code}
+                    />
+                  </div>
+                </div>
                 <dl className="mt-4 grid gap-x-4 gap-y-3 text-sm sm:grid-cols-2">
                   <div><dt className="text-xs text-muted-foreground">{t('logs.col_created')}</dt><dd className="mt-1">{session.createdAt || '—'}</dd></div>
                   <div><dt className="text-xs text-muted-foreground">{t('logs.session_status')}</dt><dd className="mt-1">{session.active ? t('logs.session_active') : t('logs.session_ended')}</dd></div>
