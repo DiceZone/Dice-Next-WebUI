@@ -1,7 +1,13 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ChevronDown, Download, Loader2, Trash2, Upload } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 export type LogDownloadFormat = 'txt' | 'csv' | 'html';
 
@@ -24,6 +30,21 @@ export const LogActionButtons: React.FC<LogActionButtonsProps> = ({
   deleting = false,
 }) => {
   const { t } = useTranslation();
+  const [downloadOpen, setDownloadOpen] = useState(false);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelClose = () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    closeTimer.current = null;
+  };
+  const openDownload = () => {
+    cancelClose();
+    if (!downloadDisabled) setDownloadOpen(true);
+  };
+  const scheduleClose = () => {
+    cancelClose();
+    closeTimer.current = setTimeout(() => setDownloadOpen(false), 140);
+  };
+  useEffect(() => () => cancelClose(), []);
   const formats: Array<{ value: LogDownloadFormat; label: string }> = [
     { value: 'txt', label: 'TXT' },
     { value: 'csv', label: 'Excel' },
@@ -31,38 +52,41 @@ export const LogActionButtons: React.FC<LogActionButtonsProps> = ({
   ];
 
   return (
-    <div className="flex flex-wrap items-center justify-center gap-1 whitespace-nowrap">
-      <div className="group relative">
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          className="h-7 px-2 text-xs"
-          disabled={downloadDisabled}
-          aria-haspopup="menu"
+    <div className="flex flex-nowrap items-center justify-center gap-1 whitespace-nowrap">
+      <DropdownMenu open={downloadOpen} onOpenChange={setDownloadOpen} modal={false}>
+        <DropdownMenuTrigger asChild>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-7 px-2 text-xs"
+            disabled={downloadDisabled}
+            onPointerEnter={openDownload}
+            onPointerLeave={scheduleClose}
+          >
+            <Download className="mr-1 h-3.5 w-3.5" />
+            {t('common.download')}
+            <ChevronDown className={`ml-1 h-3.5 w-3.5 transition-transform ${downloadOpen ? 'rotate-180' : ''}`} />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="end"
+          sideOffset={4}
+          className="min-w-32"
+          onPointerEnter={cancelClose}
+          onPointerLeave={scheduleClose}
         >
-          <Download className="mr-1 h-3.5 w-3.5" />
-          {t('common.download')}
-          <ChevronDown className="ml-1 h-3.5 w-3.5 transition-transform group-hover:rotate-180 group-focus-within:rotate-180" />
-        </Button>
-        {!downloadDisabled && (
-          <div className="invisible absolute right-0 top-full z-50 min-w-32 pt-1 opacity-0 transition-opacity group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
-            <div className="rounded-md border bg-popover p-1 text-popover-foreground shadow-md" role="menu">
-              {formats.map((format) => (
-                <button
-                  key={format.value}
-                  type="button"
-                  role="menuitem"
-                  className="flex w-full items-center rounded-sm px-2 py-1.5 text-left text-xs outline-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-                  onClick={() => onDownload(format.value)}
-                >
-                  {format.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
+          {formats.map((format) => (
+            <DropdownMenuItem
+              key={format.value}
+              className="text-xs"
+              onSelect={() => onDownload(format.value)}
+            >
+              {format.label}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
       <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={uploading || downloadDisabled} onClick={onUpload}>
         {uploading ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Upload className="mr-1 h-3.5 w-3.5" />}
         {t('common.upload')}

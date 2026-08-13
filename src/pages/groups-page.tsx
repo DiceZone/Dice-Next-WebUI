@@ -1085,26 +1085,26 @@ const LogsTab: React.FC<any> = ({ group, t, toast, dlg }) => {
 
   return (
     <div className="rounded-lg border overflow-x-auto">
-      <table className="rt w-full text-sm">
+      <table className="rt w-full text-sm md:min-w-[800px] md:table-fixed">
         <thead className="bg-muted/50 text-muted-foreground">
           <tr>
             <th className="text-left font-medium p-2.5">{t('groups.log_name')}</th>
-            <th className="text-left font-medium p-2.5">{t('groups.log_creator')}</th>
-            <th className="text-left font-medium p-2.5 whitespace-nowrap">{t('groups.log_start')}</th>
-            <th className="text-left font-medium p-2.5 whitespace-nowrap">{t('groups.log_last')}</th>
-            <th className="text-left font-medium p-2.5">{t('groups.log_count')}</th>
-            <th className="text-left font-medium p-2.5 w-40">{t('groups.log_actions')}</th>
+            <th className="text-left font-medium p-2.5 md:w-28">{t('groups.log_creator')}</th>
+            <th className="text-left font-medium px-1.5 py-2.5 whitespace-nowrap md:w-36">{t('groups.log_start')}</th>
+            <th className="text-left font-medium px-1.5 py-2.5 whitespace-nowrap md:w-36">{t('groups.log_last')}</th>
+            <th className="text-left font-medium p-2.5 md:w-16">{t('groups.log_count')}</th>
+            <th className="text-center font-medium p-2.5 md:w-56">{t('groups.log_actions')}</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((r) => (
             <tr key={r.id} className="border-t hover:bg-muted/30">
-              <td data-label={t('groups.log_name')} className="p-2.5 font-medium">{r.name}</td>
-              <td data-label={t('groups.log_creator')} className="p-2.5 font-mono text-xs">{r.gmId}</td>
-              <td data-label={t('groups.log_start')} className="p-2.5 text-muted-foreground text-xs whitespace-nowrap">{fmt(r.createdAt)}</td>
-              <td data-label={t('groups.log_last')} className="p-2.5 text-muted-foreground text-xs whitespace-nowrap">{fmt(r.lastAt)}</td>
+              <td data-label={t('groups.log_name')} className="p-2.5 font-medium break-words">{r.name}</td>
+              <td data-label={t('groups.log_creator')} className="p-2.5 font-mono text-xs break-all">{r.gmId}</td>
+              <td data-label={t('groups.log_start')} className="px-1.5 py-2.5 text-muted-foreground text-[11px] whitespace-nowrap">{fmt(r.createdAt)}</td>
+              <td data-label={t('groups.log_last')} className="px-1.5 py-2.5 text-muted-foreground text-[11px] whitespace-nowrap">{fmt(r.lastAt)}</td>
               <td data-label={t('groups.log_count')} className="p-2.5">{r.count}</td>
-              <td data-label={t('common.actions')} className="p-2.5">
+              <td data-label={t('common.actions')} className="p-2.5 md:w-56">
                 <LogActionButtons
                   onDownload={(format) => exportLog(r.id, format)}
                   onUpload={() => void upload(r)}

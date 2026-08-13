@@ -27,7 +27,7 @@ type BackupSelection = {
   chatMedia: boolean;
 };
 type AutoBackupConfig = { enabled: boolean; schedule: 'interval' | 'daily'; intervalHours: number; dailyTime: string; keepDays: number; selection: BackupSelection; lastAutoAt: number };
-const defaultSelection: BackupSelection = {
+const autoSelectionDefaults: BackupSelection = {
   config: true,
   coreDatabase: true,
   characterCards: true,
@@ -46,9 +46,18 @@ const defaultSelection: BackupSelection = {
   gameLogImages: false,
   chatMedia: false,
 };
+const fullSelection: BackupSelection = {
+  ...autoSelectionDefaults,
+  runtimeLogs: true,
+  auditLogs: true,
+  uploadedAssets: true,
+  resourceImages: true,
+  gameLogImages: true,
+  chatMedia: true,
+};
 
 const normalizeSelection = (value?: Partial<BackupSelection>): BackupSelection => ({
-  ...defaultSelection,
+  ...autoSelectionDefaults,
   ...(value || {}),
 });
 
@@ -119,8 +128,8 @@ export const BackupPage: React.FC = () => {
   const [backingUp, setBackingUp] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [archives, setArchives] = useState<StoredBackup[]>([]);
-  const [selection, setSelection] = useState<BackupSelection>(defaultSelection);
-  const [autoConfig, setAutoConfig] = useState<AutoBackupConfig>({ enabled: false, schedule: 'interval', intervalHours: 24, dailyTime: '04:00', keepDays: 7, selection: defaultSelection, lastAutoAt: 0 });
+  const [selection, setSelection] = useState<BackupSelection>(fullSelection);
+  const [autoConfig, setAutoConfig] = useState<AutoBackupConfig>({ enabled: true, schedule: 'interval', intervalHours: 24, dailyTime: '04:00', keepDays: 7, selection: autoSelectionDefaults, lastAutoAt: 0 });
   const [savingAuto, setSavingAuto] = useState(false);
   const restoreFileRef = useRef<HTMLInputElement>(null);
 
@@ -268,7 +277,7 @@ export const BackupPage: React.FC = () => {
             <input ref={restoreFileRef} className="hidden" type="file" accept=".zip,application/zip" onChange={(e) => void stageRestore(e.target.files?.[0])} />
           </div>
           <SelectionOptions value={selection} onChange={setSelection} />
-          <p className="text-xs text-muted-foreground">跑团日志正文默认备份；运行/审计日志和所有图片、媒体默认不勾选。局部备份恢复时只覆盖已选择的内容。</p>
+          <p className="text-xs text-muted-foreground">立即备份默认包含全部项目。图片、媒体及运行日志可能显著增大备份，请按需取消；局部备份恢复时只覆盖已选择的内容。</p>
           <p className="text-xs text-amber-600 dark:text-amber-400">{t('backup.restore_warning')}</p>
         </CardContent>
       </Card>
@@ -292,6 +301,7 @@ export const BackupPage: React.FC = () => {
           </div>
           <SelectionOptions value={autoConfig.selection}
             onChange={(next) => setAutoConfig({ ...autoConfig, selection: next })} />
+          <p className="text-xs text-muted-foreground">自动备份默认采用精简组合，不包含运行/审计日志及图片、媒体，避免长期定时备份过快占满服务器。</p>
           <Button variant="outline" onClick={() => void saveAutoConfig()} disabled={savingAuto}>{savingAuto ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}保存自动备份设置</Button>
         </CardContent>
       </Card>
