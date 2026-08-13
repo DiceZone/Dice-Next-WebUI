@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ArrowDown, ArrowUp, ArrowUpDown, Download, Loader2, RefreshCw, Scroll, Search, ScrollText, Trash2, Upload, UsersRound } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, CircleStop, Download, Loader2, RefreshCw, Scroll, Search, ScrollText, Trash2, Upload, UsersRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LoadingState } from '@/components/ui/state';
@@ -71,6 +71,8 @@ export const LogsPage: React.FC = () => {
   const [uploading, setUploading] = useState<number | null>(null);
   const [uploadingCross, setUploadingCross] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<number | null>(null);
+  const [endingSession, setEndingSession] = useState<string | null>(null);
+  const [deletingSession, setDeletingSession] = useState<string | null>(null);
 
   const groupName = useCallback((id: string) => {
     const group = groups.find((item) => item.groupId === id);
@@ -219,6 +221,53 @@ export const LogsPage: React.FC = () => {
     } finally { setUploadingCross(null); }
   };
 
+
+  const endSession = async (session: GameSession) => {
+    const confirmed = await dlg.confirm({
+      title: t('logs.end_session_title'),
+      description: t('logs.end_session_desc', { name: session.name, code: session.code }),
+      confirmText: t('logs.end_session'),
+    });
+    if (!confirmed) return;
+    setEndingSession(session.code);
+    try {
+      const response = await fetch(`/api/game-sessions/${encodeURIComponent(session.code)}`, { method: 'PUT' });
+      const body = await response.json();
+      if (!response.ok || body.code !== 0) throw new Error(body.message || t('common.save_fail'));
+      toast({ title: t('logs.session_ended_toast', { name: session.name }) });
+      await load();
+    } catch (error) {
+      toast({ title: t('logs.end_session_fail'), description: String(error), variant: 'destructive' });
+    } finally {
+      setEndingSession(null);
+    }
+  };
+
+  const deleteSession = async (session: GameSession) => {
+    const confirmed = await dlg.confirm({
+      title: t('logs.delete_session_title'),
+      description: t('logs.delete_session_desc', {
+        name: session.name,
+        code: session.code,
+        count: session.logCount,
+      }),
+      destructive: true,
+      confirmText: t('common.delete'),
+    });
+    if (!confirmed) return;
+    setDeletingSession(session.code);
+    try {
+      const response = await fetch(`/api/game-sessions/${encodeURIComponent(session.code)}`, { method: 'DELETE' });
+      const body = await response.json();
+      if (!response.ok || body.code !== 0) throw new Error(body.message || t('common.delete_fail'));
+      toast({ title: t('logs.session_deleted_toast', { name: session.name }) });
+      await load();
+    } catch (error) {
+      toast({ title: t('logs.delete_session_fail'), description: String(error), variant: 'destructive' });
+    } finally {
+      setDeletingSession(null);
+    }
+  };
   const LogActions: React.FC<{ log: GameLog }> = ({ log }) => (
     <div className="flex flex-wrap justify-center gap-1 whitespace-nowrap">
       <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => exportLog(log.id, 'txt')}><Download className="mr-1 h-3.5 w-3.5" />TXT</Button>
@@ -298,7 +347,7 @@ export const LogsPage: React.FC = () => {
           {visibleSessions.length === 0 ? <p className="rounded-lg border border-dashed p-5 text-sm text-muted-foreground">{t('logs.no_sessions')}</p> :
             <div className="grid gap-4 xl:grid-cols-2">{visibleSessions.map((session) => {
               return <article key={session.code} className="rounded-lg border p-4">
-                <div className="flex items-start justify-between gap-3"><div><h2 className="font-semibold">{session.name}</h2><p className="mt-1 font-mono text-xs text-muted-foreground">{t('logs.session_code')} {session.code}</p></div><div className="flex flex-wrap items-center justify-end gap-1"><span className="mr-1 text-xs text-muted-foreground">{session.active ? t('logs.session_active') : t('logs.session_ended')}</span><Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => void exportCross(session, 'txt')} disabled={!session.logCount}><Download className="mr-1 h-3.5 w-3.5" />TXT</Button><Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => void exportCross(session, 'csv')} disabled={!session.logCount}><Download className="mr-1 h-3.5 w-3.5" />Excel</Button><Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => void exportCross(session, 'html')} disabled={!session.logCount}><Download className="mr-1 h-3.5 w-3.5" />{t('logs.export_html')}</Button><Button size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={!session.logCount || uploadingCross === session.code} onClick={() => void uploadCross(session)}>{uploadingCross === session.code ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Upload className="mr-1 h-3.5 w-3.5" />}{t('common.upload')}</Button></div></div>
+                <div className="flex items-start justify-between gap-3"><div><h2 className="font-semibold">{session.name}</h2><p className="mt-1 font-mono text-xs text-muted-foreground">{t('logs.session_code')} {session.code}</p></div><div className="flex flex-wrap items-center justify-end gap-1"><span className="mr-1 text-xs text-muted-foreground">{session.active ? t('logs.session_active') : t('logs.session_ended')}</span><Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => void exportCross(session, 'txt')} disabled={!session.logCount}><Download className="mr-1 h-3.5 w-3.5" />TXT</Button><Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => void exportCross(session, 'csv')} disabled={!session.logCount}><Download className="mr-1 h-3.5 w-3.5" />Excel</Button><Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => void exportCross(session, 'html')} disabled={!session.logCount}><Download className="mr-1 h-3.5 w-3.5" />{t('logs.export_html')}</Button><Button size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={!session.logCount || uploadingCross === session.code} onClick={() => void uploadCross(session)}>{uploadingCross === session.code ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Upload className="mr-1 h-3.5 w-3.5" />}{t('common.upload')}</Button>{session.active && <Button size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={endingSession === session.code} onClick={() => void endSession(session)}>{endingSession === session.code ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <CircleStop className="mr-1 h-3.5 w-3.5" />}{t('logs.end_session')}</Button>}<Button size="sm" variant="destructive" className="h-7 px-2 text-xs" disabled={deletingSession === session.code} onClick={() => void deleteSession(session)}>{deletingSession === session.code ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Trash2 className="mr-1 h-3.5 w-3.5" />}{t('common.delete')}</Button></div></div>
                 <dl className="mt-4 grid gap-x-4 gap-y-3 text-sm sm:grid-cols-2">
                   <div><dt className="text-xs text-muted-foreground">{t('logs.col_created')}</dt><dd className="mt-1">{session.createdAt || '—'}</dd></div>
                   <div><dt className="text-xs text-muted-foreground">{t('logs.session_status')}</dt><dd className="mt-1">{session.active ? t('logs.session_active') : t('logs.session_ended')}</dd></div>
