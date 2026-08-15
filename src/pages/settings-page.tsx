@@ -15,6 +15,7 @@ import type { LucideIcon } from 'lucide-react';
 import {
   SlidersHorizontal, Crown, Globe, Plus, Trash2, ShieldCheck, Zap,
   Image, Type, Server, Clock, ScrollText, HeartPulse, Layers3, RotateCcw,
+  ArrowUp, ArrowDown,
 } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import { PlatformIcon, platformLabel } from '@/components/platform-icon';
@@ -168,6 +169,11 @@ const APPROVAL_SCOPE_KEYS = [
   'group_invite_reject_blacklist', 'group_invite_reject_nonfriend', 'group_name_keyword_leave',
 ];
 const POKE_SCOPE_KEYS = ['poke', 'poke_command', 'poke_enabled'];
+const EXPRESSION_SCOPE_KEYS = ['expression_mode', 'expression_order'];
+type ExpressionMode = 'enhanced' | 'compatible' | 'original' | 'custom';
+type ExpressionEngineId = 'dicenext' | 'onedice' | 'dicescript';
+interface ExpressionEngineInfo { id: ExpressionEngineId; available: boolean; }
+const EXPRESSION_ENGINES: ExpressionEngineId[] = ['dicenext', 'onedice', 'dicescript'];
 interface MessageFormatConf { mode?: 'traditional' | 'card'; adapters?: MessageFormatAdapter[]; }
 
 const MessageFormatCard: React.FC = () => {
@@ -376,6 +382,12 @@ export const SettingsPage: React.FC = () => {
   const [settingsTarget, setSettingsTarget] = useState('');
   const [eventOverrides, setEventOverrides] = useState<Record<string, unknown>>({});
   const [eventSources, setEventSources] = useState<Record<string, string>>({});
+  const [expressionMode, setExpressionMode] = useState<ExpressionMode>('enhanced');
+  const [expressionOrder, setExpressionOrder] = useState<ExpressionEngineId[]>(EXPRESSION_ENGINES);
+  const [expressionEngines, setExpressionEngines] = useState<ExpressionEngineInfo[]>([]);
+  const [expressionOverrides, setExpressionOverrides] = useState<Record<string, unknown>>({});
+  const [expressionSources, setExpressionSources] = useState<Record<string, string>>({});
+  const [savingExpression, setSavingExpression] = useState(false);
   // — Prefixes —
   const [prefixes, setPrefixes] = useState<string[]>([]);
   const [savingPrefix, setSavingPrefix] = useState(false);
@@ -472,6 +484,28 @@ export const SettingsPage: React.FC = () => {
       if (j.code === 0) applyEventData(j.data);
     } catch { /* ignore */ }
   }, [settingsScope, settingsTarget, settingsPlatform, applyEventData]);
+  const applyExpressionData = useCallback((data: any) => {
+    const mode = ['enhanced', 'compatible', 'original', 'custom'].includes(data?.mode)
+      ? data.mode as ExpressionMode : 'enhanced';
+    const order = Array.isArray(data?.order)
+      ? data.order.filter((id: string) => EXPRESSION_ENGINES.includes(id as ExpressionEngineId))
+      : EXPRESSION_ENGINES;
+    setExpressionMode(mode);
+    setExpressionOrder(order.length ? order as ExpressionEngineId[] : EXPRESSION_ENGINES);
+    setExpressionEngines(Array.isArray(data?.engines) ? data.engines : []);
+    setExpressionOverrides(data?.overrides || {});
+    setExpressionSources(data?.sources || {});
+  }, []);
+  const loadExpression = useCallback(async () => {
+    if (settingsScope !== 'global' && !settingsTarget) return;
+    try {
+      const q = new URLSearchParams({ scope: settingsScope });
+      if (settingsTarget) q.set('target', settingsTarget);
+      if (settingsPlatform) q.set('platform', settingsPlatform);
+      const r = await fetch('/api/system/expression-engine?' + q.toString()); const j = await r.json();
+      if (j.code === 0) applyExpressionData(j.data);
+    } catch { /* ignore */ }
+  }, [settingsScope, settingsTarget, settingsPlatform, applyExpressionData]);
   const loadWebui = useCallback(async () => {
     try { setAutostart(!!(await getJson('/system/autostart')).enabled); } catch { /* ignore */ }
     try { setSaveImages(!!(await getJson('/system/save-log-images')).enabled); } catch { /* ignore */ }
@@ -518,8 +552,8 @@ export const SettingsPage: React.FC = () => {
   };
 
   useEffect(() => {
-    void loadMasters(); void loadMasterAccounts(); void loadPrefixes(); void loadEvents(); void loadWebui(); void loadGlobals(); void loadPluginVerify(); void loadJsFetch(); void loadLogsite(); void loadTimezone();
-  }, [loadWebui, loadEvents]);
+    void loadMasters(); void loadMasterAccounts(); void loadPrefixes(); void loadEvents(); void loadExpression(); void loadWebui(); void loadGlobals(); void loadPluginVerify(); void loadJsFetch(); void loadLogsite(); void loadTimezone();
+  }, [loadWebui, loadEvents, loadExpression]);
 
   // —— Handlers ——————————————————————————————————————————
   const addMaster = async () => {
@@ -646,6 +680,60 @@ export const SettingsPage: React.FC = () => {
       ? t('settings.scope_badge_account') : t('settings.scope_badge_adapter');
     const sources = new Set(keys.map((key) => eventSources[key]).filter(Boolean));
     return sources.has('adapter') ? t('settings.scope_inherit_adapter') : t('settings.scope_inherit_global');
+  };
+  const hasExpressionOverride = settingsScope !== 'global' && EXPRESSION_SCOPE_KEYS.some(
+    (key) => Object.prototype.hasOwnProperty.call(expressionOverrides, key));
+  const expressionSourceLabel = () => {
+    if (settingsScope === 'global') return t('settings.scope_badge_global');
+    if (hasExpressionOverride) return settingsScope === 'account'
+      ? t('settings.scope_badge_account') : t('settings.scope_badge_adapter');
+    const sources = new Set(EXPRESSION_SCOPE_KEYS.map((key) => expressionSources[key]).filter(Boolean));
+    return sources.has('adapter') ? t('settings.scope_inherit_adapter') : t('settings.scope_inherit_global');
+  };
+  const expressionAvailable = (id: ExpressionEngineId) =>
+    expressionEngines.find((engine) => engine.id === id)?.available !== false;
+  const toggleExpressionEngine = (id: ExpressionEngineId, enabled: boolean) => {
+    if (!expressionAvailable(id)) return;
+    if (enabled) {
+      if (!expressionOrder.includes(id)) setExpressionOrder([...expressionOrder, id]);
+    } else if (expressionOrder.length > 1) {
+      setExpressionOrder(expressionOrder.filter((engine) => engine !== id));
+    } else {
+      toast({ title: t('settings.expression_need_one'), variant: 'destructive' });
+    }
+  };
+  const moveExpressionEngine = (id: ExpressionEngineId, delta: -1 | 1) => {
+    const index = expressionOrder.indexOf(id);
+    const next = index + delta;
+    if (index < 0 || next < 0 || next >= expressionOrder.length) return;
+    const order = [...expressionOrder];
+    [order[index], order[next]] = [order[next], order[index]];
+    setExpressionOrder(order);
+  };
+  const saveExpression = async () => {
+    setSavingExpression(true);
+    try {
+      const r = await fetch('/api/system/expression-engine', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(scopedEventBody({ expression_mode: expressionMode, expression_order: expressionOrder })),
+      });
+      const j = await r.json(); if (j.code !== 0) throw new Error(j.message);
+      applyExpressionData(j.data);
+      toast({ title: t('common.save_success') });
+    } catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
+    finally { setSavingExpression(false); }
+  };
+  const resetExpressionScope = async () => {
+    if (settingsScope === 'global') return;
+    try {
+      const r = await fetch('/api/system/expression-engine', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(scopedEventBody({}, EXPRESSION_SCOPE_KEYS)),
+      });
+      const j = await r.json(); if (j.code !== 0) throw new Error(j.message);
+      applyExpressionData(j.data);
+      toast({ title: t('settings.scope_reset_success') });
+    } catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
   };
   const saveLogsite = async () => {
     setSavingLogsite(true);
@@ -924,6 +1012,89 @@ export const SettingsPage: React.FC = () => {
                   platform: platformLabel(selectedScopeAccount.type),
                   account: masterAccountLabel(selectedScopeAccount),
                 }) : t('settings.scope_current_none')}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle className="text-base flex items-center gap-2"><Layers3 className="h-4 w-4" />{t('settings.expression_title')}</CardTitle>
+            <Badge variant={hasExpressionOverride ? 'default' : 'secondary'}>{expressionSourceLabel()}</Badge>
+          </div>
+          <CardDescription>{t('settings.expression_desc')}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>{t('settings.expression_mode')}</Label>
+            <Select value={expressionMode} onValueChange={(value) => setExpressionMode(value as ExpressionMode)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="enhanced">{t('settings.expression_enhanced')}</SelectItem>
+                <SelectItem value="compatible">{t('settings.expression_compatible')}</SelectItem>
+                <SelectItem value="original">{t('settings.expression_original')}</SelectItem>
+                <SelectItem value="custom">{t('settings.expression_custom')}</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">{t(`settings.expression_${expressionMode}_desc`)}</p>
+          </div>
+
+          {expressionMode === 'custom' ? (
+            <div className="space-y-2">
+              <Label>{t('settings.expression_order')}</Label>
+              {EXPRESSION_ENGINES.map((id) => {
+                const enabled = expressionOrder.includes(id);
+                const index = expressionOrder.indexOf(id);
+                const available = expressionAvailable(id);
+                return (
+                  <div key={id} className="flex items-center gap-3 rounded-lg border px-3 py-2.5">
+                    <Switch checked={enabled} disabled={!available}
+                      onCheckedChange={(checked) => toggleExpressionEngine(id, checked)} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-medium">{t(`settings.expression_engine_${id}`)}</span>
+                        {!available && <Badge variant="secondary">{t('settings.expression_unavailable')}</Badge>}
+                      </div>
+                      <p className="text-xs text-muted-foreground">{t(`settings.expression_engine_${id}_desc`)}</p>
+                    </div>
+                    {enabled && (
+                      <div className="flex items-center gap-1">
+                        <Button type="button" size="icon" variant="ghost" className="h-8 w-8"
+                          disabled={index <= 0} onClick={() => moveExpressionEngine(id, -1)} aria-label={t('settings.expression_move_up')}>
+                          <ArrowUp className="h-4 w-4" />
+                        </Button>
+                        <Button type="button" size="icon" variant="ghost" className="h-8 w-8"
+                          disabled={index < 0 || index >= expressionOrder.length - 1}
+                          onClick={() => moveExpressionEngine(id, 1)} aria-label={t('settings.expression_move_down')}>
+                          <ArrowDown className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              <p className="text-xs text-muted-foreground">{t('settings.expression_order_hint')}</p>
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center gap-2 rounded-lg bg-muted/60 px-3 py-2 text-sm">
+              {(expressionMode === 'original' ? ['dicenext']
+                : expressionMode === 'compatible' ? ['dicenext', 'onedice']
+                  : ['dicenext', 'onedice', 'dicescript']).map((id, index, list) => (
+                    <React.Fragment key={id}>
+                      <Badge variant="outline">{t(`settings.expression_engine_${id}`)}</Badge>
+                      {index < list.length - 1 && <span className="text-muted-foreground">→</span>}
+                    </React.Fragment>
+                  ))}
+            </div>
+          )}
+          <div className="flex flex-wrap justify-end gap-2">
+            {settingsScope !== 'global' && hasExpressionOverride && (
+              <Button size="sm" variant="outline" onClick={() => void resetExpressionScope()}>
+                <RotateCcw className="mr-1.5 h-3.5 w-3.5" />{t('settings.scope_reset')}
+              </Button>
+            )}
+            <Button size="sm" onClick={saveExpression}
+              disabled={savingExpression || (settingsScope !== 'global' && !settingsTarget)}>{t('common.save')}</Button>
           </div>
         </CardContent>
       </Card>
