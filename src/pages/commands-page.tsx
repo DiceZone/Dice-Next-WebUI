@@ -6,6 +6,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription,
 } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { PersonaManagerCard } from '@/components/persona/persona-manager';
 import {
@@ -14,9 +15,10 @@ import {
 } from 'lucide-react';
 
 interface Var { name: string; desc: string; }
-interface Reply { key: string; default: string; override: string | null; v2key?: string; example?: string; vars: Var[]; }
+type ReplyFormat = 'plain' | 'markdown';
+interface Reply { key: string; default: string; override: string | null; format: ReplyFormat; defaultFormat: ReplyFormat; v2key?: string; example?: string; vars: Var[]; }
 interface Cmd { cmd: string; title: string; category: string; sources: string[]; example: string; desc: string; replies: Reply[]; }
-interface AllKey { key: string; group: string; default: string; override: string | null; v2key?: string; }
+interface AllKey { key: string; group: string; default: string; override: string | null; format: ReplyFormat; defaultFormat: ReplyFormat; v2key?: string; }
 
 const ALL_TAB = '__all__', VAR_TAB = '__vars__', ORPHAN_TAB = '__orphans__';
 const SPECIAL_TABS = [ALL_TAB, VAR_TAB, ORPHAN_TAB];
@@ -71,7 +73,7 @@ export const CommandsPage: React.FC = () => {
   // C#40: persona editing — pick a persona and edit ITS reply text directly.
   const [personas, setPersonas] = useState<{ id: number; name: string }[]>([]);
   const [personaId, setPersonaId] = useState(0);            // 0 = 默认人格 (global overrides)
-  const [personaMap, setPersonaMap] = useState<Record<string, string>>({});  // key → value for personaId+lang
+  const [personaMap, setPersonaMap] = useState<Record<string, { value: string; format: ReplyFormat }>>({});
   const [mgrOpen, setMgrOpen] = useState(false);
   const editScrollY = useRef(0);
 
@@ -86,8 +88,8 @@ export const CommandsPage: React.FC = () => {
     try {
       const r = await fetch(`/api/personas/${personaId}/entries`); const j = await r.json();
       if (j.code === 0) {
-        const m: Record<string, string> = {};
-        for (const e of (j.data || [])) if (e.locale === lang) m[e.key] = e.value;
+        const m: Record<string, { value: string; format: ReplyFormat }> = {};
+        for (const e of (j.data || [])) if (e.locale === lang) m[e.key] = { value: e.value, format: e.format === 'markdown' ? 'markdown' : 'plain' };
         setPersonaMap(m);
       }
     } catch { /* ignore */ }
@@ -129,9 +131,13 @@ export const CommandsPage: React.FC = () => {
   // When a persona is selected, swap each key's `override` for that persona's entry
   // (or null if it hasn't overridden the key) so the whole page shows / edits THAT persona.
   const dispRows = personaId === 0 ? rows
-    : rows.map((c) => ({ ...c, replies: c.replies.map((r) => ({ ...r, override: personaMap[r.key] ?? null })) }));
+    : rows.map((c) => ({ ...c, replies: c.replies.map((r) => ({ ...r,
+      override: personaMap[r.key]?.value ?? null,
+      format: personaMap[r.key]?.format ?? 'plain',
+    })) }));
   const dispAll = personaId === 0 ? allRows
-    : allRows.map((k) => ({ ...k, override: personaMap[k.key] ?? null }));
+    : allRows.map((k) => ({ ...k, override: personaMap[k.key]?.value ?? null,
+      format: personaMap[k.key]?.format ?? 'plain' }));
   const shown = dispRows.filter((r) => r.category === cat);
 
   const toggle = (cmd: string) =>
@@ -144,25 +150,26 @@ export const CommandsPage: React.FC = () => {
   const restoreEditScroll = () => requestAnimationFrame(() => requestAnimationFrame(() =>
     window.scrollTo({ top: editScrollY.current, behavior: 'auto' })));
   const closeEditor = () => { setEditing(null); restoreEditScroll(); };
-  const savedEditor = (key: string, value: string | null) => {
+  const savedEditor = (key: string, value: string | null, format: ReplyFormat) => {
     if (personaId > 0) {
       setPersonaMap((prev) => {
         const next = { ...prev };
-        if (value == null) delete next[key]; else next[key] = value;
+        if (value == null) delete next[key]; else next[key] = { value, format };
         return next;
       });
     } else {
       setRows((prev) => prev.map((command) => ({
         ...command,
-        replies: command.replies.map((reply) => reply.key === key ? { ...reply, override: value } : reply),
+        replies: command.replies.map((reply) => reply.key === key ? { ...reply, override: value, format } : reply),
       })));
-      setAllRows((prev) => prev.map((reply) => reply.key === key ? { ...reply, override: value } : reply));
+      setAllRows((prev) => prev.map((reply) => reply.key === key ? { ...reply, override: value, format } : reply));
     }
     closeEditor();
   };
 
   const editKey = (k: AllKey) => beginEdit({ cmd: k.key, reply: {
     key: k.key, default: k.default, override: k.override, v2key: k.v2key,
+    format: k.format, defaultFormat: k.defaultFormat,
     vars: extractVars(k.default).map((n) => ({ name: n, desc: '' })) } });
 
   // 删除导入的无效文本（legacy.* 覆盖）：清除 DB 覆盖并刷新列表。
@@ -445,13 +452,80 @@ export const CommandsPage: React.FC = () => {
 };
 
 // ─── Edit modal ──────────────────────────────────────────────
-const EditReplyModal: React.FC<{ lang: string; cmd: string; reply: Reply; personaId: number; onClose: () => void; onSaved: (key: string, value: string | null) => void }>
+const PREVIEW_VALUES: Record<string, string> = {
+  nick: '测试玩家', name: '测试玩家', qqnick: '测试玩家', card: '调查员', pcname: '调查员',
+  qqnickw: '<测试玩家>', cardw: '<调查员>', pcnamew: '<调查员>', self: 'Dice!Next',
+  user: '10001', group: '100000', date: '2026-08-21', time: '20:00:00',
+  res: '1D100=42', expr: '1D100=42', reason: '示例检定', turn: '3', attr: '侦查',
+  roll: '42', rate: '60', level: '成功', outcome: '成功', total: '18', mod: '+3', detail: '1D20=15+3=18',
+};
+
+const sampleReply = (text: string): string => text.replace(/\{([^{}]+)\}/g, (all, raw: string) => {
+  if (PREVIEW_VALUES[raw] != null) return PREVIEW_VALUES[raw];
+  if (raw.includes('|')) return raw.split('|')[0] || all;
+  if (raw.startsWith('roll:')) return '42';
+  if (raw.startsWith('draw:')) return '示例牌面';
+  return all;
+});
+
+const inlineMarkdown = (text: string, prefix: string): React.ReactNode[] => {
+  const pattern = /(\*\*[^*\n]+\*\*|__[^_\n]+__|~~[^~\n]+~~|`[^`\n]+`|\[[^\]\n]+\]\([^)\n]+\))/g;
+  const out: React.ReactNode[] = [];
+  let last = 0, index = 0;
+  for (const match of text.matchAll(pattern)) {
+    const start = match.index ?? 0;
+    if (start > last) out.push(text.slice(last, start));
+    const token = match[0];
+    const key = `${prefix}-${index++}`;
+    if ((token.startsWith('**') && token.endsWith('**')) || (token.startsWith('__') && token.endsWith('__')))
+      out.push(<strong key={key}>{token.slice(2, -2)}</strong>);
+    else if (token.startsWith('~~')) out.push(<del key={key}>{token.slice(2, -2)}</del>);
+    else if (token.startsWith('`')) out.push(<code key={key} className="rounded bg-muted px-1 py-0.5 font-mono text-[0.9em]">{token.slice(1, -1)}</code>);
+    else {
+      const parsed = token.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+      out.push(parsed ? <a key={key} href={parsed[2]} className="text-primary underline" target="_blank" rel="noreferrer">{parsed[1]}</a> : token);
+    }
+    last = start + token.length;
+  }
+  if (last < text.length) out.push(text.slice(last));
+  return out;
+};
+
+const MarkdownExample: React.FC<{ text: string; enabled: boolean }> = ({ text, enabled }) => {
+  if (!enabled) return <div className="whitespace-pre-wrap break-words">{text}</div>;
+  return <div className="space-y-1 break-words">{text.split(/\r?\n/).map((line, i) => {
+    const heading = line.match(/^(#{1,6})\s+(.*)$/);
+    if (heading) return <div key={i} className="font-bold" style={{ fontSize: `${Math.max(1, 1.45 - heading[1].length * 0.08)}rem` }}>{inlineMarkdown(heading[2], `h${i}`)}</div>;
+    if (/^>\s?/.test(line)) return <blockquote key={i} className="border-l-2 border-primary/40 pl-3 text-muted-foreground">{inlineMarkdown(line.replace(/^>\s?/, ''), `q${i}`)}</blockquote>;
+    if (/^[-+*]\s+/.test(line)) return <div key={i} className="flex gap-2"><span>•</span><span>{inlineMarkdown(line.replace(/^[-+*]\s+/, ''), `l${i}`)}</span></div>;
+    if (!line) return <div key={i} className="h-2" />;
+    return <div key={i}>{inlineMarkdown(line, `p${i}`)}</div>;
+  })}</div>;
+};
+
+const EditReplyModal: React.FC<{ lang: string; cmd: string; reply: Reply; personaId: number; onClose: () => void; onSaved: (key: string, value: string | null, format: ReplyFormat) => void }>
   = ({ lang, cmd, reply, personaId, onClose, onSaved }) => {
   const { t } = useTranslation();
   const toast = useToast();
   const [text, setText] = useState(reply.override ?? reply.default);
+  const [format, setFormat] = useState<ReplyFormat>(reply.override == null ? reply.defaultFormat : reply.format);
+  const [preview, setPreview] = useState({ markdown: sampleReply(reply.override ?? reply.default), onebot: sampleReply(reply.override ?? reply.default) });
   const [showGlobals, setShowGlobals] = useState(false);
   const taRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      const sample = sampleReply(text);
+      try {
+        const r = await fetch('/api/templates/preview', { method: 'POST', signal: controller.signal,
+          headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: sample, format }) });
+        const j = await r.json();
+        if (j.code === 0) setPreview({ markdown: j.data.markdown ?? sample, onebot: j.data.onebot ?? sample });
+      } catch (e) { if ((e as Error).name !== 'AbortError') setPreview({ markdown: sample, onebot: sample }); }
+    }, 160);
+    return () => { window.clearTimeout(timer); controller.abort(); };
+  }, [text, format]);
 
   // Command-specific vars (chips) vs global vars (behind the button).
   const exclusiveVars = reply.vars.filter((v) => !GLOBAL_SET.has(v.name));
@@ -487,16 +561,16 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; reply: Reply; person
     try {
       const r = personaId > 0
         ? await fetch(`/api/personas/${personaId}/entries`, { method: 'PUT', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ locale: lang, key: reply.key, value: text }) })
+            body: JSON.stringify({ locale: lang, key: reply.key, value: text, format }) })
         : await fetch('/api/templates', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ locale: lang, key: reply.key, value: text }) });
+            body: JSON.stringify({ locale: lang, key: reply.key, value: text, format }) });
       const j = await r.json();
       if (j.code !== 0) throw new Error(j.message);
-      toast({ title: t('common.save_success') }); onSaved(reply.key, text);
+      toast({ title: t('common.save_success') }); onSaved(reply.key, text, format);
     } catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
   };
   const reset = async () => {
-    if (reply.override == null) { setText(reply.default); return; }
+    if (reply.override == null) { setText(reply.default); setFormat(reply.defaultFormat); return; }
     try {
       const r = personaId > 0
         ? await fetch(`/api/personas/${personaId}/entries`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' },
@@ -504,13 +578,13 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; reply: Reply; person
         : await fetch(`/api/templates/${encodeURIComponent(lang)}/${encodeURIComponent(reply.key)}`, { method: 'DELETE' });
       const j = await r.json();
       if (j.code !== 0) throw new Error(j.message);
-      toast({ title: t('commands.reset_done') }); onSaved(reply.key, null);
+      toast({ title: t('commands.reset_done') }); onSaved(reply.key, null, reply.defaultFormat);
     } catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
   };
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{cmd} · {replyLabel(reply.key)}</DialogTitle>
           <DialogDescription>{t('commands.var_insert_hint')}{reply.v2key ? `　${t('commands.v2_label')}: ${reply.v2key}` : ''}</DialogDescription>
@@ -538,6 +612,17 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; reply: Reply; person
             onChange={(e) => { const f = e.target.files?.[0]; if (f) void uploadImage(f); e.target.value = ''; }} />
         </div>
 
+        <div className="flex items-center gap-3">
+          <label className="text-sm font-medium shrink-0">{t('commands.format_label')}</label>
+          <Select value={format} onValueChange={(v) => setFormat(v as ReplyFormat)}>
+            <SelectTrigger className="h-9 w-44"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="plain">{t('commands.format_plain')}</SelectItem>
+              <SelectItem value="markdown">{t('commands.format_markdown')}</SelectItem>
+            </SelectContent>
+          </Select>
+          <span className="text-xs text-muted-foreground">{t('commands.format_hint')}</span>
+        </div>
         <Textarea ref={taRef} rows={4} className="font-mono text-sm" value={text} onChange={(e) => setText(e.target.value)} />
 
         {unknown.length > 0 && (
@@ -546,6 +631,23 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; reply: Reply; person
         {missing.length > 0 && unknown.length === 0 && (
           <p className="text-xs text-amber-600">{t('commands.warn_missing', { vars: missing.map((m) => `{${m}}`).join(' ') })}</p>
         )}
+        <Tabs defaultValue="markdown" className="rounded-lg border bg-muted/20 p-3">
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-sm font-medium">{t('commands.preview_title')}</span>
+            <TabsList className="h-8">
+              <TabsTrigger value="markdown" className="h-6 px-2.5 text-xs">{t('commands.preview_markdown')}</TabsTrigger>
+              <TabsTrigger value="onebot" className="h-6 px-2.5 text-xs">{t('commands.preview_onebot')}</TabsTrigger>
+            </TabsList>
+          </div>
+          <p className="mt-1 text-[11px] text-muted-foreground">{t('commands.preview_hint')}</p>
+          <TabsContent value="markdown" className="min-h-24 rounded-md bg-background p-3 text-sm">
+            <MarkdownExample text={preview.markdown} enabled={format === 'markdown'} />
+          </TabsContent>
+          <TabsContent value="onebot" className="min-h-24 whitespace-pre-wrap break-words rounded-md bg-background p-3 text-sm">
+            {preview.onebot}
+          </TabsContent>
+        </Tabs>
+
         <p className="text-[11px] text-muted-foreground">{t('commands.default_label')}: <span className="font-mono">{reply.default}</span></p>
 
         <DialogFooter className="gap-2 sm:gap-2">
