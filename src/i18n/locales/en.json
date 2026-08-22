@@ -1040,6 +1040,9 @@
     "sec_basic": "Basics",
     "sec_scoped": "Scoped Configuration",
     "sec_group_services": "Group Events & Public Services",
+    "sec_data": "Data & Images",
+    "sec_network": "Network & Cloud Services",
+    "sec_security": "Security & Permissions",
     "sec_approval": "Approval & Events",
     "scope_title": "Configuration scope",
     "scope_desc": "Settings with a source badge resolve in this order: account override > adapter type override > global default. Server-level settings always remain global.",
@@ -1147,6 +1150,8 @@
     "approval_friend_all": "Auto-approve anyone",
     "approval_friend_keyword": "Auto-approve only if keyword present",
     "approval_friend_group_used": "Auto-approve only users with group command history",
+    "approval_friend_whitelist": "Auto-approve whitelisted users only",
+    "approval_friend_nonblacklist": "Auto-approve users not on the blacklist",
     "approval_friend_reject": "Reject everyone (no friends)",
     "approval_keyword_ph": "Keyword the verify message must contain",
     "approval_group": "Group invites",
@@ -1878,9 +1883,11 @@
     "hint": "OneBot has no standard group-invite-card API; the invite is sent as a private text (with the group ID)."
   },
   "friendclean": {
-    "title": "Auto friend cleanup",
-    "desc": "Friends with no command activity anywhere for N days are removed. Masters, whitelisted/trusted users and friends without a player profile are exempt.",
-    "days": "Days",
-    "hint": "0 = off. Checked every 12 hours."
+    "title": "Automatic Friend & Group Cleanup",
+    "desc": "Periodically removes inactive friends and leaves groups according to blacklist and group-size rules.",
+    "days": "Friend inactivity days",
+    "group_limit": "Groups per cleanup",
+    "max_group_size": "Maximum group size",
+    "hint": "0 disables the corresponding limit. Checked every 12 hours; masters and trusted users are exempt from friend cleanup."
   }
 }

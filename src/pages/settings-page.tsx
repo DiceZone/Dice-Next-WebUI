@@ -48,52 +48,36 @@ const formatDateTimeAtOffset = (value: string, offsetMinutes: number) => {
     + `${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}`;
 };
 
-type GOpt = { key: string; label: string; type: 'bool' | 'int'; hint?: string; wired?: boolean };
+type GOpt = { key: string; label: string; type: 'bool' | 'int'; hint?: string };
 type GGroup = { title: string; opts: GOpt[] };
 const GLOBAL_GROUPS: GGroup[] = [
   { title: '响应开关', opts: [
-    { key: 'silent_global', label: '全局静默', hint: '非信任用户只响应 .bot；其余沉默', type: 'bool', wired: true },
-    { key: 'disabled_jrrp', label: '禁用 .jrrp', type: 'bool', wired: true },
-    { key: 'disabled_me', label: '禁用 .me', type: 'bool', wired: true },
-    { key: 'disabled_deck', label: '禁用 .deck', type: 'bool', wired: true },
-    { key: 'disabled_draw', label: '禁用 .draw', type: 'bool', wired: true },
-    { key: 'disabled_send', label: '禁用 .send', type: 'bool', wired: true },
-    { key: 'disabled_help', label: '禁用 .help', type: 'bool', wired: true },
+    { key: 'silent_global', label: '静默模式', hint: '非信任用户只响应 .bot；其余沉默', type: 'bool' },
+    { key: 'disabled_jrrp', label: '禁用 .jrrp', type: 'bool' },
+    { key: 'disabled_me', label: '禁用 .me', type: 'bool' },
+    { key: 'disabled_deck', label: '禁用 .deck', type: 'bool' },
+    { key: 'disabled_draw', label: '禁用 .draw', type: 'bool' },
+    { key: 'disabled_send', label: '禁用 .send', type: 'bool' },
+    { key: 'disabled_help', label: '禁用 .help', type: 'bool' },
+    { key: 'listen_at_when_off', label: '停用时 @ 仍可触发', hint: '关闭后，bot off 状态下被 @ 也不会响应', type: 'bool' },
   ] },
   { title: '牌堆 / 显示', opts: [
-    { key: 'deck_hide_underscore', label: '隐藏牌堆 _ 元数据键', hint: '.deck 列表不显示 _author/_title 等', type: 'bool', wired: true },
+    { key: 'deck_hide_underscore', label: '隐藏牌堆 _ 元数据键', hint: '.deck 列表不显示 _author/_title 等', type: 'bool' },
   ] },
   { title: '事件响应', opts: [
-    { key: 'listen_group_request', label: '响应加群请求', type: 'bool', wired: true },
-    { key: 'listen_group_add', label: '响应入群反馈（欢迎词）', type: 'bool', wired: true },
-    { key: 'listen_friend_request', label: '响应好友请求', type: 'bool', wired: true },
-    { key: 'listen_friend_add', label: '响应好友添加反馈', type: 'bool', wired: true },
+    { key: 'listen_group_request', label: '响应加群请求', type: 'bool' },
+    { key: 'listen_group_add', label: '响应入群反馈（欢迎词）', type: 'bool' },
+    { key: 'listen_friend_request', label: '响应好友请求', type: 'bool' },
+    { key: 'listen_friend_add', label: '响应好友添加反馈', type: 'bool' },
+    { key: 'leave_black_qq', label: '检测到黑名单用户时自动退群', type: 'bool' },
   ] },
   { title: '外部请求（自定义回复 {api:URL}）', opts: [
-    { key: 'api_enabled', label: '启用 {api:URL} 外部请求', hint: '默认关闭；仅 http/https，自动拦截私网地址。白名单 dice/api_whitelist 在配置文件设置', type: 'bool', wired: true },
-    { key: 'api_timeout', label: '请求超时(秒)', hint: '1-30', type: 'int', wired: true },
-  ] },
-  { title: '自动维护', opts: [
-    { key: 'inactive_user_line', label: '用户不活跃上限(天)', hint: '0=不生效', type: 'int' },
-    // 群不活跃自动退群已迁移为「定时任务」页的一条 *(全部群) 任务，启动时自动迁移旧配置。
-    { key: 'group_clear_limit', label: '单次清群上限', type: 'int' },
-    { key: 'group_invalid_size', label: '协议无效群规模', type: 'int' },
-  ] },
-  { title: '其他兼容（记录项）', opts: [
-    { key: 'private_mode', label: '私用模式', type: 'bool' },
-    { key: 'check_group_license', label: '入群审核许可', type: 'bool' },
-    { key: 'leave_discuss', label: '检测讨论组自动退出', type: 'bool' },
-    { key: 'leave_black_qq', label: '检测黑名单用户自动退群', type: 'bool' },
-    { key: 'listen_at_when_off', label: '停用时 @ 仍可触发', type: 'bool' },
-    { key: 'allow_stranger', label: '陌生人策略(0白名单/1有记录/2非黑)', type: 'int' },
+    { key: 'api_enabled', label: '启用 {api:URL} 外部请求', hint: '默认关闭；仅 http/https，自动拦截私网地址', type: 'bool' },
+    { key: 'api_timeout', label: '请求超时（秒）', hint: '1–30', type: 'int' },
   ] },
   { title: '身份绑定（高风险）', opts: [
-    { key: 'allow_official_direct_bind', label: '允许 QQ 官方窗口直接绑定真实 QQ', type: 'bool', wired: true,
+    { key: 'allow_official_direct_bind', label: '允许 QQ 官方窗口直接绑定真实 QQ', type: 'bool',
       hint: '默认关闭。QQ 官方机器人无法验证发言者真实 QQ 或群管理身份；开启后可能有人冒认 QQ，导致人物卡、好感度等用户数据被错误合并或访问。仅在人工协助绑定时短暂开启，完成后请立即关闭。' },
-  ] },
-  { title: '云 / 网络（暂未联动）', opts: [
-    { key: 'cloud_visible', label: '允许云端公开本骰信息', type: 'bool' },
-    { key: 'cloud_black_share', label: '与云端互通不良记录', type: 'bool' },
   ] },
 ];
 
@@ -105,11 +89,30 @@ async function putJson(path: string, body: unknown) {
   const r = await fetch('/api' + path, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   const j = await r.json(); if (j.code !== 0) throw new Error(j.message); return j.data;
 }
+type SettingsScope = 'global' | 'adapter' | 'account';
+interface ScopedCardProps {
+  scope: SettingsScope;
+  target: string;
+  platform: string;
+  overridden?: boolean;
+  onReset?: () => void;
+}
+const scopedQuery = ({ scope, target, platform }: ScopedCardProps) => {
+  const q = new URLSearchParams({ scope });
+  if (target) q.set('target', target);
+  if (platform) q.set('platform', platform);
+  return q.toString();
+};
+const scopedBody = ({ scope, target, platform }: ScopedCardProps,
+  values: Record<string, unknown>, clear?: string[]) => ({
+  scope, target, platform, values, ...(clear ? { clear } : {}),
+});
+const scopeUnavailable = ({ scope, target }: ScopedCardProps) => scope !== 'global' && !target;
 
 // ── 图片发送方式（C#56）──────────────────────────────────
 interface ImageSendConf { mode?: string; host?: string; default_host?: string; }
 
-const ImageSendCard: React.FC = () => {
+const ImageSendCard: React.FC<ScopedCardProps> = (scopeProps) => {
   const { t } = useTranslation();
   const toast = useToast();
   const [c, setC] = useState<ImageSendConf>({ mode: 'base64', host: '' });
@@ -117,17 +120,23 @@ const ImageSendCard: React.FC = () => {
 
   useEffect(() => {
     (async () => {
+      if (scopeUnavailable(scopeProps)) return;
       try {
-        const d = await getJson('/system/image-send') as ImageSendConf;
-        setC({ mode: d.mode || 'base64', host: d.host || '', default_host: d.default_host });
+        const d = await getJson('/system/global?' + scopedQuery(scopeProps)) as any;
+        const value = (d.values?.image_send || {}) as ImageSendConf;
+        setC({ mode: value.mode || 'base64', host: value.host || '' });
       } catch { /* ignore */ }
     })();
-  }, []);
+  }, [scopeProps.scope, scopeProps.target, scopeProps.platform, scopeProps.overridden]);
 
   const save = async () => {
+    if (scopeUnavailable(scopeProps)) return;
     setSaving(true);
     try {
-      await putJson('/system/image-send', { mode: c.mode || 'base64', host: (c.host || '').trim() });
+      const d = await putJson('/system/global', scopedBody(scopeProps, {
+        image_send: { mode: c.mode || 'base64', host: (c.host || '').trim() },
+      })) as any;
+      setC(d.values?.image_send || c);
       toast({ title: t('common.save_success') });
     } catch (e) { toast({ title: (e as Error).message, variant: 'destructive' }); }
     finally { setSaving(false); }
@@ -155,7 +164,10 @@ const ImageSendCard: React.FC = () => {
             <p className="text-[11px] text-muted-foreground mt-1">{t('settings.imgsend_host_hint')}</p>
           </div>
         )}
-        <div className="flex justify-end"><Button size="sm" onClick={save} disabled={saving}>{t('common.save')}</Button></div>
+        <div className="flex justify-end gap-2">
+          {scopeProps.overridden && <Button size="sm" variant="outline" onClick={scopeProps.onReset}><RotateCcw className="mr-1.5 h-3.5 w-3.5" />{t('settings.scope_reset')}</Button>}
+          <Button size="sm" onClick={save} disabled={saving || scopeUnavailable(scopeProps)}>{t('common.save')}</Button>
+        </div>
       </CardContent>
     </Card>
   );
@@ -163,7 +175,6 @@ const ImageSendCard: React.FC = () => {
 
 // ── 消息发送形式（传统文本 / 平台富卡片）──────────────────────
 interface MessageFormatAdapter { id: string; type: string; name: string; loginId?: string; loginName?: string; appId?: string; mode?: string; }
-type SettingsScope = 'global' | 'adapter' | 'account';
 const APPROVAL_SCOPE_KEYS = [
   'friend_policy', 'friend_keyword', 'group_invite_policy',
   'group_invite_reject_blacklist', 'group_invite_reject_nonfriend', 'group_name_keyword_leave',
@@ -174,32 +185,33 @@ type ExpressionMode = 'enhanced' | 'compatible' | 'original' | 'custom';
 type ExpressionEngineId = 'dicenext' | 'onedice' | 'dicescript';
 interface ExpressionEngineInfo { id: ExpressionEngineId; available: boolean; }
 const EXPRESSION_ENGINES: ExpressionEngineId[] = ['dicenext', 'onedice', 'dicescript'];
-interface MessageFormatConf { mode?: 'traditional' | 'card'; adapters?: MessageFormatAdapter[]; }
+interface MessageFormatConf { mode?: 'traditional' | 'card'; }
 
-const MessageFormatCard: React.FC = () => {
+const MessageFormatCard: React.FC<ScopedCardProps> = (scopeProps) => {
   const toast = useToast();
+  const { t } = useTranslation();
   const [mode, setMode] = useState<MessageFormatConf['mode']>('traditional');
-  const [adapters, setAdapters] = useState<MessageFormatAdapter[]>([]);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     (async () => {
+      if (scopeUnavailable(scopeProps)) return;
       try {
-        const d = await getJson('/system/message-format') as MessageFormatConf;
-        setMode(d.mode === 'card' ? 'card' : 'traditional');
-        setAdapters(d.adapters || []);
+        const d = await getJson('/system/global?' + scopedQuery(scopeProps)) as any;
+        setMode(d.values?.message_format === 'card' ? 'card' : 'traditional');
       } catch { /* ignore */ }
     })();
-  }, []);
+  }, [scopeProps.scope, scopeProps.target, scopeProps.platform, scopeProps.overridden]);
 
   const save = async () => {
+    if (scopeUnavailable(scopeProps)) return;
     setSaving(true);
     try {
-      await putJson('/system/message-format', {
-        mode: mode === 'card' ? 'card' : 'traditional',
-        adapters: adapters.map((a) => ({ id: a.id, mode: a.mode || '' })),
-      });
-      toast({ title: '消息发送形式已保存' });
+      const d = await putJson('/system/global', scopedBody(scopeProps, {
+        message_format: mode === 'card' ? 'card' : 'traditional',
+      })) as any;
+      setMode(d.values?.message_format === 'card' ? 'card' : 'traditional');
+      toast({ title: t('common.save_success') });
     } catch (e) { toast({ title: (e as Error).message, variant: 'destructive' }); }
     finally { setSaving(false); }
   };
@@ -212,7 +224,7 @@ const MessageFormatCard: React.FC = () => {
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex items-center gap-3">
-          <Label className="font-normal w-28 shrink-0">全局默认</Label>
+          <Label className="font-normal w-28 shrink-0">当前作用域</Label>
           <Select value={mode || 'traditional'} onValueChange={(value) => setMode(value === 'card' ? 'card' : 'traditional')}>
             <SelectTrigger className="h-9 flex-1"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -221,28 +233,13 @@ const MessageFormatCard: React.FC = () => {
             </SelectContent>
           </Select>
         </div>
-        <div className="space-y-1.5">
-          <Label className="font-normal text-xs text-muted-foreground">按适配器/帐号覆盖（留空=跟随全局）</Label>
-          {adapters.map((a) => (
-            <div key={a.id} className="flex items-center gap-3">
-              <span className="flex w-32 shrink-0 items-center gap-1.5 text-xs"><PlatformIcon platform={a.type} />{platformLabel(a.type)}</span>
-              <span className="w-36 truncate font-mono text-xs text-muted-foreground">{a.loginName || a.name}({a.type === 'qq_official' ? (a.appId || a.loginId || a.id) : (a.loginId || a.id)})</span>
-              <Select value={a.mode || '__inherit__'} onValueChange={(v) => setAdapters((arr) => arr.map((x) => x.id === a.id ? { ...x, mode: v === 'card' || v === 'traditional' ? v : '' } : x))}>
-                <SelectTrigger className="h-8 flex-1"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__inherit__">跟随全局</SelectItem>
-                  <SelectItem value="traditional">传统文本</SelectItem>
-                  <SelectItem value="card">卡片消息</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          ))}
-          {adapters.length === 0 && <p className="text-xs text-muted-foreground">暂无已配置适配器</p>}
-        </div>
         {mode === 'card' && (
           <p className="text-xs text-muted-foreground">Discord 使用 Embed，KOOK 使用 CardMessage，QQ 官方机器人优先发送 Markdown。若 QQ 机器人未获 Markdown 权限，系统会自动退回传统文本；过长回复也会保持文本，避免截断。OneBot 始终为传统文本。</p>
         )}
-        <div className="flex justify-end"><Button size="sm" onClick={save} disabled={saving}>{saving ? '保存中…' : '保存'}</Button></div>
+        <div className="flex justify-end gap-2">
+          {scopeProps.overridden && <Button size="sm" variant="outline" onClick={scopeProps.onReset}><RotateCcw className="mr-1.5 h-3.5 w-3.5" />{t('settings.scope_reset')}</Button>}
+          <Button size="sm" onClick={save} disabled={saving || scopeUnavailable(scopeProps)}>{t('common.save')}</Button>
+        </div>
       </CardContent>
     </Card>
   );
@@ -251,7 +248,7 @@ const MessageFormatCard: React.FC = () => {
 // ── 图床配置组件 ────────────────────────────────────────
 interface ImageHostConf { mode?: string; url?: string; file_field?: string; result_path?: string; public_base?: string; headers?: string[]; }
 
-const ImageHostCard: React.FC = () => {
+const ImageHostCard: React.FC<ScopedCardProps> = (scopeProps) => {
   const { t } = useTranslation();
   const toast = useToast();
   const [c, setC] = useState<ImageHostConf>({ mode: 'none', file_field: 'file', result_path: 'data.url' });
@@ -260,20 +257,25 @@ const ImageHostCard: React.FC = () => {
 
   useEffect(() => {
     (async () => {
+      if (scopeUnavailable(scopeProps)) return;
       try {
-        const d = await getJson('/system/image-host') as ImageHostConf;
-        setC({ mode: d.mode || 'none', url: d.url || '', file_field: d.file_field || 'file', result_path: d.result_path || 'data.url', public_base: d.public_base || '' });
-        setHeadersText((d.headers || []).join('\n'));
+        const d = await getJson('/system/global?' + scopedQuery(scopeProps)) as any;
+        const value = (d.values?.image_host || {}) as ImageHostConf;
+        setC({ mode: value.mode || 'none', url: value.url || '', file_field: value.file_field || 'file', result_path: value.result_path || 'data.url', public_base: value.public_base || '' });
+        setHeadersText((value.headers || []).join('\n'));
       } catch { /* ignore */ }
     })();
-  }, []);
+  }, [scopeProps.scope, scopeProps.target, scopeProps.platform, scopeProps.overridden]);
 
   const save = async () => {
     setSaving(true);
     try {
       const headers = headersText.split('\n').map((s) => s.trim()).filter(Boolean);
       const body: ImageHostConf = { mode: c.mode, url: c.url, file_field: c.file_field, result_path: c.result_path, public_base: c.public_base, headers };
-      await putJson('/system/image-host', body);
+      const d = await putJson('/system/global', scopedBody(scopeProps, { image_host: body })) as any;
+      const value = (d.values?.image_host || body) as ImageHostConf;
+      setC(value);
+      setHeadersText((value.headers || []).join('\n'));
       toast({ title: t('common.save_success') });
     } catch (e) { toast({ title: (e as Error).message, variant: 'destructive' }); }
     finally { setSaving(false); }
@@ -317,7 +319,10 @@ const ImageHostCard: React.FC = () => {
             <p className="text-[11px] text-muted-foreground mt-1">{t('settings.imghost_local_hint')}</p>
           </div>
         )}
-        <div className="flex justify-end"><Button size="sm" onClick={save} disabled={saving}>{t('common.save')}</Button></div>
+        <div className="flex justify-end gap-2">
+          {scopeProps.overridden && <Button size="sm" variant="outline" onClick={scopeProps.onReset}><RotateCcw className="mr-1.5 h-3.5 w-3.5" />{t('settings.scope_reset')}</Button>}
+          <Button size="sm" onClick={save} disabled={saving || scopeUnavailable(scopeProps)}>{t('common.save')}</Button>
+        </div>
       </CardContent>
     </Card>
   );
@@ -416,7 +421,6 @@ export const SettingsPage: React.FC = () => {
   const [savingPoke, setSavingPoke] = useState(false);
   // — WebUI items (moved here) —
   const [autostart, setAutostart] = useState(false);
-  const [saveImages, setSaveImages] = useState(false);
   const [quoteReply, setQuoteReply] = useState(true);
   const [autoCard, setAutoCard] = useState(true);
   const [respondSelf, setRespondSelf] = useState(false);   // C#69：自响应/自控
@@ -429,7 +433,9 @@ export const SettingsPage: React.FC = () => {
   const [nickSuf, setNickSuf] = useState('>');
   const [nickSaving, setNickSaving] = useState(false);
   // — Globals —
-  const [globals, setGlobals] = useState<Record<string, boolean | number>>({});
+  const [globals, setGlobals] = useState<Record<string, any>>({});
+  const [globalOverrides, setGlobalOverrides] = useState<Record<string, unknown>>({});
+  const [globalSources, setGlobalSources] = useState<Record<string, string>>({});
   // — 插件签名公钥（可选）—
   const [pluginKey, setPluginKey] = useState('');
   // — JS 插件网络访问（T8）—
@@ -508,7 +514,6 @@ export const SettingsPage: React.FC = () => {
   }, [settingsScope, settingsTarget, settingsPlatform, applyExpressionData]);
   const loadWebui = useCallback(async () => {
     try { setAutostart(!!(await getJson('/system/autostart')).enabled); } catch { /* ignore */ }
-    try { setSaveImages(!!(await getJson('/system/save-log-images')).enabled); } catch { /* ignore */ }
     try { setQuoteReply((await getJson('/system/quote-reply')).enabled !== false); } catch { /* ignore */ }
     try { setAutoCard((await getJson('/system/auto-card')).enabled !== false); } catch { /* ignore */ }
     try { setRespondSelf(!!(await getJson('/system/respond-self')).enabled); } catch { /* ignore */ }
@@ -516,9 +521,19 @@ export const SettingsPage: React.FC = () => {
     try { const d = await getJson('/system/reply-segment'); setSegLen(Number(d.len) || 600); setSegEnabled(d.enabled !== false); } catch { /* ignore */ }
     try { const d = await getJson('/system/nick-wrap'); setNickPre(d.prefix ?? '<'); setNickSuf(d.suffix ?? '>'); } catch { /* ignore */ }
   }, []);
-  const loadGlobals = async () => {
-    try { const r = await fetch('/api/system/global'); const j = await r.json(); if (j.code === 0) setGlobals(j.data || {}); } catch { /* ignore */ }
-  };
+  const applyGlobalData = useCallback((data: any) => {
+    setGlobals(data?.values || {});
+    setGlobalOverrides(data?.overrides || {});
+    setGlobalSources(data?.sources || {});
+  }, []);
+  const loadGlobals = useCallback(async () => {
+    if (settingsScope !== 'global' && !settingsTarget) return;
+    try {
+      const r = await fetch('/api/system/global?' + scopedQuery({ scope: settingsScope, target: settingsTarget, platform: settingsPlatform }));
+      const j = await r.json();
+      if (j.code === 0) applyGlobalData(j.data);
+    } catch { /* ignore */ }
+  }, [settingsScope, settingsTarget, settingsPlatform, applyGlobalData]);
   const loadPluginVerify = async () => {
     try { const d = await getJson('/system/plugin-verify'); setPluginKey(d.public_key || ''); } catch { /* ignore */ }
   };
@@ -553,7 +568,7 @@ export const SettingsPage: React.FC = () => {
 
   useEffect(() => {
     void loadMasters(); void loadMasterAccounts(); void loadPrefixes(); void loadEvents(); void loadExpression(); void loadWebui(); void loadGlobals(); void loadPluginVerify(); void loadJsFetch(); void loadLogsite(); void loadTimezone();
-  }, [loadWebui, loadEvents, loadExpression]);
+  }, [loadWebui, loadEvents, loadExpression, loadGlobals]);
 
   // —— Handlers ——————————————————————————————————————————
   const addMaster = async () => {
@@ -655,10 +670,9 @@ export const SettingsPage: React.FC = () => {
     setSavingEvents(true);
     try {
       const r = await fetch('/api/system/events', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scope: 'global', values: { welcome_min_delay: welcomeMinDelay, welcome_min_cooldown: welcomeMinCooldown } }) });
+        body: JSON.stringify(scopedEventBody({ welcome_min_delay: welcomeMinDelay, welcome_min_cooldown: welcomeMinCooldown })) });
       const j = await r.json(); if (j.code !== 0) throw new Error(j.message);
-      setWelcomeMinDelay(j.data?.welcome_min_delay || 0);
-      setWelcomeMinCooldown(j.data?.welcome_min_cooldown || 0);
+      applyEventData(j.data);
       toast({ title: t('common.save_success') });
     } catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
     finally { setSavingEvents(false); }
@@ -757,7 +771,7 @@ export const SettingsPage: React.FC = () => {
     } catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
     finally { setSavingPoke(false); }
   };
-  const saveGlobal = async (key: string, value: boolean | number) => {
+  const saveGlobal = async (key: string, value: boolean | number | string | Record<string, unknown>) => {
     if (key === 'allow_official_direct_bind' && value === true) {
       const accepted = await dlg.confirm({
         title: '高风险操作',
@@ -768,21 +782,34 @@ export const SettingsPage: React.FC = () => {
     }
     setGlobals((g) => ({ ...g, [key]: value }));
     try {
-      const r = await fetch('/api/system/global', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ [key]: value }) });
+      const r = await fetch('/api/system/global', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(scopedEventBody({ [key]: value })) });
       const j = await r.json(); if (j.code !== 0) throw new Error(j.message);
+      applyGlobalData(j.data);
       toast({ title: t('common.save_success') });
     } catch (e) { void loadGlobals(); toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
+  };
+  const resetGlobalScope = async (keys: string[]) => {
+    if (settingsScope === 'global') return;
+    try {
+      const r = await fetch('/api/system/global', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(scopedEventBody({}, keys)) });
+      const j = await r.json(); if (j.code !== 0) throw new Error(j.message);
+      applyGlobalData(j.data);
+      toast({ title: t('settings.scope_reset_success') });
+    } catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
+  };
+  const globalScopeLabel = (keys: string[]) => {
+    if (settingsScope === 'global') return t('settings.scope_badge_global');
+    if (keys.some((key) => Object.prototype.hasOwnProperty.call(globalOverrides, key)))
+      return settingsScope === 'account' ? t('settings.scope_badge_account') : t('settings.scope_badge_adapter');
+    return keys.some((key) => globalSources[key] === 'adapter') ? t('settings.scope_inherit_adapter') : t('settings.scope_inherit_global');
   };
 
   const toggleAutostart = async (v: boolean) => {
     setAutostart(v);
     try { const d = await putJson('/system/autostart', { enabled: v }); setAutostart(!!d.enabled); }
     catch (e) { toast({ title: (e as Error).message, variant: 'destructive' }); setAutostart(!v); }
-  };
-  const toggleSaveImages = async (v: boolean) => {
-    setSaveImages(v);
-    try { const d = await putJson('/system/save-log-images', { enabled: v }); setSaveImages(!!d.enabled); }
-    catch (e) { toast({ title: (e as Error).message, variant: 'destructive' }); setSaveImages(!v); }
   };
   const toggleQuoteReply = async (v: boolean) => {
     setQuoteReply(v);
@@ -819,6 +846,47 @@ export const SettingsPage: React.FC = () => {
     try { await putJson('/system/nick-wrap', { prefix: nickPre, suffix: nickSuf }); toast({ title: t('common.save_success') }); }
     catch (e) { toast({ title: (e as Error).message, variant: 'destructive' }); }
     finally { setNickSaving(false); }
+  };
+
+  const currentScopeProps: ScopedCardProps = {
+    scope: settingsScope, target: settingsTarget, platform: settingsPlatform,
+  };
+  const renderGlobalGroup = (title: string) => {
+    const group = GLOBAL_GROUPS.find((item) => item.title === title);
+    if (!group) return null;
+    const keys = group.opts.map((option) => option.key);
+    const hasOverride = settingsScope !== 'global'
+      && keys.some((key) => Object.prototype.hasOwnProperty.call(globalOverrides, key));
+    return (
+      <Card key={group.title}>
+        <CardHeader>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle className="text-base flex items-center gap-2"><Server className="h-4 w-4" />{group.title}</CardTitle>
+            <div className="flex items-center gap-2">
+              <Badge variant={hasOverride ? 'default' : 'secondary'}>{globalScopeLabel(keys)}</Badge>
+              {hasOverride && <Button size="sm" variant="outline" onClick={() => void resetGlobalScope(keys)}><RotateCcw className="mr-1.5 h-3.5 w-3.5" />{t('settings.scope_reset')}</Button>}
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-2.5">
+          {group.opts.map((option) => (
+            <div key={option.key} className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <Label htmlFor={`g-${option.key}`} className="font-normal">{option.label}</Label>
+                {option.hint && <p className="text-[11px] text-muted-foreground">{option.hint}</p>}
+              </div>
+              {option.type === 'bool' ? (
+                <Switch id={`g-${option.key}`} checked={!!globals[option.key]} onCheckedChange={(value) => void saveGlobal(option.key, value)} />
+              ) : (
+                <Input id={`g-${option.key}`} type="number" className="w-24" value={String(globals[option.key] ?? 0)}
+                  onChange={(event) => setGlobals((current) => ({ ...current, [option.key]: Number(event.target.value) }))}
+                  onBlur={(event) => void saveGlobal(option.key, Number(event.target.value))} />
+              )}
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+    );
   };
 
   return (
@@ -902,22 +970,6 @@ export const SettingsPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* ── JS 插件网络访问（T8，默认放行对齐海豹）── */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2"><Globe className="h-4 w-4" />{t('settings.js_fetch_title')}</CardTitle>
-          <CardDescription>{t('settings.js_fetch_desc')}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between rounded border p-2.5">
-            <div className="space-y-0.5">
-              <Label className="text-sm font-medium">{t('settings.js_fetch_strict_title')}</Label>
-              <p className="text-xs text-muted-foreground">{t('settings.js_fetch_strict_desc')}</p>
-            </div>
-            <Switch checked={jsFetchStrict} onCheckedChange={(v) => void toggleJsFetchStrict(v)} />
-          </div>
-        </CardContent>
-      </Card>
       {/* ── 指令前缀 ── */}
       <Card>
         <CardHeader>
@@ -1114,7 +1166,9 @@ export const SettingsPage: React.FC = () => {
                 <SelectItem value="manual">{t('settings.approval_friend_manual')}</SelectItem>
                 <SelectItem value="all">{t('settings.approval_friend_all')}</SelectItem>
                 <SelectItem value="keyword">{t('settings.approval_friend_keyword')}</SelectItem>
+                <SelectItem value="whitelist">{t('settings.approval_friend_whitelist')}</SelectItem>
                 <SelectItem value="group_used">{t('settings.approval_friend_group_used')}</SelectItem>
+                <SelectItem value="nonblacklist">{t('settings.approval_friend_nonblacklist')}</SelectItem>
                 <SelectItem value="reject">{t('settings.approval_friend_reject')}</SelectItem>
               </SelectContent>
             </Select>
@@ -1195,8 +1249,8 @@ export const SettingsPage: React.FC = () => {
       {/* C#76: Welcome delay/cooldown minimums */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2"><Clock className="h-4 w-4" />{t('settings.welcome_min_title')}</CardTitle>
-          <CardDescription>{t('settings.welcome_min_desc')} {t('settings.scope_global_only')}</CardDescription>
+          <div className="flex flex-wrap items-center justify-between gap-2"><CardTitle className="text-base flex items-center gap-2"><Clock className="h-4 w-4" />{t('settings.welcome_min_title')}</CardTitle><Badge variant={hasScopeOverride(['welcome_min_delay', 'welcome_min_cooldown']) ? 'default' : 'secondary'}>{scopeSourceLabel(['welcome_min_delay', 'welcome_min_cooldown'])}</Badge></div>
+          <CardDescription>{t('settings.welcome_min_desc')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div>
@@ -1208,16 +1262,21 @@ export const SettingsPage: React.FC = () => {
             <Input className="h-8 text-sm w-32" type="number" min={0} max={3600} value={welcomeMinCooldown} onChange={(e) => setWelcomeMinCooldown(Number(e.target.value) || 0)} />
           </div>
           <div className="flex justify-end">
-            <Button size="sm" onClick={saveWelcomeMinimums} disabled={savingEvents}>{t('common.save')}</Button>
+            {settingsScope !== 'global' && hasScopeOverride(['welcome_min_delay', 'welcome_min_cooldown']) && (
+              <Button size="sm" variant="outline" onClick={() => void resetEventScope(['welcome_min_delay', 'welcome_min_cooldown'])}><RotateCcw className="mr-1.5 h-3.5 w-3.5" />{t('settings.scope_reset')}</Button>
+            )}
+            <Button size="sm" onClick={saveWelcomeMinimums} disabled={savingEvents || scopeUnavailable(currentScopeProps)}>{t('common.save')}</Button>
           </div>
         </CardContent>
       </Card>
 
       {/* 用户群 */}
-      <UserGroupCard />
-
-      {/* 心跳上报（heart.dice.zone）*/}
-      <HeartbeatCard timezoneMinutes={tzEffectiveMinutes} />
+      <UserGroupCard {...currentScopeProps}
+        overridden={settingsScope !== 'global' && ['user_group', 'user_group_enforce', 'user_group_invite'].some((key) => Object.prototype.hasOwnProperty.call(globalOverrides, key))}
+        onReset={() => void resetGlobalScope(['user_group', 'user_group_enforce', 'user_group_invite'])} />
+      {renderGlobalGroup('事件响应')}
+      {/* 自动清理好友与群聊 */}
+      <FriendCleanCard />
 
       <SectionHeading>{t('settings.sec_reply')}</SectionHeading>
 
@@ -1253,20 +1312,53 @@ export const SettingsPage: React.FC = () => {
         </SettingRow>
       </SettingGroup>
 
-      <MessageFormatCard />
+      <MessageFormatCard {...currentScopeProps}
+        overridden={settingsScope !== 'global' && Object.prototype.hasOwnProperty.call(globalOverrides, 'message_format')}
+        onReset={() => void resetGlobalScope(['message_format'])} />
+      {renderGlobalGroup('响应开关')}
+      {renderGlobalGroup('牌堆 / 显示')}
 
-      <SectionHeading>{t('settings.sec_image')}</SectionHeading>
+      <SectionHeading>{t('settings.sec_data')}</SectionHeading>
 
       <SettingGroup>
-        <SettingSwitch title={t('settings.save_images')} desc={t('settings.save_images_desc')} checked={saveImages} onToggle={toggleSaveImages} />
+        <SettingSwitch title={t('settings.save_images')} desc={t('settings.save_images_desc')} checked={!!globals.save_log_images} onToggle={(value) => void saveGlobal('save_log_images', value)} />
+        {settingsScope !== 'global' && Object.prototype.hasOwnProperty.call(globalOverrides, 'save_log_images') && <div className="flex justify-end py-3"><Button size="sm" variant="outline" onClick={() => void resetGlobalScope(['save_log_images'])}><RotateCcw className="mr-1.5 h-3.5 w-3.5" />{t('settings.scope_reset')}</Button></div>}
       </SettingGroup>
 
       {/* 图片发送方式 */}
-      <ImageSendCard />
+      <ImageSendCard {...currentScopeProps}
+        overridden={settingsScope !== 'global' && Object.prototype.hasOwnProperty.call(globalOverrides, 'image_send')}
+        onReset={() => void resetGlobalScope(['image_send'])} />
       {/* 图床 */}
-      <ImageHostCard />
+      <ImageHostCard {...currentScopeProps}
+        overridden={settingsScope !== 'global' && Object.prototype.hasOwnProperty.call(globalOverrides, 'image_host')}
+        onReset={() => void resetGlobalScope(['image_host'])} />
+      {/* 聊天记录保留期 */}
+      <ChatRetentionCard {...currentScopeProps}
+        overridden={settingsScope !== 'global' && Object.prototype.hasOwnProperty.call(globalOverrides, 'chat_retention_days')}
+        onReset={() => void resetGlobalScope(['chat_retention_days'])} />
 
-      <SectionHeading>{t('settings.sec_logdata')}</SectionHeading>
+      <SectionHeading>{t('settings.sec_network')}</SectionHeading>
+
+      {/* ── JS 插件网络访问（T8，默认放行对齐海豹）── */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2"><Globe className="h-4 w-4" />{t('settings.js_fetch_title')}</CardTitle>
+          <CardDescription>{t('settings.js_fetch_desc')}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between rounded border p-2.5">
+            <div className="space-y-0.5">
+              <Label className="text-sm font-medium">{t('settings.js_fetch_strict_title')}</Label>
+              <p className="text-xs text-muted-foreground">{t('settings.js_fetch_strict_desc')}</p>
+            </div>
+            <Switch checked={jsFetchStrict} onCheckedChange={(value) => void toggleJsFetchStrict(value)} />
+          </div>
+        </CardContent>
+      </Card>
+      {renderGlobalGroup('外部请求（自定义回复 {api:URL}）')}
+      {/* 心跳上报（heart.dice.zone）*/}
+      <HeartbeatCard timezoneMinutes={tzEffectiveMinutes} />
 
       {/* 日志站（API 地址可自建 + 上传协议）*/}
       <Card>
@@ -1300,46 +1392,15 @@ export const SettingsPage: React.FC = () => {
           </div>
         </CardContent>
       </Card>
-      {/* 聊天记录保留期 */}
-      <ChatRetentionCard />
       <SectionHeading>{t('settings.sec_maintenance')}</SectionHeading>
 
       <SettingGroup>
         <SettingSwitch title={t('settings.autostart')} desc={t('settings.autostart_desc')} checked={autostart} onToggle={toggleAutostart} />
       </SettingGroup>
-      {/* 自动清理好友 */}
-      <FriendCleanCard />
 
-      <SectionHeading>{t('settings.sec_global')}</SectionHeading>
+      <SectionHeading>{t('settings.sec_security')}</SectionHeading>
+      {renderGlobalGroup('身份绑定（高风险）')}
 
-      {/* 原版全局设置：每个二级标题独立容器 */}
-      {GLOBAL_GROUPS.map((grp) => (
-        <Card key={grp.title}>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2"><Server className="h-4 w-4" />{grp.title}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2.5">
-            {grp.opts.map((o) => (
-              <div key={o.key} className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <Label htmlFor={`g-${o.key}`} className="font-normal">
-                    {o.label}
-                    {!o.wired && <span className="ml-1.5 text-[10px] text-amber-600">{t('settings.record_only')}</span>}
-                  </Label>
-                  {o.hint && <p className="text-[11px] text-muted-foreground">{o.hint}</p>}
-                </div>
-                {o.type === 'bool' ? (
-                  <Switch id={`g-${o.key}`} checked={!!globals[o.key]} onCheckedChange={(v) => saveGlobal(o.key, v)} />
-                ) : (
-                  <Input id={`g-${o.key}`} type="number" className="w-24" value={String(globals[o.key] ?? 0)}
-                    onChange={(e) => setGlobals((g) => ({ ...g, [o.key]: Number(e.target.value) }))}
-                    onBlur={(e) => saveGlobal(o.key, Number(e.target.value))} />
-                )}
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      ))}
       {dlg.node}
     </div>
   );
@@ -1514,20 +1575,29 @@ const HeartbeatCard: React.FC<{ timezoneMinutes: number }> = ({ timezoneMinutes 
 };
 
 // ── 聊天记录保留期 ─────────────────────────────────────────
-const ChatRetentionCard: React.FC = () => {
+const ChatRetentionCard: React.FC<ScopedCardProps> = (scopeProps) => {
   const { t } = useTranslation();
   const toast = useToast();
   const [days, setDays] = useState(7);
   const [saving, setSaving] = useState(false);
   useEffect(() => {
     (async () => {
-      try { const d = await apiClient.get<{ retentionDays: number }>('/system/chat-config'); setDays(d.data.retentionDays ?? 7); }
+      if (scopeUnavailable(scopeProps)) return;
+      try {
+        const d = await getJson('/system/global?' + scopedQuery(scopeProps)) as any;
+        setDays(Number(d.values?.chat_retention_days ?? 7));
+      }
       catch { /* ignore */ }
     })();
-  }, []);
+  }, [scopeProps.scope, scopeProps.target, scopeProps.platform, scopeProps.overridden]);
   const save = async () => {
+    if (scopeUnavailable(scopeProps)) return;
     setSaving(true);
-    try { await apiClient.put('/system/chat-config', { retentionDays: days }); toast({ title: t('common.save_success') }); }
+    try {
+      const d = await putJson('/system/global', scopedBody(scopeProps, { chat_retention_days: days })) as any;
+      setDays(Number(d.values?.chat_retention_days ?? days));
+      toast({ title: t('common.save_success') });
+    }
     catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
     finally { setSaving(false); }
   };
@@ -1543,28 +1613,40 @@ const ChatRetentionCard: React.FC = () => {
           <Input type="number" min={0} max={3650} className="h-9 w-28"
             value={days} onChange={(e) => setDays(Math.max(0, parseInt(e.target.value) || 0))} />
         </div>
-        <Button size="sm" onClick={save} disabled={saving}>{t('common.save')}</Button>
+        {scopeProps.overridden && <Button size="sm" variant="outline" onClick={scopeProps.onReset}><RotateCcw className="mr-1.5 h-3.5 w-3.5" />{t('settings.scope_reset')}</Button>}
+        <Button size="sm" onClick={save} disabled={saving || scopeUnavailable(scopeProps)}>{t('common.save')}</Button>
         <p className="text-xs text-muted-foreground pb-2">{t('chatcfg.hint')}</p>
       </CardContent>
     </Card>
   );
 };
 
-// ── C#52: 自动清理好友 ───────────────────────────────────────────
+// ── C#52: 自动清理好友与群聊 ─────────────────────────────────────
 const FriendCleanCard: React.FC = () => {
   const { t } = useTranslation();
   const toast = useToast();
   const [days, setDays] = useState(0);
+  const [groupLimit, setGroupLimit] = useState(20);
+  const [maxGroupSize, setMaxGroupSize] = useState(0);
   const [saving, setSaving] = useState(false);
   useEffect(() => {
     (async () => {
-      try { const d = await apiClient.get<{ days: number }>('/system/friend-clean'); setDays(d.data.days ?? 0); }
+      try {
+        const d = await apiClient.get<{ days: number; groupLimit: number; maxGroupSize: number }>('/system/friend-clean');
+        setDays(d.data.days ?? 0);
+        setGroupLimit(d.data.groupLimit ?? 20);
+        setMaxGroupSize(d.data.maxGroupSize ?? 0);
+      }
       catch { /* ignore */ }
     })();
   }, []);
   const save = async () => {
     setSaving(true);
-    try { await apiClient.put('/system/friend-clean', { days }); toast({ title: t('common.save_success') }); }
+    try {
+      const d = await apiClient.put<{ days: number; groupLimit: number; maxGroupSize: number }>('/system/friend-clean', { days, groupLimit, maxGroupSize });
+      setDays(d.data.days); setGroupLimit(d.data.groupLimit); setMaxGroupSize(d.data.maxGroupSize);
+      toast({ title: t('common.save_success') });
+    }
     catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
     finally { setSaving(false); }
   };
@@ -1574,21 +1656,35 @@ const FriendCleanCard: React.FC = () => {
         <CardTitle className="text-base">{t('friendclean.title')}</CardTitle>
         <CardDescription>{t('friendclean.desc')}</CardDescription>
       </CardHeader>
-      <CardContent className="flex items-end gap-2">
-        <div className="space-y-1">
-          <Label className="text-xs">{t('friendclean.days')}</Label>
-          <Input type="number" min={0} max={3650} className="h-9 w-28"
-            value={days} onChange={(e) => setDays(Math.max(0, parseInt(e.target.value) || 0))} />
+      <CardContent className="space-y-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="space-y-1">
+            <Label className="text-xs">{t('friendclean.days')}</Label>
+            <Input type="number" min={0} max={3650} className="h-9"
+              value={days} onChange={(e) => setDays(Math.max(0, parseInt(e.target.value) || 0))} />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">{t('friendclean.group_limit')}</Label>
+            <Input type="number" min={0} max={10000} className="h-9"
+              value={groupLimit} onChange={(e) => setGroupLimit(Math.max(0, parseInt(e.target.value) || 0))} />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">{t('friendclean.max_group_size')}</Label>
+            <Input type="number" min={0} max={100000} className="h-9"
+              value={maxGroupSize} onChange={(e) => setMaxGroupSize(Math.max(0, parseInt(e.target.value) || 0))} />
+          </div>
         </div>
-        <Button size="sm" onClick={save} disabled={saving}>{t('common.save')}</Button>
-        <p className="text-xs text-muted-foreground pb-2">{t('friendclean.hint')}</p>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs text-muted-foreground">{t('friendclean.hint')}</p>
+          <Button size="sm" onClick={save} disabled={saving}>{t('common.save')}</Button>
+        </div>
       </CardContent>
     </Card>
   );
 };
 
 // ── C#51: 用户群 ─────────────────────────────────────────────────
-const UserGroupCard: React.FC = () => {
+const UserGroupCard: React.FC<ScopedCardProps> = (scopeProps) => {
   const { t } = useTranslation();
   const toast = useToast();
   const [group, setGroup] = useState('');
@@ -1597,15 +1693,23 @@ const UserGroupCard: React.FC = () => {
   const [saving, setSaving] = useState(false);
   useEffect(() => {
     (async () => {
+      if (scopeUnavailable(scopeProps)) return;
       try {
-        const d = await apiClient.get<{ group: string; enforce: boolean; invite: boolean }>('/system/user-group');
-        setGroup(d.data.group || ''); setEnforce(!!d.data.enforce); setInvite(d.data.invite !== false);
+        const d = await getJson('/system/global?' + scopedQuery(scopeProps)) as any;
+        setGroup(d.values?.user_group || '');
+        setEnforce(!!d.values?.user_group_enforce);
+        setInvite(d.values?.user_group_invite !== false);
       } catch { /* ignore */ }
     })();
-  }, []);
+  }, [scopeProps.scope, scopeProps.target, scopeProps.platform, scopeProps.overridden]);
   const save = async () => {
+    if (scopeUnavailable(scopeProps)) return;
     setSaving(true);
-    try { await apiClient.put('/system/user-group', { group: group.trim(), enforce, invite }); toast({ title: t('common.save_success') }); }
+    try {
+      const d = await putJson('/system/global', scopedBody(scopeProps, { user_group: group.trim(), user_group_enforce: enforce, user_group_invite: invite })) as any;
+      setGroup(d.values?.user_group || ''); setEnforce(!!d.values?.user_group_enforce); setInvite(d.values?.user_group_invite !== false);
+      toast({ title: t('common.save_success') });
+    }
     catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
     finally { setSaving(false); }
   };
@@ -1621,7 +1725,8 @@ const UserGroupCard: React.FC = () => {
             <Label className="text-xs">{t('usergroup.group')}</Label>
             <Input className="h-9" placeholder={t('usergroup.group_ph')} value={group} onChange={(e) => setGroup(e.target.value)} />
           </div>
-          <Button size="sm" onClick={save} disabled={saving}>{t('common.save')}</Button>
+          {scopeProps.overridden && <Button size="sm" variant="outline" onClick={scopeProps.onReset}><RotateCcw className="mr-1.5 h-3.5 w-3.5" />{t('settings.scope_reset')}</Button>}
+          <Button size="sm" onClick={save} disabled={saving || scopeUnavailable(scopeProps)}>{t('common.save')}</Button>
         </div>
         <div className="flex items-center gap-2">
           <Switch checked={enforce} onCheckedChange={setEnforce} />

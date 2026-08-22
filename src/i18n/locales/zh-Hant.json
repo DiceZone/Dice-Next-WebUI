@@ -1040,6 +1040,9 @@
     "sec_basic": "基礎",
     "sec_scoped": "分作用域設定",
     "sec_group_services": "群事件與公開服務",
+    "sec_data": "資料與圖片",
+    "sec_network": "網路與雲端服務",
+    "sec_security": "安全與權限",
     "sec_approval": "審批與事件",
     "scope_title": "設定作用域",
     "scope_desc": "帶有來源徽章的項目按「帳號覆蓋 > 適配器類型覆蓋 > 全域設定」生效。伺服器級項目始終使用全域設定。",
@@ -1147,6 +1150,8 @@
     "approval_friend_all": "任意人自動通過",
     "approval_friend_keyword": "含關鍵詞才自動通過",
     "approval_friend_group_used": "有群聊指令使用記錄才自動通過",
+    "approval_friend_whitelist": "僅白名單使用者自動通過",
+    "approval_friend_nonblacklist": "非黑名單使用者自動通過",
     "approval_friend_reject": "禁止任何人添加（自動拒絕）",
     "approval_keyword_ph": "驗證消息需包含的關鍵詞",
     "approval_group": "加群邀請",
@@ -1878,9 +1883,11 @@
     "hint": "OneBot 無標準「群邀請卡片」API，邀請以私聊文字發送（含群號）。"
   },
   "friendclean": {
-    "title": "自動清理好友",
-    "desc": "好友 N 天未在任何位置觸發過指令則自動刪除。骰主、白名單/信任使用者、無玩家檔案者豁免。",
-    "days": "天數",
-    "hint": "0 = 關閉。每 12 小時檢查一次。"
+    "title": "自動清理好友與群聊",
+    "desc": "定期刪除長期不活躍好友，並依黑名單與群規模規則自動退出群聊。",
+    "days": "好友不活躍天數",
+    "group_limit": "單次清群上限",
+    "max_group_size": "最大群規模",
+    "hint": "數值為 0 時關閉對應限制；每 12 小時檢查一次。骰主及白名單/信任使用者不會被自動刪除。"
   }
 }
