@@ -46,3 +46,6 @@ npm run build
 
 项目仍在内部开发和测试阶段。问题、建议和测试反馈请通过 QQ 群 `933145116` 提交。
 
+## 开源许可证
+
+本项目以 **GNU Affero General Public License v3.0 or later（AGPL-3.0-or-later）** 发布，与 [Dice-Next](https://github.com/DiceZone/Dice-Next) 主仓库保持一致。完整条款见 [LICENSE](LICENSE)。
