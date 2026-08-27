@@ -203,48 +203,60 @@ const MessageFormatCard: React.FC<ScopedCardProps> = (scopeProps) => {
     })();
   }, [scopeProps.scope, scopeProps.target, scopeProps.platform, scopeProps.overridden]);
 
-  const save = async () => {
-    if (scopeUnavailable(scopeProps)) return;
+  const save = async (nextMode: MessageFormatConf['mode']) => {
+    if (scopeUnavailable(scopeProps) || saving) return;
+    const previous = mode;
+    setMode(nextMode);
     setSaving(true);
     try {
       const d = await putJson('/system/global', scopedBody(scopeProps, {
-        message_format: mode === 'card' ? 'card' : 'traditional',
+        message_format: nextMode === 'card' ? 'card' : 'traditional',
       })) as any;
       setMode(d.values?.message_format === 'card' ? 'card' : 'traditional');
       toast({ title: t('common.save_success') });
-    } catch (e) { toast({ title: (e as Error).message, variant: 'destructive' }); }
-    finally { setSaving(false); }
+    } catch (e) {
+      setMode(previous);
+      toast({ title: (e as Error).message, variant: 'destructive' });
+    } finally { setSaving(false); }
   };
 
+  const rich = mode === 'card';
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base flex items-center gap-2"><Type className="h-4 w-4" />消息发送形式</CardTitle>
-        <CardDescription>控制支持富消息的平台如何展示骰娘回复；OneBot 始终保持传统文本。</CardDescription>
+        <CardTitle className="text-base flex items-center gap-2"><Type className="h-4 w-4" />{t('settings.message_format_title')}</CardTitle>
+        <CardDescription>
+          {t(scopeProps.scope === 'global' ? 'settings.message_format_desc_global' : 'settings.message_format_desc_scoped')}
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className="flex items-center gap-3">
-          <Label className="font-normal w-28 shrink-0">当前作用域</Label>
-          <Select value={mode || 'traditional'} onValueChange={(value) => setMode(value === 'card' ? 'card' : 'traditional')}>
-            <SelectTrigger className="h-9 flex-1"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="traditional">传统文本</SelectItem>
-              <SelectItem value="card">卡片消息</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="flex items-center justify-between gap-4 rounded-lg border p-3">
+          <div className="min-w-0">
+            <Label className="font-medium">{t('settings.message_format_switch')}</Label>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {t(rich ? 'settings.message_format_rich' : 'settings.message_format_plain')}
+            </p>
+          </div>
+          <Switch checked={rich} disabled={saving || scopeUnavailable(scopeProps)}
+            onCheckedChange={(checked) => void save(checked ? 'card' : 'traditional')} />
         </div>
-        {mode === 'card' && (
-          <p className="text-xs text-muted-foreground">Discord 使用 Embed，KOOK 使用 CardMessage，QQ 官方机器人优先发送 Markdown。若 QQ 机器人未获 Markdown 权限，系统会自动退回传统文本；过长回复也会保持文本，避免截断。OneBot 始终为传统文本。</p>
+        <p className="text-xs text-muted-foreground">
+          {t(rich ? 'settings.message_format_hint_rich' : 'settings.message_format_hint_plain')}
+        </p>
+        {scopeProps.scope !== 'global' && (
+          <p className="text-[11px] text-muted-foreground">{t('settings.message_format_scope_hint')}</p>
         )}
-        <div className="flex justify-end gap-2">
-          {scopeProps.overridden && <Button size="sm" variant="outline" onClick={scopeProps.onReset}><RotateCcw className="mr-1.5 h-3.5 w-3.5" />{t('settings.scope_reset')}</Button>}
-          <Button size="sm" onClick={save} disabled={saving || scopeUnavailable(scopeProps)}>{t('common.save')}</Button>
-        </div>
+        {scopeProps.overridden && (
+          <div className="flex justify-end">
+            <Button size="sm" variant="outline" onClick={scopeProps.onReset}>
+              <RotateCcw className="mr-1.5 h-3.5 w-3.5" />{t('settings.scope_reset')}
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
 };
-
 // ── 图床配置组件 ────────────────────────────────────────
 interface ImageHostConf { mode?: string; url?: string; file_field?: string; result_path?: string; public_base?: string; headers?: string[]; }
 

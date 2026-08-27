@@ -16,6 +16,39 @@ import {
 
 interface Var { name: string; desc: string; }
 type ReplyFormat = 'plain' | 'markdown';
+type VariableStyle = 'plain' | 'bold' | 'italic' | 'code' | 'strike';
+const VARIABLE_STYLES: VariableStyle[] = ['plain', 'bold', 'italic', 'code', 'strike'];
+
+const wrapVariable = (name: string, style: VariableStyle): string => {
+  const token = '{' + name + '}';
+  if (style === 'bold') return '**' + token + '**';
+  if (style === 'italic') return '*' + token + '*';
+  if (style === 'code') return String.fromCharCode(96) + token + String.fromCharCode(96);
+  if (style === 'strike') return '~~' + token + '~~';
+  return token;
+};
+
+const variableStyleOf = (text: string, name: string): VariableStyle => {
+  const token = '{' + name + '}';
+  if (text.includes('**' + token + '**') || text.includes('__' + token + '__')) return 'bold';
+  if (text.includes(String.fromCharCode(96) + token + String.fromCharCode(96))) return 'code';
+  if (text.includes('~~' + token + '~~')) return 'strike';
+  if (text.includes('*' + token + '*') || text.includes('_' + token + '_')) return 'italic';
+  return 'plain';
+};
+
+const escapeRegExp = (value: string): string => value.replace(/[.*+?^$(){}|[\]\\]/g, '\\$&');
+
+const restyleVariable = (text: string, name: string, style: VariableStyle): string => {
+  const token = escapeRegExp('{' + name + '}');
+  const pattern = new RegExp(
+    '\\*\\*' + token + '\\*\\*|__' + token + '__|~~' + token + '~~|' +
+    String.fromCharCode(96) + token + String.fromCharCode(96) +
+    '|\\*' + token + '\\*|_' + token + '_|' + token,
+    'g',
+  );
+  return text.replace(pattern, wrapVariable(name, style));
+};
 interface Reply { key: string; default: string; override: string | null; format: ReplyFormat; defaultFormat: ReplyFormat; v2key?: string; example?: string; vars: Var[]; }
 interface Cmd { cmd: string; title: string; category: string; sources: string[]; example: string; desc: string; replies: Reply[]; }
 interface AllKey { key: string; group: string; default: string; override: string | null; format: ReplyFormat; defaultFormat: ReplyFormat; v2key?: string; }
@@ -469,7 +502,7 @@ const sampleReply = (text: string): string => text.replace(/\{([^{}]+)\}/g, (all
 });
 
 const inlineMarkdown = (text: string, prefix: string): React.ReactNode[] => {
-  const pattern = /(\*\*[^*\n]+\*\*|__[^_\n]+__|~~[^~\n]+~~|`[^`\n]+`|\[[^\]\n]+\]\([^)\n]+\))/g;
+  const pattern = /(\*\*[^*\n]+\*\*|__[^_\n]+__|~~[^~\n]+~~|\*[^*\n]+\*|_[^_\n]+_|`[^`\n]+`|\[[^\]\n]+\]\([^)\n]+\))/g;
   const out: React.ReactNode[] = [];
   let last = 0, index = 0;
   for (const match of text.matchAll(pattern)) {
@@ -479,6 +512,8 @@ const inlineMarkdown = (text: string, prefix: string): React.ReactNode[] => {
     const key = `${prefix}-${index++}`;
     if ((token.startsWith('**') && token.endsWith('**')) || (token.startsWith('__') && token.endsWith('__')))
       out.push(<strong key={key}>{token.slice(2, -2)}</strong>);
+    else if ((token.startsWith('*') && token.endsWith('*')) || (token.startsWith('_') && token.endsWith('_')))
+      out.push(<em key={key}>{token.slice(1, -1)}</em>);
     else if (token.startsWith('~~')) out.push(<del key={key}>{token.slice(2, -2)}</del>);
     else if (token.startsWith('`')) out.push(<code key={key} className="rounded bg-muted px-1 py-0.5 font-mono text-[0.9em]">{token.slice(1, -1)}</code>);
     else {
@@ -533,6 +568,11 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; reply: Reply; person
   const used = extractVars(text);
   const unknown = [...new Set(used.filter((u) => !allowed.has(u) && !u.includes('|') && !u.includes(':')))];
   const missing = exclusiveVars.map((v) => v.name).filter((n) => !used.includes(n));
+  const styledVars = [...new Set(used.filter((name) => allowed.has(name)))];
+  const applyVariableStyle = (name: string, style: VariableStyle) => {
+    setText((current) => restyleVariable(current, name, style));
+    if (style !== 'plain') setFormat('markdown');
+  };
 
   const imgRef = useRef<HTMLInputElement>(null);
   const insertRaw = (tok: string) => {
@@ -624,6 +664,30 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; reply: Reply; person
           <span className="text-xs text-muted-foreground">{t('commands.format_hint')}</span>
         </div>
         <Textarea ref={taRef} rows={4} className="font-mono text-sm" value={text} onChange={(e) => setText(e.target.value)} />
+
+        {styledVars.length > 0 && (
+          <div className="rounded-lg border bg-muted/20 p-3 space-y-2">
+            <div>
+              <p className="text-sm font-medium">{t('commands.variable_styles_title')}</p>
+              <p className="text-[11px] text-muted-foreground">{t('commands.variable_styles_desc')}</p>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {styledVars.map((name) => (
+                <div key={name} className="flex items-center justify-between gap-2 rounded-md bg-background px-2.5 py-2">
+                  <code className="min-w-0 truncate text-xs text-primary">{'{' + name + '}'}</code>
+                  <Select value={variableStyleOf(text, name)} onValueChange={(value) => applyVariableStyle(name, value as VariableStyle)}>
+                    <SelectTrigger className="h-8 w-28 shrink-0 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {VARIABLE_STYLES.map((style) => (
+                        <SelectItem key={style} value={style}>{t('commands.variable_style_' + style)}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {unknown.length > 0 && (
           <p className="text-xs text-destructive">{t('commands.err_unknown', { vars: unknown.map((u) => `{${u}}`).join(' ') })}</p>
