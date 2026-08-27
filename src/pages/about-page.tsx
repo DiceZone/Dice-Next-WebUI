@@ -1,14 +1,72 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Info } from 'lucide-react';
+import { Download, Info, RefreshCw, Save, ShieldCheck } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { apiClient } from '@/lib/api-client';
+import { useDialogs } from '@/hooks/use-dialogs';
+
+type UpdateAction = 'notify' | 'download' | 'install';
+type UpdateSource = 'auto' | 'direct' | 'mirror' | 'custom';
+
+interface UpdateSettings {
+  autoCheck: boolean;
+  intervalHours: number;
+  autoAction: UpdateAction;
+  source: UpdateSource;
+  customMirror: string;
+}
+
+interface UpdateStatus {
+  current: { version: string; build: number; tag: string };
+  platform: { os: string; arch: string };
+  latest: null | {
+    tag: string;
+    version: string;
+    build: number;
+    prerelease: boolean;
+    publishedAt: string;
+    releaseUrl: string;
+    asset?: { name: string; size: number; sha256: string };
+  };
+  updateAvailable: boolean;
+  phase: string;
+  error: string;
+  source: string;
+  downloadedBytes: number;
+  totalBytes: number;
+  checkedAt: number;
+  installSupported: boolean;
+  pending: boolean;
+  settings: UpdateSettings;
+}
+
+const formatBytes = (bytes: number) => {
+  if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+  const value = bytes / (1024 ** index);
+  return value.toFixed(index === 0 ? 0 : 1) + ' ' + units[index];
+};
 
 export const AboutPage: React.FC = () => {
   const { t } = useTranslation();
+  const dialogs = useDialogs(t);
   const [version, setVersion] = useState('...');
   const [buildNumber, setBuildNumber] = useState('');
   const [buildTime, setBuildTime] = useState('');
+  const [updateStatus, setUpdateStatus] = useState<UpdateStatus | null>(null);
+  const [updateDraft, setUpdateDraft] = useState<UpdateSettings | null>(null);
+  const [settingsDirty, setSettingsDirty] = useState(false);
+  const [working, setWorking] = useState('');
+  const [updateError, setUpdateError] = useState('');
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     fetch('/api/system/status')
@@ -22,6 +80,96 @@ export const AboutPage: React.FC = () => {
       })
       .catch(() => setVersion(t('about.unknown') || 'Unknown'));
   }, [t]);
+
+  const loadUpdateStatus = useCallback(async () => {
+    try {
+      const response = await apiClient.get<UpdateStatus>('/system/update');
+      setUpdateStatus(response.data);
+      setUpdateDraft((current) => (settingsDirty && current ? current : response.data.settings));
+      setUpdateError('');
+    } catch (error) {
+      setUpdateError(error instanceof Error ? error.message : String(error));
+    }
+  }, [settingsDirty]);
+
+  useEffect(() => {
+    void loadUpdateStatus();
+    const timer = window.setInterval(() => void loadUpdateStatus(), 3000);
+    return () => window.clearInterval(timer);
+  }, [loadUpdateStatus]);
+
+  const runAction = async (action: 'check' | 'download') => {
+    setWorking(action);
+    setUpdateError('');
+    setSaved(false);
+    try {
+      const response = await apiClient.post<UpdateStatus>('/system/update/' + action);
+      setUpdateStatus(response.data);
+      setUpdateDraft((current) => (settingsDirty && current ? current : response.data.settings));
+    } catch (error) {
+      setUpdateError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setWorking('');
+    }
+  };
+
+  const installUpdate = async () => {
+    const confirmed = await dialogs.confirm({
+      title: t('about.update_install_confirm_title'),
+      description: t('about.update_install_confirm_desc'),
+      confirmText: t('about.update_install'),
+      destructive: true,
+    });
+    if (!confirmed) return;
+
+    setWorking('install');
+    setUpdateError('');
+    setSaved(false);
+    try {
+      const response = await apiClient.post<UpdateStatus>('/system/update/install');
+      setUpdateStatus(response.data);
+    } catch (error) {
+      setUpdateError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setWorking('');
+    }
+  };
+
+  const saveUpdateSettings = async () => {
+    if (!updateDraft) return;
+    setWorking('save');
+    setUpdateError('');
+    setSaved(false);
+    try {
+      const response = await apiClient.put<UpdateStatus>('/system/update', updateDraft);
+      setUpdateStatus(response.data);
+      setUpdateDraft(response.data.settings);
+      setSettingsDirty(false);
+      setSaved(true);
+    } catch (error) {
+      setUpdateError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setWorking('');
+    }
+  };
+
+  const updateSetting = <K extends keyof UpdateSettings>(key: K, value: UpdateSettings[K]) => {
+    setUpdateDraft((current) => (current ? { ...current, [key]: value } : current));
+    setSettingsDirty(true);
+    setSaved(false);
+  };
+
+  const phase = updateStatus?.phase ?? 'idle';
+  const updateBusy = ['checking', 'downloading', 'installing'].includes(phase);
+  const phaseVariant = phase === 'error'
+    ? 'danger'
+    : phase === 'up_to_date'
+      ? 'success'
+      : updateBusy
+        ? 'info'
+        : updateStatus?.updateAvailable
+          ? 'warning'
+          : 'neutral';
 
   return (
     <div className="space-y-6 max-w-2xl">
@@ -65,6 +213,224 @@ export const AboutPage: React.FC = () => {
           <div className="flex justify-between">
             <span className="text-muted-foreground">{t('about.frontend_framework')}</span>
             <span>React + TypeScript</span>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="space-y-1">
+          <div className="flex items-center justify-between gap-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <RefreshCw className="h-4 w-4" />
+              {t('about.update_title')}
+            </CardTitle>
+            <Badge variant={phaseVariant}>
+              {t('about.phase_' + phase, { defaultValue: phase })}
+            </Badge>
+          </div>
+          <p className="text-sm text-muted-foreground">{t('about.update_desc')}</p>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="grid gap-2 text-sm">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground">{t('about.current_version')}</span>
+              <span className="font-mono">{updateStatus?.current.tag ?? '—'}</span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground">{t('about.latest_version')}</span>
+              <span className="font-mono">
+                {updateStatus?.latest?.tag ?? t('about.update_not_checked')}
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground">{t('about.update_platform')}</span>
+              <span className="font-mono">
+                {updateStatus ? updateStatus.platform.os + '/' + updateStatus.platform.arch : '—'}
+              </span>
+            </div>
+            {updateStatus?.source && (
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-muted-foreground">{t('about.update_source_used')}</span>
+                <span className="font-mono text-xs break-all text-right">{updateStatus.source}</span>
+              </div>
+            )}
+            {!!updateStatus?.checkedAt && (
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-muted-foreground">{t('about.update_checked_at')}</span>
+                <span>{new Date(updateStatus.checkedAt * 1000).toLocaleString()}</span>
+              </div>
+            )}
+            {updateStatus?.latest?.asset && (
+              <>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-muted-foreground">{t('about.update_asset')}</span>
+                  <span className="font-mono text-xs text-right">
+                    {updateStatus.latest.asset.name} ({formatBytes(updateStatus.latest.asset.size)})
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-muted-foreground">{t('about.update_integrity')}</span>
+                  <span className="font-mono text-xs">{updateStatus.latest.asset.sha256.slice(0, 12)}…</span>
+                </div>
+              </>
+            )}
+            {phase === 'downloading' && updateStatus && (
+              <div className="space-y-1 pt-1">
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>{t('about.phase_downloading')}</span>
+                  <span>{formatBytes(updateStatus.downloadedBytes)} / {formatBytes(updateStatus.totalBytes)}</span>
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full bg-primary transition-all"
+                    style={{
+                      width: Math.min(100, updateStatus.totalBytes > 0
+                        ? (updateStatus.downloadedBytes / updateStatus.totalBytes) * 100
+                        : 0) + '%',
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {(updateError || updateStatus?.error) && (
+            <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive break-words">
+              {t('about.update_error')}: {updateError || updateStatus?.error}
+            </div>
+          )}
+
+          {updateStatus && !updateStatus.installSupported && (
+            <div className="rounded-md border bg-muted/40 p-3 text-sm text-muted-foreground">
+              {t('about.update_manual_hint')}
+            </div>
+          )}
+
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              onClick={() => void runAction('check')}
+              disabled={updateBusy || !!working}
+            >
+              <RefreshCw className={'mr-2 h-4 w-4 ' + (phase === 'checking' ? 'animate-spin' : '')} />
+              {t('about.update_check')}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => void runAction('download')}
+              disabled={!updateStatus?.updateAvailable || !updateStatus.latest?.asset || updateBusy || !!working}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              {t('about.update_download')}
+            </Button>
+            <Button
+              onClick={() => void installUpdate()}
+              disabled={!updateStatus?.installSupported || !updateStatus.pending || updateBusy || !!working}
+            >
+              <ShieldCheck className="mr-2 h-4 w-4" />
+              {t('about.update_install')}
+            </Button>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-sm font-medium">{t('about.update_settings')}</h3>
+              <p className="text-xs text-muted-foreground">{t('about.update_settings_desc')}</p>
+            </div>
+
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <Label htmlFor="update-auto-check">{t('about.update_auto_check')}</Label>
+                <p className="text-xs text-muted-foreground">{t('about.update_auto_check_desc')}</p>
+              </div>
+              <Switch
+                id="update-auto-check"
+                checked={updateDraft?.autoCheck ?? false}
+                disabled={!updateDraft}
+                onCheckedChange={(checked) => updateSetting('autoCheck', checked)}
+              />
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>{t('about.update_interval')}</Label>
+                <Select
+                  value={String(updateDraft?.intervalHours ?? 6)}
+                  disabled={!updateDraft || !updateDraft.autoCheck}
+                  onValueChange={(value) => updateSetting('intervalHours', Number(value))}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {[1, 3, 6, 12, 24, 48, 72, 168].map((hours) => (
+                      <SelectItem key={hours} value={String(hours)}>
+                        {t('about.update_hours', { count: hours })}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>{t('about.update_auto_action')}</Label>
+                <Select
+                  value={updateDraft?.autoAction ?? 'notify'}
+                  disabled={!updateDraft || !updateDraft.autoCheck}
+                  onValueChange={(value) => updateSetting('autoAction', value as UpdateAction)}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="notify">{t('about.action_notify')}</SelectItem>
+                    <SelectItem value="download">{t('about.action_download')}</SelectItem>
+                    <SelectItem value="install" disabled={!updateStatus?.installSupported}>
+                      {t('about.action_install')}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2 sm:col-span-2">
+                <Label>{t('about.update_source')}</Label>
+                <Select
+                  value={updateDraft?.source ?? 'auto'}
+                  disabled={!updateDraft}
+                  onValueChange={(value) => updateSetting('source', value as UpdateSource)}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="auto">{t('about.source_auto')}</SelectItem>
+                    <SelectItem value="direct">{t('about.source_direct')}</SelectItem>
+                    <SelectItem value="mirror">{t('about.source_mirror')}</SelectItem>
+                    <SelectItem value="custom">{t('about.source_custom')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {updateDraft?.source === 'custom' && (
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="update-custom-mirror">{t('about.update_custom_mirror')}</Label>
+                  <Input
+                    id="update-custom-mirror"
+                    value={updateDraft.customMirror}
+                    placeholder={t('about.custom_mirror_placeholder')}
+                    onChange={(event) => updateSetting('customMirror', event.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">{t('about.custom_mirror_desc')}</p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center gap-3">
+              <Button
+                onClick={() => void saveUpdateSettings()}
+                disabled={!settingsDirty || !!working || !updateDraft}
+              >
+                <Save className="mr-2 h-4 w-4" />
+                {t('about.update_save')}
+              </Button>
+              {saved && <span className="text-sm text-green-600 dark:text-green-400">{t('about.update_saved')}</span>}
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -139,6 +505,8 @@ export const AboutPage: React.FC = () => {
           </div>
         </CardContent>
       </Card>
+
+      {dialogs.node}
     </div>
   );
 };
