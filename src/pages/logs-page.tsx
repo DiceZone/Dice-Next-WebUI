@@ -66,6 +66,7 @@ export const LogsPage: React.FC = () => {
   const [sessions, setSessions] = useState<GameSession[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'logs' | 'sessions'>('logs');
   const [query, setQuery] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('lastAt');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
@@ -300,7 +301,11 @@ export const LogsPage: React.FC = () => {
     </div>
 
     {loading ? <LoadingState /> :
-      <Tabs defaultValue="logs" className="space-y-4">
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) => setActiveTab(value === 'sessions' ? 'sessions' : 'logs')}
+        className="space-y-4"
+      >
         <TabsList>
           <TabsTrigger value="logs"><ScrollText className="mr-2 h-4 w-4" />{t('logs.tab_logs')} ({visibleLogs.length})</TabsTrigger>
           <TabsTrigger value="sessions"><UsersRound className="mr-2 h-4 w-4" />{t('logs.tab_sessions')} ({visibleSessions.length})</TabsTrigger>
