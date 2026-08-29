@@ -89,6 +89,10 @@ async function putJson(path: string, body: unknown) {
   const r = await fetch('/api' + path, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   const j = await r.json(); if (j.code !== 0) throw new Error(j.message); return j.data;
 }
+async function postJson(path: string, body: unknown) {
+  const r = await fetch('/api' + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const j = await r.json(); if (j.code !== 0) throw new Error(j.message); return j.data;
+}
 type SettingsScope = 'global' | 'adapter' | 'account';
 interface ScopedCardProps {
   scope: SettingsScope;
@@ -382,6 +386,120 @@ const SettingRow: React.FC<{ title: string; desc: string; children: React.ReactN
 );
 
 // ── 主页面 ───────────────────────────────────────────────
+interface CensorRule { word: string; level: number; }
+interface CensorConfig { enabled: boolean; rules: CensorRule[]; max_rules?: number; }
+const CENSOR_LEVELS = [0, 1, 2, 3, 4, 5];
+
+const SensitiveWordCard: React.FC = () => {
+  const { t } = useTranslation();
+  const toast = useToast();
+  const [config, setConfig] = useState<CensorConfig>({ enabled: false, rules: [] });
+  const [loaded, setLoaded] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [testText, setTestText] = useState('');
+  const [testResult, setTestResult] = useState<{ matched: boolean; level_name: string; count: number } | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      const data = await getJson('/system/censor') as CensorConfig;
+      setConfig({ enabled: !!data.enabled, rules: Array.isArray(data.rules) ? data.rules : [], max_rules: data.max_rules });
+    } catch (e) {
+      toast({ title: t('settings.censor_load_failed'), description: (e as Error).message, variant: 'destructive' });
+    } finally {
+      setLoaded(true);
+    }
+  }, [t, toast]);
+  useEffect(() => { void load(); }, [load]);
+
+  const save = async () => {
+    const rules = config.rules
+      .map((rule) => ({ word: rule.word.trim(), level: rule.level }))
+      .filter((rule) => rule.word);
+    setSaving(true);
+    try {
+      const data = await putJson('/system/censor', { enabled: config.enabled, rules }) as CensorConfig;
+      setConfig({ enabled: !!data.enabled, rules: data.rules || [], max_rules: data.max_rules });
+      toast({ title: t('common.save_success') });
+    } catch (e) {
+      toast({ title: t('settings.censor_save_failed'), description: (e as Error).message, variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const test = async () => {
+    if (!testText.trim()) return;
+    try {
+      const result = await postJson('/system/censor', { text: testText }) as { matched: boolean; level_name: string; count: number };
+      setTestResult(result);
+    } catch (e) {
+      toast({ title: t('settings.censor_test_failed'), description: (e as Error).message, variant: 'destructive' });
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <CardTitle className="text-base flex items-center gap-2"><ShieldCheck className="h-4 w-4" />{t('settings.censor_title')}</CardTitle>
+            <CardDescription>{t('settings.censor_desc')}</CardDescription>
+          </div>
+          <Switch checked={config.enabled} disabled={!loaded || saving}
+            onCheckedChange={(enabled) => setConfig((current) => ({ ...current, enabled }))} />
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-xs text-muted-foreground">{t('settings.censor_behavior')}</p>
+        <div className="space-y-2">
+          {config.rules.map((rule, index) => (
+            <div key={index} className="flex items-center gap-2">
+              <Input value={rule.word} maxLength={512} placeholder={t('settings.censor_word_placeholder')}
+                onChange={(event) => setConfig((current) => ({ ...current, rules: current.rules.map((item, i) => i === index ? { ...item, word: event.target.value } : item) }))} />
+              <Select value={String(rule.level)}
+                onValueChange={(value) => setConfig((current) => ({ ...current, rules: current.rules.map((item, i) => i === index ? { ...item, level: Number(value) } : item) }))}>
+                <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {CENSOR_LEVELS.map((level) => <SelectItem key={level} value={String(level)}>
+                    {t(`settings.censor_level_${level}`)}
+                  </SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Button size="icon" variant="ghost" aria-label={t('common.delete')}
+                onClick={() => setConfig((current) => ({ ...current, rules: current.rules.filter((_, i) => i !== index) }))}>
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          ))}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" variant="outline" disabled={config.rules.length >= (config.max_rules || 5000)}
+            onClick={() => setConfig((current) => ({ ...current, rules: [...current.rules, { word: '', level: 3 }] }))}>
+            <Plus className="mr-1.5 h-4 w-4" />{t('settings.censor_add')}
+          </Button>
+          <Button size="sm" onClick={() => void save()} disabled={!loaded || saving}>
+            {saving ? t('common.saving') : t('common.save')}
+          </Button>
+          <Badge variant="secondary">{t('settings.censor_count', { count: config.rules.length })}</Badge>
+        </div>
+        <div className="border-t pt-4 space-y-2">
+          <Label>{t('settings.censor_test_title')}</Label>
+          <div className="flex gap-2">
+            <Input value={testText} onChange={(event) => { setTestText(event.target.value); setTestResult(null); }}
+              placeholder={t('settings.censor_test_placeholder')} onKeyDown={(event) => { if (event.key === 'Enter') void test(); }} />
+            <Button variant="outline" onClick={() => void test()} disabled={!testText.trim()}>{t('settings.censor_test')}</Button>
+          </div>
+          {testResult && <p className={testResult.matched ? 'text-sm text-amber-600 dark:text-amber-400' : 'text-sm text-green-600 dark:text-green-400'}>
+            {testResult.matched
+              ? t('settings.censor_test_hit', { level: testResult.level_name, count: testResult.count })
+              : t('settings.censor_test_clear')}
+          </p>}
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
 export const SettingsPage: React.FC = () => {
   const { t } = useTranslation();
   const toast = useToast();
@@ -1412,6 +1530,7 @@ export const SettingsPage: React.FC = () => {
 
       <SectionHeading>{t('settings.sec_security')}</SectionHeading>
       {renderGlobalGroup('身份绑定（高风险）')}
+      <SensitiveWordCard />
 
       {dlg.node}
     </div>
