@@ -1671,6 +1671,8 @@
     "editing": "编辑任务",
     "action": "动作",
     "action_send": "发送消息",
+    "action_lua": "Lua 插件任务",
+    "lua_internal_target": "插件内部",
     "action_leave": "退群",
     "condition": "触发条件",
     "condition_hint": "留空=无条件按时触发；填 inactive>=7 表示本群≥7天无指令才触发（配合退群动作即「7天无人用就退群」）。支持 >= > <= < ==。",

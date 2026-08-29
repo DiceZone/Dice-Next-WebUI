@@ -1691,6 +1691,8 @@
     "editing": "タスクを編集",
     "action": "動作",
     "action_send": "メッセージ送信",
+    "action_lua": "Lua プラグインタスク",
+    "lua_internal_target": "プラグイン内部",
     "action_leave": "グループ退出",
     "condition": "条件",
     "condition_hint": "空 = 無条件で定時発動；inactive>=7 = このグループが7日以上コマンドなしの場合のみ（退出動作と組み合わせ: 「7日アイドルなら退出」）。>= > <= < == に対応。",

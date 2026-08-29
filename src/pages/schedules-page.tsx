@@ -327,7 +327,7 @@ export const SchedulesPage: React.FC = () => {
                   {tasks.map((tk) => (
                     <tr key={tk.id} className="border-t align-top hover:bg-muted/30">
                       <td data-label={t('schedules.name')} className="p-2.5 font-medium whitespace-nowrap">{tk.name}</td>
-                      <td data-label={t('schedules.target')} className="p-2.5 whitespace-nowrap text-muted-foreground">{(tk.targetType === 'private' ? t('schedules.private') : t('schedules.group'))} {tk.targetId === '*' ? t('schedules.all_groups') : tk.targetId}</td>
+                      <td data-label={t('schedules.target')} className="p-2.5 whitespace-nowrap text-muted-foreground">{tk.action === 'lua' ? t('schedules.lua_internal_target') : <>{(tk.targetType === 'private' ? t('schedules.private') : t('schedules.group'))} {tk.targetId === '*' ? t('schedules.all_groups') : tk.targetId}</>}</td>
                       <td data-label={t('schedules.time')} className="p-2.5 font-mono whitespace-nowrap">
                         {(tk.triggerType || 'daily') === 'interval' ? t('schedules.every_n_min', { n: tk.intervalMin })
                           : tk.triggerType === 'once' ? `${tk.onceDate} ${tk.cronTime}` : tk.cronTime}
@@ -336,7 +336,8 @@ export const SchedulesPage: React.FC = () => {
                         {(tk.triggerType || 'daily') === 'daily' ? daysLabel(tk.days) : '—'}
                       </td>
                       <td data-label={t('schedules.action')} className="p-2.5 whitespace-nowrap text-xs">
-                        {tk.action === 'leave' ? <span className="text-destructive">{t('schedules.action_leave')}</span> : t('schedules.action_send')}
+                        {tk.action === 'leave' ? <span className="text-destructive">{t('schedules.action_leave')}</span>
+                          : tk.action === 'lua' ? t('schedules.action_lua') : t('schedules.action_send')}
                         {tk.condition && <span className="block font-mono text-[11px] text-muted-foreground">{tk.condition}</span>}
                       </td>
                       <td data-label={t('schedules.content')} className="p-2.5 text-muted-foreground whitespace-pre-wrap break-words max-w-[14rem]">{tk.content}</td>
@@ -350,7 +351,7 @@ export const SchedulesPage: React.FC = () => {
                         <div className="flex flex-wrap items-center gap-1.5">
                           <Switch checked={tk.enabled} onCheckedChange={() => toggle(tk)} />
                           <Button size="icon" variant="ghost" className="h-7 w-7" title={t('schedules.run_now')} onClick={() => runNow(tk)}><Play className="h-4 w-4" /></Button>
-                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => startEdit(tk)}><Pencil className="h-4 w-4" /></Button>
+                          {tk.action !== 'lua' && <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => startEdit(tk)}><Pencil className="h-4 w-4" /></Button>}
                           <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => remove(tk.id)}><Trash2 className="h-4 w-4" /></Button>
                         </div>
                       </td>

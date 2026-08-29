@@ -38,7 +38,7 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
     try {
       const r = await fetch('/api/auth/setup', {
         method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: pw }),
+        body: JSON.stringify({ password: pw, trust_device: trustDevice }),
       });
       if (!r.ok) { setErr(t('auth.setup_short')); setBusy(false); return; }
       setPw(''); setPw2(''); setState('ok');
@@ -100,6 +100,10 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
             onChange={(e) => setPw2(e.target.value)}
             className="mb-4 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none transition-shadow focus:ring-2 focus:ring-ring/40"
           />
+          <label className="mb-4 flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+            <input type="checkbox" checked={trustDevice} onChange={(e) => setTrustDevice(e.target.checked)} />
+            {t('auth.trust_device')}
+          </label>
           {err && <p className="mb-3 text-sm text-destructive">{err}</p>}
           <button
             type="submit"
@@ -140,7 +144,7 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
         />
         <label className="mb-4 flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
           <input type="checkbox" checked={trustDevice} onChange={(e) => setTrustDevice(e.target.checked)} />
-          信任此设备 30 天
+          {t('auth.trust_device')}
         </label>
         {err && <p className="mb-3 text-sm text-destructive">{err}</p>}
         <button

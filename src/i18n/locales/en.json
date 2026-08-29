@@ -1691,6 +1691,8 @@
     "editing": "Edit task",
     "action": "Action",
     "action_send": "Send message",
+    "action_lua": "Lua plugin task",
+    "lua_internal_target": "Plugin internal",
     "action_leave": "Leave group",
     "condition": "Condition",
     "condition_hint": "Empty = fire on schedule unconditionally; inactive>=7 = only if this group had no commands for ≥7 days (with the leave action: 'leave if idle 7 days'). Supports >= > <= < ==.",
