@@ -310,7 +310,7 @@ export const ModulesPage: React.FC = () => {
         const risks: string[] = (pre?.risks || []) as string[];
         const permText = perms.length ? perms.join(', ') : t('modules.upload_no_perm');
         const riskText = risks.length ? t('modules.upload_risk', { risks: risks.join(', ') }) : t('modules.upload_no_risk');
-if (!window.confirm(`${t('modules.upload_confirm', { name: file.name, perms: permText })}\n\n${riskText}`)) { setBusy(false); return; }
+        if (!(await dlg.confirm({ title: t('modules.upload'), description: `${t('modules.upload_confirm', { name: file.name, perms: permText })}\n\n${riskText}`, destructive: risks.length > 0, confirmText: t('modules.upload') }))) { setBusy(false); return; }
         await jsend('POST', '/mod/lua/upload', { filename: file.name, content });
         toast({ title: t('luamod.imported') });
       }

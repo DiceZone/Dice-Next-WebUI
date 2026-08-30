@@ -7,7 +7,9 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DatePicker, TimePicker } from '@/components/ui/date-time-picker';
 import { useToast } from '@/hooks/use-toast';
+import { useDialogs } from '@/hooks/use-dialogs';
 import { PlatformIcon, platformLabel } from '@/components/platform-icon';
 import { Clock, Plus, Trash2, RefreshCw, Loader2, Pencil, Save, X, Play } from 'lucide-react';
 
@@ -69,6 +71,7 @@ const nextRunOf = (tk: Task): string => {
 export const SchedulesPage: React.FC = () => {
   const { t } = useTranslation();
   const toast = useToast();
+  const dlg = useDialogs(t);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({ ...blankForm });
@@ -144,7 +147,7 @@ export const SchedulesPage: React.FC = () => {
   };
   // 立即执行：无视时刻/条件真跑一次（leave 任务先确认，会真的退群）。
   const runNow = async (tk: Task) => {
-    if (tk.action === 'leave' && !window.confirm(t('schedules.run_leave_confirm', { id: tk.targetId }))) return;
+    if (tk.action === 'leave' && !(await dlg.confirm({ title: t('schedules.run_now'), description: t('schedules.run_leave_confirm', { id: tk.targetId }), destructive: true, confirmText: t('schedules.action_leave') }))) return;
     try {
       const r = await fetch(`/api/schedules/${tk.id}/run`, { method: 'POST' });
       const j = await r.json();
@@ -173,6 +176,7 @@ export const SchedulesPage: React.FC = () => {
 
   return (
     <div className="space-y-6 max-w-3xl">
+      {dlg.node}
       <div>
         <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2"><Clock className="h-5 w-5" />{t('nav.schedules')}</h1>
         <p className="text-sm text-muted-foreground">{t('schedules.subtitle')}</p>
@@ -201,7 +205,7 @@ export const SchedulesPage: React.FC = () => {
               </Select></div>
             {form.triggerType === 'once' && (
               <div className="space-y-1.5"><Label className="font-normal">{t('schedules.once_date')}</Label>
-                <Input type="date" value={form.onceDate} onChange={(e) => setForm({ ...form, onceDate: e.target.value })} /></div>
+                <DatePicker label={t('schedules.once_date')} placeholder={t('schedules.once_date')} value={form.onceDate} onValueChange={(value) => setForm({ ...form, onceDate: value })} /></div>
             )}
             {form.triggerType === 'interval' ? (
               <div className="space-y-1.5"><Label className="font-normal">{t('schedules.interval_label')}</Label>
@@ -212,7 +216,7 @@ export const SchedulesPage: React.FC = () => {
                 </div></div>
             ) : (
               <div className="space-y-1.5"><Label className="font-normal">{t('schedules.time')}</Label>
-                <Input type="time" value={form.cronTime} onChange={(e) => setForm({ ...form, cronTime: e.target.value })} /></div>
+                <TimePicker label={t('schedules.time')} value={form.cronTime} onValueChange={(value) => setForm({ ...form, cronTime: value })} /></div>
             )}
             <div className="space-y-1.5"><Label className="font-normal">{t('schedules.account')}</Label>
               <Select value={form.adapterId || (isLegacyEdit ? '__legacy__' : '__none__')} onValueChange={(v) => {

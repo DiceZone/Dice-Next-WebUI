@@ -8,6 +8,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
+import { useDialogs } from '@/hooks/use-dialogs';
 import { PersonaManagerCard } from '@/components/persona/persona-manager';
 import {
   Loader2, RefreshCw, RotateCcw, Save, ChevronRight, ChevronDown, Pencil, Trash2, Download, Upload,
@@ -92,6 +93,7 @@ const fineGroupFor = (key: string): string => {
 export const CommandsPage: React.FC = () => {
   const { t } = useTranslation();
   const toast = useToast();
+  const dlg = useDialogs(t);
   const [lang, setLang] = useState('zh-Hans');
   const [rows, setRows] = useState<Cmd[]>([]);
   const [loading, setLoading] = useState(true);
@@ -207,7 +209,7 @@ export const CommandsPage: React.FC = () => {
 
   // 删除导入的无效文本（legacy.* 覆盖）：清除 DB 覆盖并刷新列表。
   const delKey = async (k: AllKey) => {
-    if (!window.confirm(t('commands.delete_orphan_confirm', { key: k.key.replace(/^legacy\./, '') }))) return;
+    if (!(await dlg.confirm({ title: t('common.confirm_delete'), description: t('commands.delete_orphan_confirm', { key: k.key.replace(/^legacy\./, '') }), destructive: true, confirmText: t('common.delete') }))) return;
     try {
       const r = await fetch(`/api/templates/${encodeURIComponent(lang)}/${encodeURIComponent(k.key)}`, { method: 'DELETE' });
       const j = await r.json(); if (j.code !== 0) throw new Error(j.message);
@@ -255,6 +257,7 @@ export const CommandsPage: React.FC = () => {
 
   return (
     <div className="space-y-5">
+      {dlg.node}
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2"><BookText className="h-5 w-5" />{t('commands.title')}</h1>

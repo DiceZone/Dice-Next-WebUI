@@ -3,7 +3,10 @@ import { useTranslation } from 'react-i18next';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { TimePicker } from '@/components/ui/date-time-picker';
 import { useToast } from '@/hooks/use-toast';
+import { useDialogs } from '@/hooks/use-dialogs';
 import { Archive, Clock3, Database, Download, Loader2, RotateCcw, Save, Trash2, Upload } from 'lucide-react';
 
 type StoredBackup = { name: string; size: number; createdAt: number; automatic: boolean };
@@ -122,6 +125,7 @@ const SelectionOptions: React.FC<{
 export const BackupPage: React.FC = () => {
   const { t } = useTranslation();
   const toast = useToast();
+  const dlg = useDialogs(t);
   const [legacyDir, setLegacyDir] = useState('');
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<string>('');
@@ -190,7 +194,7 @@ export const BackupPage: React.FC = () => {
   };
 
   const deleteStored = async (name: string, automatic: boolean) => {
-    if (!window.confirm(`确定删除备份「${name}」吗？此操作无法撤销。`)) return;
+    if (!(await dlg.confirm({ title: t('common.confirm_delete'), description: `确定删除备份「${name}」吗？此操作无法撤销。`, destructive: true, confirmText: t('common.delete') }))) return;
     try {
       const r = await fetch(`/api/backup/${encodeURIComponent(name)}?automatic=${automatic ? '1' : '0'}`, { method: 'DELETE' }); const j = await r.json();
       if (j.code !== 0) throw new Error(j.message);
@@ -199,7 +203,7 @@ export const BackupPage: React.FC = () => {
   };
 
   const restoreStored = async (name: string, automatic: boolean) => {
-    if (!window.confirm(`确定使用服务器中的备份「${name}」恢复吗？当前数据会在重启时被替换，并保留回滚副本。`)) return;
+    if (!(await dlg.confirm({ title: t('backup.backup_restore_title'), description: `确定使用服务器中的备份「${name}」恢复吗？当前数据会在重启时被替换，并保留回滚副本。`, confirmText: t('common.ok') }))) return;
     setRestoring(true);
     try {
       const r = await fetch('/api/backup/restore-stored', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, automatic }) });
@@ -221,7 +225,7 @@ export const BackupPage: React.FC = () => {
 
   const stageRestore = async (file?: File) => {
     if (!file) return;
-    if (!window.confirm(t('backup.restore_confirm'))) return;
+    if (!(await dlg.confirm({ title: t('backup.backup_restore_title'), description: t('backup.restore_confirm'), confirmText: t('common.ok') }))) return;
     setRestoring(true);
     try {
       const r = await fetch('/api/backup/restore', { method: 'POST', headers: { 'Content-Type': 'application/zip' }, body: file });
@@ -238,6 +242,7 @@ export const BackupPage: React.FC = () => {
 
   return (
     <div className="space-y-6 max-w-3xl">
+      {dlg.node}
       <div>
         <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2"><Archive className="h-5 w-5" />{t('backup.title')}</h1>
         <p className="text-sm text-muted-foreground">{t('backup.subtitle')}</p>
@@ -291,12 +296,13 @@ export const BackupPage: React.FC = () => {
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={autoConfig.enabled} onChange={(e) => setAutoConfig({ ...autoConfig, enabled: e.target.checked })} />启用自动备份</label>
           <div className="grid gap-3 sm:grid-cols-3">
             <label className="space-y-1 text-sm">执行方式
-              <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2" value={autoConfig.schedule} onChange={(e) => setAutoConfig({ ...autoConfig, schedule: e.target.value as 'interval' | 'daily' })}>
-                <option value="interval">按间隔</option><option value="daily">每日定时</option>
-              </select>
+              <Select value={autoConfig.schedule} onValueChange={(value) => setAutoConfig({ ...autoConfig, schedule: value as 'interval' | 'daily' })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent><SelectItem value="interval">按间隔</SelectItem><SelectItem value="daily">每日定时</SelectItem></SelectContent>
+              </Select>
             </label>
             {autoConfig.schedule === 'interval' ? <label className="space-y-1 text-sm">间隔（小时，1–720）<Input type="number" min={1} max={720} value={autoConfig.intervalHours} onChange={(e) => setAutoConfig({ ...autoConfig, intervalHours: Number(e.target.value) })} /></label>
-              : <label className="space-y-1 text-sm">每日执行时间<Input type="time" value={autoConfig.dailyTime} onChange={(e) => setAutoConfig({ ...autoConfig, dailyTime: e.target.value })} /></label>}
+              : <label className="space-y-1 text-sm">每日执行时间<TimePicker label="每日执行时间" value={autoConfig.dailyTime} onValueChange={(value) => setAutoConfig({ ...autoConfig, dailyTime: value })} /></label>}
             <label className="space-y-1 text-sm">保留最近天数（1–3650）<Input type="number" min={1} max={3650} value={autoConfig.keepDays} onChange={(e) => setAutoConfig({ ...autoConfig, keepDays: Number(e.target.value) })} /></label>
           </div>
           <SelectionOptions value={autoConfig.selection}
