@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { zustandAppStore } from '@/store/app-store';
 import { useToast } from '@/hooks/use-toast';
+import { ADMIN_PASSWORD_MAX_LENGTH, isValidAdminPassword, sanitizeAdminPassword } from '@/lib/admin-password';
 import { Monitor, Key, Eye, EyeOff, Copy, Palette, Terminal, Lock, Server, RefreshCw } from 'lucide-react';
 
 export const WebuiSettingsPage: React.FC = () => {
@@ -37,6 +38,7 @@ export const WebuiSettingsPage: React.FC = () => {
   }, []);
 
   const handleSavePassword = async () => {
+    if (!isValidAdminPassword(pwInput, true)) { toast({ title: t('auth.setup_short'), variant: 'destructive' }); return; }
     setPwSaving(true);
     try {
       const r = await fetch('/api/system/webui-auth', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: pwInput }) });
@@ -140,12 +142,14 @@ export const WebuiSettingsPage: React.FC = () => {
           </p>
           <div className="flex gap-2">
             <div className="relative flex-1">
-              <Input type={showPw ? 'text' : 'password'} placeholder={t('settings.webpw_placeholder')} value={pwInput} onChange={(e) => setPwInput(e.target.value)} />
+              <Input type={showPw ? 'text' : 'password'} placeholder={t('settings.webpw_placeholder')} value={pwInput}
+                autoCapitalize="none" spellCheck={false} inputMode="text" pattern="[!-~]*" maxLength={ADMIN_PASSWORD_MAX_LENGTH}
+                onChange={(e) => setPwInput(sanitizeAdminPassword(e.target.value))} />
               <Button type="button" variant="ghost" size="icon" className="absolute right-0 top-0 h-full" onClick={() => setShowPw(!showPw)}>
                 {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </Button>
             </div>
-            <Button onClick={handleSavePassword} disabled={pwSaving}>{pwSaving ? t('common.saving') : t('common.save')}</Button>
+            <Button onClick={handleSavePassword} disabled={pwSaving || (pwInput.length > 0 && !isValidAdminPassword(pwInput))}>{pwSaving ? t('common.saving') : t('common.save')}</Button>
           </div>
           <p className="text-xs text-muted-foreground">{t('settings.webpw_hint')}</p>
           {pwEnabled && (

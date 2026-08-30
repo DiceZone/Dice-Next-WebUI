@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ADMIN_PASSWORD_MAX_LENGTH, isValidAdminPassword, sanitizeAdminPassword } from '@/lib/admin-password';
 
 /**
  * WebUI 登录门（C#34）。挂在 AppRouter 外层：
@@ -9,9 +10,11 @@ import { useTranslation } from 'react-i18next';
  */
 export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { t } = useTranslation();
-  const [state, setState] = useState<'loading' | 'login' | 'setup' | 'ok'>('loading');
+  const [state, setState] = useState<'loading' | 'login' | 'setup' | 'change' | 'ok'>('loading');
   const [pw, setPw] = useState('');
   const [pw2, setPw2] = useState('');
+  const [newPw, setNewPw] = useState('');
+  const [newPw2, setNewPw2] = useState('');
   const [trustDevice, setTrustDevice] = useState(false);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
@@ -32,7 +35,7 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
   const setup = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (pw.length < 4) { setErr(t('auth.setup_short')); return; }
+    if (!isValidAdminPassword(pw)) { setErr(t('auth.setup_short')); return; }
     if (pw !== pw2) { setErr(t('auth.setup_mismatch')); return; }
     setBusy(true); setErr('');
     try {
@@ -56,7 +59,11 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
         method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password: pw, trust_device: trustDevice }),
       });
-      if (!r.ok) { setErr(t('auth.wrong')); setBusy(false); return; }
+      const j = await r.json();
+      if (j?.data?.must_change_password) {
+        setNewPw(''); setNewPw2(''); setErr(''); setState('change'); setBusy(false); return;
+      }
+      if (!r.ok || j?.code !== 0) { setErr(t('auth.wrong')); setBusy(false); return; }
       setPw('');
       setState('ok');
     } catch {
@@ -65,6 +72,24 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
     setBusy(false);
   };
 
+  const changePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isValidAdminPassword(newPw)) { setErr(t('auth.setup_short')); return; }
+    if (newPw !== newPw2) { setErr(t('auth.setup_mismatch')); return; }
+    setBusy(true); setErr('');
+    try {
+      const r = await fetch('/api/auth/login', {
+        method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pw, new_password: newPw, trust_device: trustDevice }),
+      });
+      const j = await r.json();
+      if (!r.ok || j?.code !== 0) { setErr(t('auth.change_failed')); setBusy(false); return; }
+      setPw(''); setNewPw(''); setNewPw2(''); setState('ok');
+    } catch {
+      setErr(t('auth.error'));
+    }
+    setBusy(false);
+  };
   if (state === 'loading') return null;
   if (state === 'ok') return <>{children}</>;
 
@@ -87,8 +112,13 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
             type="password"
             autoFocus
             autoComplete="new-password"
+            autoCapitalize="none"
+            spellCheck={false}
+            inputMode="text"
+            pattern="[!-~]*"
+            maxLength={ADMIN_PASSWORD_MAX_LENGTH}
             value={pw}
-            onChange={(e) => setPw(e.target.value)}
+            onChange={(e) => setPw(sanitizeAdminPassword(e.target.value))}
             className="mb-4 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none transition-shadow focus:ring-2 focus:ring-ring/40"
           />
           <label className="mb-1.5 block text-sm font-medium" htmlFor="setup-pw2">{t('auth.setup_confirm')}</label>
@@ -96,8 +126,13 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
             id="setup-pw2"
             type="password"
             autoComplete="new-password"
+            autoCapitalize="none"
+            spellCheck={false}
+            inputMode="text"
+            pattern="[!-~]*"
+            maxLength={ADMIN_PASSWORD_MAX_LENGTH}
             value={pw2}
-            onChange={(e) => setPw2(e.target.value)}
+            onChange={(e) => setPw2(sanitizeAdminPassword(e.target.value))}
             className="mb-4 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none transition-shadow focus:ring-2 focus:ring-ring/40"
           />
           <label className="mb-4 flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
@@ -119,6 +154,66 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
     );
   }
 
+  if (state === 'change') {
+    return (
+      <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background text-foreground px-4">
+        <div aria-hidden className="login-orb login-orb-a" />
+        <div aria-hidden className="login-orb login-orb-b" />
+
+        <form onSubmit={changePassword} className="relative w-full max-w-sm rounded-xl border bg-card/95 p-8 shadow-lg backdrop-blur-sm">
+          <div className="mb-7 text-center">
+            <img src="/favicon.svg" alt="Dice!Next" className="mx-auto mb-4 h-16 w-16" />
+            <h1 className="text-2xl font-bold tracking-tight">Dice!Next</h1>
+            <p className="mt-0.5 text-sm font-medium text-muted-foreground">{t('auth.change_title')}</p>
+          </div>
+          <p className="mb-4 text-xs text-muted-foreground">{t('auth.change_desc')}</p>
+          <label className="mb-1.5 block text-sm font-medium" htmlFor="change-pw">{t('auth.setup_password')}</label>
+          <input
+            id="change-pw"
+            type="password"
+            autoFocus
+            autoComplete="new-password"
+            autoCapitalize="none"
+            spellCheck={false}
+            inputMode="text"
+            pattern="[!-~]*"
+            maxLength={ADMIN_PASSWORD_MAX_LENGTH}
+            value={newPw}
+            onChange={(e) => setNewPw(sanitizeAdminPassword(e.target.value))}
+            className="mb-4 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none transition-shadow focus:ring-2 focus:ring-ring/40"
+          />
+          <label className="mb-1.5 block text-sm font-medium" htmlFor="change-pw2">{t('auth.setup_confirm')}</label>
+          <input
+            id="change-pw2"
+            type="password"
+            autoComplete="new-password"
+            autoCapitalize="none"
+            spellCheck={false}
+            inputMode="text"
+            pattern="[!-~]*"
+            maxLength={ADMIN_PASSWORD_MAX_LENGTH}
+            value={newPw2}
+            onChange={(e) => setNewPw2(sanitizeAdminPassword(e.target.value))}
+            className="mb-4 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none transition-shadow focus:ring-2 focus:ring-ring/40"
+          />
+          <label className="mb-4 flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+            <input type="checkbox" checked={trustDevice} onChange={(e) => setTrustDevice(e.target.checked)} />
+            {t('auth.trust_device')}
+          </label>
+          {err && <p className="mb-3 text-sm text-destructive">{err}</p>}
+          <button
+            type="submit"
+            disabled={busy || !newPw || !newPw2}
+            className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+          >
+            {busy ? t('auth.logging_in') : t('auth.change_submit')}
+          </button>
+        </form>
+
+        <p className="relative mt-6 text-xs text-muted-foreground">Dice!Next © 2025-2026 DiceZone</p>
+      </div>
+    );
+  }
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background text-foreground px-4">
       {/* 动态背景：仅 transform 动画的渐变光晕（GPU 合成，低消耗） */}
