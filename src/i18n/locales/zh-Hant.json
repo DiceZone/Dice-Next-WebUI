@@ -1755,6 +1755,7 @@
     "editing": "編輯任務",
     "action": "動作",
     "action_send": "發送訊息",
+    "action_command": "執行外掛指令",
     "action_lua": "Lua 外掛任務",
     "lua_internal_target": "外掛內部",
     "action_leave": "退群",
@@ -1762,7 +1763,10 @@
     "condition_hint": "留空=無條件按時觸發；填 inactive>=7 表示本群≥7天無指令才觸發（配合退群動作即「7天沒人用就退群」）。支援 >= > <= < ==。",
     "farewell": "告別語",
     "content_placeholder": "早安！支援 {self}{group}{date}{roll:1d100}{draw:牌堆} 等變數/函數",
-    "need_fields": "請填寫目標，發送動作還需填內容"
+    "plugin_command": "外掛指令",
+    "plugin_command_placeholder": ".dailynews 或 求籤 月老",
+    "plugin_command_hint": "僅在所選會話中以低權限定時上下文呼叫已啟用的 JS/Lua 外掛，不會執行內建管理指令。",
+    "need_fields": "請填寫目標，發送訊息或外掛指令動作還需填寫內容"
   },
   "import_result": {
     "success": "成功",

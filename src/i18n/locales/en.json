@@ -1755,6 +1755,7 @@
     "editing": "Edit task",
     "action": "Action",
     "action_send": "Send message",
+    "action_command": "Execute plugin command",
     "action_lua": "Lua plugin task",
     "lua_internal_target": "Plugin internal",
     "action_leave": "Leave group",
@@ -1762,7 +1763,10 @@
     "condition_hint": "Empty = fire on schedule unconditionally; inactive>=7 = only if this group had no commands for ≥7 days (with the leave action: 'leave if idle 7 days'). Supports >= > <= < ==.",
     "farewell": "Farewell message",
     "content_placeholder": "Good morning! Supports {self}{group}{date}{roll:1d100}{draw:deck} variables/functions",
-    "need_fields": "Fill in the target; the send action also needs content"
+    "plugin_command": "Plugin command",
+    "plugin_command_placeholder": ".dailynews or fortune 月老",
+    "plugin_command_hint": "Runs only an enabled JS/Lua plugin in the selected chat with a low-privilege scheduler context; built-in admin commands are not executed.",
+    "need_fields": "Fill in the target; send and plugin-command actions also require content"
   },
   "import_result": {
     "success": "Success",

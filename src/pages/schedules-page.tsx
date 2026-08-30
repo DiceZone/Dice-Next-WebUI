@@ -256,6 +256,7 @@ export const SchedulesPage: React.FC = () => {
                 <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="send">{t('schedules.action_send')}</SelectItem>
+                  <SelectItem value="command">{t('schedules.action_command')}</SelectItem>
                   <SelectItem value="leave">{t('schedules.action_leave')}</SelectItem>
                 </SelectContent>
               </Select></div>
@@ -293,8 +294,10 @@ export const SchedulesPage: React.FC = () => {
             </div>
           )}
           <div className="space-y-1.5">
-            <Label className="font-normal">{form.action === 'leave' ? t('schedules.farewell') : t('schedules.content')}</Label>
-            <Textarea rows={2} value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} placeholder={t('schedules.content_placeholder')} />
+            <Label className="font-normal">{form.action === 'leave' ? t('schedules.farewell') : form.action === 'command' ? t('schedules.plugin_command') : t('schedules.content')}</Label>
+            <Textarea rows={2} value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })}
+              placeholder={form.action === 'command' ? t('schedules.plugin_command_placeholder') : t('schedules.content_placeholder')} />
+            {form.action === 'command' && <p className="text-xs text-muted-foreground">{t('schedules.plugin_command_hint')}</p>}
           </div>
           <div className="flex gap-2">
             <Button onClick={save}>{editingId == null ? <><Plus className="mr-2 h-4 w-4" />{t('schedules.add')}</> : <><Save className="mr-2 h-4 w-4" />{t('common.save')}</>}</Button>
@@ -341,7 +344,8 @@ export const SchedulesPage: React.FC = () => {
                       </td>
                       <td data-label={t('schedules.action')} className="p-2.5 whitespace-nowrap text-xs">
                         {tk.action === 'leave' ? <span className="text-destructive">{t('schedules.action_leave')}</span>
-                          : tk.action === 'lua' ? t('schedules.action_lua') : t('schedules.action_send')}
+                          : tk.action === 'lua' ? t('schedules.action_lua')
+                          : tk.action === 'command' ? t('schedules.action_command') : t('schedules.action_send')}
                         {tk.condition && <span className="block font-mono text-[11px] text-muted-foreground">{tk.condition}</span>}
                       </td>
                       <td data-label={t('schedules.content')} className="p-2.5 text-muted-foreground whitespace-pre-wrap break-words max-w-[14rem]">{tk.content}</td>

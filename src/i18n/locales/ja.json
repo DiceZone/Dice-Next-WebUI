@@ -1755,6 +1755,7 @@
     "editing": "タスクを編集",
     "action": "動作",
     "action_send": "メッセージ送信",
+    "action_command": "プラグインコマンドを実行",
     "action_lua": "Lua プラグインタスク",
     "lua_internal_target": "プラグイン内部",
     "action_leave": "グループ退出",
@@ -1762,7 +1763,10 @@
     "condition_hint": "空 = 無条件で定時発動；inactive>=7 = このグループが7日以上コマンドなしの場合のみ（退出動作と組み合わせ: 「7日アイドルなら退出」）。>= > <= < == に対応。",
     "farewell": "別れの挨拶",
     "content_placeholder": "おはよう！ {self}{group}{date}{roll:1d100}{draw:デッキ} 変数/関数に対応",
-    "need_fields": "対象を入力してください；送信動作には内容も必要です"
+    "plugin_command": "プラグインコマンド",
+    "plugin_command_placeholder": ".dailynews または 求签 月老",
+    "plugin_command_hint": "選択したチャットで有効な JS/Lua プラグインのみを低権限のスケジューラーとして呼び出します。内蔵管理コマンドは実行しません。",
+    "need_fields": "対象を入力してください。送信・プラグインコマンド動作には内容も必要です"
   },
   "import_result": {
     "success": "成功",

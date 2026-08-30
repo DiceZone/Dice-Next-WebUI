@@ -1735,6 +1735,7 @@
     "editing": "编辑任务",
     "action": "动作",
     "action_send": "发送消息",
+    "action_command": "执行插件指令",
     "action_lua": "Lua 插件任务",
     "lua_internal_target": "插件内部",
     "action_leave": "退群",
@@ -1742,7 +1743,10 @@
     "condition_hint": "留空=无条件按时触发；填 inactive>=7 表示本群≥7天无指令才触发（配合退群动作即「7天无人用就退群」）。支持 >= > <= < ==。",
     "farewell": "告别语",
     "content_placeholder": "早上好！支持 {self}{group}{date}{roll:1d100}{draw:牌堆} 等变量/函数",
-    "need_fields": "请填写目标，发送动作还需填内容"
+    "plugin_command": "插件指令",
+    "plugin_command_placeholder": ".dailynews 或 求签 月老",
+    "plugin_command_hint": "仅在所选会话中以低权限定时上下文调用已启用的 JS/Lua 插件，不会执行内置管理指令。",
+    "need_fields": "请填写目标，发送消息或插件指令动作还需填写内容"
   },
   "import_result": {
     "success": "成功",
