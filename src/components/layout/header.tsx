@@ -3,14 +3,16 @@ import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { LanguageSwitcher } from '@/components/layout/language-switcher';
+import { GlobalSettingsSearch } from '@/components/layout/global-settings-search';
 import { zustandAppStore } from '@/store/app-store';
 import { Menu, Sun, Moon } from 'lucide-react';
 
 interface HeaderProps {
   wsConnected?: boolean;
+  onNavigate: (path: string) => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ wsConnected: _ws }) => {
+export const Header: React.FC<HeaderProps> = ({ wsConnected: _ws, onNavigate }) => {
   const { sidebarCollapsed, setSidebarCollapsed, theme, setTheme } = zustandAppStore();
   const { t } = useTranslation();
   const [apiOnline, setApiOnline] = useState(false);
@@ -50,8 +52,8 @@ export const Header: React.FC<HeaderProps> = ({ wsConnected: _ws }) => {
   }, [theme]);
 
   return (
-    <header className="flex h-14 items-center justify-between border-b bg-background px-4">
-      <div className="flex items-center gap-3">
+    <header className="flex h-14 items-center border-b bg-background px-3 md:px-4">
+      <div className="flex shrink-0 items-center gap-3">
         {/* Mobile menu button */}
         <Button
           variant="ghost"
@@ -68,14 +70,18 @@ export const Header: React.FC<HeaderProps> = ({ wsConnected: _ws }) => {
         </div>
 
         {/* Page title placeholder — can be overridden by children if needed */}
-        <span className="hidden text-sm font-medium text-muted-foreground md:inline">
+        <span className="hidden text-sm font-medium text-muted-foreground xl:inline">
           {t('header.panel_title')}
         </span>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex min-w-0 flex-1 justify-center px-1 sm:px-3 md:px-4">
+        <GlobalSettingsSearch onNavigate={onNavigate} />
+      </div>
+
+      <div className="flex shrink-0 items-center gap-1 sm:gap-2">
         {/* Connection status indicator */}
-        <div className="flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs">
+        <div className="hidden items-center gap-1.5 rounded-full border px-3 py-1 text-xs sm:flex">
           <span
             className={cn(
               'inline-block h-2 w-2 rounded-full',

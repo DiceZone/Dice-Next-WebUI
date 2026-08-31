@@ -1,4 +1,4 @@
-﻿/**
+/**
  * C#67/C#68/C#78：人工智能 —— 分「模型 / 润色 / 翻译」三个子页面（由路由 /ai、/ai/polish、
  * /ai/translate 决定，同一组件不重挂载，编辑状态共享，一次保存全部）。
  * 后端：/api/system/ai (GET/PUT)、/api/system/ai/test (POST)。
@@ -222,7 +222,7 @@ export const AiPage: React.FC = () => {
 
       {/* ══ 模型 section ══ */}
       {section === 'models' && (<>
-        <Card>
+        <Card data-setting-anchor="ai-master">
           <CardContent className="py-4 space-y-3">
             <div className="flex items-center justify-between">
               <div className="pr-4">
@@ -241,7 +241,7 @@ export const AiPage: React.FC = () => {
         </Card>
 
         {/* 全局请求参数 */}
-        <Card>
+        <Card data-setting-anchor="ai-params">
           <CardContent className="py-4 space-y-2">
             <Label className="text-sm font-medium">{t('ai.params')}</Label>
             <p className="text-xs text-muted-foreground">{t('ai.params_desc')}</p>
@@ -256,7 +256,7 @@ export const AiPage: React.FC = () => {
           </CardContent>
         </Card>
 
-        <div className="flex items-center justify-between">
+        <div data-setting-anchor="ai-models" className="flex items-center justify-between">
           <h2 className="text-sm font-medium">{t('ai.models')}</h2>
           <Button size="sm" variant="outline" onClick={addModel}><Plus className="mr-1 h-4 w-4" />{t('ai.add_model')}</Button>
         </div>
@@ -309,7 +309,7 @@ export const AiPage: React.FC = () => {
 
       {/* ══ 润色 section ══ */}
       {section === 'polish' && (
-        <Card>
+        <Card data-setting-anchor="ai-polish">
           <CardContent className="py-4 space-y-3">
             {!enabled && (
               <div className="flex items-center gap-2 rounded-md border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-2.5 text-xs text-amber-700 dark:text-amber-300">
@@ -364,7 +364,7 @@ export const AiPage: React.FC = () => {
 
       {/* ══ 翻译 section ══ */}
       {section === 'translate' && (
-        <Card>
+        <Card data-setting-anchor="ai-translate">
           <CardContent className="py-4 space-y-3">
             {!enabled && (
               <div className="flex items-center gap-2 rounded-md border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-2.5 text-xs text-amber-700 dark:text-amber-300">
@@ -423,7 +423,7 @@ export const AiPage: React.FC = () => {
 
       {/* ══ 对话 section（智能化阶段A） ══ */}
       {section === 'chat' && (<>
-        <Card>
+        <Card data-setting-anchor="ai-chat">
           <CardContent className="py-4 space-y-3">
             {!enabled && (
               <div className="flex items-center gap-2 rounded-md border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-2.5 text-xs text-amber-700 dark:text-amber-300">
@@ -504,7 +504,7 @@ export const AiPage: React.FC = () => {
         </Card>
 
         {/* ══ 记忆（短期滚动摘要，智能化阶段B） ══ */}
-        <Card>
+        <Card data-setting-anchor="ai-memory-short">
           <CardContent className="py-4 space-y-3">
             <div className={enabled ? '' : 'opacity-50 pointer-events-none select-none'}>
               <div className="flex items-center justify-between">
@@ -560,7 +560,7 @@ export const AiPage: React.FC = () => {
               )}
 
               {/* ── 长期记忆（向量检索，阶段C）── */}
-              <div className="mt-4 border-t pt-3">
+              <div data-setting-anchor="ai-memory-long" className="mt-4 border-t pt-3">
                 <div className="flex items-center justify-between">
                   <div className="pr-4">
                     <Label className="text-sm font-medium">{t('ai.mlong')}</Label>
@@ -624,7 +624,7 @@ export const AiPage: React.FC = () => {
         </Card>
 
         {/* ══ 工具调用（智能化阶段D） ══ */}
-        <Card>
+        <Card data-setting-anchor="ai-tools">
           <CardContent className="py-4 space-y-3">
             <div className={enabled ? '' : 'opacity-50 pointer-events-none select-none'}>
               <div className="flex items-center justify-between">
@@ -675,7 +675,7 @@ export const AiPage: React.FC = () => {
         </Card>
 
         {/* ══ AI 白名单（访问控制：仅白名单群/私聊可用 AI，非白名单群 .ai on 也拒绝） ══ */}
-        <Card>
+        <Card data-setting-anchor="ai-whitelist">
           <CardContent className="py-4 space-y-3">
             <div className={enabled ? '' : 'opacity-50 pointer-events-none select-none'}>
               <div className="flex items-center justify-between">
@@ -742,7 +742,7 @@ export const AiPage: React.FC = () => {
         </Card>
 
         {/* ══ 图像识别（多模态，C#85） ══ */}
-        <Card>
+        <Card data-setting-anchor="ai-vision">
           <CardContent className="py-4 space-y-3">
             <div className={enabled ? '' : 'opacity-50 pointer-events-none select-none'}>
               <div className="flex items-center justify-between">
@@ -785,7 +785,7 @@ export const AiPage: React.FC = () => {
 
       {/* ══ NPC 扮演 section（智能化阶段E） ══ */}
       {section === 'npc' && (
-        <Card>
+        <Card data-setting-anchor="ai-npc">
           <CardContent className="py-4 space-y-3">
             {!enabled && (
               <div className="flex items-center gap-2 rounded-md border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-2.5 text-xs text-amber-700 dark:text-amber-300">

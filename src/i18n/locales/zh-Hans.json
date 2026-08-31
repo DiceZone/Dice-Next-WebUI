@@ -138,6 +138,21 @@
     "disconnected": "未连接",
     "toggle_theme": "切换主题"
   },
+  "global_search": {
+    "open": "打开全局设置搜索",
+    "placeholder": "搜索设置…",
+    "title": "搜索后台设置",
+    "description": "按名称、说明或关键词搜索后台设置并直接定位",
+    "input_placeholder": "输入设置名称、说明或关键词",
+    "suggested": "常用设置",
+    "results": "找到 {{count}} 项",
+    "scope_hint": "设置与管理页面",
+    "empty": "没有找到相关设置",
+    "empty_hint": "试试功能名、协议名或常用别名",
+    "move": "选择",
+    "open_result": "打开",
+    "matched_keyword": "匹配关键词：{{keyword}}"
+  },
   "language": {
     "label": "语言",
     "zh-Hant": "繁體中文",

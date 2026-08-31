@@ -31,7 +31,10 @@ const AREAS = [1, 2, 4, 8] as const;
 export const NoticeSettingsPage: React.FC = () => {
   const { t } = useTranslation();
   const toast = useToast();
-  const [tab, setTab] = useState<'windows' | 'push' | 'audit'>('windows');
+  const [tab, setTab] = useState<'windows' | 'push' | 'audit'>(() => {
+    const value = new URLSearchParams(window.location.hash.split('?')[1] || '').get('tab');
+    return value === 'push' || value === 'audit' ? value : 'windows';
+  });
   const [catalog, setCatalog] = useState<CatalogItem[]>([]);
   const [wins, setWins] = useState<NoticeWindow[]>([]);
   const [smtp, setSmtp] = useState<SmtpConf>({ enabled: false, host: '', port: 465, ssl: true, user: '', pass: '', from: '', to: '', level_mask: 15 });
@@ -145,7 +148,7 @@ export const NoticeSettingsPage: React.FC = () => {
 
       {/* ══ 通知窗口 ══ */}
       {tab === 'windows' && (
-        <div className="space-y-4">
+        <div className="space-y-4" data-setting-anchor="notice-windows">
           {wins.length === 0 && <p className="text-sm text-muted-foreground">{t('noticeset.win_empty')}</p>}
           {wins.map((w, i) => (
             <Card key={`${w.platform}/${w.adapter_id || 'global'}/${w.chat_id}`}>
@@ -245,7 +248,7 @@ export const NoticeSettingsPage: React.FC = () => {
       {/* ══ 第三方推送 ══ */}
       {tab === 'push' && (
         <div className="space-y-4">
-          <Card>
+          <Card data-setting-anchor="notice-smtp">
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2"><Mail className="h-4 w-4" />{t('noticeset.push_smtp')}</CardTitle>
               <CardDescription>{t('noticeset.push_smtp_desc')}</CardDescription>
@@ -288,7 +291,7 @@ export const NoticeSettingsPage: React.FC = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card data-setting-anchor="notice-webhook">
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2"><Webhook className="h-4 w-4" />{t('noticeset.push_webhook')}</CardTitle>
               <CardDescription>{t('noticeset.push_webhook_desc')}</CardDescription>
@@ -326,7 +329,7 @@ export const NoticeSettingsPage: React.FC = () => {
 
       {/* ══ 审计日志 ══ */}
       {tab === 'audit' && (
-        <Card>
+        <Card data-setting-anchor="notice-audit">
           <CardContent className="p-0">
             <div className="flex items-center justify-between p-3 border-b">
               <p className="text-xs text-muted-foreground">{t('noticeset.audit_hint')}</p>

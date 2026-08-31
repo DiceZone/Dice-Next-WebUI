@@ -138,6 +138,21 @@
     "disconnected": "Disconnected",
     "toggle_theme": "Toggle theme"
   },
+  "global_search": {
+    "open": "Open global settings search",
+    "placeholder": "Search settings…",
+    "title": "Search administration settings",
+    "description": "Find settings by name, description, or keyword and jump straight to them",
+    "input_placeholder": "Search a setting, description, or keyword",
+    "suggested": "Common settings",
+    "results": "{{count}} results",
+    "scope_hint": "Settings and management pages",
+    "empty": "No matching settings",
+    "empty_hint": "Try a feature name, protocol, or common alias",
+    "move": "Select",
+    "open_result": "Open",
+    "matched_keyword": "Matched keyword: {{keyword}}"
+  },
   "language": {
     "label": "Language",
     "zh-Hant": "繁體中文",
@@ -1326,6 +1341,8 @@
     "save_images_desc": "When on, images in session logs are downloaded locally (data/logs/images) and embedded in the HTML export, so they survive the original links expiring.",
     "seg_len": "Reply segment length",
     "seg_len_desc": "QQ caps single-message length. Replies longer than this are auto-split (ASCII=1, CJK=2; default 600 ≈ 300 Chinese chars; range 100–1000). Splits prefer line breaks, avoiding cutting a line in two.",
+    "seg_enabled": "Message segmentation",
+    "seg_enabled_desc": "When off, long replies are sent as one message without splitting. QQ Official, Discord and KOOK never split.",
     "nick_wrap": "Username wrap",
     "nick_wrap_desc": "Prefix/suffix around the username in replies (e.g. '<Mu> rolls' for .r). Default < and >; leave both empty for no wrap.",
     "nick_sample": "Mu",

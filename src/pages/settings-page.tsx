@@ -81,6 +81,14 @@ const GLOBAL_GROUPS: GGroup[] = [
   ] },
 ];
 
+const GLOBAL_GROUP_SEARCH_ANCHORS: Record<string, string> = {
+  '响应开关': 'settings-response-switches',
+  '牌堆 / 显示': 'settings-deck-display',
+  '事件响应': 'settings-event-response',
+  '外部请求（自定义回复 {api:URL}）': 'settings-external-request',
+  '身份绑定（高风险）': 'settings-identity-binding',
+};
+
 async function getJson(path: string) {
   const r = await fetch('/api' + path); const j = await r.json();
   if (j.code !== 0) throw new Error(j.message); return j.data;
@@ -147,7 +155,7 @@ const ImageSendCard: React.FC<ScopedCardProps> = (scopeProps) => {
   };
 
   return (
-    <Card>
+    <Card data-setting-anchor="settings-image-send">
       <CardHeader>
         <CardTitle className="text-base flex items-center gap-2"><Image className="h-4 w-4" />{t('settings.imgsend_title')}</CardTitle>
         <CardDescription>{t('settings.imgsend_desc')}</CardDescription>
@@ -226,7 +234,7 @@ const MessageFormatCard: React.FC<ScopedCardProps> = (scopeProps) => {
 
   const rich = mode === 'card';
   return (
-    <Card>
+    <Card data-setting-anchor="settings-message-format">
       <CardHeader>
         <CardTitle className="text-base flex items-center gap-2"><Type className="h-4 w-4" />{t('settings.message_format_title')}</CardTitle>
         <CardDescription>
@@ -299,7 +307,7 @@ const ImageHostCard: React.FC<ScopedCardProps> = (scopeProps) => {
 
   const mode = c.mode || 'none';
   return (
-    <Card>
+    <Card data-setting-anchor="settings-image-host">
       <CardHeader>
         <CardTitle className="text-base flex items-center gap-2"><Image className="h-4 w-4" />{t('settings.imghost_title')}</CardTitle>
         <CardDescription>{t('settings.imghost_desc')}</CardDescription>
@@ -351,8 +359,8 @@ const SectionHeading: React.FC<{ children: React.ReactNode }> = ({ children }) =
   <h2 className="text-sm font-semibold text-muted-foreground pt-2 first:pt-0">{children}</h2>
 );
 
-const SettingGroup: React.FC<{ title?: string; icon?: LucideIcon; children: React.ReactNode }> = ({ title, icon: Icon, children }) => (
-  <Card>
+const SettingGroup: React.FC<{ title?: string; icon?: LucideIcon; children: React.ReactNode; searchId?: string }> = ({ title, icon: Icon, children, searchId }) => (
+  <Card data-setting-anchor={searchId}>
     {title && (
       <CardHeader>
         <CardTitle className="text-base flex items-center gap-2">{Icon && <Icon className="h-4 w-4" />}{title}</CardTitle>
@@ -363,8 +371,8 @@ const SettingGroup: React.FC<{ title?: string; icon?: LucideIcon; children: Reac
 );
 
 // A switch row that lives inside a SettingGroup.
-const SettingSwitch: React.FC<{ title: string; desc: string; checked: boolean; onToggle: (v: boolean) => void }> = ({ title, desc, checked, onToggle }) => (
-  <div className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
+const SettingSwitch: React.FC<{ title: string; desc: string; checked: boolean; onToggle: (v: boolean) => void; searchId?: string }> = ({ title, desc, checked, onToggle, searchId }) => (
+  <div className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0" data-setting-anchor={searchId}>
     <div className="min-w-0 pr-2">
       <Label className="text-sm font-medium">{title}</Label>
       <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
@@ -374,8 +382,8 @@ const SettingSwitch: React.FC<{ title: string; desc: string; checked: boolean; o
 );
 
 // A row with arbitrary controls (input + save button) inside a SettingGroup.
-const SettingRow: React.FC<{ title: string; desc: string; children: React.ReactNode; extra?: React.ReactNode }> = ({ title, desc, children, extra }) => (
-  <div className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
+const SettingRow: React.FC<{ title: string; desc: string; children: React.ReactNode; extra?: React.ReactNode; searchId?: string }> = ({ title, desc, children, extra, searchId }) => (
+  <div className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0" data-setting-anchor={searchId}>
     <div className="min-w-0 pr-2">
       <Label className="text-sm font-medium">{title}</Label>
       <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
@@ -438,7 +446,7 @@ const SensitiveWordCard: React.FC = () => {
   };
 
   return (
-    <Card>
+    <Card data-setting-anchor="settings-censor">
       <CardHeader>
         <div className="flex items-center justify-between gap-4">
           <div>
@@ -988,7 +996,7 @@ export const SettingsPage: React.FC = () => {
     const hasOverride = settingsScope !== 'global'
       && keys.some((key) => Object.prototype.hasOwnProperty.call(globalOverrides, key));
     return (
-      <Card key={group.title}>
+      <Card key={group.title} data-setting-anchor={GLOBAL_GROUP_SEARCH_ANCHORS[group.title]}>
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <CardTitle className="text-base flex items-center gap-2"><Server className="h-4 w-4" />{group.title}</CardTitle>
@@ -1026,7 +1034,7 @@ export const SettingsPage: React.FC = () => {
       <SectionHeading>{t('settings.sec_basic')}</SectionHeading>
 
       {/* ── Master ── */}
-      <Card>
+      <Card data-setting-anchor="settings-master">
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2"><Crown className="h-4 w-4" />{t('settings.master_title')}</CardTitle>
           <CardDescription>{t('settings.master_desc')}</CardDescription>
@@ -1088,7 +1096,7 @@ export const SettingsPage: React.FC = () => {
       </Card>
 
       {/* ── 插件签名（可选）── */}
-      <Card>
+      <Card data-setting-anchor="settings-plugin-verify">
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2"><ShieldCheck className="h-4 w-4" />{t('settings.plugin_verify_title')}</CardTitle>
           <CardDescription>{t('settings.plugin_verify_desc')}</CardDescription>
@@ -1101,7 +1109,7 @@ export const SettingsPage: React.FC = () => {
       </Card>
 
       {/* ── 指令前缀 ── */}
-      <Card>
+      <Card data-setting-anchor="settings-prefix">
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2"><Type className="h-4 w-4" />{t('settings.prefix_title')}</CardTitle>
           <CardDescription>{t('settings.prefix_desc')}</CardDescription>
@@ -1124,7 +1132,7 @@ export const SettingsPage: React.FC = () => {
       </Card>
 
       {/* ── 时区 ── */}
-      <Card>
+      <Card data-setting-anchor="settings-timezone">
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2"><Clock className="h-4 w-4" />{t('settings.timezone_title')}</CardTitle>
           <CardDescription>{t('settings.timezone_desc')}</CardDescription>
@@ -1146,7 +1154,7 @@ export const SettingsPage: React.FC = () => {
 
       <SectionHeading>{t('settings.sec_scoped')}</SectionHeading>
 
-      <Card className="border-primary/20">
+      <Card className="border-primary/20" data-setting-anchor="settings-scope">
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2"><Layers3 className="h-4 w-4" />{t('settings.scope_title')}</CardTitle>
           <CardDescription>{t('settings.scope_desc')}</CardDescription>
@@ -1198,7 +1206,7 @@ export const SettingsPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card data-setting-anchor="settings-expression">
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <CardTitle className="text-base flex items-center gap-2"><Layers3 className="h-4 w-4" />{t('settings.expression_title')}</CardTitle>
@@ -1282,7 +1290,7 @@ export const SettingsPage: React.FC = () => {
       </Card>
 
       {/* ── 好友 / 加群邀请审批 ── */}
-      <Card>
+      <Card data-setting-anchor="settings-approval">
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-2"><CardTitle className="text-base flex items-center gap-2"><ShieldCheck className="h-4 w-4" />{t('settings.approval_title')}</CardTitle><Badge variant={hasScopeOverride(APPROVAL_SCOPE_KEYS) ? 'default' : 'secondary'}>{scopeSourceLabel(APPROVAL_SCOPE_KEYS)}</Badge></div>
           <CardDescription>{t('settings.approval_desc')}</CardDescription>
@@ -1345,7 +1353,7 @@ export const SettingsPage: React.FC = () => {
       </Card>
 
       {/* ── 戳一戳 (独立容器) ── */}
-      <Card>
+      <Card data-setting-anchor="settings-poke">
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-2"><CardTitle className="text-base flex items-center gap-2"><Zap className="h-4 w-4" />{t('settings.poke_title')}</CardTitle><Badge variant={hasScopeOverride(POKE_SCOPE_KEYS) ? 'default' : 'secondary'}>{scopeSourceLabel(POKE_SCOPE_KEYS)}</Badge></div>
           <CardDescription>{t('settings.poke_desc')}</CardDescription>
@@ -1377,7 +1385,7 @@ export const SettingsPage: React.FC = () => {
       <SectionHeading>{t('settings.sec_group_services')}</SectionHeading>
 
       {/* C#76: Welcome delay/cooldown minimums */}
-      <Card>
+      <Card data-setting-anchor="settings-welcome">
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-2"><CardTitle className="text-base flex items-center gap-2"><Clock className="h-4 w-4" />{t('settings.welcome_min_title')}</CardTitle><Badge variant={hasScopeOverride(['welcome_min_delay', 'welcome_min_cooldown']) ? 'default' : 'secondary'}>{scopeSourceLabel(['welcome_min_delay', 'welcome_min_cooldown'])}</Badge></div>
           <CardDescription>{t('settings.welcome_min_desc')}</CardDescription>
@@ -1410,17 +1418,18 @@ export const SettingsPage: React.FC = () => {
 
       <SectionHeading>{t('settings.sec_reply')}</SectionHeading>
 
-      <SettingGroup>
-        <SettingSwitch title={t('settings.quote_reply')} desc={t('settings.quote_reply_desc')} checked={quoteReply} onToggle={toggleQuoteReply} />
-        <SettingSwitch title={t('settings.auto_card')} desc={t('settings.auto_card_desc')} checked={autoCard} onToggle={toggleAutoCard} />
-        <SettingSwitch title={t('settings.respond_self')} desc={t('settings.respond_self_desc')} checked={respondSelf} onToggle={toggleRespondSelf} />
-        <SettingSwitch title={t('settings.forward_long')} desc={t('settings.forward_long_desc')} checked={forwardLong} onToggle={toggleForwardLong} />
-        <SettingRow title={t('settings.forward_threshold')} desc={t('settings.forward_threshold_desc')}>
+      <SettingGroup searchId="settings-reply">
+        <SettingSwitch searchId="settings-quote-reply" title={t('settings.quote_reply')} desc={t('settings.quote_reply_desc')} checked={quoteReply} onToggle={toggleQuoteReply} />
+        <SettingSwitch searchId="settings-auto-card" title={t('settings.auto_card')} desc={t('settings.auto_card_desc')} checked={autoCard} onToggle={toggleAutoCard} />
+        <SettingSwitch searchId="settings-respond-self" title={t('settings.respond_self')} desc={t('settings.respond_self_desc')} checked={respondSelf} onToggle={toggleRespondSelf} />
+        <SettingSwitch searchId="settings-forward-long" title={t('settings.forward_long')} desc={t('settings.forward_long_desc')} checked={forwardLong} onToggle={toggleForwardLong} />
+        <SettingRow searchId="settings-forward-threshold" title={t('settings.forward_threshold')} desc={t('settings.forward_threshold_desc')}>
           <Input type="number" min={1} max={100000} disabled={!forwardLong} className="h-9 w-28 text-sm"
             value={forwardThreshold} onChange={(e) => setForwardThreshold(Number(e.target.value))} />
           <Button size="sm" onClick={saveForwardThreshold} disabled={!forwardLong}>{t('common.save')}</Button>
         </SettingRow>
         <SettingSwitch
+          searchId="settings-segment"
           title={t('settings.seg_enabled')}
           desc={t('settings.seg_enabled_desc')}
           checked={segEnabled}
@@ -1430,11 +1439,11 @@ export const SettingsPage: React.FC = () => {
             catch (e) { setSegEnabled(!v); toast({ title: (e as Error).message, variant: 'destructive' }); }
           }}
         />
-        <SettingRow title={t('settings.seg_len')} desc={t('settings.seg_len_desc')}>
+        <SettingRow searchId="settings-segment-length" title={t('settings.seg_len')} desc={t('settings.seg_len_desc')}>
           <Input type="number" min={100} max={1000} disabled={!segEnabled} className="h-9 w-24 text-sm" value={segLen} onChange={(e) => setSegLen(Number(e.target.value))} />
           <Button size="sm" onClick={saveSegLen} disabled={segSaving || !segEnabled}>{t('common.save')}</Button>
         </SettingRow>
-        <SettingRow title={t('settings.nick_wrap')} desc={t('settings.nick_wrap_desc')}
+        <SettingRow searchId="settings-nick-wrap" title={t('settings.nick_wrap')} desc={t('settings.nick_wrap_desc')}
           extra={<p className="text-xs text-muted-foreground mt-0.5 font-mono">{nickPre}{t('settings.nick_sample')}{nickSuf}</p>}>
           <Input className="h-9 w-14 text-sm text-center" maxLength={4} placeholder="<" value={nickPre} onChange={(e) => setNickPre(e.target.value)} />
           <Input className="h-9 w-14 text-sm text-center" maxLength={4} placeholder=">" value={nickSuf} onChange={(e) => setNickSuf(e.target.value)} />
@@ -1450,8 +1459,8 @@ export const SettingsPage: React.FC = () => {
 
       <SectionHeading>{t('settings.sec_data')}</SectionHeading>
 
-      <SettingGroup>
-        <SettingSwitch title={t('settings.save_images')} desc={t('settings.save_images_desc')} checked={!!globals.save_log_images} onToggle={(value) => void saveGlobal('save_log_images', value)} />
+      <SettingGroup searchId="settings-data">
+        <SettingSwitch searchId="settings-save-images" title={t('settings.save_images')} desc={t('settings.save_images_desc')} checked={!!globals.save_log_images} onToggle={(value) => void saveGlobal('save_log_images', value)} />
         {settingsScope !== 'global' && Object.prototype.hasOwnProperty.call(globalOverrides, 'save_log_images') && <div className="flex justify-end py-3"><Button size="sm" variant="outline" onClick={() => void resetGlobalScope(['save_log_images'])}><RotateCcw className="mr-1.5 h-3.5 w-3.5" />{t('settings.scope_reset')}</Button></div>}
       </SettingGroup>
 
@@ -1471,7 +1480,7 @@ export const SettingsPage: React.FC = () => {
       <SectionHeading>{t('settings.sec_network')}</SectionHeading>
 
       {/* ── JS 插件网络访问（T8，默认放行对齐海豹）── */}
-      <Card>
+      <Card data-setting-anchor="settings-js-fetch">
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2"><Globe className="h-4 w-4" />{t('settings.js_fetch_title')}</CardTitle>
           <CardDescription>{t('settings.js_fetch_desc')}</CardDescription>
@@ -1491,7 +1500,7 @@ export const SettingsPage: React.FC = () => {
       <HeartbeatCard timezoneMinutes={tzEffectiveMinutes} />
 
       {/* 日志站（API 地址可自建 + 上传协议）*/}
-      <Card>
+      <Card data-setting-anchor="settings-logsite">
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2"><ScrollText className="h-4 w-4" />{t('settings.logsite_title')}</CardTitle>
           <CardDescription>{t('settings.logsite_desc')}</CardDescription>
@@ -1524,8 +1533,8 @@ export const SettingsPage: React.FC = () => {
       </Card>
       <SectionHeading>{t('settings.sec_maintenance')}</SectionHeading>
 
-      <SettingGroup>
-        <SettingSwitch title={t('settings.autostart')} desc={t('settings.autostart_desc')} checked={autostart} onToggle={toggleAutostart} />
+      <SettingGroup searchId="settings-maintenance">
+        <SettingSwitch searchId="settings-autostart" title={t('settings.autostart')} desc={t('settings.autostart_desc')} checked={autostart} onToggle={toggleAutostart} />
       </SettingGroup>
 
       <SectionHeading>{t('settings.sec_security')}</SectionHeading>
@@ -1628,7 +1637,7 @@ const HeartbeatCard: React.FC<{ timezoneMinutes: number }> = ({ timezoneMinutes 
   };
 
   return (
-    <Card>
+    <Card data-setting-anchor="settings-heartbeat">
       <CardHeader>
         <CardTitle className="text-base flex items-center gap-2"><HeartPulse className="h-4 w-4" />{t('settings.heartbeat_title')}</CardTitle>
         <CardDescription>{t('settings.heartbeat_desc')}</CardDescription>
@@ -1733,7 +1742,7 @@ const ChatRetentionCard: React.FC<ScopedCardProps> = (scopeProps) => {
     finally { setSaving(false); }
   };
   return (
-    <Card>
+    <Card data-setting-anchor="settings-chat-retention">
       <CardHeader>
         <CardTitle className="text-base">{t('chatcfg.title')}</CardTitle>
         <CardDescription>{t('chatcfg.desc')}</CardDescription>
@@ -1782,7 +1791,7 @@ const FriendCleanCard: React.FC = () => {
     finally { setSaving(false); }
   };
   return (
-    <Card>
+    <Card data-setting-anchor="settings-friend-clean">
       <CardHeader>
         <CardTitle className="text-base">{t('friendclean.title')}</CardTitle>
         <CardDescription>{t('friendclean.desc')}</CardDescription>
@@ -1845,7 +1854,7 @@ const UserGroupCard: React.FC<ScopedCardProps> = (scopeProps) => {
     finally { setSaving(false); }
   };
   return (
-    <Card>
+    <Card data-setting-anchor="settings-user-group">
       <CardHeader>
         <CardTitle className="text-base">{t('usergroup.title')}</CardTitle>
         <CardDescription>{t('usergroup.desc')}</CardDescription>

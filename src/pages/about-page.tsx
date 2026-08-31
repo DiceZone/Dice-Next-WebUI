@@ -217,7 +217,7 @@ export const AboutPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card data-setting-anchor="about-update">
         <CardHeader className="space-y-1">
           <div className="flex items-center justify-between gap-3">
             <CardTitle className="text-base flex items-center gap-2">

@@ -105,7 +105,7 @@ export const WebuiSettingsPage: React.FC = () => {
       </div>
 
       {/* API Key */}
-      <Card>
+      <Card data-setting-anchor="webui-api-key">
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2"><Key className="h-4 w-4" />{t('settings.api_key_title')}</CardTitle>
           <CardDescription>{t('settings.api_key_desc')}</CardDescription>
@@ -128,7 +128,7 @@ export const WebuiSettingsPage: React.FC = () => {
       </Card>
 
       {/* WebUI 登录口令 */}
-      <Card>
+      <Card data-setting-anchor="webui-password">
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2"><Lock className="h-4 w-4" />{t('settings.webpw_title')}</CardTitle>
           <CardDescription>{t('settings.webpw_desc')}</CardDescription>
@@ -159,7 +159,7 @@ export const WebuiSettingsPage: React.FC = () => {
       </Card>
 
       {/* 运行 IP / 端口 */}
-      <Card>
+      <Card data-setting-anchor="webui-server">
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2"><Server className="h-4 w-4" />{t('settings.server_title')}</CardTitle>
           <CardDescription>{t('settings.server_desc')}</CardDescription>
@@ -187,7 +187,7 @@ export const WebuiSettingsPage: React.FC = () => {
       </Card>
 
       {/* 主题偏好 */}
-      <Card>
+      <Card data-setting-anchor="webui-theme">
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2"><Palette className="h-4 w-4" />{t('settings.theme_title')}</CardTitle>
           <CardDescription>{t('settings.theme_desc')}</CardDescription>
@@ -204,7 +204,7 @@ export const WebuiSettingsPage: React.FC = () => {
       </Card>
 
       {/* 控制台日志 */}
-      <Card>
+      <Card data-setting-anchor="webui-log">
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2"><Terminal className="h-4 w-4" />{t('settings.log_title')}</CardTitle>
           <CardDescription>{t('settings.log_desc')}</CardDescription>

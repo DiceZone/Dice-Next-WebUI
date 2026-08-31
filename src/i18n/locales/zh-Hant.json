@@ -138,6 +138,21 @@
     "disconnected": "未連線",
     "toggle_theme": "切換主題"
   },
+  "global_search": {
+    "open": "開啟全域設定搜尋",
+    "placeholder": "搜尋設定…",
+    "title": "搜尋後台設定",
+    "description": "依名稱、說明或關鍵字搜尋後台設定並直接定位",
+    "input_placeholder": "輸入設定名稱、說明或關鍵字",
+    "suggested": "常用設定",
+    "results": "找到 {{count}} 項",
+    "scope_hint": "設定與管理頁面",
+    "empty": "找不到相關設定",
+    "empty_hint": "試試功能名稱、協定名稱或常用別名",
+    "move": "選擇",
+    "open_result": "開啟",
+    "matched_keyword": "符合關鍵字：{{keyword}}"
+  },
   "language": {
     "label": "語言",
     "zh-Hant": "繁體中文",
@@ -1326,6 +1341,8 @@
     "save_images_desc": "開啟後，跑團記錄中的圖片會下載落地到本地（data/logs/images），「導出網頁」時內嵌顯示，避免原連結過期失效。",
     "seg_len": "分段發送長度",
     "seg_len_desc": "QQ 有單條文字上限。回覆超過此長度會自動分段發送（ASCII 算1、漢字算2，預設600≈300漢字；範圍100–1000）。分段會盡量在換行處切，不把一行拆兩段。",
+    "seg_enabled": "訊息分段",
+    "seg_enabled_desc": "關閉後超長回覆不再分段，整條發送；QQ 官方機器人、Discord、KOOK 始終不分段。",
     "nick_wrap": "用戶名包裹",
     "nick_wrap_desc": "回覆裡顯示用戶名時的前後綴（如 .r 的「<希亚>擲骰」）。預設 < 與 >；兩邊都留空＝不包裹。",
     "nick_sample": "希亚",

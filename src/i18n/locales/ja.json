@@ -138,6 +138,21 @@
     "disconnected": "未接続",
     "toggle_theme": "テーマ切替"
   },
+  "global_search": {
+    "open": "設定の全体検索を開く",
+    "placeholder": "設定を検索…",
+    "title": "管理設定を検索",
+    "description": "名前、説明、キーワードで設定を検索し、その項目へ移動します",
+    "input_placeholder": "設定名、説明、キーワードを入力",
+    "suggested": "よく使う設定",
+    "results": "{{count}} 件",
+    "scope_hint": "設定・管理ページ",
+    "empty": "一致する設定がありません",
+    "empty_hint": "機能名、プロトコル名、別名をお試しください",
+    "move": "選択",
+    "open_result": "開く",
+    "matched_keyword": "一致したキーワード：{{keyword}}"
+  },
   "language": {
     "label": "言語",
     "zh-Hant": "繁體中文",
@@ -1326,6 +1341,8 @@
     "save_images_desc": "ONにすると、セッションログ内の画像をローカル（data/logs/images）にダウンロードし、HTMLエクスポートに埋め込みます。元リンクが失効しても残ります。",
     "seg_len": "返信のセグメント長",
     "seg_len_desc": "QQは1メッセージの長さを制限します。これより長い返信は自動分割（ASCII=1、CJK=2；既定600≈中国語300字；範囲100〜1000）。分割は改行を優先し、行の途中で切らないようにします。",
+    "seg_enabled": "メッセージ分割",
+    "seg_enabled_desc": "オフにすると長い返信も分割せず1通で送信します。QQ公式Bot・Discord・KOOKでは常に分割しません。",
     "nick_wrap": "ユーザー名の囲み",
     "nick_wrap_desc": "返信内のユーザー名の前後に付ける記号（例 .r で「<Mu> がロール」）。既定は < と >；両方空欄で囲みなし。",
     "nick_sample": "Mu",

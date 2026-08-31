@@ -46,8 +46,8 @@ const ROUTES: Record<string, React.ComponentType> = {
   '/help': HelpDocsPage,
   '/modules': ModulesPage,
   '/rules': RulesPage,
-  '/permissions': BanlistPage,   // C#94：URL 更名（页面早已叫「权限设置」）
-  '/banlist': BanlistPage,       // 旧地址别名，书签/外链不断
+  '/permissions': BanlistPage,
+  '/banlist': BanlistPage,
   '/settings': SettingsPage,
   '/ai': AiPage,
   '/ai/chat': AiPage,
@@ -66,49 +66,61 @@ const DEFAULT_ROUTE = '/';
 const NOT_FOUND_ROUTES = new Set<string>();
 let notifiedAboutNotFound = false;
 
+interface RouteLocation {
+  path: string;
+  query: string;
+  raw: string;
+}
+
+const parseRoute = (value: string): RouteLocation => {
+  const source = value || DEFAULT_ROUTE;
+  const queryAt = source.indexOf('?');
+  const path = (queryAt >= 0 ? source.slice(0, queryAt) : source) || DEFAULT_ROUTE;
+  const query = queryAt >= 0 ? source.slice(queryAt + 1) : '';
+  return { path, query, raw: query ? `${path}?${query}` : path };
+};
+
+const readHashRoute = () => parseRoute(window.location.hash.slice(1) || DEFAULT_ROUTE);
+
 export const AppRouter: React.FC = () => {
-  const [currentPath, setCurrentPath] = useState(() => {
-    // Use hash-based routing
-    const hash = window.location.hash.slice(1) || DEFAULT_ROUTE;
-    return hash in ROUTES ? hash : DEFAULT_ROUTE;
+  const [location, setLocation] = useState<RouteLocation>(() => {
+    const initial = readHashRoute();
+    return initial.path in ROUTES ? initial : parseRoute(DEFAULT_ROUTE);
   });
 
-
-  const navigate = useCallback((path: string) => {
-    const normalizedPath = path in ROUTES ? path : DEFAULT_ROUTE;
-    window.location.hash = normalizedPath;
-    setCurrentPath(normalizedPath);
+  const navigate = useCallback((destination: string) => {
+    const requested = parseRoute(destination);
+    const next = requested.path in ROUTES ? requested : parseRoute(DEFAULT_ROUTE);
+    if (window.location.hash.slice(1) !== next.raw) window.location.hash = next.raw;
+    setLocation((current) => current.raw === next.raw ? current : next);
   }, []);
 
-  // Listen for hash changes (browser back/forward)
   React.useEffect(() => {
     const handleHashChange = () => {
-      const hash = window.location.hash.slice(1) || DEFAULT_ROUTE;
-      if (hash in ROUTES) {
-        setCurrentPath(hash);
-      } else if (!NOT_FOUND_ROUTES.has(hash) && !notifiedAboutNotFound) {
-        // Only warn once
+      const next = readHashRoute();
+      if (next.path in ROUTES) {
+        setLocation(next);
+      } else if (!NOT_FOUND_ROUTES.has(next.path) && !notifiedAboutNotFound) {
         notifiedAboutNotFound = true;
-        console.warn(`Unknown route: "${hash}", redirecting to ${DEFAULT_ROUTE}`);
-        NOT_FOUND_ROUTES.add(hash);
-        window.location.hash = DEFAULT_ROUTE;
-        setCurrentPath(DEFAULT_ROUTE);
+        console.warn(`Unknown route: "${next.path}", redirecting to ${DEFAULT_ROUTE}`);
+        NOT_FOUND_ROUTES.add(next.path);
+        const fallback = parseRoute(DEFAULT_ROUTE);
+        window.location.hash = fallback.raw;
+        setLocation(fallback);
       }
     };
 
     window.addEventListener('hashchange', handleHashChange);
-    // Set initial hash if not present
-    if (!window.location.hash) {
-      window.location.hash = DEFAULT_ROUTE;
-    }
+    if (!window.location.hash) window.location.hash = DEFAULT_ROUTE;
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
-  const PageComponent = ROUTES[currentPath] || ROUTES[DEFAULT_ROUTE];
+  const PageComponent = ROUTES[location.path] || ROUTES[DEFAULT_ROUTE];
+  const searchTarget = new URLSearchParams(location.query).get('focus') || undefined;
 
   return (
-    <Layout currentPath={currentPath} onNavigate={navigate} >
-      <PageComponent />
+    <Layout currentPath={location.path} onNavigate={navigate} searchTarget={searchTarget}>
+      <PageComponent key={location.raw} />
       <Toaster />
     </Layout>
   );
