@@ -9,6 +9,224 @@ export interface SettingsSearchEntry {
   featured?: boolean;
 }
 
+export type SettingsSearchEntryKind = 'page' | 'feature' | 'setting';
+export type SettingsSearchMatchKind = 'direct' | 'alias' | 'fuzzy';
+
+export interface SettingsSearchDocument {
+  title: string;
+  description: string;
+  page: string;
+  keywords: string;
+}
+
+export interface SettingsSearchMatch {
+  score: number;
+  kind: SettingsSearchMatchKind;
+  matchedKeyword: string;
+}
+
+export const getSettingsSearchEntryKind = (entry: SettingsSearchEntry): SettingsSearchEntryKind => {
+  if (entry.id.startsWith('page-')) return 'page';
+  if (/^(settings|webui|notice)-/.test(entry.id)) return 'setting';
+  return 'feature';
+};
+
+export const normalizeSearchText = (value: string) => value
+  .normalize('NFKC')
+  .toLocaleLowerCase()
+  .replace(/[\s\p{P}\p{S}]+/gu, '');
+
+interface SearchToken {
+  raw: string;
+  normalized: string;
+}
+
+interface SearchField {
+  name: 'title' | 'description' | 'page' | 'keywords';
+  normalized: string;
+  tokens: SearchToken[];
+  weight: number;
+  fuzzy: boolean;
+}
+
+const tokenize = (value: string): SearchToken[] => value
+  .normalize('NFKC')
+  .toLocaleLowerCase()
+  .split(/[\s\p{P}\p{S}]+/gu)
+  .map((raw) => ({ raw, normalized: normalizeSearchText(raw) }))
+  .filter((token) => token.normalized.length > 0);
+
+// A local concept map is deterministic, fast, private, and sufficient for the
+// bounded administration vocabulary. Keep aliases multilingual so users can
+// search in a different language from the currently selected interface.
+const SEARCH_SYNONYM_GROUPS: readonly (readonly string[])[] = [
+  ['update', 'upgrade', 'updater', 'release', '更新', '升级', '升級', '版本检测', '版本檢測', 'アップデート', 'shengji'],
+  ['translate', 'translation', 'translator', '翻译', '翻譯', '翻訳', '多语言', '多語言', 'fanyi'],
+  ['polish', 'rewrite', '润色', '潤色', '改写', '改寫', 'runse'],
+  ['login', 'auth', 'password', 'credential', '登录', '登入', '口令', '密码', '密碼', 'ログイン', 'パスワード', 'denglu', 'mima'],
+  ['plugin', 'module', 'mod', 'extension', '插件', '模组', '模組', '扩展', '擴充', 'プラグイン', 'chajian'],
+  ['schedule', 'timer', 'cron', 'clock', '定时', '定時', '闹钟', '鬧鐘', 'スケジュール', 'dingshi'],
+  ['markdown', 'md', 'richtext', 'card', '富文本', '富消息', '卡片', '传统文本', '傳統文本'],
+  ['backup', 'restore', 'snapshot', '备份', '備份', '恢复', '恢復', '还原', '還原', 'バックアップ', 'beifen'],
+  ['adapter', 'platform', 'connection', 'account', '适配器', '適配器', '平台', '连接', '連線', '账号', '帳號', 'shipeiqi'],
+  ['permission', 'ban', 'blacklist', 'whitelist', 'trust', '权限', '權限', '黑名单', '黑名單', '白名单', '白名單', '権限', 'quanxian'],
+  ['log', 'record', 'history', '日志', '日誌', '跑团记录', '跑團記錄', 'ログ', 'rizhi'],
+  ['statistics', 'analytics', 'metrics', '统计', '統計', '报表', '報表', 'tongji'],
+  ['image', 'media', 'picture', '图片', '圖片', '图床', '圖床', '画像', 'tupian'],
+  ['reply', 'response', 'template', '回复', '回覆', '文案', '返信', 'huifu'],
+  ['command', 'instruction', 'alias', '指令', '命令', '别名', '別名', 'コマンド', 'zhiling'],
+  ['ai', 'llm', 'model', 'artificialintelligence', '人工智能', '大模型', '模型', 'moxing'],
+  ['group', 'channel', '群组', '群組', '群聊', '频道', '頻道', 'qun'],
+  ['player', 'user', 'character', '玩家', '用户', '用戶', '人物卡', '角色卡', 'wanjia'],
+];
+
+const SEARCH_SYNONYM_INDEX = (() => {
+  const index = new Map<string, string[]>();
+  SEARCH_SYNONYM_GROUPS.forEach((group) => {
+    const normalizedGroup = [...new Set(group.map(normalizeSearchText).filter(Boolean))];
+    normalizedGroup.forEach((alias) => index.set(alias, normalizedGroup));
+  });
+  return index;
+})();
+
+const synonymVariants = (term: string) => {
+  const exact = SEARCH_SYNONYM_INDEX.get(term);
+  if (exact) return exact.filter((alias) => alias !== term);
+
+  const embedded = new Set<string>();
+  SEARCH_SYNONYM_INDEX.forEach((aliases, alias) => {
+    const aliasLength = Array.from(alias).length;
+    const minimumLength = /^[a-z0-9]+$/i.test(alias) ? 4 : 2;
+    if (aliasLength >= minimumLength && term.includes(alias)) {
+      aliases.forEach((candidate) => {
+        if (candidate !== term) embedded.add(candidate);
+      });
+    }
+  });
+  return [...embedded];
+};
+
+const editDistance = (left: string, right: string, maximum: number) => {
+  const a = Array.from(left);
+  const b = Array.from(right);
+  if (Math.abs(a.length - b.length) > maximum) return maximum + 1;
+
+  const matrix = Array.from({ length: a.length + 1 }, () => Array<number>(b.length + 1).fill(0));
+  for (let i = 0; i <= a.length; i += 1) matrix[i][0] = i;
+  for (let j = 0; j <= b.length; j += 1) matrix[0][j] = j;
+
+  for (let i = 1; i <= a.length; i += 1) {
+    let rowMinimum = maximum + 1;
+    for (let j = 1; j <= b.length; j += 1) {
+      const substitution = a[i - 1] === b[j - 1] ? 0 : 1;
+      matrix[i][j] = Math.min(
+        matrix[i - 1][j] + 1,
+        matrix[i][j - 1] + 1,
+        matrix[i - 1][j - 1] + substitution,
+      );
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
+        matrix[i][j] = Math.min(matrix[i][j], matrix[i - 2][j - 2] + 1);
+      }
+      rowMinimum = Math.min(rowMinimum, matrix[i][j]);
+    }
+    if (rowMinimum > maximum) return maximum + 1;
+  }
+  return matrix[a.length][b.length];
+};
+
+interface TermMatch {
+  score: number;
+  kind: SettingsSearchMatchKind;
+  matchedKeyword: string;
+}
+
+const bestMatch = (matches: TermMatch[]) => matches
+  .sort((left, right) => right.score - left.score)[0];
+
+const findTermMatch = (term: string, fields: SearchField[]): TermMatch | undefined => {
+  const direct = fields.flatMap<TermMatch>((field) => {
+    if (!field.normalized.includes(term)) return [];
+    const exactBonus = field.normalized === term ? 30 : field.normalized.startsWith(term) ? 16 : 0;
+    const keyword = field.name === 'keywords'
+      ? field.tokens.find((token) => token.normalized.includes(term))?.raw || ''
+      : '';
+    return [{ score: field.weight + exactBonus, kind: 'direct', matchedKeyword: keyword }];
+  });
+  if (direct.length > 0) return bestMatch(direct);
+
+  const aliases = synonymVariants(term);
+  const aliasMatches = aliases.flatMap<TermMatch>((alias) => fields.flatMap<TermMatch>((field) => {
+    const asciiWord = /^[a-z0-9]+$/i.test(alias);
+    const token = field.tokens.find((candidate) => asciiWord
+      ? candidate.normalized === alias
+      : candidate.normalized.includes(alias));
+    if (!token) return [];
+    return [{
+      score: field.weight - 8 + (token.normalized === alias ? 12 : 0),
+      kind: 'alias',
+      matchedKeyword: token.raw,
+    }];
+  }));
+  if (aliasMatches.length > 0) return bestMatch(aliasMatches);
+
+  const termLength = Array.from(term).length;
+  if (termLength < 4) return undefined;
+  const maximum = termLength >= 8 ? 2 : 1;
+  const fuzzy = fields.flatMap<TermMatch>((field) => {
+    if (!field.fuzzy) return [];
+    return field.tokens.flatMap<TermMatch>((token) => {
+      const distance = editDistance(term, token.normalized, maximum);
+      if (distance > maximum) return [];
+      return [{
+        score: field.weight - 18 - distance * 4,
+        kind: 'fuzzy',
+        matchedKeyword: token.raw,
+      }];
+    });
+  });
+  return fuzzy.length > 0 ? bestMatch(fuzzy) : undefined;
+};
+
+export const matchSettingsSearch = (query: string, document: SettingsSearchDocument): SettingsSearchMatch | null => {
+  const terms = tokenize(query).map((token) => token.normalized);
+  if (terms.length === 0) return null;
+
+  const fields: SearchField[] = [
+    { name: 'title', normalized: normalizeSearchText(document.title), tokens: tokenize(document.title), weight: 48, fuzzy: true },
+    { name: 'keywords', normalized: normalizeSearchText(document.keywords), tokens: tokenize(document.keywords), weight: 36, fuzzy: true },
+    { name: 'page', normalized: normalizeSearchText(document.page), tokens: tokenize(document.page), weight: 24, fuzzy: true },
+    { name: 'description', normalized: normalizeSearchText(document.description), tokens: tokenize(document.description), weight: 16, fuzzy: false },
+  ];
+
+  let score = 0;
+  let kind: SettingsSearchMatchKind = 'direct';
+  let matchedKeyword = '';
+  const kindRank: Record<SettingsSearchMatchKind, number> = { direct: 0, alias: 1, fuzzy: 2 };
+
+  for (const term of terms) {
+    const match = findTermMatch(term, fields);
+    if (!match) return null;
+    score += match.score;
+    if (kindRank[match.kind] > kindRank[kind]) {
+      kind = match.kind;
+      matchedKeyword = match.matchedKeyword;
+    } else if (!matchedKeyword && match.matchedKeyword) {
+      matchedKeyword = match.matchedKeyword;
+    }
+  }
+
+  const whole = normalizeSearchText(query);
+  const title = fields[0].normalized;
+  if (title === whole) score += 160;
+  else if (title.startsWith(whole)) score += 110;
+  else if (title.includes(whole)) score += 80;
+  if (fields[1].normalized.includes(whole)) score += 55;
+  if (fields[3].normalized.includes(whole)) score += 35;
+  if (fields[2].normalized.includes(whole)) score += 20;
+
+  return { score, kind, matchedKeyword };
+};
+
 const e = (
   id: string,
   path: string,
@@ -44,6 +262,10 @@ export const SETTINGS_SEARCH_ENTRIES: SettingsSearchEntry[] = [
   e('settings-nick-wrap', '/settings', 'nav.settings', 'settings.nick_wrap', '昵称括号 暱稱括號 nickname wrapper name format', 'settings.nick_wrap_desc'),
   e('settings-message-format', '/settings', 'nav.settings', 'settings.message_format_title', 'markdown md 富文本 富卡片 传统文本 傳統文本 plain card message format qq官方', 'settings.message_format_desc_global', true),
   e('settings-response-switches', '/settings', 'nav.settings', 'settings.sec_reply', '响应开关 響應開關 静默 靜默 silent jrrp me deck draw send help bot off'),
+  e('settings-deck-display', '/settings', 'nav.settings', 'global_search.deck_display_title', '牌堆显示 牌堆顯示 deck display hide underscore metadata author title 元数据 元資料', 'global_search.deck_display_desc'),
+  e('settings-event-response', '/settings', 'nav.settings', 'global_search.event_response_title', '事件响应 事件回應 加群请求 加群請求 好友请求 好友請求 入群欢迎 入群歡迎 黑名单退群 event response request welcome leave blacklist', 'global_search.event_response_desc'),
+  e('settings-external-request', '/settings', 'nav.settings', 'global_search.external_request_title', '外部请求 外部請求 api url http https timeout 自定义回复 自訂回覆 网络请求 網路請求', 'global_search.external_request_desc'),
+  e('settings-identity-binding', '/settings', 'nav.settings', 'global_search.identity_binding_title', '身份绑定 身份綁定 qq官方 official bind real qq account high risk 冒认 冒認', 'global_search.identity_binding_desc'),
   e('settings-save-images', '/settings', 'nav.settings', 'settings.save_images', '保存图片 保存圖片 log image archive', 'settings.save_images_desc'),
   e('settings-image-send', '/settings', 'nav.settings', 'settings.imgsend_title', '图片发送 圖片發送 base64 http url image send', 'settings.imgsend_desc'),
   e('settings-image-host', '/settings', 'nav.settings', 'settings.imghost_title', '图床 圖床 image host upload headers public url', 'settings.imghost_desc'),
@@ -65,6 +287,15 @@ export const SETTINGS_SEARCH_ENTRIES: SettingsSearchEntry[] = [
   e('notice-webhook', '/notice-settings', 'nav.notice', 'noticeset.push_webhook', 'webhook http callback 回调 回呼 推送 url', 'noticeset.push_webhook_desc', false, 'push'),
   e('notice-audit', '/notice-settings', 'nav.notice', 'noticeset.tab_audit', '审计 審計 审核 日志 日誌 audit operation history', 'noticeset.audit_hint', false, 'audit'),
 
+  e('page-dashboard', '/', 'nav.dashboard', 'dashboard.title', '运行概览 運行概覽 dashboard overview status uptime 在线 在線 连接状态 連線狀態', 'dashboard.subtitle', true),
+  e('page-statistics', '/statistics', 'nav.statistics', 'statistics.title', '数据统计 數據統計 statistics analytics metrics report trend 活跃用户 活躍使用者 活跃群组 活躍群組 骰点分布 骰點分佈 在线粒度 在線粒度', 'statistics.subtitle', true),
+  e('page-playground', '/playground', 'nav.playground', 'nav.playground', '指令测试 指令測試 测试台 測試台 playground sandbox debug message 调试 調試'),
+  e('page-help', '/help', 'nav.help', 'helpdoc.title', '帮助文档 幫助文件 help docs documentation topic 规则速查 規則速查', 'helpdoc.desc'),
+  e('page-logs', '/logs', 'nav.logs', 'logs.title', '跑团记录 跑團記錄 日志 日誌 log record game export 导出 匯出', 'logs.subtitle'),
+  e('page-roadmap', '/roadmap', 'nav.roadmap', 'roadmap.title', '开发计划 開發計畫 roadmap progress todo changelog 更新日志 更新日誌', 'roadmap.subtitle'),
+  e('page-settings', '/settings', 'nav.settings', 'settings.title', '系统设置 系統設定 settings configuration preferences 全局 全域', 'settings.subtitle'),
+  e('page-webui', '/webui-settings', 'nav.webui', 'webui.title', 'webui 设置 設定 panel server login auth password port theme', 'webui.desc'),
+  e('page-notice', '/notice-settings', 'nav.notice', 'noticeset.title', '通知设置 通知設定 notice notification smtp webhook audit window', 'noticeset.desc'),
   e('page-adapters', '/adapters', 'nav.adapters', 'adapters.title', '平台连接 平台連線 adapter onebot websocket qq official discord kook 账号 帳號', 'adapters.subtitle', true),
   e('page-replies', '/replies', 'nav.replies', 'replies.title', '回复 回覆 reply template text markdown variables 自定义 自訂', 'replies.subtitle'),
   e('page-commands', '/commands', 'nav.commands', 'commands.title', '指令 命令 command alias enable disable reply text', 'commands.subtitle'),

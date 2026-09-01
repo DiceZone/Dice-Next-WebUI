@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ArrowRight, CornerDownLeft, Search, Settings2 } from 'lucide-react';
+import { ArrowRight, CornerDownLeft, FileText, Search, Settings2, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -13,9 +13,13 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import {
+  getSettingsSearchEntryKind,
+  matchSettingsSearch,
   SETTINGS_SEARCH_ENTRIES,
   searchDestination,
   type SettingsSearchEntry,
+  type SettingsSearchEntryKind,
+  type SettingsSearchMatchKind,
 } from '@/lib/settings-search';
 
 interface GlobalSettingsSearchProps {
@@ -29,49 +33,9 @@ interface SearchResult {
   page: string;
   score: number;
   matchedKeyword: string;
+  entryKind: SettingsSearchEntryKind;
+  matchKind: SettingsSearchMatchKind;
 }
-
-const normalize = (value: string) => value
-  .normalize('NFKC')
-  .toLocaleLowerCase()
-  .replace(/[\s\p{P}\p{S}]+/gu, '');
-
-const findMatchedKeyword = (query: string, title: string, description: string, page: string, keywords: string) => {
-  const normalizedQuery = normalize(query);
-  if (!normalizedQuery) return '';
-  if ([title, description, page].some((value) => normalize(value).includes(normalizedQuery))) return '';
-  return keywords.split(/\s+/).find((keyword) => {
-    const normalizedKeyword = normalize(keyword);
-    return normalizedKeyword
-      && (normalizedKeyword.includes(normalizedQuery) || normalizedQuery.includes(normalizedKeyword));
-  }) || '';
-};
-
-const scoreResult = (query: string, title: string, description: string, page: string, keywords: string) => {
-  const terms = query.trim().split(/\s+/).map(normalize).filter(Boolean);
-  if (terms.length === 0) return 0;
-
-  const normalizedTitle = normalize(title);
-  const normalizedDescription = normalize(description);
-  const normalizedPage = normalize(page);
-  const normalizedKeywords = normalize(keywords);
-  const fields = [normalizedTitle, normalizedDescription, normalizedPage, normalizedKeywords];
-  if (!terms.every((term) => fields.some((field) => field.includes(term)))) return -1;
-
-  const whole = normalize(query);
-  let score = 0;
-  if (normalizedTitle === whole) score += 160;
-  else if (normalizedTitle.startsWith(whole)) score += 110;
-  else if (normalizedTitle.includes(whole)) score += 80;
-  if (normalizedKeywords.includes(whole)) score += 55;
-  if (normalizedDescription.includes(whole)) score += 35;
-  if (normalizedPage.includes(whole)) score += 20;
-  score += terms.reduce((total, term) => total
-    + (normalizedTitle.includes(term) ? 24 : 0)
-    + (normalizedKeywords.includes(term) ? 16 : 0)
-    + (normalizedDescription.includes(term) ? 8 : 0), 0);
-  return score;
-};
 
 export const GlobalSettingsSearch: React.FC<GlobalSettingsSearchProps> = ({ onNavigate }) => {
   const { t, i18n } = useTranslation();
@@ -92,6 +56,8 @@ export const GlobalSettingsSearch: React.FC<GlobalSettingsSearchProps> = ({ onNa
       page: page === entry.pageKey ? entry.pageKey : page,
       score: 0,
       matchedKeyword: '',
+      entryKind: getSettingsSearchEntryKind(entry),
+      matchKind: 'direct',
     };
   }), [t, i18n.resolvedLanguage]);
 
@@ -102,10 +68,19 @@ export const GlobalSettingsSearch: React.FC<GlobalSettingsSearchProps> = ({ onNa
     return localizedEntries
       .map((item) => {
         const keywords = item.entry.keywords || '';
+        const match = matchSettingsSearch(query, {
+          title: item.title,
+          description: item.description,
+          page: item.page,
+          keywords,
+        });
         return {
           ...item,
-          score: scoreResult(query, item.title, item.description, item.page, keywords),
-          matchedKeyword: findMatchedKeyword(query, item.title, item.description, item.page, keywords),
+          score: match
+            ? match.score + (item.entry.featured ? 2 : 0) + (item.entryKind === 'page' ? 3 : 0)
+            : -1,
+          matchedKeyword: match?.matchedKeyword || '',
+          matchKind: match?.kind || 'direct',
         };
       })
       .filter((item) => item.score >= 0)
@@ -223,17 +198,40 @@ export const GlobalSettingsSearch: React.FC<GlobalSettingsSearchProps> = ({ onNa
                 'flex h-9 w-9 shrink-0 items-center justify-center rounded-md border bg-background text-muted-foreground',
                 selected === index && 'border-primary/30 text-primary',
               )}>
-                <Settings2 className="h-4 w-4" />
+                {result.entryKind === 'page' ? (
+                  <FileText className="h-4 w-4" />
+                ) : result.entryKind === 'feature' ? (
+                  <Sparkles className="h-4 w-4" />
+                ) : (
+                  <Settings2 className="h-4 w-4" />
+                )}
               </span>
               <span className="min-w-0 flex-1">
-                <span className="flex items-center gap-2">
+                <span className="flex flex-wrap items-center gap-1.5">
                   <span className="truncate text-sm font-medium">{result.title}</span>
-                  <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">{result.page}</span>
+                  <span className={cn(
+                    'shrink-0 rounded px-1.5 py-0.5 text-[10px]',
+                    result.entryKind === 'page' && 'bg-sky-500/10 text-sky-700 dark:text-sky-300',
+                    result.entryKind === 'feature' && 'bg-violet-500/10 text-violet-700 dark:text-violet-300',
+                    result.entryKind === 'setting' && 'bg-amber-500/10 text-amber-700 dark:text-amber-300',
+                  )}>
+                    {t(`global_search.kind_${result.entryKind}`)}
+                  </span>
+                  {result.entryKind !== 'page' && (
+                    <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">{result.page}</span>
+                  )}
                 </span>
                 {result.description && <span className="mt-0.5 block truncate text-xs text-muted-foreground">{result.description}</span>}
                 {result.matchedKeyword && (
                   <span className="mt-1 inline-flex max-w-full rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">
-                    {t('global_search.matched_keyword', { keyword: result.matchedKeyword })}
+                    {t(
+                      result.matchKind === 'fuzzy'
+                        ? 'global_search.matched_fuzzy'
+                        : result.matchKind === 'alias'
+                          ? 'global_search.matched_alias'
+                          : 'global_search.matched_keyword',
+                      { keyword: result.matchedKeyword },
+                    )}
                   </span>
                 )}
               </span>

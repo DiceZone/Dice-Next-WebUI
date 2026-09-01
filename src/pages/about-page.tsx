@@ -42,7 +42,14 @@ interface UpdateStatus {
   downloadedBytes: number;
   totalBytes: number;
   checkedAt: number;
+  downloadSupported?: boolean;
   installSupported: boolean;
+  selfUpdateBlockedReason?: string;
+  runtime?: {
+    container: boolean;
+    containerType: string;
+    containerDetection: string;
+  };
   pending: boolean;
   settings: UpdateSettings;
 }
@@ -300,11 +307,17 @@ export const AboutPage: React.FC = () => {
             </div>
           )}
 
-          {updateStatus && !updateStatus.installSupported && (
+          {updateStatus?.selfUpdateBlockedReason === 'container' ? (
+            <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-800 dark:text-amber-200">
+              {t('about.update_container_hint', {
+                type: updateStatus.runtime?.containerType || 'container',
+              })}
+            </div>
+          ) : updateStatus && !updateStatus.installSupported ? (
             <div className="rounded-md border bg-muted/40 p-3 text-sm text-muted-foreground">
               {t('about.update_manual_hint')}
             </div>
-          )}
+          ) : null}
 
           <div className="flex flex-wrap gap-2">
             <Button
@@ -318,7 +331,7 @@ export const AboutPage: React.FC = () => {
             <Button
               variant="outline"
               onClick={() => void runAction('download')}
-              disabled={!updateStatus?.updateAvailable || !updateStatus.latest?.asset || updateBusy || !!working}
+              disabled={updateStatus?.downloadSupported === false || !updateStatus?.updateAvailable || !updateStatus.latest?.asset || updateBusy || !!working}
             >
               <Download className="mr-2 h-4 w-4" />
               {t('about.update_download')}
@@ -382,7 +395,9 @@ export const AboutPage: React.FC = () => {
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="notify">{t('about.action_notify')}</SelectItem>
-                    <SelectItem value="download">{t('about.action_download')}</SelectItem>
+                    <SelectItem value="download" disabled={updateStatus?.downloadSupported === false}>
+                      {t('about.action_download')}
+                    </SelectItem>
                     <SelectItem value="install" disabled={!updateStatus?.installSupported}>
                       {t('about.action_install')}
                     </SelectItem>
