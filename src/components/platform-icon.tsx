@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils';
 
 const PLATFORM_META: Record<string, { label: string; icon: string }> = {
   onebot_v11: { label: 'QQ / OneBot', icon: '/platform-icons/onebot.svg' },
+  milky: { label: 'Milky', icon: '/platform-icons/milky.svg' },
   qq_official: { label: 'QQ 官方机器人', icon: '/platform-icons/qq-official.svg' },
   discord: { label: 'Discord', icon: '/platform-icons/discord.svg' },
   kook: { label: 'KOOK', icon: '/platform-icons/kook.svg' },

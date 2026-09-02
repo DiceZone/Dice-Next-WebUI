@@ -73,7 +73,9 @@ export const AdapterCard: React.FC<AdapterCardProps> = ({
   const [detailOpen, setDetailOpen] = React.useState(false);
   const identityLabel = adapter.type === 'qq_official' ? t('adapters.detail_app_id') : t('adapters.detail_bot_id');
   const identityValue = adapter.type === 'qq_official' ? adapter.appId : adapter.loginId;
-  const modeLabel = adapter.type === 'qq_official'
+  const modeLabel = adapter.type === 'milky'
+    ? t('adapters.mode_http')
+    : adapter.type === 'qq_official'
     ? t('adapters.detail_official_gateway')
     : adapter.type === 'discord' || adapter.type === 'kook'
       ? t('adapters.detail_gateway')
@@ -87,6 +89,13 @@ export const AdapterCard: React.FC<AdapterCardProps> = ({
     : adapter.type === 'discord' || adapter.type === 'kook'
       ? t('adapters.detail_managed_endpoint')
       : adapter.endpoint || '—';
+  const secondaryValue = adapter.type === 'milky'
+    ? (adapter.endpoint || adapter.name)
+    : adapter.type === 'qq_official'
+      ? (adapter.qqNumber || adapter.name)
+      : adapter.type === 'onebot_v11'
+        ? (adapter.endpoint || adapter.name)
+        : adapter.name;
 
   return (
     <Card
@@ -124,10 +133,10 @@ export const AdapterCard: React.FC<AdapterCardProps> = ({
               </div>
               {/* 副信息行：OneBot=连接地址、官方机器人=真实QQ、其余=适配器名称；
                   没有可写内容时回退为适配器名称，避免空行导致卡片样式变形。 */}
-              <p className="mt-1 truncate font-mono text-xs text-muted-foreground" title={adapter.type === 'qq_official' ? (adapter.qqNumber || adapter.name) : adapter.type === 'onebot_v11' ? (adapter.endpoint || adapter.name) : adapter.name}>
+              <p className="mt-1 truncate font-mono text-xs text-muted-foreground" title={secondaryValue}>
                 {adapter.type === 'qq_official'
                   ? (adapter.qqNumber ? `${t('adapters.detail_real_qq')}: ${adapter.qqNumber}` : adapter.name)
-                  : adapter.type === 'onebot_v11'
+                  : adapter.type === 'onebot_v11' || adapter.type === 'milky'
                     ? (adapter.endpoint ? `${adapter.connectionMode === 'reverse_ws' ? t('adapters.port') : t('adapters.address')}: ${adapter.endpoint}` : adapter.name)
                     : adapter.name}
               </p>
@@ -210,6 +219,13 @@ export const AdapterCard: React.FC<AdapterCardProps> = ({
             {adapter.type === 'qq_official' && <DetailRow label={t('adapters.detail_real_qq')} mono>{adapter.qqNumber || '—'}</DetailRow>}
             <DetailRow label={t('adapters.detail_protocol')}>{modeLabel}</DetailRow>
             <DetailRow label={t('adapters.endpoint')} mono>{endpointValue}</DetailRow>
+            {adapter.type === 'milky' && <>
+              <DetailRow label={t('adapters.milky_webhook_base_url')} mono>{adapter.webhookBaseUrl || '—'}</DetailRow>
+              <DetailRow label={t('adapters.milky_webhook_url')} mono>{adapter.webhookUrl || '—'}</DetailRow>
+              <DetailRow label={t('adapters.milky_webhook_token')}>
+                {adapter.webhookTokenConfigured ? t('adapters.milky_token_set', { tail: adapter.webhookTokenTail }) : t('adapters.milky_token_unset')}
+              </DetailRow>
+            </>}
             <DetailRow label={t('adapters.detail_connection_status')}>
               <span className="inline-flex items-center gap-2"><ConnectionStatus status={effectiveStatus} />{t(STATUS_LABEL_KEYS[effectiveStatus])}</span>
             </DetailRow>
