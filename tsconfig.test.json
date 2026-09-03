@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "allowImportingTsExtensions": false,
+    "composite": false,
+    "declaration": false,
+    "emitDeclarationOnly": false,
+    "noEmit": false,
+    "outDir": ".test-dist",
+    "rootDir": "src",
+    "tsBuildInfoFile": ".test-dist/tsconfig.test.tsbuildinfo"
+  },
+  "include": [
+    "src/lib/settings-search.ts",
+    "src/lib/update-error-notice.ts"
+  ]
+}
