@@ -60,12 +60,12 @@ const tokenize = (value: string): SearchToken[] => value
 // bounded administration vocabulary. Keep aliases multilingual so users can
 // search in a different language from the currently selected interface.
 const SEARCH_SYNONYM_GROUPS: readonly (readonly string[])[] = [
-  ['update', 'upgrade', 'updater', 'release', '更新', '升级', '升級', '版本检测', '版本檢測', 'アップデート', 'shengji'],
+  ['update', 'upgrade', 'updater', 'release', '更新', '升级', '升級', '版本检测', '版本檢測', '自动检测', '自動檢測', 'アップデート', 'shengji'],
   ['translate', 'translation', 'translator', '翻译', '翻譯', '翻訳', '多语言', '多語言', 'fanyi'],
   ['polish', 'rewrite', '润色', '潤色', '改写', '改寫', 'runse'],
   ['login', 'auth', 'password', 'credential', '登录', '登入', '口令', '密码', '密碼', 'ログイン', 'パスワード', 'denglu', 'mima'],
   ['plugin', 'module', 'mod', 'extension', '插件', '模组', '模組', '扩展', '擴充', 'プラグイン', 'chajian'],
-  ['schedule', 'timer', 'cron', 'clock', '定时', '定時', '闹钟', '鬧鐘', 'スケジュール', 'dingshi'],
+  ['schedule', 'timer', 'cron', 'clock', '定时', '定時', '定时器', '定時器', '闹钟', '鬧鐘', 'スケジュール', 'dingshi'],
   ['markdown', 'md', 'richtext', 'card', '富文本', '富消息', '卡片', '传统文本', '傳統文本'],
   ['backup', 'restore', 'snapshot', '备份', '備份', '恢复', '恢復', '还原', '還原', 'バックアップ', 'beifen'],
   ['adapter', 'platform', 'connection', 'account', '适配器', '適配器', '平台', '连接', '連線', '账号', '帳號', 'shipeiqi'],
@@ -78,6 +78,7 @@ const SEARCH_SYNONYM_GROUPS: readonly (readonly string[])[] = [
   ['ai', 'llm', 'model', 'artificialintelligence', '人工智能', '大模型', '模型', 'moxing'],
   ['group', 'channel', '群组', '群組', '群聊', '频道', '頻道', 'qun'],
   ['player', 'user', 'character', '玩家', '用户', '用戶', '人物卡', '角色卡', 'wanjia'],
+  ['container', 'docker', 'podman', 'kubernetes', 'k8s', '容器', 'コンテナ', 'rongqi'],
 ];
 
 const SEARCH_SYNONYM_INDEX = (() => {
@@ -91,19 +92,56 @@ const SEARCH_SYNONYM_INDEX = (() => {
 
 const synonymVariants = (term: string) => {
   const exact = SEARCH_SYNONYM_INDEX.get(term);
-  if (exact) return exact.filter((alias) => alias !== term);
+  return exact ? exact.filter((alias) => alias !== term) : [];
+};
 
-  const embedded = new Set<string>();
-  SEARCH_SYNONYM_INDEX.forEach((aliases, alias) => {
-    const aliasLength = Array.from(alias).length;
+interface CompoundPart {
+  start: number;
+  end: number;
+}
+
+// Chinese queries commonly omit spaces. Split compounds only at known concept
+// aliases, and retain all remaining text as required qualifiers. This makes
+// `定时插件` an AND query for `定时` + `插件` instead of silently degrading to
+// whichever embedded alias happens to match first.
+const splitCompoundSearchTerm = (term: string): string[] => {
+  if (SEARCH_SYNONYM_INDEX.has(term)) return [term];
+
+  const candidates: CompoundPart[] = [];
+  SEARCH_SYNONYM_INDEX.forEach((_aliases, alias) => {
     const minimumLength = /^[a-z0-9]+$/i.test(alias) ? 4 : 2;
-    if (aliasLength >= minimumLength && term.includes(alias)) {
-      aliases.forEach((candidate) => {
-        if (candidate !== term) embedded.add(candidate);
-      });
+    if (Array.from(alias).length < minimumLength) return;
+    let start = term.indexOf(alias);
+    while (start >= 0) {
+      candidates.push({ start, end: start + alias.length });
+      start = term.indexOf(alias, start + 1);
     }
   });
-  return [...embedded];
+  if (candidates.length === 0) return [term];
+
+  candidates.sort((left, right) => (
+    left.start - right.start || (right.end - right.start) - (left.end - left.start)
+  ));
+  const selected: CompoundPart[] = [];
+  candidates.forEach((candidate) => {
+    if (selected.every((part) => candidate.end <= part.start || candidate.start >= part.end)) {
+      selected.push(candidate);
+    }
+  });
+  selected.sort((left, right) => left.start - right.start);
+
+  const residualLength = selected.reduce((covered, part) => covered - (part.end - part.start), term.length);
+  if (selected.length < 2 && residualLength < 2) return [term];
+
+  const parts: string[] = [];
+  let offset = 0;
+  selected.forEach((part) => {
+    if (part.start > offset) parts.push(term.slice(offset, part.start));
+    parts.push(term.slice(part.start, part.end));
+    offset = part.end;
+  });
+  if (offset < term.length) parts.push(term.slice(offset));
+  return [...new Set(parts.filter(Boolean))];
 };
 
 const editDistance = (left: string, right: string, maximum: number) => {
@@ -188,7 +226,7 @@ const findTermMatch = (term: string, fields: SearchField[]): TermMatch | undefin
 };
 
 export const matchSettingsSearch = (query: string, document: SettingsSearchDocument): SettingsSearchMatch | null => {
-  const terms = tokenize(query).map((token) => token.normalized);
+  const terms = tokenize(query).flatMap((token) => splitCompoundSearchTerm(token.normalized));
   if (terms.length === 0) return null;
 
   const fields: SearchField[] = [
@@ -322,7 +360,7 @@ export const SETTINGS_SEARCH_ENTRIES: SettingsSearchEntry[] = [
   e('ai-npc', '/ai/npc', 'nav.ai', 'ai.npc', 'npc 扮演 角色 人设 人設 背景知识 背景知識 触发词 觸發詞 情绪 情緒 好感度', 'ai.npc_desc'),
   e('page-backup', '/backup', 'nav.backup', 'backup.title', '备份 備份 backup restore export import database', 'backup.subtitle'),
   e('page-about', '/about', 'nav.about', 'about.title', '关于 關於 about project info 项目 專案 技术栈 技術棧', 'about.subtitle'),
-  e('about-update', '/about', 'nav.about', 'about.update_title', '更新 升级 升級 update upgrade updater release 新版本 版本检测 版本檢測 检查更新 檢查更新 自动更新 自動更新 自动升级 自動升級 在线升级 線上升級 github mirror 镜像 鏡像 下载 下載 安装 安裝 回滚 回滾', 'about.update_desc', true),
+  e('about-update', '/about', 'nav.about', 'about.update_title', '更新 升级 升級 update upgrade updater release 新版本 版本检测 版本檢測 自动检测 自動檢測 检查更新 檢查更新 自动更新 自動更新 自动升级 自動升級 在线升级 線上升級 github mirror 镜像 鏡像 镜像升级 鏡像升級 镜像更新 鏡像更新 container docker podman kubernetes k8s 容器 コンテナ 拉取镜像 拉取鏡像 下载 下載 安装 安裝 回滚 回滾', 'about.update_desc', true),
 ];
 
 export const searchDestination = (entry: SettingsSearchEntry) => {

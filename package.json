@@ -8,6 +8,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "tsc --noEmit",
+    "test": "tsc -p tsconfig.test.json && node --test tests/settings-search.test.mjs tests/update-error-notice.test.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

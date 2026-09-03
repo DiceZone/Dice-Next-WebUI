@@ -1,7 +1,7 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useReducer, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Download, Info, RefreshCw, Save, ShieldCheck } from 'lucide-react';
+import { Check, Copy, Download, Info, RefreshCw, Save, ShieldCheck, X } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,11 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { apiClient } from '@/lib/api-client';
 import { useDialogs } from '@/hooks/use-dialogs';
+import {
+  getVisibleUpdateError,
+  INITIAL_UPDATE_ERROR_NOTICE,
+  updateErrorNoticeReducer,
+} from '@/lib/update-error-notice';
 
 type UpdateAction = 'notify' | 'download' | 'install';
 type UpdateSource = 'auto' | 'direct' | 'mirror' | 'custom';
@@ -72,8 +77,17 @@ export const AboutPage: React.FC = () => {
   const [updateDraft, setUpdateDraft] = useState<UpdateSettings | null>(null);
   const [settingsDirty, setSettingsDirty] = useState(false);
   const [working, setWorking] = useState('');
-  const [updateError, setUpdateError] = useState('');
+  const [errorNotice, dispatchErrorNotice] = useReducer(
+    updateErrorNoticeReducer,
+    INITIAL_UPDATE_ERROR_NOTICE,
+  );
+  const [errorCopied, setErrorCopied] = useState(false);
   const [saved, setSaved] = useState(false);
+  const visibleUpdateError = getVisibleUpdateError(errorNotice);
+
+  useEffect(() => {
+    setErrorCopied(false);
+  }, [visibleUpdateError]);
 
   useEffect(() => {
     fetch('/api/system/status')
@@ -93,9 +107,12 @@ export const AboutPage: React.FC = () => {
       const response = await apiClient.get<UpdateStatus>('/system/update');
       setUpdateStatus(response.data);
       setUpdateDraft((current) => (settingsDirty && current ? current : response.data.settings));
-      setUpdateError('');
+      dispatchErrorNotice({ type: 'poll-succeeded', error: response.data.error });
     } catch (error) {
-      setUpdateError(error instanceof Error ? error.message : String(error));
+      dispatchErrorNotice({
+        type: 'poll-failed',
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }, [settingsDirty]);
 
@@ -107,14 +124,18 @@ export const AboutPage: React.FC = () => {
 
   const runAction = async (action: 'check' | 'download') => {
     setWorking(action);
-    setUpdateError('');
+    dispatchErrorNotice({ type: 'operation-started' });
     setSaved(false);
     try {
       const response = await apiClient.post<UpdateStatus>('/system/update/' + action);
       setUpdateStatus(response.data);
       setUpdateDraft((current) => (settingsDirty && current ? current : response.data.settings));
+      dispatchErrorNotice({ type: 'operation-finished', error: response.data.error });
     } catch (error) {
-      setUpdateError(error instanceof Error ? error.message : String(error));
+      dispatchErrorNotice({
+        type: 'operation-finished',
+        error: error instanceof Error ? error.message : String(error),
+      });
     } finally {
       setWorking('');
     }
@@ -130,13 +151,17 @@ export const AboutPage: React.FC = () => {
     if (!confirmed) return;
 
     setWorking('install');
-    setUpdateError('');
+    dispatchErrorNotice({ type: 'operation-started' });
     setSaved(false);
     try {
       const response = await apiClient.post<UpdateStatus>('/system/update/install');
       setUpdateStatus(response.data);
+      dispatchErrorNotice({ type: 'operation-finished', error: response.data.error });
     } catch (error) {
-      setUpdateError(error instanceof Error ? error.message : String(error));
+      dispatchErrorNotice({
+        type: 'operation-finished',
+        error: error instanceof Error ? error.message : String(error),
+      });
     } finally {
       setWorking('');
     }
@@ -145,7 +170,7 @@ export const AboutPage: React.FC = () => {
   const saveUpdateSettings = async () => {
     if (!updateDraft) return;
     setWorking('save');
-    setUpdateError('');
+    dispatchErrorNotice({ type: 'operation-started' });
     setSaved(false);
     try {
       const response = await apiClient.put<UpdateStatus>('/system/update', updateDraft);
@@ -153,8 +178,12 @@ export const AboutPage: React.FC = () => {
       setUpdateDraft(response.data.settings);
       setSettingsDirty(false);
       setSaved(true);
+      dispatchErrorNotice({ type: 'operation-finished', error: response.data.error });
     } catch (error) {
-      setUpdateError(error instanceof Error ? error.message : String(error));
+      dispatchErrorNotice({
+        type: 'operation-finished',
+        error: error instanceof Error ? error.message : String(error),
+      });
     } finally {
       setWorking('');
     }
@@ -164,6 +193,36 @@ export const AboutPage: React.FC = () => {
     setUpdateDraft((current) => (current ? { ...current, [key]: value } : current));
     setSettingsDirty(true);
     setSaved(false);
+  };
+
+  const copyUpdateError = async () => {
+    if (!visibleUpdateError) return;
+    let copied = false;
+    if (navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(visibleUpdateError);
+        copied = true;
+      } catch {
+        // HTTP deployments may not expose Clipboard API; fall back below.
+      }
+    }
+    if (!copied) {
+      const textarea = document.createElement('textarea');
+      textarea.value = visibleUpdateError;
+      textarea.setAttribute('readonly', '');
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      try {
+        textarea.select();
+        copied = document.execCommand('copy');
+      } catch {
+        copied = false;
+      } finally {
+        textarea.remove();
+      }
+    }
+    setErrorCopied(copied);
   };
 
   const phase = updateStatus?.phase ?? 'idle';
@@ -301,9 +360,36 @@ export const AboutPage: React.FC = () => {
             )}
           </div>
 
-          {(updateError || updateStatus?.error) && (
-            <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive break-words">
-              {t('about.update_error')}: {updateError || updateStatus?.error}
+          {visibleUpdateError && (
+            <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+              <p className="min-w-0 flex-1 whitespace-pre-wrap break-words select-text">
+                {t('about.update_error')}: {visibleUpdateError}
+              </p>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 shrink-0 gap-1 px-2 text-destructive hover:text-destructive"
+                onClick={() => void copyUpdateError()}
+                title={t('about.update_error_copy')}
+              >
+                {errorCopied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                {t(errorCopied ? 'about.update_error_copied' : 'about.update_error_copy')}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 shrink-0 text-destructive hover:text-destructive"
+                onClick={() => {
+                  dispatchErrorNotice({ type: 'dismissed' });
+                  setErrorCopied(false);
+                }}
+                aria-label={t('about.update_error_dismiss')}
+                title={t('about.update_error_dismiss')}
+              >
+                <X className="h-4 w-4" />
+              </Button>
             </div>
           )}
 
