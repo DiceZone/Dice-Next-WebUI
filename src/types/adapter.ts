@@ -15,6 +15,7 @@ export interface Adapter {
   type: AdapterType;
   connectionMode: ConnectionMode;
   endpoint: string;
+  eventEndpoint?: string;
   accessToken?: string;
   appId?: string;
   appSecret?: string;
@@ -39,6 +40,7 @@ export interface AdapterFormData {
   type: AdapterType;
   connectionMode: ConnectionMode;
   endpoint: string;
+  eventEndpoint?: string;
   accessToken?: string;
   appId?: string;
   appSecret?: string;

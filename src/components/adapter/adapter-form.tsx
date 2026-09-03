@@ -33,9 +33,11 @@ function normalizeUrl(raw: string): string {
 const adapterFormSchema = z.object({
   name: z.string().min(1).max(50),
   type: z.enum(['onebot_v11', 'milky', 'qq_official', 'discord', 'kook'] as const),
-  // OneBot uses forward/reverse WebSocket; Milky uses its fixed HTTP API mode.
+  // OneBot uses forward/reverse WebSocket; Milky reuses forward_ws/http for its
+  // WebSocket and WebHook transport choices.
   connectionMode: z.enum(['forward_ws', 'reverse_ws', 'http'] as const).optional(),
   endpoint: z.string().optional(),
+  eventEndpoint: z.string().optional(),
   accessToken: z.string().optional(),
   appId: z.string().optional(),
   appSecret: z.string().optional(),
@@ -50,6 +52,17 @@ const adapterFormSchema = z.object({
 
 type FormValues = z.infer<typeof adapterFormSchema>;
 type FormMode = NonNullable<FormValues['connectionMode']>;
+
+/** Prefer persisted Milky endpoint details over a legacy HTTP-only mode flag. */
+function initialConnectionMode(adapter?: Adapter | null): FormMode | undefined {
+  if (!adapter) return undefined;
+  if (adapter.type !== 'milky') return adapter.connectionMode as FormMode | undefined;
+  const hasWebhook = Boolean(
+    adapter.webhookBaseUrl?.trim() || adapter.webhookUrl?.trim() || adapter.webhookTokenConfigured,
+  );
+  if (hasWebhook) return 'http';
+  return adapter.connectionMode === 'http' ? 'forward_ws' : adapter.connectionMode as FormMode | undefined;
+}
 
 interface AdapterFormProps {
   open: boolean;
@@ -71,8 +84,9 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
     defaultValues: {
       name: adapter?.name ?? '',
       type: (adapter?.type as AdapterType) ?? 'onebot_v11',
-      connectionMode: (adapter?.connectionMode as FormMode | undefined),   // C#54: 新增时不预选，渐进式引导
+      connectionMode: initialConnectionMode(adapter),   // C#54: 新增时不预选，渐进式引导
       endpoint: adapter?.endpoint ?? '',
+      eventEndpoint: adapter?.eventEndpoint ?? '',
       accessToken: adapter?.accessToken ?? '',
       appId: adapter?.appId ?? '',
       appSecret: '',
@@ -91,8 +105,9 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
       reset({
         name: adapter?.name ?? '',
         type: (adapter?.type as AdapterType) ?? 'onebot_v11',
-        connectionMode: (adapter?.connectionMode as FormMode | undefined),   // C#54: 新增时不预选，渐进式引导
+        connectionMode: initialConnectionMode(adapter),   // C#54: 新增时不预选，渐进式引导
         endpoint: adapter?.endpoint ?? '',
+        eventEndpoint: adapter?.eventEndpoint ?? '',
         accessToken: adapter?.accessToken ?? '',
         appId: adapter?.appId ?? '',
         appSecret: '',
@@ -126,30 +141,40 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
 
     if (data.type === 'milky') {
       const endpoint = (data.endpoint ?? '').trim();
+      const eventEndpoint = (data.eventEndpoint ?? '').trim();
       const accessToken = (data.accessToken ?? '').trim();
       const webhookBaseUrl = (data.webhookBaseUrl ?? '').trim().replace(/\/+$/, '');
       const webhookToken = (data.webhookToken ?? '').trim();
+      const milkyMode = data.connectionMode;
+      if (milkyMode !== 'forward_ws' && milkyMode !== 'http') {
+        return;
+      }
       if (!endpoint || !/^https?:\/\//i.test(endpoint)) {
         setError('endpoint', { message: t('adapters.milky_endpoint_error') });
         return;
       }
-      if (!accessToken && !isEdit) {
-        setError('accessToken', { message: t('adapters.token_required') });
+      const normalizedEventEndpoint = normalizeUrl(eventEndpoint);
+      if (milkyMode === 'forward_ws' && (!eventEndpoint || !/^wss?:\/\//i.test(normalizedEventEndpoint))) {
+        setError('eventEndpoint', { message: t('adapters.milky_event_endpoint_error') });
         return;
       }
-      if (webhookBaseUrl && !/^https?:\/\//i.test(webhookBaseUrl)) {
+      if (milkyMode === 'http' && !webhookBaseUrl) {
         setError('webhookBaseUrl', { message: t('adapters.milky_webhook_url_error') });
         return;
       }
-      if (webhookToken && webhookToken.length < 8) {
+      if (milkyMode === 'http' && !/^https?:\/\//i.test(webhookBaseUrl)) {
+        setError('webhookBaseUrl', { message: t('adapters.milky_webhook_url_error') });
+        return;
+      }
+      if (milkyMode === 'http' && webhookToken && webhookToken.length < 8) {
         setError('webhookToken', { message: t('adapters.milky_webhook_token_error') });
         return;
       }
       data.endpoint = endpoint;
+      data.eventEndpoint = milkyMode === 'forward_ws' ? normalizedEventEndpoint : undefined;
       data.accessToken = accessToken || undefined;
-      data.webhookBaseUrl = webhookBaseUrl;
-      data.webhookToken = webhookToken || undefined;
-      data.connectionMode = 'http';
+      data.webhookBaseUrl = milkyMode === 'http' ? webhookBaseUrl : undefined;
+      data.webhookToken = milkyMode === 'http' ? (webhookToken || undefined) : undefined;
       await onSubmit(data as AdapterFormData);
       onOpenChange(false);
       return;
@@ -252,6 +277,8 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
   const tokenBot = type === 'discord' || type === 'kook';   // 仅需 Bot Token 的平台
   const isReverse = mode === 'reverse_ws';
   const modeChosen = mode === 'forward_ws' || mode === 'reverse_ws';   // C#54: gate later fields
+  const milkyModeChosen = mode === 'forward_ws' || mode === 'http';
+  const milkyWebhook = milky && mode === 'http';
   // Label: "连接地址" for forward/http, "端口" for reverse
   const endpointLabel = isReverse ? t('adapters.port') : t('adapters.address');
   const endpointPlaceholder = milky
@@ -289,13 +316,28 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
           </div>
           {milky ? <>
            <div className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">{t('adapters.milky_hint')}</div>
-           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-             <div className="space-y-2"><Label htmlFor="endpoint">{t('adapters.milky_endpoint')}</Label><Input id="endpoint" inputMode="url" autoComplete="off" placeholder={endpointPlaceholder} {...register('endpoint')} />{errors.endpoint && <p className="text-xs text-destructive">{errors.endpoint.message}</p>}</div>
-             <div className="space-y-2"><Label htmlFor="accessToken">{t('adapters.milky_access_token')}{isEdit ? `（${t('adapters.token_keep')}）` : ''}</Label><Input id="accessToken" type="password" autoComplete="new-password" {...register('accessToken')} />{errors.accessToken && <p className="text-xs text-destructive">{errors.accessToken.message}</p>}</div>
-             <div className="space-y-2"><Label htmlFor="webhookBaseUrl">{t('adapters.milky_webhook_base_url')}</Label><Input id="webhookBaseUrl" inputMode="url" autoComplete="off" placeholder="https://dice.example.com" {...register('webhookBaseUrl')} />{errors.webhookBaseUrl && <p className="text-xs text-destructive">{errors.webhookBaseUrl.message}</p>}</div>
-             <div className="space-y-2"><Label htmlFor="webhookToken">{t('adapters.milky_webhook_token')}{isEdit ? `（${t('adapters.token_keep')}）` : ''}</Label><Input id="webhookToken" type="password" autoComplete="new-password" placeholder={adapter?.webhookTokenConfigured ? t('adapters.milky_token_set', { tail: adapter.webhookTokenTail }) : ''} {...register('webhookToken')} />{errors.webhookToken && <p className="text-xs text-destructive">{errors.webhookToken.message}</p>}</div>
+           <div className="space-y-2">
+             <Label htmlFor="milky-mode">{t('adapters.milky_mode')}</Label>
+             <Select value={mode ?? ''} onValueChange={(v) => { setValue('connectionMode', v as FormMode); clearErrors(['endpoint', 'webhookBaseUrl', 'webhookToken']); }}>
+               <SelectTrigger id="milky-mode"><SelectValue placeholder={t('adapters.milky_choose_mode')} /></SelectTrigger>
+               <SelectContent>
+                 <SelectItem value="forward_ws">{t('adapters.milky_mode_ws')}</SelectItem>
+                 <SelectItem value="http">{t('adapters.milky_mode_webhook')}</SelectItem>
+               </SelectContent>
+             </Select>
            </div>
-           {adapter?.webhookUrl && <p className="break-all text-xs text-muted-foreground">{t('adapters.milky_webhook_url')}: <code>{adapter.webhookUrl}</code></p>}
+           {milkyModeChosen && <>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="space-y-2"><Label htmlFor="endpoint">{t('adapters.milky_endpoint')}</Label><Input id="endpoint" inputMode="url" autoComplete="off" placeholder={endpointPlaceholder} {...register('endpoint')} />{errors.endpoint && <p className="text-xs text-destructive">{errors.endpoint.message}</p>}</div>
+                <div className="space-y-2"><Label htmlFor="accessToken">{t('adapters.milky_access_token')}{isEdit ? `（${t('adapters.token_keep')}）` : ''}</Label><Input id="accessToken" type="password" autoComplete="new-password" {...register('accessToken')} />{errors.accessToken && <p className="text-xs text-destructive">{errors.accessToken.message}</p>}</div>
+                {mode === 'forward_ws' && <div className="space-y-2"><Label htmlFor="eventEndpoint">{t('adapters.milky_event_endpoint')}</Label><Input id="eventEndpoint" inputMode="url" autoComplete="off" placeholder="ws://127.0.0.1:8080/event" {...register('eventEndpoint')} />{errors.eventEndpoint && <p className="text-xs text-destructive">{errors.eventEndpoint.message}</p>}</div>}
+               {milkyWebhook && <>
+                 <div className="space-y-2"><Label htmlFor="webhookBaseUrl">{t('adapters.milky_webhook_base_url')}</Label><Input id="webhookBaseUrl" inputMode="url" autoComplete="off" placeholder="https://dice.example.com" {...register('webhookBaseUrl')} />{errors.webhookBaseUrl && <p className="text-xs text-destructive">{errors.webhookBaseUrl.message}</p>}</div>
+                 <div className="space-y-2"><Label htmlFor="webhookToken">{t('adapters.milky_webhook_token')}{isEdit ? `（${t('adapters.token_keep')}）` : ''}</Label><Input id="webhookToken" type="password" autoComplete="new-password" placeholder={adapter?.webhookTokenConfigured ? t('adapters.milky_token_set', { tail: adapter.webhookTokenTail }) : ''} {...register('webhookToken')} />{errors.webhookToken && <p className="text-xs text-destructive">{errors.webhookToken.message}</p>}</div>
+               </>}
+             </div>
+             {milkyWebhook && adapter?.webhookUrl && <p className="break-all text-xs text-muted-foreground">{t('adapters.milky_webhook_url')}: <code>{adapter.webhookUrl}</code></p>}
+           </>}
           </> : tokenBot ? <>
            <div className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">
              {type === 'discord' ? t('adapters.discord_hint') : t('adapters.kook_hint')}
@@ -419,7 +461,7 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
           </section>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>{t('common.cancel')}</Button>
-            <Button type="submit" disabled={isSubmitting || (!official && !milky && !tokenBot && !modeChosen)}>{isSubmitting ? t('common.saving') : isEdit ? t('adapters.save_edit') : t('adapters.add')}</Button>
+            <Button type="submit" disabled={isSubmitting || (!official && !milky && !tokenBot && !modeChosen) || (milky && !milkyModeChosen)}>{isSubmitting ? t('common.saving') : isEdit ? t('adapters.save_edit') : t('adapters.add')}</Button>
           </DialogFooter>
         </form>
       </DialogContent>
