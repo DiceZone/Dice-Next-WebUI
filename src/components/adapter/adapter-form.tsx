@@ -32,10 +32,11 @@ function normalizeUrl(raw: string): string {
 
 const adapterFormSchema = z.object({
   name: z.string().min(1).max(50),
-  type: z.enum(['onebot_v11', 'qq_official', 'discord', 'kook'] as const),
-  // C#55: HTTP 是单向的、不适合使用，已移除。仅保留 正向 / 反向 WS。
-  connectionMode: z.enum(['forward_ws', 'reverse_ws'] as const).optional(),
+  type: z.enum(['onebot_v11', 'milky', 'qq_official', 'discord', 'kook'] as const),
+  // OneBot uses forward/reverse WebSocket; Milky currently uses forward WebSocket.
+  connectionMode: z.enum(['forward_ws', 'reverse_ws', 'http'] as const).optional(),
   endpoint: z.string().optional(),
+  eventEndpoint: z.string().optional(),
   accessToken: z.string().optional(),
   appId: z.string().optional(),
   appSecret: z.string().optional(),
@@ -48,6 +49,12 @@ const adapterFormSchema = z.object({
 
 type FormValues = z.infer<typeof adapterFormSchema>;
 type FormMode = NonNullable<FormValues['connectionMode']>;
+
+function initialConnectionMode(adapter?: Adapter | null): FormMode | undefined {
+  if (!adapter) return undefined;
+  if (adapter.type !== 'milky') return adapter.connectionMode as FormMode | undefined;
+  return 'forward_ws';
+}
 
 interface AdapterFormProps {
   open: boolean;
@@ -69,8 +76,9 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
     defaultValues: {
       name: adapter?.name ?? '',
       type: (adapter?.type as AdapterType) ?? 'onebot_v11',
-      connectionMode: (adapter?.connectionMode as FormMode | undefined),   // C#54: 新增时不预选，渐进式引导
+      connectionMode: initialConnectionMode(adapter),   // C#54: 新增时不预选，渐进式引导
       endpoint: adapter?.endpoint ?? '',
+      eventEndpoint: adapter?.eventEndpoint ?? '',
       accessToken: adapter?.accessToken ?? '',
       appId: adapter?.appId ?? '',
       appSecret: '',
@@ -87,8 +95,9 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
       reset({
         name: adapter?.name ?? '',
         type: (adapter?.type as AdapterType) ?? 'onebot_v11',
-        connectionMode: (adapter?.connectionMode as FormMode | undefined),   // C#54: 新增时不预选，渐进式引导
+        connectionMode: initialConnectionMode(adapter),   // C#54: 新增时不预选，渐进式引导
         endpoint: adapter?.endpoint ?? '',
+        eventEndpoint: adapter?.eventEndpoint ?? '',
         accessToken: adapter?.accessToken ?? '',
         appId: adapter?.appId ?? '',
         appSecret: '',
@@ -118,6 +127,27 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
     else data.heartApiKey = heartApiKey;
     delete (data as Partial<FormValues>).clearHeartApiKey;
 
+    if (data.type === 'milky') {
+      const endpoint = (data.endpoint ?? '').trim();
+      const eventEndpoint = (data.eventEndpoint ?? '').trim();
+      const accessToken = (data.accessToken ?? '').trim();
+      if (!endpoint || !/^https?:\/\//i.test(endpoint)) {
+        setError('endpoint', { message: t('adapters.milky_endpoint_error') });
+        return;
+      }
+      const normalizedEventEndpoint = normalizeUrl(eventEndpoint);
+      if (!eventEndpoint || !/^wss?:\/\//i.test(normalizedEventEndpoint)) {
+        setError('eventEndpoint', { message: t('adapters.milky_event_endpoint_error') });
+        return;
+      }
+      data.connectionMode = 'forward_ws';
+      data.endpoint = endpoint;
+      data.eventEndpoint = normalizedEventEndpoint;
+      data.accessToken = accessToken || undefined;
+      await onSubmit(data as AdapterFormData);
+      onOpenChange(false);
+      return;
+    }
     if (data.type === 'discord' || data.type === 'kook') {
       // Token 型适配器：只需 Bot Token；编辑时留空 = 保持原 Token 不变。
       const token = (data.accessToken ?? '').trim();
@@ -212,18 +242,21 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
   const mode = watch('connectionMode');
   const type = watch('type');
   const official = type === 'qq_official';
+  const milky = type === 'milky';
   const tokenBot = type === 'discord' || type === 'kook';   // 仅需 Bot Token 的平台
   const isReverse = mode === 'reverse_ws';
   const modeChosen = mode === 'forward_ws' || mode === 'reverse_ws';   // C#54: gate later fields
   // Label: "连接地址" for forward/http, "端口" for reverse
   const endpointLabel = isReverse ? t('adapters.port') : t('adapters.address');
-  const endpointPlaceholder = isReverse
+  const endpointPlaceholder = milky
+    ? 'http://127.0.0.1:8080'
+    : isReverse
     ? t('adapters.port_placeholder')
     : 'ws://192.168.6.245:3001';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={official ? 'max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-[760px]' : 'max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-[500px]'}>
+      <DialogContent className={official || milky ? 'max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-[760px]' : 'max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-[500px]'}>
         <DialogHeader>
           <DialogTitle>{isEdit ? t('adapters.edit_title') : t('adapters.add_title')}</DialogTitle>
           <DialogDescription>{isEdit ? t('adapters.edit_subtitle') : t('adapters.add_subtitle')}</DialogDescription>
@@ -237,17 +270,32 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
           <div className="space-y-2">
             <Label htmlFor="type">{t('adapters.type_label')}</Label>
             {/* C#55: 编辑时不允许修改适配器平台 */}
-            <Select value={watch('type')} onValueChange={(v) => setValue('type', v as AdapterType)} disabled={isEdit}>
+            <Select
+              value={watch('type')}
+              onValueChange={(v) => {
+                setValue('type', v as AdapterType);
+                if (v === 'milky') setValue('connectionMode', 'forward_ws');
+              }}
+              disabled={isEdit}
+            >
               <SelectTrigger id="type"><SelectValue placeholder={t('adapters.type_label')} /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="onebot_v11"><span className="inline-flex items-center gap-2"><PlatformIcon platform="onebot_v11" />OneBot v11</span></SelectItem>
+                <SelectItem value="milky"><span className="inline-flex items-center gap-2"><PlatformIcon platform="milky" />Milky</span></SelectItem>
                 <SelectItem value="qq_official"><span className="inline-flex items-center gap-2"><PlatformIcon platform="qq_official" />QQ 官方机器人 2.0</span></SelectItem>
                 <SelectItem value="discord"><span className="inline-flex items-center gap-2"><PlatformIcon platform="discord" />Discord</span></SelectItem>
                 <SelectItem value="kook"><span className="inline-flex items-center gap-2"><PlatformIcon platform="kook" />KOOK</span></SelectItem>
               </SelectContent>
             </Select>
           </div>
-          {tokenBot ? <>
+          {milky ? <>
+           <div className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">{t('adapters.milky_hint')}</div>
+           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+             <div className="space-y-2"><Label htmlFor="endpoint">{t('adapters.milky_endpoint')}</Label><Input id="endpoint" inputMode="url" autoComplete="off" placeholder={endpointPlaceholder} {...register('endpoint')} />{errors.endpoint && <p className="text-xs text-destructive">{errors.endpoint.message}</p>}</div>
+             <div className="space-y-2"><Label htmlFor="accessToken">{t('adapters.milky_access_token')}{isEdit ? `（${t('adapters.token_keep')}）` : ''}</Label><Input id="accessToken" type="password" autoComplete="new-password" {...register('accessToken')} />{errors.accessToken && <p className="text-xs text-destructive">{errors.accessToken.message}</p>}</div>
+             <div className="space-y-2"><Label htmlFor="eventEndpoint">{t('adapters.milky_event_endpoint')}</Label><Input id="eventEndpoint" inputMode="url" autoComplete="off" placeholder="ws://127.0.0.1:8080/event" {...register('eventEndpoint')} />{errors.eventEndpoint && <p className="text-xs text-destructive">{errors.eventEndpoint.message}</p>}</div>
+           </div>
+          </> : tokenBot ? <>
            <div className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">
              {type === 'discord' ? t('adapters.discord_hint') : t('adapters.kook_hint')}
            </div>
@@ -370,7 +418,7 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
           </section>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>{t('common.cancel')}</Button>
-            <Button type="submit" disabled={isSubmitting || (!official && !tokenBot && !modeChosen)}>{isSubmitting ? t('common.saving') : isEdit ? t('adapters.save_edit') : t('adapters.add')}</Button>
+            <Button type="submit" disabled={isSubmitting || (!official && !milky && !tokenBot && !modeChosen)}>{isSubmitting ? t('common.saving') : isEdit ? t('adapters.save_edit') : t('adapters.add')}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

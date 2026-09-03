@@ -334,7 +334,7 @@ export const SETTINGS_SEARCH_ENTRIES: SettingsSearchEntry[] = [
   e('page-settings', '/settings', 'nav.settings', 'settings.title', '系统设置 系統設定 settings configuration preferences 全局 全域', 'settings.subtitle'),
   e('page-webui', '/webui-settings', 'nav.webui', 'webui.title', 'webui 设置 設定 panel server login auth password port theme', 'webui.desc'),
   e('page-notice', '/notice-settings', 'nav.notice', 'noticeset.title', '通知设置 通知設定 notice notification smtp webhook audit window', 'noticeset.desc'),
-  e('page-adapters', '/adapters', 'nav.adapters', 'adapters.title', '平台连接 平台連線 adapter onebot websocket qq official discord kook 账号 帳號', 'adapters.subtitle', true),
+  e('page-adapters', '/adapters', 'nav.adapters', 'adapters.title', '平台连接 平台連線 adapter onebot milky websocket http qq official discord kook 账号 帳號', 'adapters.subtitle', true),
   e('page-replies', '/replies', 'nav.replies', 'replies.title', '回复 回覆 reply template text markdown variables 自定义 自訂', 'replies.subtitle'),
   e('page-commands', '/commands', 'nav.commands', 'commands.title', '指令 命令 command alias enable disable reply text', 'commands.subtitle'),
   e('page-modules', '/modules', 'nav.modules', 'modules.title', '插件 plugin js javascript lua module extension config', 'modules.subtitle'),
