@@ -21,10 +21,6 @@ export interface Adapter {
   appSecret?: string;
   qqNumber?: string;
   forceVerifyImageResource?: boolean;
-  webhookBaseUrl?: string;
-  webhookTokenConfigured?: boolean;
-  webhookTokenTail?: string;
-  webhookUrl?: string;
   heartApiKeyConfigured?: boolean;
   heartApiKeyTail?: string;
   enabled: boolean;
@@ -46,8 +42,6 @@ export interface AdapterFormData {
   appSecret?: string;
   qqNumber?: string;
   forceVerifyImageResource?: boolean;
-  webhookBaseUrl?: string;
-  webhookToken?: string;
   heartApiKey?: string;
   clearHeartApiKey?: boolean;
   enabled?: boolean;

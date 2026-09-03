@@ -74,7 +74,7 @@ export const AdapterCard: React.FC<AdapterCardProps> = ({
   const identityLabel = adapter.type === 'qq_official' ? t('adapters.detail_app_id') : t('adapters.detail_bot_id');
   const identityValue = adapter.type === 'qq_official' ? adapter.appId : adapter.loginId;
   const modeLabel = adapter.type === 'milky'
-    ? adapter.connectionMode === 'forward_ws' ? t('adapters.milky_mode_ws') : t('adapters.milky_mode_webhook')
+    ? t('adapters.milky_mode_ws')
     : adapter.type === 'qq_official'
     ? t('adapters.detail_official_gateway')
     : adapter.type === 'discord' || adapter.type === 'kook'
@@ -219,14 +219,7 @@ export const AdapterCard: React.FC<AdapterCardProps> = ({
             {adapter.type === 'qq_official' && <DetailRow label={t('adapters.detail_real_qq')} mono>{adapter.qqNumber || '—'}</DetailRow>}
             <DetailRow label={t('adapters.detail_protocol')}>{modeLabel}</DetailRow>
             <DetailRow label={t('adapters.endpoint')} mono>{endpointValue}</DetailRow>
-            {adapter.type === 'milky' && adapter.connectionMode === 'forward_ws' && <DetailRow label={t('adapters.milky_event_endpoint')} mono>{adapter.eventEndpoint || '—'}</DetailRow>}
-            {adapter.type === 'milky' && <>
-              <DetailRow label={t('adapters.milky_webhook_base_url')} mono>{adapter.webhookBaseUrl || '—'}</DetailRow>
-              <DetailRow label={t('adapters.milky_webhook_url')} mono>{adapter.webhookUrl || '—'}</DetailRow>
-              <DetailRow label={t('adapters.milky_webhook_token')}>
-                {adapter.webhookTokenConfigured ? t('adapters.milky_token_set', { tail: adapter.webhookTokenTail }) : t('adapters.milky_token_unset')}
-              </DetailRow>
-            </>}
+            {adapter.type === 'milky' && <DetailRow label={t('adapters.milky_event_endpoint')} mono>{adapter.eventEndpoint || '—'}</DetailRow>}
             <DetailRow label={t('adapters.detail_connection_status')}>
               <span className="inline-flex items-center gap-2"><ConnectionStatus status={effectiveStatus} />{t(STATUS_LABEL_KEYS[effectiveStatus])}</span>
             </DetailRow>
