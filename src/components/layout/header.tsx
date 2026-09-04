@@ -5,14 +5,16 @@ import { Button } from '@/components/ui/button';
 import { LanguageSwitcher } from '@/components/layout/language-switcher';
 import { GlobalSettingsSearch } from '@/components/layout/global-settings-search';
 import { zustandAppStore } from '@/store/app-store';
-import { Menu, Sun, Moon } from 'lucide-react';
+import { CircleHelp, Menu, Sun, Moon } from 'lucide-react';
 
 interface HeaderProps {
   wsConnected?: boolean;
   onNavigate: (path: string) => void;
+  tourAvailable?: boolean;
+  onReplayTour?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ wsConnected: _ws, onNavigate }) => {
+export const Header: React.FC<HeaderProps> = ({ wsConnected: _ws, onNavigate, tourAvailable = false, onReplayTour }) => {
   const { sidebarCollapsed, setSidebarCollapsed, theme, setTheme } = zustandAppStore();
   const { t } = useTranslation();
   const [apiOnline, setApiOnline] = useState(false);
@@ -97,6 +99,20 @@ export const Header: React.FC<HeaderProps> = ({ wsConnected: _ws, onNavigate }) 
 
         {/* Language switcher */}
         <LanguageSwitcher />
+
+        {/* The tour only auto-opens once, but remains available on demand. */}
+        {tourAvailable && (
+          <Button
+            data-tour="replay"
+            variant="ghost"
+            size="icon"
+            onClick={onReplayTour}
+            title={t('onboarding.replay')}
+            aria-label={t('onboarding.replay')}
+          >
+            <CircleHelp className="h-5 w-5" />
+          </Button>
+        )}
 
         {/* Theme toggle */}
         <Button variant="ghost" size="icon" onClick={toggleTheme} title={t('header.toggle_theme')}>

@@ -2,6 +2,8 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 import { Sidebar } from '@/components/layout/sidebar';
 import { Header } from '@/components/layout/header';
+import { PageTour } from '@/components/onboarding/page-tour';
+import { getPageTourProfile } from '@/lib/page-tours';
 import { zustandAppStore } from '@/store/app-store';
 
 interface LayoutProps {
@@ -20,6 +22,8 @@ export const Layout: React.FC<LayoutProps> = ({
   searchTarget,
 }) => {
   const { sidebarCollapsed } = zustandAppStore();
+  const [tourReplayToken, setTourReplayToken] = React.useState(0);
+  const tourAvailable = Boolean(getPageTourProfile(currentPath));
 
   React.useEffect(() => {
     if (!searchTarget) return;
@@ -52,8 +56,14 @@ export const Layout: React.FC<LayoutProps> = ({
     <div className="flex h-screen overflow-hidden bg-background">
       <Sidebar currentPath={currentPath} onNavigate={onNavigate} />
       <div className="flex flex-1 flex-col overflow-hidden">
-        <Header wsConnected={wsConnected} onNavigate={onNavigate} />
+        <Header
+          wsConnected={wsConnected}
+          onNavigate={onNavigate}
+          tourAvailable={tourAvailable}
+          onReplayTour={() => setTourReplayToken((token) => token + 1)}
+        />
         <main
+          data-tour="page-content"
           className={cn(
             'flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6',
             sidebarCollapsed ? 'lg:ml-0' : 'ml-0'
@@ -62,6 +72,7 @@ export const Layout: React.FC<LayoutProps> = ({
           {children}
         </main>
       </div>
+      <PageTour currentPath={currentPath} replayToken={tourReplayToken} />
     </div>
   );
 };

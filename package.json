@@ -8,7 +8,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "tsc -p tsconfig.app.json --noEmit --emitDeclarationOnly false --composite false",
-    "test": "tsc -p tsconfig.test.json && node --test tests/settings-search.test.mjs tests/update-error-notice.test.mjs",
+    "test": "tsc -p tsconfig.test.json && node --test tests/settings-search.test.mjs tests/update-error-notice.test.mjs tests/onboarding.test.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

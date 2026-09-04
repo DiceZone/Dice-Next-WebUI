@@ -12,6 +12,7 @@
   },
   "include": [
     "src/lib/settings-search.ts",
-    "src/lib/update-error-notice.ts"
+    "src/lib/update-error-notice.ts",
+    "src/lib/onboarding.ts"
   ]
 }
