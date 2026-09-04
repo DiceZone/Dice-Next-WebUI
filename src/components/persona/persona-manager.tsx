@@ -13,10 +13,12 @@ import {
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useDialogs } from '@/hooks/use-dialogs';
-import { Sparkles, Plus, Copy, Trash2, Edit3, Check, FileDown, Upload, Users } from 'lucide-react';
+import { Sparkles, Plus, Copy, Trash2, Edit3, Check, FileDown, Upload, Users, Globe2, Info } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
-import type { PersonaTemplate, PersonaExport } from '@/types/persona';
+import type { PersonaTemplate, PersonaExport, ActivePersonaInfo } from '@/types/persona';
 import { PersonaEditor } from './persona-editor';
+
+const GLOBAL_PERSONA_SCOPE = { groupId: '', platform: 'onebot_v11' } as const;
 
 export const PersonaManagerCard: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
   const { t } = useTranslation();
@@ -24,7 +26,7 @@ export const PersonaManagerCard: React.FC<{ onChanged?: () => void }> = ({ onCha
   const dlg = useDialogs(t);
   const [personas, setPersonas] = useState<PersonaTemplate[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeId, setActiveId] = useState(0);
+  const [activeInfo, setActiveInfo] = useState<ActivePersonaInfo>({ activeId: 0, globalId: 0 });
   const [createOpen, setCreateOpen] = useState(false);
   const [newName, setNewName] = useState('');
   const [newDesc, setNewDesc] = useState('');
@@ -37,8 +39,10 @@ export const PersonaManagerCard: React.FC<{ onChanged?: () => void }> = ({ onCha
     try {
       const res = await apiClient.get<PersonaTemplate[]>('/personas');
       setPersonas(res.data || []);
-      const activeRes = await apiClient.get<{ activeId: number }>('/personas/active');
-      setActiveId(activeRes.data.activeId || 0);
+      // This card manages the process-wide default only. An explicit empty
+      // group keeps this request distinct from a per-group lookup.
+      const activeRes = await apiClient.get<ActivePersonaInfo>('/personas/active?groupId=&platform=onebot_v11');
+      setActiveInfo(activeRes.data);
     } catch {
       toast({ title: t('common.load_fail'), variant: 'destructive' });
     } finally {
@@ -62,8 +66,8 @@ export const PersonaManagerCard: React.FC<{ onChanged?: () => void }> = ({ onCha
 
   const handleActivate = async (p: PersonaTemplate) => {
     try {
-      await apiClient.post(`/personas/${p.id}/activate`, { groupId: '' });
-      setActiveId(p.id);
+      await apiClient.post(`/personas/${p.id}/activate`, GLOBAL_PERSONA_SCOPE);
+      setActiveInfo((current) => ({ ...current, activeId: p.id, globalId: p.id, name: p.name, description: p.description }));
       toast({ title: t('persona.activated', { name: p.name }) });
     } catch (e) {
       toast({ title: (e as Error).message, variant: 'destructive' });
@@ -122,6 +126,12 @@ export const PersonaManagerCard: React.FC<{ onChanged?: () => void }> = ({ onCha
     }
   };
 
+  const globalId = activeInfo.globalId ?? activeInfo.activeId ?? 0;
+  const globalPersona = personas.find((p) => p.id === globalId);
+  const globalPersonaName = globalId > 0
+    ? (globalPersona?.name || activeInfo.name || t('persona.global_unknown_name'))
+    : t('persona.global_base_name');
+
   return (
     <Card>
       <CardHeader>
@@ -134,6 +144,19 @@ export const PersonaManagerCard: React.FC<{ onChanged?: () => void }> = ({ onCha
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
+        <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <Globe2 className="h-4 w-4 text-primary" />
+            <span>{t('persona.global_scope_title')}</span>
+            <Badge variant="outline" className="ml-auto max-w-[55%] truncate">{globalPersonaName}</Badge>
+          </div>
+          <p className="text-xs leading-relaxed text-muted-foreground">{t('persona.global_scope_desc')}</p>
+          <div className="flex items-start gap-2 rounded-md bg-background/70 px-2.5 py-2 text-xs leading-relaxed text-muted-foreground">
+            <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            <span>{t('persona.group_scope_hint')}</span>
+          </div>
+        </div>
+
         <div className="flex items-center gap-2">
           <Button size="sm" onClick={() => setCreateOpen(true)}><Plus className="mr-2 h-4 w-4" />{t('persona.new')}</Button>
           <Button size="sm" variant="outline" onClick={() => setImportOpen(true)}><Upload className="mr-2 h-4 w-4" />{t('persona.import')}</Button>
@@ -155,13 +178,13 @@ export const PersonaManagerCard: React.FC<{ onChanged?: () => void }> = ({ onCha
                   <div className="flex items-center gap-2">
                     <span className="font-medium">{p.name}</span>
                     {p.isBuiltin && <Badge variant="secondary" className="text-xs">{t('persona.builtin')}</Badge>}
-                    {activeId === p.id && <Badge variant="success" className="text-xs">{t('persona.current_badge')}</Badge>}
+                    {globalId === p.id && <Badge variant="success" className="text-xs">{t('persona.current_badge')}</Badge>}
                   </div>
                   {p.description && <p className="text-xs text-muted-foreground mt-0.5 truncate">{p.description}</p>}
                   <p className="text-xs text-muted-foreground">{t('persona.entry_count', { count: p.entryCount })}</p>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
-                  {activeId !== p.id && (
+                  {globalId !== p.id && (
                     <Button variant="ghost" size="icon" className="h-8 w-8" title={t('persona.activate')} onClick={() => handleActivate(p)}>
                       <Check className="h-4 w-4" />
                     </Button>
@@ -186,11 +209,11 @@ export const PersonaManagerCard: React.FC<{ onChanged?: () => void }> = ({ onCha
           </div>
         )}
 
-        {activeId > 0 && (
+        {globalId > 0 && (
           <Button variant="outline" size="sm" onClick={async () => {
             try {
-              await apiClient.post(`/personas/0/activate`, { groupId: '' });
-              setActiveId(0);
+              await apiClient.post(`/personas/0/activate`, GLOBAL_PERSONA_SCOPE);
+              setActiveInfo((current) => ({ ...current, activeId: 0, globalId: 0, name: undefined, description: undefined }));
               toast({ title: t('persona.switched_default') });
             } catch (e) { toast({ title: (e as Error).message, variant: 'destructive' }); }
           }}>{t('persona.switch_default')}</Button>

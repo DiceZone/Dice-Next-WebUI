@@ -20,6 +20,7 @@ import {
 import { cn } from '@/lib/utils';
 import { PlatformIcon, platformLabel } from '@/components/platform-icon';
 import { LogActionButtons } from '@/components/log-action-buttons';
+import type { ActivePersonaInfo, PersonaTemplate } from '@/types/persona';
 
 interface GroupAccount {
   adapterId: string; adapterName: string; loginId: string; platform: string; endpointId: string;
@@ -602,12 +603,70 @@ const FunctionTab: React.FC<any> = ({ group, base, scopedBody, onChanged, onBack
   // C#49: 本群回复语言（空=默认）；下拉项来自后端已加载语言（含自定义翻译文件 C#46）。
   const [locale, setLocale] = useState<string>(group.locale || '');
   const [locales, setLocales] = useState<{ code: string; name: string }[]>([]);
+  const [personas, setPersonas] = useState<PersonaTemplate[]>([]);
+  const [personaInfo, setPersonaInfo] = useState<ActivePersonaInfo | null>(null);
+  const [personaLoading, setPersonaLoading] = useState(true);
+  // Bound cross-platform groups may have a logical groupId that differs from
+  // the selected adapter's real endpoint. Runtime persona lookup uses the
+  // message targetId, so the editor must use that same endpoint here.
+  const personaTargetId = group.endpointId || group.groupId;
   useEffect(() => {
     (async () => {
       try { const d = await jget<{ code: string; name: string }[]>('/i18n/locales'); setLocales(d || []); }
       catch { /* ignore */ }
     })();
   }, []);
+
+  const loadPersonaState = useCallback(async () => {
+    setPersonaLoading(true);
+    try {
+      const params = new URLSearchParams({ groupId: personaTargetId, platform: group.platform });
+      const [templates, active] = await Promise.all([
+        jget<PersonaTemplate[]>('/personas'),
+        jget<ActivePersonaInfo>('/personas/active?' + params.toString()),
+      ]);
+      setPersonas(templates || []);
+      setPersonaInfo(active);
+    } catch (e) {
+      toast({ title: t('groups.persona_load_fail'), description: String(e), variant: 'destructive' });
+    } finally {
+      setPersonaLoading(false);
+    }
+  }, [personaTargetId, group.platform, t, toast]);
+
+  useEffect(() => { void loadPersonaState(); }, [loadPersonaState]);
+
+  const setGroupPersona = async (value: string) => {
+    setPersonaLoading(true);
+    try {
+      if (value === '__inherit__') {
+        const params = new URLSearchParams({ groupId: personaTargetId, platform: group.platform });
+        await jsend('DELETE', '/personas/active?' + params.toString());
+      } else {
+        const personaId = value === '__off__' ? 0 : Number(value);
+        await jsend('POST', `/personas/${personaId}/activate`, {
+          groupId: personaTargetId,
+          platform: group.platform,
+        });
+      }
+      await loadPersonaState();
+      toast({ title: t('groups.persona_saved') });
+    } catch (e) {
+      toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' });
+      setPersonaLoading(false);
+    }
+  };
+
+  const hasPersonaOverride = personaInfo?.hasGroupOverride === true;
+  const personaSelection = !hasPersonaOverride
+    ? '__inherit__'
+    : personaInfo && personaInfo.activeId > 0 ? String(personaInfo.activeId) : '__off__';
+  const effectivePersona = personaInfo && personaInfo.activeId > 0
+    ? (personas.find((p) => p.id === personaInfo.activeId)?.name || personaInfo.name || t('persona.global_unknown_name'))
+    : t('persona.global_base_name');
+  const globalPersona = personaInfo && personaInfo.globalId > 0
+    ? (personas.find((p) => p.id === personaInfo.globalId)?.name || t('persona.global_unknown_name'))
+    : t('persona.global_base_name');
 
   // Fetch the bot's own nickname for this platform (fallback display when no group card).
   useEffect(() => {
@@ -685,6 +744,34 @@ const FunctionTab: React.FC<any> = ({ group, base, scopedBody, onChanged, onBack
             {locales.map((l) => <SelectItem key={l.code} value={l.code}>{l.name}</SelectItem>)}
           </SelectContent>
         </Select>
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="flex items-center gap-1.5 text-sm font-medium">
+          <Sparkles className="h-4 w-4 text-primary" />
+          {t('groups.group_persona')}
+        </label>
+        <p className="text-xs text-muted-foreground">{t('groups.group_persona_hint')}</p>
+        <Select value={personaSelection} onValueChange={(value) => { void setGroupPersona(value); }} disabled={personaLoading || !personaInfo}>
+          <SelectTrigger className="h-9 w-full sm:w-80">
+            <SelectValue placeholder={personaLoading ? t('common.loading') : t('groups.persona_select')} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__inherit__">{t('groups.persona_inherit', { name: globalPersona })}</SelectItem>
+            <SelectItem value="__off__">{t('groups.persona_off')}</SelectItem>
+            {personas.map((persona) => (
+              <SelectItem key={persona.id} value={String(persona.id)}>{persona.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {personaInfo && (
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <span>{t('groups.persona_effective', { name: effectivePersona })}</span>
+            <Badge variant={hasPersonaOverride ? 'secondary' : 'outline'} className="text-[10px]">
+              {hasPersonaOverride ? t('groups.persona_source_group') : t('groups.persona_source_global')}
+            </Badge>
+          </div>
+        )}
       </div>
 
 
