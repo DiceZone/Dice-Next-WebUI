@@ -30,13 +30,13 @@ export const DashboardPage: React.FC = () => {
       <PageHeader icon={LayoutDashboard} title={t('dashboard.title')} description={t('dashboard.subtitle')} />
 
       {loading && !stats ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div data-tour="dashboard-summary" className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           {[...Array(3)].map((_, i) => (
             <div key={i} className="h-24 animate-pulse rounded-lg bg-muted" />
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div data-tour="dashboard-summary" className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <StatCard icon={PlugZap} label={t('dashboard.online_adapters')}
             value={`${stats?.active_connections ?? 0} / ${stats?.total_adapters ?? 0}`} />
           <StatCard icon={MessagesSquare} label={t('dashboard.total_commands')} value={stats?.total_commands ?? 0} />
@@ -45,8 +45,8 @@ export const DashboardPage: React.FC = () => {
       )}
 
       <div className="grid gap-4 lg:grid-cols-3 lg:items-stretch">
-        <div className="lg:col-span-1"><ServerInfo /></div>
-        <div className="lg:col-span-2"><RecentLogs logs={stats?.recent_logs ?? []} /></div>
+        <div data-tour="dashboard-server" className="lg:col-span-1"><ServerInfo /></div>
+        <div data-tour="dashboard-logs" className="lg:col-span-2"><RecentLogs logs={stats?.recent_logs ?? []} /></div>
       </div>
     </div>
   );

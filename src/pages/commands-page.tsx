@@ -264,7 +264,7 @@ export const CommandsPage: React.FC = () => {
           <p className="text-sm text-muted-foreground">{t('commands.subtitle')}</p>
           <p className="text-sm text-muted-foreground">{t('commands.compat_note')}</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div data-tour="commands-toolbar" className="flex flex-wrap items-center gap-2">
           {/* persona being edited (default = global). Switching shows that persona's reply text. */}
           <Select value={String(personaId)} onValueChange={(v) => setPersonaId(Number(v))}>
             <SelectTrigger className="h-9 w-36"><SelectValue /></SelectTrigger>
@@ -299,7 +299,7 @@ export const CommandsPage: React.FC = () => {
       )}
 
       {/* category + special tabs */}
-      <div className="flex gap-1 border-b flex-wrap">
+      <div data-tour="commands-filters" className="flex gap-1 border-b flex-wrap">
         {cats.map((c) => (
           <button key={c} onClick={() => setCat(c)}
             className={`px-3 py-2 text-sm border-b-2 -mb-px transition-colors ${cat === c ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
@@ -308,6 +308,7 @@ export const CommandsPage: React.FC = () => {
         ))}
       </div>
 
+      <div data-tour="commands-list">
       {SPECIAL_TABS.includes(cat) ? (
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
@@ -467,6 +468,7 @@ export const CommandsPage: React.FC = () => {
           </table>
         </div>
       )}
+      </div>
 
       {editing && (
         <EditReplyModal lang={lang} cmd={editing.cmd} reply={editing.reply} personaId={personaId}

@@ -81,7 +81,7 @@ export const DecksPage: React.FC = () => {
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2"><FolderKanban className="h-5 w-5" />{t('decks.title')}</h1>
           <p className="text-sm text-muted-foreground">{t('decks.subtitle')}</p>
         </div>
-        <div className="flex gap-2 shrink-0">
+        <div data-tour="decks-actions" className="flex gap-2 shrink-0">
           <Button variant="outline" size="sm" onClick={reloadDecks} disabled={loading}><RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />{t('common.refresh')}</Button>
           <Button size="sm" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
             {uploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}{t('decks.upload')}
@@ -90,6 +90,7 @@ export const DecksPage: React.FC = () => {
         </div>
       </div>
 
+      <div data-tour="decks-list">
       {loading ? (
         <div className="flex items-center justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
       ) : files.length === 0 ? (
@@ -154,6 +155,7 @@ export const DecksPage: React.FC = () => {
           )}
         </>
       )}
+      </div>
 
       {editing && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setEditing(null)}>

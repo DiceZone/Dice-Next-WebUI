@@ -182,7 +182,7 @@ export const SchedulesPage: React.FC = () => {
         <p className="text-sm text-muted-foreground">{t('schedules.subtitle')}</p>
       </div>
 
-      <Card>
+      <Card data-tour="schedules-form">
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             {editingId == null ? <Plus className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
@@ -299,14 +299,14 @@ export const SchedulesPage: React.FC = () => {
               placeholder={form.action === 'command' ? t('schedules.plugin_command_placeholder') : t('schedules.content_placeholder')} />
             {form.action === 'command' && <p className="text-xs text-muted-foreground">{t('schedules.plugin_command_hint')}</p>}
           </div>
-          <div className="flex gap-2">
+          <div data-tour="schedules-submit" className="flex gap-2">
             <Button onClick={save}>{editingId == null ? <><Plus className="mr-2 h-4 w-4" />{t('schedules.add')}</> : <><Save className="mr-2 h-4 w-4" />{t('common.save')}</>}</Button>
             {editingId != null && <Button variant="outline" onClick={cancelEdit}><X className="mr-2 h-4 w-4" />{t('common.cancel')}</Button>}
           </div>
         </CardContent>
       </Card>
 
-      <Card>
+      <Card data-tour="schedules-list">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-base">{t('schedules.list')} ({tasks.length})</CardTitle>
           <Button variant="outline" size="sm" onClick={load} disabled={loading}><RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />{t('common.refresh')}</Button>

@@ -220,7 +220,7 @@ export const HelpDocsPage: React.FC = () => {
     <div className="space-y-6 max-w-full overflow-x-hidden">
       <PageHeader icon={HelpCircle} title={t('helpdoc.title')} description={t('helpdoc.desc')} />
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div data-tour="help-toolbar" className="flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-[180px] max-w-sm">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input className="h-9 pl-8" placeholder={t('helpdoc.search')} value={q} onChange={(e) => setQ(e.target.value)} />
@@ -244,6 +244,7 @@ export const HelpDocsPage: React.FC = () => {
         {viewMode === 'grouped' ? t('helpdoc.group_count', { n: groups.length }) : t('helpdoc.count', { total })}
       </p>
 
+      <div data-tour="help-content">
       {/* 平铺视图 */}
       {viewMode === 'flat' && (<>
         <div className="grid gap-2">
@@ -289,6 +290,7 @@ export const HelpDocsPage: React.FC = () => {
           {groups.length === 0 && !loading && <p className="py-8 text-center text-sm text-muted-foreground">{t('helpdoc.empty')}</p>}
         </div>
       )}
+      </div>
 
       {edit && (
         <Dialog open onOpenChange={(o) => { if (!o) setEdit(null); }}>
