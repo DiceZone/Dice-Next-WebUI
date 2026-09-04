@@ -65,7 +65,7 @@ export const AdaptersPage: React.FC = () => {
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2"><PlugZap className="h-5 w-5" />{t('adapters.title')}</h1>
           <p className="text-sm text-muted-foreground">{t('adapters.subtitle')}</p>
         </div>
-        <Button size="sm" onClick={() => { setEditingAdapter(null); setFormOpen(true); }}>
+        <Button data-tour="adapters-add" size="sm" onClick={() => { setEditingAdapter(null); setFormOpen(true); }}>
           <Plus className="mr-2 h-4 w-4" />{t('adapters.add')}
         </Button>
       </div>
@@ -74,6 +74,7 @@ export const AdaptersPage: React.FC = () => {
           <p className="text-sm text-destructive">{error}</p>
         </div>
       )}
+      <div data-tour="adapters-list">
       {loading && adapters.length === 0 ? (
         <div className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(min(400px,100%),1fr))]">
           {[...Array(4)].map((_, i) => (<div key={i} className="h-48 animate-pulse rounded-lg bg-muted" />))}
@@ -96,6 +97,7 @@ export const AdaptersPage: React.FC = () => {
           ))}
         </div>
       )}
+      </div>
       <AdapterForm open={formOpen} onOpenChange={setFormOpen}
         onSubmit={editingAdapter ? handleUpdate : handleCreate} adapter={editingAdapter} />
       <ReverseWsInfo open={!!reverseWsPort} onClose={() => setReverseWsPort(null)} port={reverseWsPort ?? ''} />

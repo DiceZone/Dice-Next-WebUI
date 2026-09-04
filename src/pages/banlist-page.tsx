@@ -187,7 +187,7 @@ const PermTab: React.FC<{ entries: BanEntry[]; reload: () => Promise<void>; del:
 
     <div className="space-y-4">
       {/* 用户信任等级 */}
-      <Card>
+      <Card data-tour="permissions-trust">
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2"><Users className="h-4 w-4" />{t('banlist.perm_users')}</CardTitle>
         </CardHeader>
@@ -257,7 +257,7 @@ const PermTab: React.FC<{ entries: BanEntry[]; reload: () => Promise<void>; del:
       </Card>
 
       {/* C#94：白名单群（用户白名单=信任等级，只有群需要单独设置） */}
-      <Card>
+      <Card data-tour="permissions-whitelist">
         <CardHeader><CardTitle className="text-base flex items-center gap-2"><ShieldCheck className="h-4 w-4" />{t('banlist.perm_white_group')}</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <p className="text-xs text-muted-foreground">{t('banlist.perm_white_group_desc')}</p>
@@ -685,7 +685,7 @@ export const BanlistPage: React.FC = () => {
         } />
 
       {/* 选项卡：权限管理 / 骰娘识别 / 黑名单 */}
-      <div className="flex gap-2 border-b">
+      <div data-tour="permissions-tabs" className="flex gap-2 border-b">
         <button className={tabCls(tab === 'perm')} onClick={() => setTab('perm')}>{t('banlist.tab_perm')}</button>
         <button className={tabCls(tab === 'dicebots')} onClick={() => setTab('dicebots')}>{t('banlist.tab_dicebots')}</button>
         <button className={tabCls(tab === 'black')} onClick={() => setTab('black')}>{t('banlist.tab_black')}</button>

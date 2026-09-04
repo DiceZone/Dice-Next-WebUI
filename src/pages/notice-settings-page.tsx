@@ -140,7 +140,7 @@ export const NoticeSettingsPage: React.FC = () => {
     <div className="space-y-6">
       <PageHeader icon={Bell} title={t('noticeset.title')} description={t('noticeset.desc')} />
 
-      <div className="flex gap-2 border-b">
+      <div data-tour="notice-tabs" className="flex gap-2 border-b">
         <button className={tabCls(tab === 'windows')} onClick={() => setTab('windows')}>{t('noticeset.tab_windows')}</button>
         <button className={tabCls(tab === 'push')} onClick={() => setTab('push')}>{t('noticeset.tab_push')}</button>
         <button className={tabCls(tab === 'audit')} onClick={() => setTab('audit')}>{t('noticeset.tab_audit')}</button>
@@ -237,11 +237,11 @@ export const NoticeSettingsPage: React.FC = () => {
               </CardContent>
             </Card>
           ) : (
-            <Button variant="outline" size="sm" onClick={() => setPicking(true)}><Plus className="mr-1 h-4 w-4" />{t('noticeset.win_add')}</Button>
+            <Button data-tour="notice-add" variant="outline" size="sm" onClick={() => setPicking(true)}><Plus className="mr-1 h-4 w-4" />{t('noticeset.win_add')}</Button>
           )}
 
           <p className="text-[11px] text-muted-foreground">{t('noticeset.win_hint')}</p>
-          <div className="flex justify-end"><Button onClick={save} disabled={saving}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{t('common.save')}</Button></div>
+          <div data-tour="notice-save" className="flex justify-end"><Button onClick={save} disabled={saving}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{t('common.save')}</Button></div>
         </div>
       )}
 
@@ -317,7 +317,7 @@ export const NoticeSettingsPage: React.FC = () => {
             </CardContent>
           </Card>
 
-          <div className="flex items-center justify-end gap-2">
+          <div data-tour="notice-actions" className="flex items-center justify-end gap-2">
             <Button variant="outline" onClick={sendTest} disabled={testing}>
               {testing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}{t('noticeset.push_test')}
             </Button>

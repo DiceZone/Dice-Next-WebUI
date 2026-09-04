@@ -295,7 +295,7 @@ export const LogsPage: React.FC = () => {
       <Button variant="outline" size="sm" onClick={load} disabled={loading}><RefreshCw className="mr-2 h-4 w-4" />{t('common.refresh')}</Button>
     </div>
 
-    <div className="relative max-w-xl">
+    <div data-tour="logs-search" className="relative max-w-xl">
       <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
       <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('logs.search_ph')} className="h-9 w-full rounded-md border bg-background pl-9 pr-3 text-sm" />
     </div>
@@ -306,12 +306,12 @@ export const LogsPage: React.FC = () => {
         onValueChange={(value) => setActiveTab(value === 'sessions' ? 'sessions' : 'logs')}
         className="space-y-4"
       >
-        <TabsList>
+        <TabsList data-tour="logs-tabs">
           <TabsTrigger value="logs"><ScrollText className="mr-2 h-4 w-4" />{t('logs.tab_logs')} ({visibleLogs.length})</TabsTrigger>
           <TabsTrigger value="sessions"><UsersRound className="mr-2 h-4 w-4" />{t('logs.tab_sessions')} ({visibleSessions.length})</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="logs" className="mt-0">
+        <TabsContent data-tour="logs-content" value="logs" className="mt-0">
           {visibleLogs.length === 0 ? <div className="rounded-lg border border-dashed py-14 text-center text-muted-foreground">{t('logs.no_logs')}</div> :
             <div className="overflow-x-auto rounded-lg border">
               <table className="rt w-full sm:min-w-[1220px] text-sm">

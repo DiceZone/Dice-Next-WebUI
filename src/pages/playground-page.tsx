@@ -84,7 +84,7 @@ export const PlaygroundPage: React.FC = () => {
   return (
     <div className="flex h-full flex-col overflow-hidden">
       {/* Controls */}
-      <div className="shrink-0 flex flex-wrap items-end gap-3 border-b p-4">
+      <div data-tour="playground-context" className="shrink-0 flex flex-wrap items-end gap-3 border-b p-4">
         <div className="flex flex-col gap-1">
           <label className="text-xs text-muted-foreground">{t('playground.scene')}</label>
           <Select value={scene} onValueChange={(v) => setScene(v as 'group' | 'private')}>
@@ -127,7 +127,7 @@ export const PlaygroundPage: React.FC = () => {
       </div>
 
       {/* Chat area */}
-      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
+      <div data-tour="playground-chat" className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
         {items.map((item, i) => (
           <div key={i} className={cn('flex', item.role === 'user' ? 'justify-end' : 'justify-start')}>
             <div
@@ -147,7 +147,7 @@ export const PlaygroundPage: React.FC = () => {
       </div>
 
       {/* Quick commands */}
-      <div className="shrink-0 flex flex-wrap gap-2 border-t px-4 pt-3">
+      <div data-tour="playground-shortcuts" className="shrink-0 flex flex-wrap gap-2 border-t px-4 pt-3">
         {QUICK_COMMANDS.map((q) => (
           <button key={q} onClick={() => send(q)}
             className="rounded-md border bg-background px-2 py-1 text-xs text-muted-foreground hover:bg-accent">
@@ -157,7 +157,7 @@ export const PlaygroundPage: React.FC = () => {
       </div>
 
       {/* Input */}
-      <div className="flex gap-2 p-4 pt-3">
+      <div data-tour="playground-composer" className="flex gap-2 p-4 pt-3">
         <Input
           value={input}
           onChange={(e) => setInput(e.target.value)}

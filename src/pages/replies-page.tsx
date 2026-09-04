@@ -116,7 +116,7 @@ export const RepliesPage: React.FC = () => {
       </div>
 
       {/* Tab switcher */}
-      <div className="flex gap-2 border-b">
+      <div data-tour="replies-tabs" className="flex gap-2 border-b">
         <button
           className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${tab === 'replies' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
           onClick={() => setTab('replies')}
@@ -143,7 +143,7 @@ export const RepliesPage: React.FC = () => {
           {/* C#72：活动广播横幅（仅有待发广播时显示，单独一行）。 */}
           <BroadcastBar render="banner" />
           {/* C#72：搜索框 + 添加回复 + 新增广播 同一横排。 */}
-          <div className="flex items-center gap-2">
+          <div data-tour="replies-toolbar" className="flex items-center gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input placeholder={t('replies.search_placeholder')} value={filterText} onChange={(e) => setFilterText(e.target.value)} className="pl-9" />
@@ -151,12 +151,12 @@ export const RepliesPage: React.FC = () => {
             <Button size="sm" className="shrink-0" onClick={() => { setEditingReply(null); setFormOpen(true); }}><Plus className="mr-2 h-4 w-4" />{t('replies.add')}</Button>
             <BroadcastBar render="button" />
           </div>
-          {loading ? (
+          <div data-tour="replies-list">{loading ? (
             <div className="h-64 animate-pulse rounded-lg bg-muted" />
           ) : (
             <ReplyTable replies={replies} onEdit={(r) => { setEditingReply(r); setFormOpen(true); }} onDelete={handleDelete} onToggle={handleToggle} filterText={filterText} />
-          )}
-          <ReplyMatchPreview replies={replies} />
+          )}</div>
+          <div data-tour="replies-preview"><ReplyMatchPreview replies={replies} /></div>
           <ReplyForm open={formOpen} onOpenChange={setFormOpen} onSubmit={editingReply ? handleUpdate : handleCreate} reply={editingReply} />
         </>
       )}

@@ -223,7 +223,7 @@ export const GroupsPage: React.FC = () => {
             <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2"><Users className="h-5 w-5" />{t('groups.title')}</h1>
             <p className="text-sm text-muted-foreground">{t('groups.subtitle')}</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div data-tour="groups-view-actions" className="flex items-center gap-2">
             <Button variant="outline" size="icon" className="h-9 w-9" title={view === 'card' ? t('groups.view_table') : t('groups.view_card')}
               onClick={() => setView(view === 'card' ? 'table' : 'card')}>
               {view === 'card' ? <Table2 className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
@@ -234,7 +234,7 @@ export const GroupsPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div data-tour="groups-toolbar" className="flex flex-wrap items-center gap-3">
           <div className="relative max-w-xs flex-1 min-w-[12rem]">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input className="pl-8" placeholder={t('groups.search_placeholder')} value={search}
@@ -252,6 +252,7 @@ export const GroupsPage: React.FC = () => {
           </div>
         </div>
 
+        <div data-tour="groups-list">
         {loading ? (
           <div className="flex items-center justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
         ) : groups.length === 0 ? (
@@ -339,6 +340,7 @@ export const GroupsPage: React.FC = () => {
             <Pager page={curPage} pages={pages} onPage={setPage} />
           </>
         )}
+        </div>
       </div>
     </>
   );

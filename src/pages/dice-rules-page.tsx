@@ -41,13 +41,13 @@ export const DiceRulesPage: React.FC = () => {
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2"><Dices className="h-5 w-5" />{t('dice.title')}</h1>
           <p className="text-sm text-muted-foreground">{t('dice.subtitle')}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div data-tour="dice-actions" className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={handleReset}>{t('dice.reset_default')}</Button>
           <Button size="sm" onClick={handleSave} disabled={saving}>{saving ? t('common.saving') : t('dice.save_rules')}</Button>
         </div>
       </div>
       {localRules && (
-        <Accordion type="multiple" value={accordionValue} onValueChange={setAccordionValue}>
+        <Accordion data-tour="dice-rule-groups" type="multiple" value={accordionValue} onValueChange={setAccordionValue}>
           {DICE_RULE_GROUPS.map((group) => (
             <DiceRuleGroupPanel key={group.id} group={group} rules={localRules} onFieldChange={handleFieldChange} />
           ))}

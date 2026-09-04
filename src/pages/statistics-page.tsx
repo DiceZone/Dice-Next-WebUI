@@ -163,7 +163,7 @@ export const StatisticsPage: React.FC = () => {
         {loading && <span className="mt-2 text-xs text-muted-foreground">{t('statistics.refreshing')}</span>}
       </div>
 
-      <Card>
+      <Card data-tour="statistics-filters">
         <CardContent className="flex flex-wrap items-center gap-3 p-3">
           <div className="inline-flex rounded-lg bg-muted p-1" aria-label={t('statistics.date_range')}>
             {[7, 30, 90].map((value) => (
@@ -208,7 +208,7 @@ export const StatisticsPage: React.FC = () => {
 
       {error && <div className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">{error}</div>}
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <div data-tour="statistics-summary" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <Summary icon={MessagesSquare} label={t('statistics.commands')} value={number(data.summary.total_commands)}
           foot={t('statistics.selected_period')} />
         <Summary icon={Dices} label={t('statistics.rolls')} value={number(data.summary.total_rolls)}
@@ -221,7 +221,7 @@ export const StatisticsPage: React.FC = () => {
           foot={data.summary.adapter_online + ' / ' + data.summary.adapter_total + ' ' + t('statistics.online')} />
       </div>
 
-      <Card>
+      <Card data-tour="statistics-trend">
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-base">
             <Activity className="h-4 w-4 text-primary" />{t('statistics.daily_trend')}
@@ -231,7 +231,7 @@ export const StatisticsPage: React.FC = () => {
         <CardContent><DailyTrend rows={data.daily_usage} /></CardContent>
       </Card>
 
-      <Card>
+      <Card data-tour="statistics-online">
         <CardHeader className="flex flex-row items-start justify-between gap-3 pb-2">
           <div>
             <CardTitle className="flex items-center gap-2 text-base"><PlugZap className="h-4 w-4 text-primary" />{t('statistics.online_history')}</CardTitle>

@@ -254,7 +254,7 @@ export const AboutPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card data-tour="about-version">
         <CardHeader>
           <CardTitle className="text-base">{t('about.version_title')}</CardTitle>
         </CardHeader>
@@ -536,7 +536,7 @@ export const AboutPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card data-tour="about-stack">
         <CardHeader>
           <CardTitle className="text-base">{t('about.stack_title')}</CardTitle>
         </CardHeader>

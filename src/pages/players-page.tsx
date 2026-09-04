@@ -540,7 +540,7 @@ export const PlayersPage: React.FC = () => {
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2"><UserCog className="h-5 w-5" />{t('players.title')}</h1>
           <p className="text-sm text-muted-foreground">{t('players.subtitle')}</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div data-tour="players-filters" className="flex flex-wrap items-center gap-2">
           <Select value={platFilter} onValueChange={setPlatFilter}>
             <SelectTrigger className="h-9 w-36 text-sm"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -559,6 +559,7 @@ export const PlayersPage: React.FC = () => {
         </div>
       </div>
 
+      <div data-tour="players-list">
       {loading ? (
         <div className="flex items-center justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
       ) : shown.length === 0 ? (
@@ -660,6 +661,7 @@ export const PlayersPage: React.FC = () => {
           </table>
         </div>
       )}
+      </div>
       {!loading && shown.length > 0 && (
         <PaginationBar total={shown.length} page={curPage} pageSize={PAGE_SIZE} onPageChange={setPage} fixedSize />
       )}

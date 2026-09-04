@@ -381,7 +381,7 @@ export const ModulesPage: React.FC = () => {
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2"><Puzzle className="h-5 w-5" />{t('modules.title')}</h1>
           <p className="text-sm text-muted-foreground">{t('modules.subtitle')}</p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div data-tour="modules-actions" className="flex flex-wrap gap-2">
           <input ref={fileRef} type="file" accept=".js,.lua,.zip,.json" className="hidden" onChange={onFileChosen} />
           <Button variant="outline" size="sm" onClick={checkAll} disabled={busy}><ArrowUpCircle className="mr-2 h-4 w-4" />{t('modules.check_all')}</Button>
           <Button variant="outline" size="sm" onClick={reload} disabled={busy}><RefreshCw className={`mr-2 h-4 w-4 ${busy ? 'animate-spin' : ''}`} />{t('modules.reload')}</Button>
@@ -390,7 +390,7 @@ export const ModulesPage: React.FC = () => {
       </div>
 
       {/* JS 插件 / Lua 模组 选项卡 */}
-      <div className="flex gap-1 border-b">
+      <div data-tour="modules-tabs" className="flex gap-1 border-b">
         {([['js', `{js} ${t('modules.tab_js')} (${jsCount})`], ['lua', `{lua} ${t('modules.tab_lua')} (${luaCount})`]] as const).map(([k, label]) => (
           <button key={k}
             className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap ${tab === k ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
@@ -400,6 +400,7 @@ export const ModulesPage: React.FC = () => {
         ))}
       </div>
 
+      <div data-tour="modules-list">
       {loading ? (
         <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
       ) : shown.length === 0 ? (
@@ -425,6 +426,7 @@ export const ModulesPage: React.FC = () => {
           )}
         </>
       )}
+      </div>
 
       {configPlugin && <ConfigDialog plugin={configPlugin} onClose={() => setConfigPlugin(null)} onSaved={loadAll} />}
       {detailPlugin && <DetailDialog plugin={detailPlugin} update={updates[detailPlugin.file]} onClose={() => setDetailPlugin(null)} onCheck={() => checkOne(detailPlugin)} onUpdate={() => doUpdate(detailPlugin)} />}

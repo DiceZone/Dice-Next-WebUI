@@ -133,7 +133,7 @@ export const RulesPage: React.FC = () => {
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2"><Scroll className="h-5 w-5" />{t('rules.title')}</h1>
           <p className="text-sm text-muted-foreground">{t('rules.desc')}</p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div data-tour="rules-actions" className="flex flex-wrap gap-2">
           <Button size="sm" variant="outline" onClick={loadAll} disabled={loading}><RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />{t('common.refresh')}</Button>
           <Button size="sm" variant="outline" onClick={() => zipRef.current?.click()}><Package className="mr-2 h-4 w-4" />{t('rules.import_bundle')}</Button>
           <input ref={zipRef} type="file" accept=".zip" className="hidden" onChange={onUploadZip} />
@@ -145,7 +145,7 @@ export const RulesPage: React.FC = () => {
 
       {/* C#27 规则包 bundle 区 */}
       {bundles.length > 0 && (
-        <div className="space-y-2">
+        <div data-tour="rules-bundles" className="space-y-2">
           <div className="flex items-center gap-2">
             <Package className="h-4 w-4 text-primary" />
             <h2 className="text-sm font-semibold">{t('rules.bundles_title')}</h2>
@@ -179,6 +179,7 @@ export const RulesPage: React.FC = () => {
         </div>
       )}
 
+      <div data-tour="rules-list">
       {loading && <p className="py-8 text-center text-sm text-muted-foreground">{t('common.loading')}</p>}
 
       {!loading && allItems.length === 0 && bundles.length === 0 && <p className="py-8 text-center text-sm text-muted-foreground">{t('rules.empty')}</p>}
@@ -261,6 +262,7 @@ export const RulesPage: React.FC = () => {
         )}
       </>
     )}
+      </div>
 
       {editorFile !== null && <RuleEditor file={editorFile} onClose={() => setEditorFile(null)} onSaved={() => { setEditorFile(null); void loadAll(); }} />}
       {confirmDel && (

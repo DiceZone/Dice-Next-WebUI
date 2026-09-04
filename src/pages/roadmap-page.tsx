@@ -129,7 +129,7 @@ export const RoadmapPage: React.FC = () => {
       ) : (
         <>
           {/* overall progress */}
-          <div className="rounded-lg border p-4">
+          <div data-tour="roadmap-progress" className="rounded-lg border p-4">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium">{t('roadmap.overall')}</span>
               <span className="text-sm text-muted-foreground">{data.done} / {data.total} · {pct}%</span>
@@ -143,7 +143,7 @@ export const RoadmapPage: React.FC = () => {
             const isCompleted = table.title.includes('已完成功能摘要');
             const open = !isCompleted || completedOpen;
             return (
-              <div key={`${table.title}-${ti}`} className="rounded-lg border">
+              <div key={`${table.title}-${ti}`} data-tour={ti === 0 ? 'roadmap-content' : undefined} className="rounded-lg border">
                 <div className="flex items-center justify-between gap-3 p-4">
                   <div className="flex items-baseline gap-2">
                     <h2 className="text-base font-semibold">{table.title}</h2>

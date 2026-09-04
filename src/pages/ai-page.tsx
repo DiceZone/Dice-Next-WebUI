@@ -839,7 +839,7 @@ export const AiPage: React.FC = () => {
         </Card>
       )}
 
-      <div className="flex justify-end pt-2">
+      <div data-tour="ai-save" className="flex justify-end pt-2">
         <Button onClick={save} disabled={saving}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{t('common.save')}</Button>
       </div>
       <p className="text-[11px] text-muted-foreground">{t('ai.stage_note')}</p>

@@ -249,7 +249,7 @@ export const BackupPage: React.FC = () => {
       </div>
 
       {/* 导入旧版数据 */}
-      <Card>
+      <Card data-tour="backup-legacy">
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2"><Database className="h-4 w-4" />{t('backup.legacy_title')}</CardTitle>
           <CardDescription>{t('backup.legacy_desc')}</CardDescription>
@@ -266,7 +266,7 @@ export const BackupPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card data-tour="backup-manual">
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2"><Archive className="h-4 w-4" />{t('backup.backup_restore_title')}</CardTitle>
           <CardDescription>{t('backup.backup_restore_desc')}</CardDescription>
@@ -287,7 +287,7 @@ export const BackupPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card data-tour="backup-auto">
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2"><Clock3 className="h-4 w-4" />自动备份</CardTitle>
           <CardDescription>自动备份保存到 data/backups/；可按间隔或每日时刻执行，并按最近保留天数自动清理。</CardDescription>
@@ -312,7 +312,7 @@ export const BackupPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card data-tour="backup-archives">
         <CardHeader><CardTitle className="text-base">已保存的备份</CardTitle><CardDescription>手动备份保存在程序目录的 backups/，自动备份保存在 data/backups/；均可随时重新下载或删除。</CardDescription></CardHeader>
         <CardContent className="p-0">
           {archives.length === 0 ? <p className="px-6 py-8 text-center text-sm text-muted-foreground">暂无已保存的备份。</p> : <div className="overflow-x-auto"><table className="rt w-full text-sm"><thead className="border-y bg-muted/50 text-muted-foreground"><tr><th className="p-3 text-left">文件</th><th className="p-3 text-left">来源</th><th className="p-3 text-left">大小</th><th className="p-3 text-left">创建时间</th><th className="p-3 text-right">操作</th></tr></thead><tbody>{archives.map((item) => <tr key={`${item.automatic}-${item.name}`} className="border-b last:border-0"><td data-label="文件" className="p-3 font-mono text-xs break-all">{item.name}</td><td data-label="来源" className="p-3">{item.automatic ? '自动' : '手动'}</td><td data-label="大小" className="p-3">{formatSize(item.size)}</td><td data-label="创建时间" className="p-3 whitespace-nowrap">{new Date(item.createdAt * 1000).toLocaleString()}</td><td data-label="操作" className="p-3 text-right whitespace-nowrap"><Button size="sm" variant="ghost" disabled={restoring} onClick={() => void restoreStored(item.name, item.automatic)}><RotateCcw className="mr-1 h-4 w-4" />恢复</Button><Button size="sm" variant="ghost" onClick={() => void downloadStored(item.name, item.automatic)}><Download className="mr-1 h-4 w-4" />下载</Button><Button size="icon" variant="ghost" className="text-destructive" onClick={() => void deleteStored(item.name, item.automatic)}><Trash2 className="h-4 w-4" /></Button></td></tr>)}</tbody></table></div>}
