@@ -50,7 +50,7 @@ test('malformed storage is ignored and progress can be reset', () => {
   assert.deepEqual(readTourProgress(storage), {});
 });
 
-test('every application route has a real-control tour', () => {
+test('every application route has a stable demo-page tour tied to real controls', () => {
   const routes = [
     '/', '/statistics', '/playground', '/adapters', '/dice-rules', '/replies', '/decks',
     '/groups', '/players', '/schedules', '/roadmap', '/commands', '/help', '/modules',
@@ -62,9 +62,8 @@ test('every application route has a real-control tour', () => {
   for (const route of routes) {
     const profile = getPageTourProfile(route);
     assert.ok(profile, `missing tour for ${route}`);
-    assert.equal(profile.version, 2, `stale tour version for ${route}`);
+    assert.equal(profile.version, 3, `stale tour version for ${route}`);
     assert.ok(profile.steps.length >= 3, `tour for ${route} needs an actual workflow`);
-    assert.equal('demo' in profile, false, `tour for ${route} must not use mock values`);
     for (const step of profile.steps) {
       assert.ok(step.target, `tour step on ${route} needs a DOM target`);
       assert.ok(step.titleKey, `tour step on ${route} needs a title`);
@@ -75,10 +74,20 @@ test('every application route has a real-control tour', () => {
 
 test('tour copy and referenced page labels exist in every locale', () => {
   const locales = ['zh-Hans', 'zh-Hant', 'en', 'ja'];
+  const demoKeys = [
+    'demo_mode', 'demo_badge', 'demo_scenario', 'demo_scenario_body', 'demo_instance',
+    'demo_running', 'demo_connected', 'demo_ready', 'demo_status_normal', 'demo_active',
+    'demo_group_chat', 'demo_platform', 'demo_language', 'demo_search', 'demo_create_hint',
+    'demo_scope', 'demo_global', 'demo_name', 'demo_status', 'demo_actions', 'demo_record',
+    'demo_other_tab', 'demo_result', 'demo_unsaved', 'demo_immediate_hint', 'demo_danger_hint',
+  ];
   const lookup = (object, path) => path.split('.').reduce((value, part) => value?.[part], object);
 
   for (const locale of locales) {
     const messages = JSON.parse(readFileSync(`src/i18n/locales/${locale}.json`, 'utf8'));
+    for (const key of demoKeys) {
+      assert.equal(typeof lookup(messages, `onboarding.${key}`), 'string', `${locale}: demo copy ${key}`);
+    }
     for (const [path, profile] of Object.entries(PAGE_TOURS)) {
       assert.equal(typeof lookup(messages, profile.titleKey), 'string', `${locale}: ${path} title ${profile.titleKey}`);
       for (const step of profile.steps) {

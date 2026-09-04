@@ -2,9 +2,10 @@ import React from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { ChevronLeft, ChevronRight, Eye, MousePointerClick, Sparkles, TriangleAlert, X } from 'lucide-react';
+import { TourDemoPage } from '@/components/onboarding/tour-demo-page';
 import { Button } from '@/components/ui/button';
 import { completeTour, hasCompletedTour } from '@/lib/onboarding';
-import { getPageTourProfile, type PageTourAction, type PageTourStep } from '@/lib/page-tours';
+import { getPageTourProfile, type PageTourAction } from '@/lib/page-tours';
 import { cn } from '@/lib/utils';
 
 interface PageTourProps {
@@ -19,14 +20,7 @@ interface SpotlightRect {
   height: number;
 }
 
-interface DialogSize {
-  width: number;
-  height: number;
-}
-
 const TARGET_PADDING = 8;
-const VIEWPORT_MARGIN = 16;
-const PANEL_GAP = 16;
 
 function visibleRect(element: HTMLElement | null): SpotlightRect | null {
   if (!element) return null;
@@ -42,64 +36,60 @@ function visibleRect(element: HTMLElement | null): SpotlightRect | null {
   return { left, top, width: right - left, height: bottom - top };
 }
 
-function findTarget(step: PageTourStep): HTMLElement | null {
-  const selectors = typeof step.target === 'string' ? [step.target] : step.target;
-  for (const selector of selectors) {
-    for (const element of document.querySelectorAll<HTMLElement>(selector)) {
-      const rect = element.getBoundingClientRect();
-      const style = window.getComputedStyle(element);
-      if (rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden') return element;
-    }
-  }
-  return null;
-}
-
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), Math.max(min, max));
 }
 
-function positionDialog(target: SpotlightRect, dialog: DialogSize): React.CSSProperties {
-  const width = Math.min(dialog.width || 420, window.innerWidth - VIEWPORT_MARGIN * 2);
-  const height = Math.min(dialog.height || 360, window.innerHeight - VIEWPORT_MARGIN * 2);
-  const maxLeft = window.innerWidth - width - VIEWPORT_MARGIN;
-  const maxTop = window.innerHeight - height - VIEWPORT_MARGIN;
+function easeInOutCubic(progress: number): number {
+  return progress < 0.5
+    ? 4 * progress * progress * progress
+    : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+}
 
-  if (target.left + target.width + PANEL_GAP + width <= window.innerWidth - VIEWPORT_MARGIN) {
-    return { left: target.left + target.width + PANEL_GAP, top: clamp(target.top, VIEWPORT_MARGIN, maxTop) };
-  }
-  if (target.left - PANEL_GAP - width >= VIEWPORT_MARGIN) {
-    return { left: target.left - PANEL_GAP - width, top: clamp(target.top, VIEWPORT_MARGIN, maxTop) };
-  }
-  if (target.top + target.height + PANEL_GAP + height <= window.innerHeight - VIEWPORT_MARGIN) {
-    return { left: clamp(target.left, VIEWPORT_MARGIN, maxLeft), top: target.top + target.height + PANEL_GAP };
-  }
-  if (target.top - PANEL_GAP - height >= VIEWPORT_MARGIN) {
-    return { left: clamp(target.left, VIEWPORT_MARGIN, maxLeft), top: target.top - PANEL_GAP - height };
+function animateTargetIntoView(
+  container: HTMLElement,
+  target: HTMLElement,
+  onFrame: () => void,
+  onComplete: () => void,
+): () => void {
+  const containerRect = container.getBoundingClientRect();
+  const targetRect = target.getBoundingClientRect();
+  const start = container.scrollTop;
+  const destination = clamp(
+    start + targetRect.top - containerRect.top - 28,
+    0,
+    container.scrollHeight - container.clientHeight,
+  );
+  const distance = destination - start;
+
+  if (Math.abs(distance) < 2 || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    container.scrollTop = destination;
+    onFrame();
+    onComplete();
+    return () => undefined;
   }
 
-  // A wide target may leave no horizontal space and not quite enough vertical
-  // space for the panel at its natural height. Keep the target unobscured and
-  // make the panel body scroll inside the larger of the two vertical gaps.
-  const belowTop = target.top + target.height + PANEL_GAP;
-  const belowSpace = window.innerHeight - VIEWPORT_MARGIN - belowTop;
-  const aboveSpace = target.top - PANEL_GAP - VIEWPORT_MARGIN;
-  if (Math.max(belowSpace, aboveSpace) >= 160) {
-    if (belowSpace >= aboveSpace) {
-      return {
-        left: clamp(target.left, VIEWPORT_MARGIN, maxLeft),
-        top: belowTop,
-        maxHeight: belowSpace,
-      };
+  const duration = clamp(Math.abs(distance) * 0.55, 360, 680);
+  const startedAt = window.performance.now();
+  let animationFrame = 0;
+  let cancelled = false;
+
+  const animate = (now: number) => {
+    if (cancelled) return;
+    const progress = Math.min((now - startedAt) / duration, 1);
+    container.scrollTop = start + distance * easeInOutCubic(progress);
+    onFrame();
+    if (progress < 1) {
+      animationFrame = window.requestAnimationFrame(animate);
+    } else {
+      onComplete();
     }
-    return {
-      left: clamp(target.left, VIEWPORT_MARGIN, maxLeft),
-      top: target.top - PANEL_GAP - Math.min(height, aboveSpace),
-      maxHeight: aboveSpace,
-    };
-  }
-  return {
-    left: target.left + target.width / 2 < window.innerWidth / 2 ? maxLeft : VIEWPORT_MARGIN,
-    top: clamp(target.top, VIEWPORT_MARGIN, maxTop),
+  };
+
+  animationFrame = window.requestAnimationFrame(animate);
+  return () => {
+    cancelled = true;
+    window.cancelAnimationFrame(animationFrame);
   };
 }
 
@@ -115,9 +105,9 @@ export const PageTour: React.FC<PageTourProps> = ({ currentPath, replayToken }) 
   const [open, setOpen] = React.useState(false);
   const [stepIndex, setStepIndex] = React.useState(0);
   const [spotlight, setSpotlight] = React.useState<SpotlightRect | null>(null);
-  const [dialogSize, setDialogSize] = React.useState<DialogSize>({ width: 420, height: 360 });
   const dialogRef = React.useRef<HTMLDivElement>(null);
   const targetRef = React.useRef<HTMLElement | null>(null);
+  const demoScrollRef = React.useRef<HTMLElement>(null);
   const previousFocusRef = React.useRef<HTMLElement | null>(null);
   const lastReplayTokenRef = React.useRef(replayToken);
 
@@ -148,54 +138,39 @@ export const PageTour: React.FC<PageTourProps> = ({ currentPath, replayToken }) 
 
   React.useLayoutEffect(() => {
     if (!open || !profile) return;
-    let attempts = 0;
-    let retry = 0;
-    let settle = 0;
+    let retryTimer = 0;
+    let cancelAnimation: () => void = () => undefined;
     let cancelled = false;
-    const currentStep = profile.steps[stepIndex];
+    let attempts = 0;
 
     const update = () => setSpotlight(visibleRect(targetRef.current));
     const locate = () => {
       if (cancelled) return;
-      const target = findTarget(currentStep);
-      if (!target && attempts < 12) {
+      const target = document.querySelector<HTMLElement>(`[data-tour-demo-step="${stepIndex}"]`);
+      const container = demoScrollRef.current;
+      if ((!target || !container) && attempts < 12) {
         attempts += 1;
-        retry = window.setTimeout(locate, 120);
+        retryTimer = window.setTimeout(locate, 50);
         return;
       }
+      if (!target || !container) return;
 
-      targetRef.current = target
-        ?? document.querySelector<HTMLElement>('[data-tour="page-content"] h1')
-        ?? document.querySelector<HTMLElement>('[data-tour="page-content"]');
-      // Align the real control near the top of its scroll container. Wide cards
-      // then leave enough room for the guide below instead of being covered by it.
-      targetRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start', inline: 'nearest' });
-      update();
-      settle = window.setTimeout(update, 280);
+      targetRef.current = target;
+      setSpotlight(visibleRect(target));
+      cancelAnimation = animateTargetIntoView(container, target, update, update);
     };
 
-    setSpotlight(null);
     locate();
     window.addEventListener('resize', update);
     window.addEventListener('scroll', update, true);
     return () => {
       cancelled = true;
-      window.clearTimeout(retry);
-      window.clearTimeout(settle);
+      window.clearTimeout(retryTimer);
+      cancelAnimation();
       window.removeEventListener('resize', update);
       window.removeEventListener('scroll', update, true);
     };
   }, [open, profile, stepIndex]);
-
-  React.useLayoutEffect(() => {
-    if (!open || !dialogRef.current) return;
-    const rect = dialogRef.current.getBoundingClientRect();
-    setDialogSize((current) => (
-      Math.abs(current.width - rect.width) < 1 && Math.abs(current.height - rect.height) < 1
-        ? current
-        : { width: rect.width, height: rect.height }
-    ));
-  }, [open, stepIndex, spotlight]);
 
   React.useEffect(() => {
     if (!open) return;
@@ -232,21 +207,23 @@ export const PageTour: React.FC<PageTourProps> = ({ currentPath, replayToken }) 
   const stepCount = profile.steps.length;
   const pageTitle = t(profile.titleKey);
   const stepTitle = t(currentStep.titleKey);
-  const detail = currentStep.descriptionKey ? t(currentStep.descriptionKey) : '';
+  const translatedDetail = currentStep.descriptionKey ? t(currentStep.descriptionKey) : '';
+  const instruction = translatedDetail && translatedDetail !== currentStep.descriptionKey
+    ? translatedDetail
+    : t(`onboarding.actions.${currentStep.action}`, { target: stepTitle });
   const isLastStep = stepIndex === stepCount - 1;
-  const desktopPositioned = Boolean(spotlight && window.innerWidth >= 768);
-  const panelStyle = desktopPositioned ? positionDialog(spotlight!, dialogSize) : {};
 
   return createPortal(
-    <div className="fixed inset-0 z-[100]" role="presentation">
-      <div className={cn('fixed inset-0', !spotlight && 'bg-black/60')} onMouseDown={finish} aria-hidden="true">
-        {spotlight && (
-          <div
-            className="pointer-events-none fixed rounded-xl ring-2 ring-primary ring-offset-2 ring-offset-background transition-[top,left,width,height] duration-200"
-            style={{ ...spotlight, boxShadow: '0 0 0 9999px rgb(0 0 0 / 0.62)' }}
-          />
-        )}
-      </div>
+    <>
+      <TourDemoPage currentPath={currentPath} profile={profile} currentStep={stepIndex} scrollRef={demoScrollRef} />
+
+      {spotlight && (
+        <div
+          className="pointer-events-none fixed z-[101] rounded-xl ring-2 ring-primary ring-offset-2 ring-offset-background transition-[top,left,width,height] duration-100"
+          style={{ ...spotlight, boxShadow: '0 0 0 9999px rgb(0 0 0 / 0.58)' }}
+          aria-hidden="true"
+        />
+      )}
 
       <div
         ref={dialogRef}
@@ -254,13 +231,7 @@ export const PageTour: React.FC<PageTourProps> = ({ currentPath, replayToken }) 
         aria-modal="true"
         aria-label={t('onboarding.dialog_label', { page: pageTitle })}
         tabIndex={-1}
-        style={panelStyle}
-        className={cn(
-          'fixed z-[101] flex max-h-[calc(100vh-2rem)] w-[min(420px,calc(100vw-2rem))] flex-col overflow-hidden rounded-xl border bg-background shadow-2xl outline-none',
-          spotlight && !desktopPositioned && 'bottom-4 left-1/2 -translate-x-1/2',
-          !spotlight && 'left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2',
-        )}
-        onMouseDown={(event) => event.stopPropagation()}
+        className="fixed bottom-4 left-1/2 z-[102] flex max-h-[calc(100vh-2rem)] w-[min(420px,calc(100vw-2rem))] -translate-x-1/2 flex-col overflow-hidden rounded-xl border bg-background shadow-2xl outline-none md:bottom-auto md:left-auto md:right-4 md:top-1/2 md:translate-x-0 md:-translate-y-1/2"
       >
         <div className="flex items-center justify-between border-b px-4 py-3">
           <div className="flex min-w-0 items-center gap-2">
@@ -288,13 +259,7 @@ export const PageTour: React.FC<PageTourProps> = ({ currentPath, replayToken }) 
             {t(`onboarding.action_labels.${currentStep.action}`)}
           </div>
           <h2 className="text-lg font-semibold leading-snug">{stepTitle}</h2>
-          <p className="mt-2 text-sm leading-6 text-foreground">
-            {t(`onboarding.actions.${currentStep.action}`, { target: stepTitle })}
-          </p>
-          {detail && detail !== currentStep.descriptionKey && (
-            <p className="mt-3 rounded-lg border bg-muted/30 p-3 text-sm leading-6 text-muted-foreground">{detail}</p>
-          )}
-          <p className="mt-3 text-xs leading-5 text-muted-foreground">{t('onboarding.guide_note')}</p>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">{instruction}</p>
 
           {isLastStep && (
             <div className="mt-4 rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm leading-6">
@@ -321,7 +286,7 @@ export const PageTour: React.FC<PageTourProps> = ({ currentPath, replayToken }) 
           )}
         </div>
       </div>
-    </div>,
+    </>,
     document.body,
   );
 };
