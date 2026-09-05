@@ -10,6 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { apiClient } from '@/lib/api-client';
+import { formatBuildTimeUtc8 } from '@/lib/build-time';
 import { useDialogs } from '@/hooks/use-dialogs';
 import {
   getVisibleUpdateError,
@@ -269,7 +270,7 @@ export const AboutPage: React.FC = () => {
           {buildTime && (
             <div className="flex justify-between">
               <span className="text-muted-foreground">{t('about.build_time')}</span>
-              <span className="font-mono text-xs">{buildTime}</span>
+              <span className="font-mono text-xs">{formatBuildTimeUtc8(buildTime)}</span>
             </div>
           )}
           <div className="flex justify-between">

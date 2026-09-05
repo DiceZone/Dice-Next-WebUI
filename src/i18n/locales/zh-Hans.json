@@ -276,7 +276,7 @@
       "WebUI 依赖本地化 · UTF-8 编码 · 掷骰上限 999 枚 9999 面"
     ],
     "preview_label": "先行预览版",
-    "build_time": "编译时间",
+    "build_time": "编译时间（UTC+8）",
     "thanks_title": "致谢",
     "testers_title": "测试人员致谢",
     "update_title": "检测与自动更新",

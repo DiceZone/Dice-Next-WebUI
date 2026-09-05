@@ -276,7 +276,7 @@
       "Localized WebUI · UTF-8 encoding · up to 999 dice × 9999 sides"
     ],
     "preview_label": "Preview",
-    "build_time": "Build Time",
+    "build_time": "Build Time (UTC+8)",
     "thanks_title": "Acknowledgments",
     "testers_title": "Thanks to our testers",
     "update_title": "Updates",

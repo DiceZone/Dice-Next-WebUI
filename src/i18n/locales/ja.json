@@ -276,7 +276,7 @@
       "WebUIローカライズ · UTF-8エンコード · 最大 999個 × 9999面"
     ],
     "preview_label": "プレビュー版",
-    "build_time": "ビルド日時",
+    "build_time": "ビルド日時（UTC+8）",
     "thanks_title": "謝辞",
     "testers_title": "テスター各位に感謝",
     "update_title": "更新の確認と自動更新",
