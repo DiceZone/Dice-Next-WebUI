@@ -3,6 +3,8 @@ import { cn } from '@/lib/utils';
 import { Sidebar } from '@/components/layout/sidebar';
 import { Header } from '@/components/layout/header';
 import { PageTour } from '@/components/onboarding/page-tour';
+import { OnboardingGate } from '@/components/onboarding/onboarding-gate';
+import { readTourMode, setTourMode, type TourMode } from '@/lib/onboarding';
 import { getPageTourProfile } from '@/lib/page-tours';
 import { zustandAppStore } from '@/store/app-store';
 
@@ -23,7 +25,15 @@ export const Layout: React.FC<LayoutProps> = ({
 }) => {
   const { sidebarCollapsed } = zustandAppStore();
   const [tourReplayToken, setTourReplayToken] = React.useState(0);
+  // Held here rather than read inside the tour so that answering the welcome
+  // question starts the current page's tour immediately.
+  const [tourMode, setTourModeState] = React.useState<TourMode | null>(() => readTourMode());
   const tourAvailable = Boolean(getPageTourProfile(currentPath));
+
+  const chooseTourMode = React.useCallback((mode: TourMode) => {
+    setTourMode(mode);
+    setTourModeState(mode);
+  }, []);
 
   React.useEffect(() => {
     if (!searchTarget) return;
@@ -72,7 +82,13 @@ export const Layout: React.FC<LayoutProps> = ({
           {children}
         </main>
       </div>
-      <PageTour currentPath={currentPath} replayToken={tourReplayToken} />
+      <OnboardingGate mode={tourMode} onChoose={chooseTourMode} />
+      <PageTour
+        currentPath={currentPath}
+        replayToken={tourReplayToken}
+        tourMode={tourMode}
+        onCloseAllTours={() => chooseTourMode('veteran')}
+      />
     </div>
   );
 };

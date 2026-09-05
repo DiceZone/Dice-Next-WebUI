@@ -3,11 +3,15 @@ import { readFileSync, readdirSync } from 'node:fs';
 import test from 'node:test';
 import {
   ONBOARDING_STORAGE_KEY,
+  TOUR_MODE_STORAGE_KEY,
   canonicalTourPath,
   completeTour,
   hasCompletedTour,
+  readTourMode,
   readTourProgress,
+  resetTourMode,
   resetTourProgress,
+  setTourMode,
 } from '../.test-dist/lib/onboarding.js';
 import { PAGE_TOURS, getPageTourProfile } from '../.test-dist/lib/page-tours.js';
 
@@ -50,7 +54,7 @@ test('malformed storage is ignored and progress can be reset', () => {
   assert.deepEqual(readTourProgress(storage), {});
 });
 
-test('every application route has a stable demo-page tour tied to real controls', () => {
+test('every application route has a tour tied to real controls', () => {
   const routes = [
     '/', '/statistics', '/playground', '/adapters', '/dice-rules', '/replies', '/decks',
     '/groups', '/players', '/schedules', '/roadmap', '/commands', '/help', '/modules',
@@ -62,7 +66,7 @@ test('every application route has a stable demo-page tour tied to real controls'
   for (const route of routes) {
     const profile = getPageTourProfile(route);
     assert.ok(profile, `missing tour for ${route}`);
-    assert.equal(profile.version, 3, `stale tour version for ${route}`);
+    assert.equal(profile.version, 4, `stale tour version for ${route}`);
     assert.ok(profile.steps.length >= 3, `tour for ${route} needs an actual workflow`);
     for (const step of profile.steps) {
       assert.ok(step.target, `tour step on ${route} needs a DOM target`);
@@ -74,19 +78,24 @@ test('every application route has a stable demo-page tour tied to real controls'
 
 test('tour copy and referenced page labels exist in every locale', () => {
   const locales = ['zh-Hans', 'zh-Hant', 'en', 'ja'];
-  const demoKeys = [
-    'demo_mode', 'demo_badge', 'demo_scenario', 'demo_scenario_body', 'demo_instance',
-    'demo_running', 'demo_connected', 'demo_ready', 'demo_status_normal', 'demo_active',
-    'demo_group_chat', 'demo_platform', 'demo_language', 'demo_search', 'demo_create_hint',
-    'demo_scope', 'demo_global', 'demo_name', 'demo_status', 'demo_actions', 'demo_record',
-    'demo_other_tab', 'demo_result', 'demo_unsaved', 'demo_immediate_hint', 'demo_danger_hint',
+  const chromeKeys = [
+    'replay', 'dialog_label', 'step_count', 'close', 'previous', 'next', 'finish',
+    'replay_hint', 'target_missing',
+    'exit_title', 'exit_body', 'exit_continue', 'exit_page', 'exit_all',
+    'welcome_title', 'welcome_body', 'welcome_new', 'welcome_new_desc',
+    'welcome_veteran', 'welcome_veteran_desc', 'welcome_footnote',
   ];
   const lookup = (object, path) => path.split('.').reduce((value, part) => value?.[part], object);
 
   for (const locale of locales) {
     const messages = JSON.parse(readFileSync(`src/i18n/locales/${locale}.json`, 'utf8'));
-    for (const key of demoKeys) {
-      assert.equal(typeof lookup(messages, `onboarding.${key}`), 'string', `${locale}: demo copy ${key}`);
+    for (const key of chromeKeys) {
+      assert.equal(typeof lookup(messages, `onboarding.${key}`), 'string', `${locale}: tour copy ${key}`);
+    }
+    // The mock-up page these described is gone; leaving the copy behind invites
+    // it back.
+    for (const key of Object.keys(messages.onboarding)) {
+      assert.ok(!key.startsWith('demo_'), `${locale}: stale demo copy ${key}`);
     }
     for (const [path, profile] of Object.entries(PAGE_TOURS)) {
       assert.equal(typeof lookup(messages, profile.titleKey), 'string', `${locale}: ${path} title ${profile.titleKey}`);
@@ -119,4 +128,29 @@ test('every tour target has a stable source anchor', () => {
       }
     }
   }
+});
+
+test('the welcome question is answered once and remembered', () => {
+  const storage = memoryStorage();
+  assert.equal(readTourMode(storage), null);
+  assert.equal(setTourMode('new', storage), true);
+  assert.equal(readTourMode(storage), 'new');
+  assert.equal(storage.getItem(TOUR_MODE_STORAGE_KEY), 'new');
+  assert.equal(setTourMode('veteran', storage), true);
+  assert.equal(readTourMode(storage), 'veteran');
+  assert.equal(resetTourMode(storage), true);
+  assert.equal(readTourMode(storage), null);
+});
+
+test('an unrecognised stored answer is treated as unanswered', () => {
+  const storage = memoryStorage({ [TOUR_MODE_STORAGE_KEY]: 'whatever' });
+  assert.equal(readTourMode(storage), null);
+});
+
+test('the answer is kept apart from per-page progress', () => {
+  const storage = memoryStorage();
+  setTourMode('veteran', storage);
+  completeTour('/settings', 4, storage, 1234);
+  resetTourProgress(storage);
+  assert.equal(readTourMode(storage), 'veteran', 'clearing progress must not clear the answer');
 });

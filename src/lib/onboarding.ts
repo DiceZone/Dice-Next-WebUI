@@ -80,3 +80,46 @@ export function resetTourProgress(storage: StorageLike | null = browserStorage()
     return false;
   }
 }
+
+/**
+ * Whether this browser wants tours at all.
+ *
+ * Asked once, on the very first visit: someone who already knows the panel
+ * should not have a tour open on every page they touch, and someone new
+ * should not have to hunt for the entry point. `veteran` suppresses every
+ * automatic tour; the header button still replays one on demand, because
+ * clicking it is an explicit request.
+ */
+export const TOUR_MODE_STORAGE_KEY = 'dice-next:tour-mode';
+
+export type TourMode = 'new' | 'veteran';
+
+export function readTourMode(storage: StorageLike | null = browserStorage()): TourMode | null {
+  if (!storage) return null;
+  try {
+    const raw = storage.getItem(TOUR_MODE_STORAGE_KEY);
+    return raw === 'new' || raw === 'veteran' ? raw : null;
+  } catch {
+    return null;
+  }
+}
+
+export function setTourMode(mode: TourMode, storage: StorageLike | null = browserStorage()): boolean {
+  if (!storage) return false;
+  try {
+    storage.setItem(TOUR_MODE_STORAGE_KEY, mode);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function resetTourMode(storage: StorageLike | null = browserStorage()): boolean {
+  if (!storage) return false;
+  try {
+    storage.removeItem(TOUR_MODE_STORAGE_KEY);
+    return true;
+  } catch {
+    return false;
+  }
+}

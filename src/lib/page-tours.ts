@@ -37,9 +37,10 @@ const step = (
 ): PageTourStep => ({ target, titleKey, action, descriptionKey });
 
 const profile = (titleKey: string, steps: readonly PageTourStep[]): PageTourProfile => ({
-  // Version 3 runs against a complete, isolated demo page. It keeps the tour
-  // stable when the real page is empty, loading, or changes underneath it.
-  version: 3,
+  // Version 4 spotlights the real controls named by each step's target. Anyone
+  // who "completed" version 3 only ever saw a mock-up of the page, so their
+  // progress is not worth carrying forward.
+  version: 4,
   titleKey,
   steps,
 });
