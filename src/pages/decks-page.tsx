@@ -1,3 +1,5 @@
+import { useTourState } from '@/components/onboarding/tour-data';
+import { tourSamples } from '@/lib/tour-samples';
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent } from '@/components/ui/card';
@@ -13,14 +15,14 @@ export const DecksPage: React.FC = () => {
   const { t } = useTranslation(); const toast = useToast();
   const dlg = useDialogs(t);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [files, setFiles] = useState<DeckFile[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [files, setFiles] = useTourState<DeckFile[]>([], tourSamples.decks);
+  const [loading, setLoading] = useTourState(true, false);
   const [uploading, setUploading] = useState(false);
-  const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  const [expanded, setExpanded] = useTourState<Set<number>>(new Set(), new Set([tourSamples.decks[0].id]));
   const [editing, setEditing] = useState<DeckFile | null>(null);
   const [editContent, setEditContent] = useState('');
   const [editSaving, setEditSaving] = useState(false);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useTourState(1, 1);
   const [pageSize, setPageSize] = useState(7);
 
   const fetchDecks = useCallback(async () => {

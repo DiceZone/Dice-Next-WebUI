@@ -1,3 +1,5 @@
+import { useTourActive, useTourState, TourDataContext } from '@/components/onboarding/tour-data';
+import { tourSamples } from '@/lib/tour-samples';
 ﻿import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
@@ -75,7 +77,7 @@ async function jsend(method: string, path: string, body?: unknown) {
 
 const GroupAvatar: React.FC<{ groupId: string; platform: string }> = ({ groupId, platform }) => {
   const [imgFailed, setImgFailed] = useState(false);
-  const showImg = platform === 'onebot_v11' && !imgFailed;
+  const showImg = platform === 'onebot_v11' && !imgFailed && !groupId.startsWith('demo-');
   return (
     <div className="h-11 w-11 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0 overflow-hidden">
       {showImg ? (
@@ -113,14 +115,15 @@ export const GroupsPage: React.FC = () => {
   const { t } = useTranslation();
   const toast = useToast();
   const dlg = useDialogs(t);
-  const [groups, setGroups] = useState<Group[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
+  const [groups, setGroups] = useTourState<Group[]>([], tourSamples.groups);
+  const [loading, setLoading] = useTourState(true, false);
+  const [search, setSearch] = useTourState('', '');
   const [selected, setSelected] = useState<Group | null>(null);
-  const [view, setView] = useState<'card' | 'table'>('card');
-  const [page, setPage] = useState(1);
+  const showingSamples = useTourActive();
+  const [view, setView] = useTourState<'card' | 'table'>('card', 'card');
+  const [page, setPage] = useTourState(1, 1);
   const welcomeRef = useRef<HTMLTextAreaElement>(null);
-  const [tab, setTab] = useState<'active' | 'archived'>('active');
+  const [tab, setTab] = useTourState<'active' | 'archived'>('active', 'active');
 
   const pageSize = view === 'card' ? 12 : 15;
 
@@ -211,14 +214,15 @@ export const GroupsPage: React.FC = () => {
     </div>
   );
 
-  if (selected) {
-    return <>{dlg.node}<GroupDetail group={selected} dlg={dlg} onBack={() => setSelected(null)} onChanged={fetchGroups} welcomeRef={welcomeRef} /></>;
-  }
-
   return (
     <>
       {dlg.node}
-      <div className="space-y-6">
+      <div hidden={showingSamples}>
+        <TourDataContext.Provider value={false}>
+          {selected && <GroupDetail group={selected} dlg={dlg} onBack={() => setSelected(null)} onChanged={fetchGroups} welcomeRef={welcomeRef} />}
+        </TourDataContext.Provider>
+      </div>
+      <div hidden={Boolean(selected) && !showingSamples} className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2"><Users className="h-5 w-5" />{t('groups.title')}</h1>

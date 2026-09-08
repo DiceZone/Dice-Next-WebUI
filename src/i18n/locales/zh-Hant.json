@@ -139,6 +139,7 @@
     "toggle_theme": "切換主題"
   },
   "onboarding": {
+    "sample_notice": "教學中顯示的是唯讀示範資料，不會儲存或執行操作；退出後恢復你的真實資料。",
     "replay": "重新查看本頁指引",
     "dialog_label": "{{page}} 新手指引",
     "step_count": "第 {{current}} / {{total}} 步",

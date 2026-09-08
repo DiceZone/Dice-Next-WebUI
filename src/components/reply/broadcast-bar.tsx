@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { useTourState } from '@/components/onboarding/tour-data';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -15,7 +16,7 @@ interface BroadcastStatus { active: boolean; content: string; pushed: number; to
 export const BroadcastBar: React.FC<{ render?: 'both' | 'banner' | 'button' }> = ({ render = 'both' }) => {
   const { t } = useTranslation();
   const toast = useToast();
-  const [st, setSt] = useState<BroadcastStatus | null>(null);
+  const [st, setSt] = useTourState<BroadcastStatus | null>(null, null);
   const [open, setOpen] = useState(false);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);

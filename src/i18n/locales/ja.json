@@ -139,6 +139,7 @@
     "toggle_theme": "テーマ切替"
   },
   "onboarding": {
+    "sample_notice": "チュートリアルでは閲覧専用のサンプルデータを表示します。保存や操作の実行は行わず、終了すると実際のデータに戻ります。",
     "replay": "このページのガイドを再表示",
     "dialog_label": "{{page}} 初心者ガイド",
     "step_count": "{{current}} / {{total}} ステップ",

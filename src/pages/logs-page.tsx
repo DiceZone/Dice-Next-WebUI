@@ -1,3 +1,5 @@
+import { useTourState } from '@/components/onboarding/tour-data';
+import { tourSamples } from '@/lib/tour-samples';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArrowDown, ArrowUp, ArrowUpDown, CircleStop, Loader2, RefreshCw, Scroll, Search, ScrollText, UsersRound } from 'lucide-react';
@@ -62,12 +64,12 @@ export const LogsPage: React.FC = () => {
   const { t } = useTranslation();
   const toast = useToast();
   const dlg = useDialogs(t);
-  const [logs, setLogs] = useState<GameLog[]>([]);
-  const [sessions, setSessions] = useState<GameSession[]>([]);
-  const [groups, setGroups] = useState<Group[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'logs' | 'sessions'>('logs');
-  const [query, setQuery] = useState('');
+  const [logs, setLogs] = useTourState<GameLog[]>([], tourSamples.gameLogs);
+  const [sessions, setSessions] = useTourState<GameSession[]>([], tourSamples.sessions);
+  const [groups, setGroups] = useTourState<Group[]>([], tourSamples.groups);
+  const [loading, setLoading] = useTourState(true, false);
+  const [activeTab, setActiveTab] = useTourState<'logs' | 'sessions'>('logs', 'logs');
+  const [query, setQuery] = useTourState('', '');
   const [sortKey, setSortKey] = useState<SortKey>('lastAt');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [uploading, setUploading] = useState<number | null>(null);

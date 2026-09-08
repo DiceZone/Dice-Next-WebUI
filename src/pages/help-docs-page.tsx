@@ -1,3 +1,5 @@
+import { useTourState } from '@/components/onboarding/tour-data';
+import { tourSamples } from '@/lib/tour-samples';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/ui/page-header';
@@ -45,22 +47,22 @@ interface EditState { mode: 'new' | 'file' | 'builtin' | 'view'; key: string; i1
 export const HelpDocsPage: React.FC = () => {
   const { t, i18n } = useTranslation();
   const toast = useToast();
-  const [entries, setEntries] = useState<HelpEntry[]>([]);
-  const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(false);
-  const [q, setQ] = useState('');
-  const [qDebounced, setQDebounced] = useState('');
+  const [entries, setEntries] = useTourState<HelpEntry[]>([], tourSamples.helpEntries);
+  const [total, setTotal] = useTourState(0, 3);
+  const [page, setPage] = useTourState(1, 1);
+  const [loading, setLoading] = useTourState(false, false);
+  const [q, setQ] = useTourState('', '');
+  const [qDebounced, setQDebounced] = useTourState('', '');
   const [edit, setEdit] = useState<EditState | null>(null);
   const [saving, setSaving] = useState(false);
   const [confirmDel, setConfirmDel] = useState<string | null>(null);
   const importRef = useRef<HTMLInputElement>(null);
   // 视图模式：flat=条目平铺(分页) / grouped=按来源(规则/插件/文件)分组，展开看全部条目。
-  const [viewMode, setViewMode] = useState<'flat' | 'grouped'>('grouped');   // C#41: 默认按来源分组展示
-  const [groups, setGroups] = useState<{ source: string; count: number }[]>([]);
-  const [expanded, setExpanded] = useState<string | null>(null);
-  const [groupEntries, setGroupEntries] = useState<HelpEntry[]>([]);
-  const [groupLoading, setGroupLoading] = useState(false);
+  const [viewMode, setViewMode] = useTourState<'flat' | 'grouped'>('grouped', 'grouped');   // C#41: 默认按来源分组展示
+  const [groups, setGroups] = useTourState<{ source: string; count: number }[]>([], [{ source: 'builtin', count: 3 }]);
+  const [expanded, setExpanded] = useTourState<string | null>(null, 'builtin');
+  const [groupEntries, setGroupEntries] = useTourState<HelpEntry[]>([], tourSamples.helpEntries);
+  const [groupLoading, setGroupLoading] = useTourState(false, false);
 
   // 搜索防抖（300ms）→ 重置到第 1 页。
   useEffect(() => {

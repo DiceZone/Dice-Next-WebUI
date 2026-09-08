@@ -139,6 +139,7 @@
     "toggle_theme": "Toggle theme"
   },
   "onboarding": {
+    "sample_notice": "This tour shows read-only sample data. Nothing is saved or executed; your real data returns when you exit.",
     "replay": "Replay this page tour",
     "dialog_label": "{{page}} getting-started tour",
     "step_count": "Step {{current}} of {{total}}",

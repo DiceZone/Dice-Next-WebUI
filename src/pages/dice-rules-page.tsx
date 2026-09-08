@@ -1,4 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
+import { useTourState } from '@/components/onboarding/tour-data';
+import { DEFAULT_DICE_RULES } from '@/types/dice';
 import { useTranslation } from 'react-i18next';
 import { Accordion } from '@/components/ui/accordion';
 import { Dices } from 'lucide-react';
@@ -14,8 +16,8 @@ export const DiceRulesPage: React.FC = () => {
   const { t } = useTranslation();
   const { rules, loading, saving, fetchRules, updateRules, resetRules } = zustandDiceStore();
   const toast = useToast();
-  const [localRules, setLocalRules] = useState<DiceRules | null>(null);
-  const [accordionValue, setAccordionValue] = useState<string[]>([]);
+  const [localRules, setLocalRules] = useTourState<DiceRules | null>(null, DEFAULT_DICE_RULES);
+  const [accordionValue, setAccordionValue] = useTourState<string[]>([], ['coc', 'general']);
 
   useEffect(() => { void fetchRules(); }, [fetchRules]);
   useEffect(() => { if (rules) setLocalRules({ ...rules }); }, [rules]);
@@ -47,11 +49,13 @@ export const DiceRulesPage: React.FC = () => {
         </div>
       </div>
       {localRules && (
-        <Accordion data-tour="dice-rule-groups" type="multiple" value={accordionValue} onValueChange={setAccordionValue}>
-          {DICE_RULE_GROUPS.map((group) => (
-            <DiceRuleGroupPanel key={group.id} group={group} rules={localRules} onFieldChange={handleFieldChange} />
-          ))}
-        </Accordion>
+        <div data-tour="dice-rule-groups">
+          <Accordion type="multiple" value={accordionValue} onValueChange={setAccordionValue}>
+            {DICE_RULE_GROUPS.map((group) => (
+              <DiceRuleGroupPanel key={group.id} group={group} rules={localRules} onFieldChange={handleFieldChange} />
+            ))}
+          </Accordion>
+        </div>
       )}
       <Card className="mt-6">
         <CardContent className="p-4 text-sm text-muted-foreground text-center">

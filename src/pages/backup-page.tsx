@@ -1,3 +1,5 @@
+import { useTourState } from '@/components/onboarding/tour-data';
+import { tourSamples } from '@/lib/tour-samples';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -126,14 +128,14 @@ export const BackupPage: React.FC = () => {
   const { t } = useTranslation();
   const toast = useToast();
   const dlg = useDialogs(t);
-  const [legacyDir, setLegacyDir] = useState('');
+  const [legacyDir, setLegacyDir] = useTourState('', '');
   const [importing, setImporting] = useState(false);
-  const [importResult, setImportResult] = useState<string>('');
+  const [importResult, setImportResult] = useTourState<string>('', '');
   const [backingUp, setBackingUp] = useState(false);
   const [restoring, setRestoring] = useState(false);
-  const [archives, setArchives] = useState<StoredBackup[]>([]);
-  const [selection, setSelection] = useState<BackupSelection>(fullSelection);
-  const [autoConfig, setAutoConfig] = useState<AutoBackupConfig>({ enabled: true, schedule: 'interval', intervalHours: 24, dailyTime: '04:00', keepDays: 7, selection: autoSelectionDefaults, lastAutoAt: 0 });
+  const [archives, setArchives] = useTourState<StoredBackup[]>([], tourSamples.archives);
+  const [selection, setSelection] = useTourState<BackupSelection>(fullSelection, fullSelection);
+  const [autoConfig, setAutoConfig] = useTourState<AutoBackupConfig>({ enabled: true, schedule: 'interval', intervalHours: 24, dailyTime: '04:00', keepDays: 7, selection: autoSelectionDefaults, lastAutoAt: 0 }, { enabled: true, schedule: 'daily', intervalHours: 24, dailyTime: '04:00', keepDays: 7, selection: autoSelectionDefaults, lastAutoAt: tourSamples.archives[0].createdAt });
   const [savingAuto, setSavingAuto] = useState(false);
   const restoreFileRef = useRef<HTMLInputElement>(null);
 

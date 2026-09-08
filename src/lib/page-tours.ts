@@ -37,9 +37,8 @@ const step = (
 ): PageTourStep => ({ target, titleKey, action, descriptionKey });
 
 const profile = (titleKey: string, steps: readonly PageTourStep[]): PageTourProfile => ({
-  // Version 4 spotlights the real controls named by each step's target. Anyone
-  // who "completed" version 3 only ever saw a mock-up of the page, so their
-  // progress is not worth carrying forward.
+  // Keep version 4 progress: these are still the same real-page spotlight
+  // steps, now populated by read-only samples instead of an empty install.
   version: 4,
   titleKey,
   steps,

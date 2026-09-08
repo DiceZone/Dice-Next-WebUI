@@ -1,4 +1,6 @@
 import React from 'react';
+import { useTourState } from '@/components/onboarding/tour-data';
+import { tourSamples } from '@/lib/tour-samples';
 import { useTranslation } from 'react-i18next';
 import { Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -22,14 +24,14 @@ const QUICK_COMMANDS = ['.r', '.r3d6+2', '.ra 侦查 60', '.coc', '.dnd', '.help
 
 export const PlaygroundPage: React.FC = () => {
   const { t } = useTranslation();
-  const [items, setItems] = React.useState<ChatItem[]>([
+  const [items, setItems] = useTourState<ChatItem[]>([
     { role: 'bot', text: t('playground.welcome') },
-  ]);
-  const [input, setInput] = React.useState('');
+  ], tourSamples.chat);
+  const [input, setInput] = useTourState('', '.r 3d6+2');
   const [scene, setScene] = React.useState<'group' | 'private'>('group');
   const [platform, setPlatform] = React.useState('onebot_v11');
   const [locale, setLocale] = React.useState('');
-  const [nickname, setNickname] = React.useState(t('playground.default_nick'));
+  const [nickname, setNickname] = useTourState(t('playground.default_nick'), '小夏');
   const [sending, setSending] = React.useState(false);
   const bottomRef = React.useRef<HTMLDivElement>(null);
 

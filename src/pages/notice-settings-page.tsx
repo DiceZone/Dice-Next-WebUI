@@ -1,3 +1,5 @@
+import { useTourState } from '@/components/onboarding/tour-data';
+import { tourSamples } from '@/lib/tour-samples';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/ui/page-header';
@@ -31,20 +33,20 @@ const AREAS = [1, 2, 4, 8] as const;
 export const NoticeSettingsPage: React.FC = () => {
   const { t } = useTranslation();
   const toast = useToast();
-  const [tab, setTab] = useState<'windows' | 'push' | 'audit'>(() => {
+  const [tab, setTab] = useTourState<'windows' | 'push' | 'audit'>(() => {
     const value = new URLSearchParams(window.location.hash.split('?')[1] || '').get('tab');
     return value === 'push' || value === 'audit' ? value : 'windows';
-  });
+  }, 'windows');
   const [catalog, setCatalog] = useState<CatalogItem[]>([]);
-  const [wins, setWins] = useState<NoticeWindow[]>([]);
+  const [wins, setWins] = useTourState<NoticeWindow[]>([], tourSamples.noticeWindows);
   const [smtp, setSmtp] = useState<SmtpConf>({ enabled: false, host: '', port: 465, ssl: true, user: '', pass: '', from: '', to: '', level_mask: 15 });
   const [webhook, setWebhook] = useState<WebhookConf>({ enabled: false, url: '', level_mask: 15 });
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   // 选择器数据源
-  const [groups, setGroups] = useState<GroupItem[]>([]);
-  const [players, setPlayers] = useState<PlayerItem[]>([]);
-  const [accounts, setAccounts] = useState<{ id: string; platform: string; label: string; short: string }[]>([]);
+  const [groups, setGroups] = useTourState<GroupItem[]>([], tourSamples.groups);
+  const [players, setPlayers] = useTourState<PlayerItem[]>([], tourSamples.players);
+  const [accounts, setAccounts] = useTourState<{ id: string; platform: string; label: string; short: string }[]>([], tourSamples.accounts);
   const [pick, setPick] = useState('');       // 搜索词
   const [picking, setPicking] = useState(false);
   // 审计

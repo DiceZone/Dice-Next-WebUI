@@ -1,3 +1,5 @@
+import { useTourState } from '@/components/onboarding/tour-data';
+import { tourSamples } from '@/lib/tour-samples';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/ui/page-header';
@@ -38,13 +40,13 @@ const fmtTs = (iso?: string) => iso ? iso.replace('T', ' ').slice(0, 19) : '';
 const PermTab: React.FC<{ entries: BanEntry[]; reload: () => Promise<void>; del: (id: number) => Promise<void> }> = ({ entries, reload, del }) => {
   const { t } = useTranslation();
   const toast = useToast();
-  const [players, setPlayers] = useState<Player[]>([]);
-  const [q, setQ] = useState('');
-  const [page, setPage] = useState(1);
+  const [players, setPlayers] = useTourState<Player[]>([], tourSamples.players);
+  const [q, setQ] = useTourState('', '');
+  const [page, setPage] = useTourState(1, 1);
   const [pageSize, setPageSize] = useState(20);   // C#94：默认每页 20
   const [whitelistOnly, setWhitelistOnly] = useState(false);
-  const [masters, setMasters] = useState<Master[]>([]);
-  const [allPlayers, setAllPlayers] = useState<Player[]>([]);
+  const [masters, setMasters] = useTourState<Master[]>([], tourSamples.masters);
+  const [allPlayers, setAllPlayers] = useTourState<Player[]>([], tourSamples.players);
   const [addOpen, setAddOpen] = useState(false);
   const [dlgUser, setDlgUser] = useState('');
   const [dlgLv, setDlgLv] = useState(1);
@@ -221,9 +223,9 @@ const PermTab: React.FC<{ entries: BanEntry[]; reload: () => Promise<void>; del:
                   {pageItems.map((p) => (
                     <tr key={p.platform + p.userId} className="border-b last:border-0">
                       <td data-label={t('groups.col_avatar')} className="p-2">
-                        <img src={`https://q1.qlogo.cn/g?b=qq&nk=${p.userId}&s=100`} alt=""
+                        {p.userId.startsWith('demo-') ? <Users className="h-8 w-8 rounded-full bg-muted p-1.5" /> : <img src={`https://q1.qlogo.cn/g?b=qq&nk=${p.userId}&s=100`} alt=""
                           className="h-8 w-8 rounded-full object-cover"
-                          onError={(ev) => { (ev.target as HTMLImageElement).style.display = 'none'; }} />
+                          onError={(ev) => { (ev.target as HTMLImageElement).style.display = 'none'; }} />}
                       </td>
                       <td data-label={t('banlist.perm_col_user')} className="p-2">
                         <span className="inline-flex items-center gap-1.5 font-mono"><PlatformIcon platform={p.platform} className="h-3.5 w-3.5" />{p.userId}</span>
@@ -296,7 +298,7 @@ const PermTab: React.FC<{ entries: BanEntry[]; reload: () => Promise<void>; del:
                 {whites.map((e) => (
                   <tr key={e.id} className="border-b last:border-0">
                     <td data-label={t('groups.col_avatar')} className="p-2">
-                      {e.targetType === 1 ? (
+                      {e.targetId.startsWith('demo-') ? <Users className="h-8 w-8 rounded-full bg-muted p-1.5" /> : e.targetType === 1 ? (
                         <img src={`https://p.qlogo.cn/gh/${e.targetId}/${e.targetId}/100`} alt=""
                           className="h-8 w-8 rounded-full object-cover"
                           onError={(ev) => { (ev.target as HTMLImageElement).style.display = 'none'; }} />
@@ -645,9 +647,9 @@ const CloudBanTab: React.FC<{ reload: () => Promise<void> }> = ({ reload }) => {
 export const BanlistPage: React.FC = () => {
   const { t } = useTranslation();
   const toast = useToast();
-  const [entries, setEntries] = useState<BanEntry[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [tab, setTab] = useState<'perm' | 'dicebots' | 'black' | 'cloud'>('perm');
+  const [entries, setEntries] = useTourState<BanEntry[]>([], tourSamples.banEntries);
+  const [loading, setLoading] = useTourState(false, false);
+  const [tab, setTab] = useTourState<'perm' | 'dicebots' | 'black' | 'cloud'>('perm', 'perm');
   // C#45: 骰娘名单手动添加
   const [botId, setBotId] = useState('');
   const [botKind, setBotKind] = useState('');

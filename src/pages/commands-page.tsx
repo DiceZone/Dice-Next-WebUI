@@ -1,3 +1,5 @@
+import { useTourState } from '@/components/onboarding/tour-data';
+import { tourSamples } from '@/lib/tour-samples';
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
@@ -95,10 +97,10 @@ export const CommandsPage: React.FC = () => {
   const toast = useToast();
   const dlg = useDialogs(t);
   const [lang, setLang] = useState('zh-Hans');
-  const [rows, setRows] = useState<Cmd[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [cat, setCat] = useState('掷骰');
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [rows, setRows] = useTourState<Cmd[]>([], tourSamples.commands);
+  const [loading, setLoading] = useTourState(true, false);
+  const [cat, setCat] = useTourState('掷骰', '掷骰');
+  const [expanded, setExpanded] = useTourState<Set<string>>(new Set(), new Set(['r']));
   const [editing, setEditing] = useState<{ cmd: string; reply: Reply } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [allRows, setAllRows] = useState<AllKey[]>([]);
@@ -106,9 +108,9 @@ export const CommandsPage: React.FC = () => {
   const [allQ, setAllQ] = useState('');
   const [allGroup, setAllGroup] = useState('__all_groups__');
   // C#40: persona editing — pick a persona and edit ITS reply text directly.
-  const [personas, setPersonas] = useState<{ id: number; name: string }[]>([]);
-  const [personaId, setPersonaId] = useState(0);            // 0 = 默认人格 (global overrides)
-  const [personaMap, setPersonaMap] = useState<Record<string, { value: string; format: ReplyFormat }>>({});
+  const [personas, setPersonas] = useTourState<{ id: number; name: string }[]>([], tourSamples.personas);
+  const [personaId, setPersonaId] = useTourState(0, 0);            // 0 = 默认人格 (global overrides)
+  const [personaMap, setPersonaMap] = useTourState<Record<string, { value: string; format: ReplyFormat }>>({}, {});
   const [mgrOpen, setMgrOpen] = useState(false);
   const editScrollY = useRef(0);
 

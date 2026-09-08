@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useTourState, useTourValue } from '@/components/onboarding/tour-data';
+import { tourSamples } from '@/lib/tour-samples';
 import { useTranslation } from 'react-i18next';
 import { Cpu, MemoryStick, HardDrive, Server } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -65,9 +67,11 @@ const ResourceMeter: React.FC<{ icon: LucideIcon; label: string; pct: number; de
 
 export const ServerInfo: React.FC = () => {
   const { t } = useTranslation();
-  const [info, setInfo] = useState<SystemInfo | null>(null);
+  const [info, setInfo] = useTourState<SystemInfo | null>(null, tourSamples.system);
   const cpuHist = useRef<number[]>([]);
   const memHist = useRef<number[]>([]);
+  const cpuHistory = useTourValue(cpuHist.current, tourSamples.cpuHistory);
+  const memHistory = useTourValue(memHist.current, tourSamples.memHistory);
   const [, force] = useState(0);
 
   useEffect(() => {
@@ -112,10 +116,10 @@ export const ServerInfo: React.FC = () => {
         </div>
 
         <ResourceMeter icon={Cpu} label={t('dashboard.cpu')} pct={cpuKnown ? info.cpu_load : 0}
-          detail={cpuDetail} history={cpuHist.current} />
+          detail={cpuDetail} history={cpuHistory} />
         <ResourceMeter icon={MemoryStick} label={t('dashboard.memory')} pct={info.mem_load}
           detail={`${fmtMB(info.mem_used_mb)} / ${fmtMB(info.mem_total_mb)}${info.mem_speed_mhz ? ` · ${info.mem_speed_mhz} MHz` : ''}`}
-          history={memHist.current} />
+          history={memHistory} />
 
         <div className="space-y-3">
           <div className="flex items-center gap-2 text-sm font-medium"><HardDrive className="h-4 w-4 text-muted-foreground" />{t('dashboard.disk')}</div>

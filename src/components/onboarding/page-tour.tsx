@@ -12,6 +12,7 @@ interface PageTourProps {
   replayToken: number;
   tourMode: TourMode | null;
   onCloseAllTours: () => void;
+  onOpenChange: (path: string | null) => void;
 }
 
 interface Box {
@@ -32,13 +33,13 @@ const VIEWPORT_MARGIN = 16;
 function resolveTarget(step: PageTourStep): HTMLElement | null {
   const selectors = typeof step.target === 'string' ? [step.target] : step.target;
   for (const selector of selectors) {
-    const element = document.querySelector<HTMLElement>(selector);
-    if (!element) continue;
-    const rect = element.getBoundingClientRect();
-    const style = window.getComputedStyle(element);
-    if (rect.width <= 0 || rect.height <= 0) continue;
-    if (style.display === 'none' || style.visibility === 'hidden') continue;
-    return element;
+    for (const element of document.querySelectorAll<HTMLElement>(selector)) {
+      const rect = element.getBoundingClientRect();
+      const style = window.getComputedStyle(element);
+      if (rect.width <= 0 || rect.height <= 0) continue;
+      if (style.display === 'none' || style.visibility === 'hidden') continue;
+      return element;
+    }
   }
   return null;
 }
@@ -117,10 +118,12 @@ export const PageTour: React.FC<PageTourProps> = ({
   replayToken,
   tourMode,
   onCloseAllTours,
+  onOpenChange,
 }) => {
   const { t } = useTranslation();
   const profile = getPageTourProfile(currentPath);
-  const [open, setOpen] = React.useState(false);
+  const [openPath, setOpenPath] = React.useState<string | null>(null);
+  const open = openPath === currentPath;
   const [stepIndex, setStepIndex] = React.useState(0);
   const [box, setBox] = React.useState<Box | null>(null);
   // A near full-screen overlay is easy to hit by accident; ask before throwing
@@ -128,17 +131,23 @@ export const PageTour: React.FC<PageTourProps> = ({
   const [confirmExit, setConfirmExit] = React.useState(false);
   const [cardSize, setCardSize] = React.useState({ width: CARD_MAX_WIDTH, height: 220 });
   const cardRef = React.useRef<HTMLDivElement>(null);
+  const exitRef = React.useRef<HTMLDivElement>(null);
   const previousFocusRef = React.useRef<HTMLElement | null>(null);
   const lastReplayTokenRef = React.useRef(replayToken);
 
   const step = open && profile ? profile.steps[stepIndex] : undefined;
 
+  React.useLayoutEffect(() => {
+    onOpenChange(open ? currentPath : null);
+    return () => onOpenChange(null);
+  }, [open, currentPath, onOpenChange]);
+
   const close = React.useCallback(() => {
     if (profile) completeTour(currentPath, profile.version);
-    setOpen(false);
+    setOpenPath(null);
     setConfirmExit(false);
     setBox(null);
-    window.requestAnimationFrame(() => previousFocusRef.current?.focus());
+    window.requestAnimationFrame(() => previousFocusRef.current?.focus({ preventScroll: true }));
   }, [currentPath, profile]);
 
   const closeEverything = React.useCallback(() => {
@@ -147,7 +156,7 @@ export const PageTour: React.FC<PageTourProps> = ({
   }, [close, onCloseAllTours]);
 
   React.useEffect(() => {
-    setOpen(false);
+    setOpenPath(null);
     setStepIndex(0);
     setBox(null);
     setConfirmExit(false);
@@ -165,7 +174,7 @@ export const PageTour: React.FC<PageTourProps> = ({
 
     const timer = window.setTimeout(() => {
       previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-      setOpen(true);
+      setOpenPath(currentPath);
     }, manualReplay ? 0 : 450);
     return () => window.clearTimeout(timer);
   }, [currentPath, profile, replayToken, tourMode]);
@@ -220,8 +229,23 @@ export const PageTour: React.FC<PageTourProps> = ({
 
   React.useEffect(() => {
     if (!open) return;
-    const frame = window.requestAnimationFrame(() => cardRef.current?.focus());
+    const dialog = () => confirmExit ? exitRef.current : cardRef.current;
+    const frame = window.requestAnimationFrame(() => dialog()?.focus({ preventScroll: true }));
+    const onFocus = (event: FocusEvent) => {
+      if (event.target instanceof Node && !dialog()?.contains(event.target)) dialog()?.focus({ preventScroll: true });
+    };
     const onKeyDown = (event: KeyboardEvent) => {
+      // Keep document/window shortcuts (e.g. global search) out of the modal.
+      event.stopPropagation();
+      if (event.key === 'Tab') {
+        const buttons = Array.from(dialog()?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? []);
+        const index = buttons.indexOf(document.activeElement as HTMLButtonElement);
+        event.preventDefault();
+        const next = index < 0 ? (event.shiftKey ? buttons.length - 1 : 0)
+          : (index + (event.shiftKey ? -1 : 1) + buttons.length) % buttons.length;
+        buttons[next]?.focus();
+        return;
+      }
       if (event.key === 'Escape') {
         event.preventDefault();
         // Escape is as easy to fat-finger as the overlay, so it asks too.
@@ -229,13 +253,15 @@ export const PageTour: React.FC<PageTourProps> = ({
         return;
       }
       if (confirmExit) return;
-      if (event.key === 'ArrowRight') goNext();
-      if (event.key === 'ArrowLeft') goBack();
+      if (event.key === 'ArrowRight') { event.preventDefault(); goNext(); }
+      if (event.key === 'ArrowLeft') { event.preventDefault(); goBack(); }
     };
-    document.addEventListener('keydown', onKeyDown);
+    document.addEventListener('keydown', onKeyDown, true);
+    document.addEventListener('focusin', onFocus);
     return () => {
       window.cancelAnimationFrame(frame);
-      document.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('keydown', onKeyDown, true);
+      document.removeEventListener('focusin', onFocus);
     };
   }, [confirmExit, goBack, goNext, open]);
 
@@ -299,6 +325,9 @@ export const PageTour: React.FC<PageTourProps> = ({
         </div>
 
         <div className="max-h-[45vh] overflow-y-auto p-4">
+          <p className="mb-3 rounded-md bg-primary/5 px-2.5 py-2 text-xs leading-5 text-muted-foreground" data-tour="sample-notice">
+            {t('onboarding.sample_notice')}
+          </p>
           <div className={cn(
             'mb-3 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium',
             step.action === 'danger'
@@ -351,7 +380,7 @@ export const PageTour: React.FC<PageTourProps> = ({
         // Drawn inside the tour layer rather than with the shared Dialog: that
         // one is z-50 and would end up underneath this overlay.
         <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-sm rounded-xl border bg-background p-4 shadow-2xl">
+          <div ref={exitRef} role="dialog" aria-modal="true" aria-label={t('onboarding.exit_title')} tabIndex={-1} className="w-full max-w-sm rounded-xl border bg-background p-4 shadow-2xl outline-none">
             <p className="text-sm font-semibold">{t('onboarding.exit_title')}</p>
             <p className="mt-1.5 text-sm leading-6 text-muted-foreground">{t('onboarding.exit_body')}</p>
             <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">

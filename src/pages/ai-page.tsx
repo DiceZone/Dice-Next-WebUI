@@ -1,3 +1,5 @@
+import { useTourState } from '@/components/onboarding/tour-data';
+import { tourSamples } from '@/lib/tour-samples';
 /**
  * C#67/C#68/C#78：人工智能 —— 分「模型 / 润色 / 翻译」三个子页面（由路由 /ai、/ai/polish、
  * /ai/translate 决定，同一组件不重挂载，编辑状态共享，一次保存全部）。
@@ -81,22 +83,22 @@ export const AiPage: React.FC = () => {
   const { t } = useTranslation();
   const toast = useToast();
   const [section, setSection] = useState<'models' | 'polish' | 'translate' | 'chat' | 'npc'>(sectionFromHash());
-  const [enabled, setEnabled] = useState(false);
-  const [models, setModels] = useState<AiModel[]>([]);
-  const [params, setParams] = useState<Params>(emptyParams());
-  const [polish, setPolish] = useState<Polish>(emptyPolish());
-  const [trans, setTrans] = useState<Translate>(emptyTranslate());
-  const [chat, setChat] = useState<Chat>(emptyChat());
-  const [memory, setMemory] = useState<Memory>(emptyMemory());
-  const [tools, setTools] = useState<Tools>(emptyTools());
-  const [vision, setVision] = useState<Vision>(emptyVision());
-  const [npc, setNpc] = useState<NpcConf>(emptyNpcConf());
-  const [wl, setWl] = useState<Whitelist>(emptyWhitelist());
+  const [enabled, setEnabled] = useTourState(false, true);
+  const [models, setModels] = useTourState<AiModel[]>([], tourSamples.models);
+  const [params, setParams] = useTourState<Params>(emptyParams(), emptyParams());
+  const [polish, setPolish] = useTourState<Polish>(emptyPolish(), { ...emptyPolish(), enabled: true, model_id: 'demo-model', persona: '星灯：温柔、简洁的故事旁白。' });
+  const [trans, setTrans] = useTourState<Translate>(emptyTranslate(), { ...emptyTranslate(), enabled: true, model_id: 'demo-model', langs: [{ name: '英语', keywords: ['英语', 'English'] }] });
+  const [chat, setChat] = useTourState<Chat>(emptyChat(), { ...emptyChat(), enabled: true, model_id: 'demo-model', persona: '你是星灯，陪伴调查员冒险的骰子助手。', keywords: ['星灯'] });
+  const [memory, setMemory] = useTourState<Memory>(emptyMemory(), { ...emptyMemory(), short: { ...emptyMemory().short, enabled: true, summary_model_id: 'demo-model' } });
+  const [tools, setTools] = useTourState<Tools>(emptyTools(), { ...emptyTools(), enabled: true });
+  const [vision, setVision] = useTourState<Vision>(emptyVision(), emptyVision());
+  const [npc, setNpc] = useTourState<NpcConf>(emptyNpcConf(), { enabled: true, list: [{ id: 'demo-npc', name: '灯塔守望者 · 示例', persona: '一位熟悉雾港旧事的守塔人。', knowledge: '每到深夜，旧港口会传来钟声。', triggers: ['守塔人'], model_id: 'demo-model', group: 'demo-group', enabled: true, mood_enabled: true }] });
+  const [wl, setWl] = useTourState<Whitelist>(emptyWhitelist(), { enabled: true, list: [{ platform: 'onebot_v11', id: 'demo-group', is_group: true, name: '周末调查团 · 示例' }] });
   const [wlPick, setWlPick] = useState('');
   const [wlPicking, setWlPicking] = useState(false);
-  const [pickGroups, setPickGroups] = useState<PickGroup[]>([]);
-  const [pickPlayers, setPickPlayers] = useState<PickPlayer[]>([]);
-  const [memItems, setMemItems] = useState<MemItem[]>([]);
+  const [pickGroups, setPickGroups] = useTourState<PickGroup[]>([], tourSamples.groups);
+  const [pickPlayers, setPickPlayers] = useTourState<PickPlayer[]>([], tourSamples.players);
+  const [memItems, setMemItems] = useTourState<MemItem[]>([], [{ scope_id: 'demo-group', content: '调查员来到雾港，约定周六晚在灯塔集合。', ref_id: 1, updated_at: 1788264000, hits: 2 }]);
   const [memBusy, setMemBusy] = useState(false);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState<Record<string, boolean>>({});

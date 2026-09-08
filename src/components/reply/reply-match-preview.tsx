@@ -1,4 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
+import { useTourActive, useTourState } from '@/components/onboarding/tour-data';
+import { tourSamples } from '@/lib/tour-samples';
 import { useTranslation } from 'react-i18next';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -26,14 +28,18 @@ interface TestResult {
 
 export const ReplyMatchPreview: React.FC<ReplyMatchPreviewProps> = ({ replies }) => {
   const { t } = useTranslation();
-  const [testText, setTestText] = useState('');
-  const [groupId, setGroupId] = useState('');
-  const [result, setResult] = useState<TestResult | null>(null);
-  const [loading, setLoading] = useState(false);
+  const showingSamples = useTourActive();
+  const [testText, setTestText] = useTourState('', tourSamples.replies[0].matchContent);
+  const [groupId, setGroupId] = useTourState('', tourSamples.groups[0].groupId);
+  const [result, setResult] = useTourState<TestResult | null>(null, tourSamples.replyPreview);
+  const [loading, setLoading] = useTourState(false, false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (timer.current) clearTimeout(timer.current);
+    // This preview normally POSTs automatically; never send sample text to
+    // the real reply engine, even when replaying with an existing live draft.
+    if (showingSamples) return;
     const text = testText.trim();
     if (!text) { setResult(null); setLoading(false); return; }
     setLoading(true);
@@ -49,7 +55,7 @@ export const ReplyMatchPreview: React.FC<ReplyMatchPreviewProps> = ({ replies })
       finally { setLoading(false); }
     }, 350);
     return () => { if (timer.current) clearTimeout(timer.current); };
-  }, [testText, groupId, replies]);
+  }, [testText, groupId, replies, showingSamples]);
 
   const skipReason = (reason: string) =>
     reason === 'scope' ? t('replies.skip_scope')

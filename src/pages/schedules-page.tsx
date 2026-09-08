@@ -1,3 +1,5 @@
+import { useTourState } from '@/components/onboarding/tour-data';
+import { tourSamples } from '@/lib/tour-samples';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -72,13 +74,13 @@ export const SchedulesPage: React.FC = () => {
   const { t } = useTranslation();
   const toast = useToast();
   const dlg = useDialogs(t);
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState({ ...blankForm });
-  const [daySet, setDaySet] = useState<Set<number>>(new Set());
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [accounts, setAccounts] = useState<{ id: string; label: string; short: string; platform: string }[]>([]);
-  const [condKind, setCondKind] = useState<CondKind>('none');
+  const [tasks, setTasks] = useTourState<Task[]>([], tourSamples.tasks);
+  const [loading, setLoading] = useTourState(true, false);
+  const [form, setForm] = useTourState({ ...blankForm }, tourSamples.scheduleForm);
+  const [daySet, setDaySet] = useTourState<Set<number>>(new Set(), new Set([6]));
+  const [editingId, setEditingId] = useTourState<number | null>(null, null);
+  const [accounts, setAccounts] = useTourState<{ id: string; label: string; short: string; platform: string }[]>([], tourSamples.accounts);
+  const [condKind, setCondKind] = useTourState<CondKind>('none', 'none');
   const [condN, setCondN] = useState(7);
 
   const WEEK = t('schedules.week_short').split(',');

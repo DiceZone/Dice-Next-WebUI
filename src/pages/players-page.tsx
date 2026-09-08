@@ -1,3 +1,5 @@
+import { useTourActive, useTourState, TourDataContext } from '@/components/onboarding/tour-data';
+import { tourSamples } from '@/lib/tour-samples';
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
@@ -404,19 +406,20 @@ export const PlayersPage: React.FC = () => {
   const { t } = useTranslation();
   const toast = useToast();
   const dlg = useDialogs(t);
-  const [rows, setRows] = useState<Player[]>([]);
-  const [masters, setMasters] = useState<{ platform: string; id: string }[]>([]);
+  const [rows, setRows] = useTourState<Player[]>([], tourSamples.players);
+  const [masters, setMasters] = useTourState<{ platform: string; id: string }[]>([], tourSamples.masters);
   const [friendInfo, setFriendInfo] = useState<{ lists: Record<string, string[]>; deletePlatforms: string[]; officialRealFriends: string[] }>({ lists: {}, deletePlatforms: [], officialRealFriends: [] });
-  const [loading, setLoading] = useState(true);
-  const [editFav, setEditFav] = useState<string | null>(null);
+  const [loading, setLoading] = useTourState(true, false);
+  const [editFav, setEditFav] = useTourState<string | null>(null, null);
   const [favVal, setFavVal] = useState(0);
-  const [q, setQ] = useState('');
-  const [platFilter, setPlatFilter] = useState('all');   // 平台筛选（KOOK 用户 id 可能与 QQ 号同形，分开看）
+  const [q, setQ] = useTourState('', '');
+  const [platFilter, setPlatFilter] = useTourState('all', 'all');   // 平台筛选（KOOK 用户 id 可能与 QQ 号同形，分开看）
   const [sortCol, setSortCol] = useState<string>('trustLevel');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useTourState(1, 1);
   const PAGE_SIZE = 20;
   const [selected, setSelected] = useState<Player | null>(null);   // C#96：详情二级页面
+  const showingSamples = useTourActive();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -527,13 +530,14 @@ export const PlayersPage: React.FC = () => {
   const paged = shown.slice((curPage - 1) * PAGE_SIZE, curPage * PAGE_SIZE);
   useEffect(() => { setPage(1); }, [q, platFilter, sortCol, sortDir]);
 
-  // 详情二级页面
-  if (selected) {
-    return <PlayerDetailView player={selected} isMaster={masterSet.has(selected.userId)} onBack={() => setSelected(null)} />;
-  }
-
   return (
-    <div className="space-y-5">
+    <>
+    <div hidden={showingSamples}>
+      <TourDataContext.Provider value={false}>
+        {selected && <PlayerDetailView player={selected} isMaster={masterSet.has(selected.userId)} onBack={() => setSelected(null)} />}
+      </TourDataContext.Provider>
+    </div>
+    <div hidden={Boolean(selected) && !showingSamples} className="space-y-5">
       {dlg.node}
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div>
@@ -583,7 +587,7 @@ export const PlayersPage: React.FC = () => {
                 <tr key={key(p)} className="border-t hover:bg-muted/30">
                   <td data-label={t('players.col_nickname')} className="p-2.5">
                     <button className="flex items-center gap-2 hover:underline text-left" onClick={() => setSelected(p)}>
-                      {!p.virtualId && (
+                      {!p.virtualId && !p.userId.startsWith('demo-') && (
                         <img
                           src={`https://q1.qlogo.cn/g?b=qq&nk=${p.userId}&s=100`}
                           alt=""
@@ -666,6 +670,7 @@ export const PlayersPage: React.FC = () => {
         <PaginationBar total={shown.length} page={curPage} pageSize={PAGE_SIZE} onPageChange={setPage} fixedSize />
       )}
     </div>
+    </>
   );
 };
 
