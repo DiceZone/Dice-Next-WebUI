@@ -22,7 +22,11 @@ import { PlatformIcon, platformLabel } from '@/components/platform-icon';
 import { LogActionButtons } from '@/components/log-action-buttons';
 import type { ActivePersonaInfo, PersonaTemplate } from '@/types/persona';
 
-interface GroupAccount {
+interface GroupFeatures {
+  log_enabled?: boolean; reply_enabled?: boolean; roll_enabled?: boolean; plugin_enabled?: boolean;
+}
+interface GroupControlResult { logPaused?: boolean; logName?: string }
+interface GroupAccount extends GroupFeatures {
   adapterId: string; adapterName: string; loginId: string; platform: string; endpointId: string;
   loginName?: string; appId?: string;
   connected: boolean; enabled: boolean; ai_enabled?: boolean; locked: boolean; card: string;
@@ -30,7 +34,7 @@ interface GroupAccount {
   botRole: string; memberCount: number; inviter?: string; locale?: string; left?: boolean;
   welcome?: string; welcome_delay?: string; welcome_cooldown?: string;
 }
-interface Group {
+interface Group extends GroupFeatures {
   platform: string; groupId: string; name: string;
   enabled: boolean; ai_enabled?: boolean; locked: boolean; card: string; remark: string;
   activeLog: boolean; observers: number; botRole: string; memberCount: number;
@@ -138,8 +142,9 @@ export const GroupsPage: React.FC = () => {
 
   const put = async (g: Group, body: Record<string, unknown>, silent = false) => {
     try {
-      await jsend('PUT', `/groups/${g.platform}/${g.groupId}`, { ...body, ...accountPayload(g) });
-      if (!silent) toast({ title: t('common.save_success') });
+      const result: GroupControlResult | null = await jsend('PUT', `/groups/${g.platform}/${g.groupId}`, { ...body, ...accountPayload(g) });
+      if (!silent || result?.logPaused) toast({ title: t('common.save_success'),
+        description: result?.logPaused ? t('groups.log_paused_notice', { name: result.logName }) : undefined });
       await fetchGroups();
     } catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
   };
@@ -287,7 +292,7 @@ export const GroupsPage: React.FC = () => {
                               <span className="truncate font-mono text-muted-foreground">{g.groupId}</span>
                             </span>
                             {(g.accounts?.length || 0) > 1 && <Badge variant="outline" className="text-[10px]">{t('groups.account_count', { count: g.accounts!.length })}</Badge>}
-                            {g.activeLog && <Badge variant="secondary" className="text-[10px]">{t('groups.recording')}</Badge>}
+                            {g.activeLog && <Badge variant="secondary" className="text-[10px]">{t(g.enabled && !g.locked && g.log_enabled !== false ? 'groups.recording' : 'groups.log_paused')}</Badge>}
                           </div>
                         </div>
                       </div>
@@ -597,6 +602,7 @@ const PluginsTab: React.FC<any> = ({ group, adapterId, t, toast }) => {
 
 // ── 功能管理 ──
 const FunctionTab: React.FC<any> = ({ group, base, scopedBody, onChanged, onBack, goChat, t, toast, dlg, welcomeRef }) => {
+  const [savingSwitch, setSavingSwitch] = useState(false);
   const [card, setCard] = useState(group.card || '');
   const [editingCard, setEditingCard] = useState(false);   // C#50: 名片默认只读，点「修改」才编辑
   const [botNick, setBotNick] = useState('');               // 骰娘 QQ 本身昵称（无群名片时展示）
@@ -682,8 +688,18 @@ const FunctionTab: React.FC<any> = ({ group, base, scopedBody, onChanged, onBack
   }, [group.platform]);
 
   const save = async (body: Record<string, unknown>) => {
-    try { await jsend('PUT', base, { ...body, ...scopedBody }); toast({ title: t('common.save_success') }); onChanged(); }
+    try {
+      const result: GroupControlResult | null = await jsend('PUT', base, { ...body, ...scopedBody });
+      toast({ title: t('common.save_success'),
+        description: result?.logPaused ? t('groups.log_paused_notice', { name: result.logName }) : undefined });
+      await onChanged();
+    }
     catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
+  };
+  const setFunction = async (key: string, enabled: boolean) => {
+    setSavingSwitch(true);
+    try { await save({ [key]: enabled }); }
+    finally { setSavingSwitch(false); }
   };
   const doLeave = async (removeRecord: boolean) => {
     setLeaving(true);
@@ -697,6 +713,31 @@ const FunctionTab: React.FC<any> = ({ group, base, scopedBody, onChanged, onBack
 
   return (
     <div className="space-y-4 max-w-xl">
+      <section className="rounded-lg border p-4 space-y-3">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <Label htmlFor="group-bot-switch">{t('groups.feature_overall')}</Label>
+            <p className="text-xs text-muted-foreground">{t('groups.feature_scope')}</p>
+          </div>
+          <Switch id="group-bot-switch" checked={group.enabled}
+            disabled={savingSwitch || group.locked || group.left}
+            onCheckedChange={(value) => { void setFunction('enabled', value); }} />
+        </div>
+        {!group.enabled && <p className="text-xs text-muted-foreground rounded bg-muted p-2">{t('groups.features_suspended')}</p>}
+        <div className="border-t pt-3 space-y-4">
+          {(['log', 'reply', 'roll', 'plugin'] as const).map((feature) => (
+            <div key={feature} className="flex items-center justify-between gap-4">
+              <div className="space-y-1">
+                <Label htmlFor={`group-${feature}-switch`}>{t(`groups.feature_${feature}`)}</Label>
+                <p className="text-xs text-muted-foreground">{t(`groups.feature_${feature}_hint`)}</p>
+              </div>
+              <Switch id={`group-${feature}-switch`} checked={group[`${feature}_enabled`] !== false}
+                disabled={savingSwitch || group.locked || group.left}
+                onCheckedChange={(value) => { void setFunction(`${feature}_enabled`, value); }} />
+            </div>
+          ))}
+        </div>
+      </section>
       <div className="space-y-1">
         <label className="text-sm font-medium">{t('groups.bot_card')}</label>
         <p className="text-xs text-muted-foreground">{t('groups.bot_card_hint')}</p>
