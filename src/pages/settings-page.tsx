@@ -1,4 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useTourState } from '@/components/onboarding/tour-data';
+import { tourSamples } from '@/lib/tour-samples';
+import React, { useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -121,8 +123,8 @@ interface ImageSendConf { mode?: string; host?: string; default_host?: string; }
 const ImageSendCard: React.FC<ScopedCardProps> = (scopeProps) => {
   const { t } = useTranslation();
   const toast = useToast();
-  const [c, setC] = useState<ImageSendConf>({ mode: 'base64', host: '' });
-  const [saving, setSaving] = useState(false);
+  const [c, setC] = useTourState<ImageSendConf>({ mode: 'base64', host: '' }, { mode: 'base64', host: '' });
+  const [saving, setSaving] = useTourState(false, false);
 
   useEffect(() => {
     (async () => {
@@ -196,8 +198,8 @@ interface MessageFormatConf { mode?: 'traditional' | 'card'; }
 const MessageFormatCard: React.FC<ScopedCardProps> = (scopeProps) => {
   const toast = useToast();
   const { t } = useTranslation();
-  const [mode, setMode] = useState<MessageFormatConf['mode']>('traditional');
-  const [saving, setSaving] = useState(false);
+  const [mode, setMode] = useTourState<MessageFormatConf['mode']>('traditional', 'traditional');
+  const [saving, setSaving] = useTourState(false, false);
 
   useEffect(() => {
     (async () => {
@@ -269,9 +271,9 @@ interface ImageHostConf { mode?: string; url?: string; file_field?: string; resu
 const ImageHostCard: React.FC<ScopedCardProps> = (scopeProps) => {
   const { t } = useTranslation();
   const toast = useToast();
-  const [c, setC] = useState<ImageHostConf>({ mode: 'none', file_field: 'file', result_path: 'data.url' });
-  const [headersText, setHeadersText] = useState('');
-  const [saving, setSaving] = useState(false);
+  const [c, setC] = useTourState<ImageHostConf>({ mode: 'none', file_field: 'file', result_path: 'data.url' }, { mode: 'none', file_field: 'file', result_path: 'data.url' });
+  const [headersText, setHeadersText] = useTourState('', '');
+  const [saving, setSaving] = useTourState(false, false);
 
   useEffect(() => {
     (async () => {
@@ -395,11 +397,11 @@ const CENSOR_LEVELS = [0, 1, 2, 3, 4, 5];
 const SensitiveWordCard: React.FC = () => {
   const { t } = useTranslation();
   const toast = useToast();
-  const [config, setConfig] = useState<CensorConfig>({ enabled: false, rules: [] });
-  const [loaded, setLoaded] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [testText, setTestText] = useState('');
-  const [testResult, setTestResult] = useState<{ matched: boolean; level_name: string; count: number } | null>(null);
+  const [config, setConfig] = useTourState<CensorConfig>({ enabled: false, rules: [] }, { enabled: false, rules: [] });
+  const [loaded, setLoaded] = useTourState(false, false);
+  const [saving, setSaving] = useTourState(false, false);
+  const [testText, setTestText] = useTourState('', '');
+  const [testResult, setTestResult] = useTourState<{ matched: boolean; level_name: string; count: number } | null>(null, null);
 
   const load = useCallback(async () => {
     try {
@@ -509,65 +511,64 @@ export const SettingsPage: React.FC = () => {
   const dlg = useDialogs(t);
 
   // — Master —
-  const [masters, setMasters] = useState<Master[]>([]);
-  const [mPlatform, setMPlatform] = useState('onebot_v11');
-  const [mAdapter, setMAdapter] = useState('');
-  const [masterAccounts, setMasterAccounts] = useState<MessageFormatAdapter[]>([]);
-  const [masterInherit, setMasterInherit] = useState(true);
-  const [mId, setMId] = useState('');
+  const [masters, setMasters] = useTourState<Master[]>([], tourSamples.masters);
+  const [mPlatform, setMPlatform] = useTourState('onebot_v11', 'onebot_v11');
+  const [mAdapter, setMAdapter] = useTourState('', '');
+  const [masterAccounts, setMasterAccounts] = useTourState<MessageFormatAdapter[]>([], tourSamples.adapters);
+  const [masterInherit, setMasterInherit] = useTourState(true, true);
+  const [mId, setMId] = useTourState('', '');
   // — Scoped settings (#17): account > adapter type > global —
-  const [settingsScope, setSettingsScope] = useState<SettingsScope>('global');
-  const [settingsTarget, setSettingsTarget] = useState('');
-  const [eventOverrides, setEventOverrides] = useState<Record<string, unknown>>({});
-  const [eventSources, setEventSources] = useState<Record<string, string>>({});
-  const [expressionMode, setExpressionMode] = useState<ExpressionMode>('enhanced');
-  const [expressionOrder, setExpressionOrder] = useState<ExpressionEngineId[]>(EXPRESSION_ENGINES);
-  const [expressionEngines, setExpressionEngines] = useState<ExpressionEngineInfo[]>([]);
-  const [expressionOverrides, setExpressionOverrides] = useState<Record<string, unknown>>({});
-  const [expressionSources, setExpressionSources] = useState<Record<string, string>>({});
-  const [savingExpression, setSavingExpression] = useState(false);
+  const [settingsScope, setSettingsScope] = useTourState<SettingsScope>('global', 'global');
+  const [settingsTarget, setSettingsTarget] = useTourState('', '');
+  const [eventOverrides, setEventOverrides] = useTourState<Record<string, unknown>>({}, {});
+  const [eventSources, setEventSources] = useTourState<Record<string, string>>({}, {});
+  const [expressionMode, setExpressionMode] = useTourState<ExpressionMode>('enhanced', 'enhanced');
+  const [expressionOrder, setExpressionOrder] = useTourState<ExpressionEngineId[]>(EXPRESSION_ENGINES, EXPRESSION_ENGINES);
+  const [expressionEngines, setExpressionEngines] = useTourState<ExpressionEngineInfo[]>([], []);
+  const [expressionOverrides, setExpressionOverrides] = useTourState<Record<string, unknown>>({}, {});
+  const [expressionSources, setExpressionSources] = useTourState<Record<string, string>>({}, {});
+  const [savingExpression, setSavingExpression] = useTourState(false, false);
   // — Prefixes —
-  const [prefixes, setPrefixes] = useState<string[]>([]);
-  const [savingPrefix, setSavingPrefix] = useState(false);
+  const [prefixes, setPrefixes] = useTourState<string[]>([], ['.', '。']);
+  const [savingPrefix, setSavingPrefix] = useTourState(false, false);
   // — Timezone (server/timezone_minutes; null = follow system) —
-  const [tzMinutes, setTzMinutes] = useState<number | null>(null);
+  const [tzMinutes, setTzMinutes] = useTourState<number | null>(null, null);
   // — Approval —
-  const [friendPolicy, setFriendPolicy] = useState('manual');
-  const [friendKeyword, setFriendKeyword] = useState('');
-  const [groupInvitePolicy, setGroupInvitePolicy] = useState('manual');
-  const [groupRejectBlacklist, setGroupRejectBlacklist] = useState(true);
-  const [groupRejectNonfriend, setGroupRejectNonfriend] = useState(false);
-  const [groupNameKeywordLeave, setGroupNameKeywordLeave] = useState('');   // 群名关键词自动退群
-  const [savingEvents, setSavingEvents] = useState(false);
-
+  const [friendPolicy, setFriendPolicy] = useTourState('manual', 'manual');
+  const [friendKeyword, setFriendKeyword] = useTourState('', '');
+  const [groupInvitePolicy, setGroupInvitePolicy] = useTourState('manual', 'manual');
+  const [groupRejectBlacklist, setGroupRejectBlacklist] = useTourState(true, true);
+  const [groupRejectNonfriend, setGroupRejectNonfriend] = useTourState(false, false);
+  const [groupNameKeywordLeave, setGroupNameKeywordLeave] = useTourState('', '');   // 群名关键词自动退群
+  const [savingEvents, setSavingEvents] = useTourState(false, false);
   // — Nudge —
-  const [pokeText, setPokeText] = useState('');
-  const [pokeCommand, setPokeCommand] = useState('');
-  const [pokeEnabled, setPokeEnabled] = useState(true);   // C#70：戳一戳回复开关
-  const [welcomeMinDelay, setWelcomeMinDelay] = useState(0);
-  const [welcomeMinCooldown, setWelcomeMinCooldown] = useState(0);
-  const [savingPoke, setSavingPoke] = useState(false);
+  const [pokeText, setPokeText] = useTourState('', '');
+  const [pokeCommand, setPokeCommand] = useTourState('', '');
+  const [pokeEnabled, setPokeEnabled] = useTourState(true, true);   // C#70：戳一戳回复开关
+  const [welcomeMinDelay, setWelcomeMinDelay] = useTourState(0, 0);
+  const [welcomeMinCooldown, setWelcomeMinCooldown] = useTourState(0, 0);
+  const [savingPoke, setSavingPoke] = useTourState(false, false);
   // — WebUI items (moved here) —
-  const [autostart, setAutostart] = useState(false);
-  const [quoteReply, setQuoteReply] = useState(true);
-  const [autoCard, setAutoCard] = useState(true);
-  const [respondSelf, setRespondSelf] = useState(false);   // C#69：自响应/自控
-  const [forwardLong, setForwardLong] = useState(false);
-  const [forwardThreshold, setForwardThreshold] = useState(1200);
-  const [segLen, setSegLen] = useState(600);
-  const [segEnabled, setSegEnabled] = useState(true);
-  const [segSaving, setSegSaving] = useState(false);
-  const [nickPre, setNickPre] = useState('<');
-  const [nickSuf, setNickSuf] = useState('>');
-  const [nickSaving, setNickSaving] = useState(false);
+  const [autostart, setAutostart] = useTourState(false, false);
+  const [quoteReply, setQuoteReply] = useTourState(true, true);
+  const [autoCard, setAutoCard] = useTourState(true, true);
+  const [respondSelf, setRespondSelf] = useTourState(false, false);   // C#69：自响应/自控
+  const [forwardLong, setForwardLong] = useTourState(false, false);
+  const [forwardThreshold, setForwardThreshold] = useTourState(1200, 1200);
+  const [segLen, setSegLen] = useTourState(600, 600);
+  const [segEnabled, setSegEnabled] = useTourState(true, true);
+  const [segSaving, setSegSaving] = useTourState(false, false);
+  const [nickPre, setNickPre] = useTourState('<', '<');
+  const [nickSuf, setNickSuf] = useTourState('>', '>');
+  const [nickSaving, setNickSaving] = useTourState(false, false);
   // — Globals —
-  const [globals, setGlobals] = useState<Record<string, any>>({});
-  const [globalOverrides, setGlobalOverrides] = useState<Record<string, unknown>>({});
-  const [globalSources, setGlobalSources] = useState<Record<string, string>>({});
+  const [globals, setGlobals] = useTourState<Record<string, any>>({}, {});
+  const [globalOverrides, setGlobalOverrides] = useTourState<Record<string, unknown>>({}, {});
+  const [globalSources, setGlobalSources] = useTourState<Record<string, string>>({}, {});
   // — 插件签名公钥（可选）—
-  const [pluginKey, setPluginKey] = useState('');
+  const [pluginKey, setPluginKey] = useTourState('', '');
   // — JS 插件网络访问（T8）—
-  const [jsFetchStrict, setJsFetchStrict] = useState(false);
+  const [jsFetchStrict, setJsFetchStrict] = useTourState(false, false);
 
   // —— Loaders ———————————————————————————————————————————
   const loadMasters = async () => {
@@ -1497,8 +1498,8 @@ export const SettingsPage: React.FC = () => {
 const ChatRetentionCard: React.FC<ScopedCardProps> = (scopeProps) => {
   const { t } = useTranslation();
   const toast = useToast();
-  const [days, setDays] = useState(7);
-  const [saving, setSaving] = useState(false);
+  const [days, setDays] = useTourState(7, 7);
+  const [saving, setSaving] = useTourState(false, false);
   useEffect(() => {
     (async () => {
       if (scopeUnavailable(scopeProps)) return;
@@ -1544,10 +1545,10 @@ const ChatRetentionCard: React.FC<ScopedCardProps> = (scopeProps) => {
 const FriendCleanCard: React.FC = () => {
   const { t } = useTranslation();
   const toast = useToast();
-  const [days, setDays] = useState(0);
-  const [groupLimit, setGroupLimit] = useState(20);
-  const [maxGroupSize, setMaxGroupSize] = useState(0);
-  const [saving, setSaving] = useState(false);
+  const [days, setDays] = useTourState(0, 0);
+  const [groupLimit, setGroupLimit] = useTourState(20, 20);
+  const [maxGroupSize, setMaxGroupSize] = useTourState(0, 0);
+  const [saving, setSaving] = useTourState(false, false);
   useEffect(() => {
     (async () => {
       try {
@@ -1606,10 +1607,10 @@ const FriendCleanCard: React.FC = () => {
 const UserGroupCard: React.FC<ScopedCardProps> = (scopeProps) => {
   const { t } = useTranslation();
   const toast = useToast();
-  const [group, setGroup] = useState('');
-  const [enforce, setEnforce] = useState(false);
-  const [invite, setInvite] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [group, setGroup] = useTourState('', '');
+  const [enforce, setEnforce] = useTourState(false, false);
+  const [invite, setInvite] = useTourState(true, true);
+  const [saving, setSaving] = useTourState(false, false);
   useEffect(() => {
     (async () => {
       if (scopeUnavailable(scopeProps)) return;

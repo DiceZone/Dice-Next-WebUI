@@ -1,4 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { useTourState, useTourValue } from '@/components/onboarding/tour-data';
+import { tourSamples } from '@/lib/tour-samples';
 import { useTranslation } from 'react-i18next';
 import { ReplyTable } from '@/components/reply/reply-table';
 import { ReplyForm } from '@/components/reply/reply-form';
@@ -21,12 +23,14 @@ type Tab = 'replies' | 'causal' | 'counters';
 
 export const RepliesPage: React.FC = () => {
   const { t } = useTranslation();
-  const { replies, loading, fetchReplies, createReply, updateReply, deleteReply, toggleReply } = zustandReplyStore();
+  const { replies: liveReplies, loading: liveLoading, fetchReplies, createReply, updateReply, deleteReply, toggleReply } = zustandReplyStore();
+  const replies = useTourValue(liveReplies, tourSamples.replies);
+  const loading = useTourValue(liveLoading, false);
   const toast = useToast();
   const [formOpen, setFormOpen] = useState(false);
   const [editingReply, setEditingReply] = useState<ReplyRule | null>(null);
-  const [filterText, setFilterText] = useState('');
-  const [tab, setTab] = useState<Tab>('replies');
+  const [filterText, setFilterText] = useTourState('', '');
+  const [tab, setTab] = useTourState<Tab>('replies', 'replies');
 
   // Causal rule state
   const [causalRules, setCausalRules] = useState<CausalRule[]>([]);

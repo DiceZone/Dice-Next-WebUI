@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTourState } from '@/components/onboarding/tour-data';
 import { useTranslation } from 'react-i18next';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,20 +15,20 @@ export const WebuiSettingsPage: React.FC = () => {
   const { t } = useTranslation();
   const { apiKey, setApiKey, theme, setTheme } = zustandAppStore();
   const toast = useToast();
-  const [localApiKey, setLocalApiKey] = useState(apiKey ?? '');
-  const [showKey, setShowKey] = useState(false);
+  const [localApiKey, setLocalApiKey] = useTourState(apiKey ?? '', 'demo-api-key');
+  const [showKey, setShowKey] = useTourState(false, false);
   const [saving, setSaving] = useState(false);
-  const [rawLog, setRawLog] = useState(false);
+  const [rawLog, setRawLog] = useTourState(false, false);
   // WebUI 登录口令
-  const [pwInput, setPwInput] = useState('');
-  const [pwEnabled, setPwEnabled] = useState(false);
+  const [pwInput, setPwInput] = useTourState('', '');
+  const [pwEnabled, setPwEnabled] = useTourState(false, true);
   const [pwSaving, setPwSaving] = useState(false);
-  const [showPw, setShowPw] = useState(false);
+  const [showPw, setShowPw] = useTourState(false, false);
   // 运行 IP / 端口
-  const [host, setHost] = useState('0.0.0.0');
-  const [port, setPort] = useState(18088);
+  const [host, setHost] = useTourState('0.0.0.0', '127.0.0.1');
+  const [port, setPort] = useTourState(18088, 18088);
   const [srvSaving, setSrvSaving] = useState(false);
-  const [restartNeeded, setRestartNeeded] = useState(false);
+  const [restartNeeded, setRestartNeeded] = useTourState(false, false);
 
   useEffect(() => {
     void (async () => {

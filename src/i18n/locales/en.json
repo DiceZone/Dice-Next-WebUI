@@ -1,7 +1,7 @@
 {
   "cloud": {
     "title": "Cloud services",
-    "desc": "Manage BDC bot keys, heartbeat, CloudBan, cloud character cards and log hosting. This page sits alongside general and notification settings; existing configuration is preserved.",
+    "desc": "Manage cloud connections, authorization and synchronization for your bots.",
     "keys_title": "Bot API keys",
     "keys_desc": "Each adapter uses its own bot API key. This page and the adapter form edit the same configuration. Blank input leaves the key unchanged; saving updates only the key, not connection settings.",
     "key_configured": "Key configured",
@@ -157,6 +157,7 @@
     "toggle_theme": "Toggle theme"
   },
   "onboarding": {
+    "sample_notice": "This tour shows read-only sample data. Nothing is saved or executed; your real data returns when you exit.",
     "replay": "Replay this page tour",
     "dialog_label": "{{page}} getting-started tour",
     "step_count": "Step {{current}} of {{total}}",
@@ -1487,6 +1488,19 @@
     "approval_group_name_keyword_hint": "After joining, the group name is fetched; if it contains any keyword the bot leaves and notifies the master (name is unavailable at invite time)."
   },
   "groups": {
+    "feature_overall": "Overall group switch",
+    "feature_scope": "Only affects the selected bot account in this group.",
+    "features_suspended": "The overall switch is off. Regular features are paused; preferences below are preserved.",
+    "feature_log": "Logging",
+    "feature_log_hint": "Controls log commands and recording. Turning off does not end or delete a log.",
+    "feature_reply": "Custom replies",
+    "feature_reply_hint": "Controls custom replies and causal rules. Shares the .reply on/off setting.",
+    "feature_roll": "Roll commands",
+    "feature_roll_hint": "Controls built-in rolls, checks, initiative and skill growth, not dice rolled by plugins.",
+    "feature_plugin": "Plugins",
+    "feature_plugin_hint": "Controls plugin commands, message hooks and rule-pack custom commands. Individual preferences are preserved.",
+    "log_paused": "Log paused",
+    "log_paused_notice": "Unfinished log \"{{name}}\" will pause recording. Existing content is preserved.",
     "title": "Group Management",
     "subtitle": "Remotely enable/disable groups, edit the bot's group card and remarks, leave or message.",
     "account_scope": "Adapter account",

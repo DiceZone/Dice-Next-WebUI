@@ -1,3 +1,5 @@
+import { useTourState } from '@/components/onboarding/tour-data';
+import { tourSamples } from '@/lib/tour-samples';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent } from '@/components/ui/card';
@@ -258,15 +260,15 @@ const PluginCard: React.FC<{
 export const ModulesPage: React.FC = () => {
   const { t } = useTranslation(); const toast = useToast();
   const dlg = useDialogs(t);
-  const [plugins, setPlugins] = useState<Plugin[]>([]);
-  const [loading, setLoading] = useState(true); const [busy, setBusy] = useState(false);
+  const [plugins, setPlugins] = useTourState<Plugin[]>([], tourSamples.plugins);
+  const [loading, setLoading] = useTourState(true, false); const [busy, setBusy] = useState(false);
   const [configPlugin, setConfigPlugin] = useState<Plugin | null>(null);
   const [detailPlugin, setDetailPlugin] = useState<Plugin | null>(null);
   const [updates, setUpdates] = useState<Record<string, UpdateState>>({});
   const fileRef = useRef<HTMLInputElement>(null);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useTourState(1, 1);
   const [pageSize, setPageSize] = useState(7);
-  const [tab, setTab] = useState<'js' | 'lua'>('js');   // JS 插件 / Lua 模组 分开显示
+  const [tab, setTab] = useTourState<'js' | 'lua'>('js', 'js');   // JS 插件 / Lua 模组 分开显示
 
   const loadAll = useCallback(async () => {
     setLoading(true);

@@ -1,3 +1,5 @@
+import { useTourState } from '@/components/onboarding/tour-data';
+import { tourSamples } from '@/lib/tour-samples';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent } from '@/components/ui/card';
@@ -41,17 +43,17 @@ async function jsend(method: string, path: string, body?: unknown) {
 
 export const RulesPage: React.FC = () => {
   const { t } = useTranslation(); const toast = useToast();
-  const [packs, setPacks] = useState<RulePack[]>([]);
-  const [bundles, setBundles] = useState<RuleBundle[]>([]);
-  const [compatRules, setCompatRules] = useState<CompatRule[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [packs, setPacks] = useTourState<RulePack[]>([], tourSamples.rulePacks);
+  const [bundles, setBundles] = useTourState<RuleBundle[]>([], tourSamples.ruleBundles);
+  const [compatRules, setCompatRules] = useTourState<CompatRule[]>([], []);
+  const [loading, setLoading] = useTourState(false, false);
   const [editorFile, setEditorFile] = useState<string | null>(null);
   const [confirmDel, setConfirmDel] = useState<string | null>(null);
   const [confirmDelBundle, setConfirmDelBundle] = useState<RuleBundle | null>(null);
   const [detailBundle, setDetailBundle] = useState<RuleBundle | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const zipRef = useRef<HTMLInputElement>(null);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useTourState(1, 1);
   const [pageSize, setPageSize] = useState(7);
 
   const loadAll = useCallback(async () => {

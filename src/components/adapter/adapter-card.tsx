@@ -108,7 +108,7 @@ export const AdapterCard: React.FC<AdapterCardProps> = ({
           <div className={cn('flex items-center gap-3 min-w-0', !adapter.enabled && 'opacity-50')}>
             {/* QQ avatar with connection status overlay */}
             <div className="relative shrink-0">
-              {avatarQQ ? (
+              {avatarQQ && !avatarQQ.startsWith('demo-') ? (
                 <img
                   src={`https://q1.qlogo.cn/g?b=qq&nk=${avatarQQ}&s=100`}
                   alt={adapter.loginName || adapter.name}

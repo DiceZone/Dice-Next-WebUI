@@ -7,6 +7,7 @@ import { OnboardingGate } from '@/components/onboarding/onboarding-gate';
 import { readTourMode, setTourMode, type TourMode } from '@/lib/onboarding';
 import { getPageTourProfile } from '@/lib/page-tours';
 import { zustandAppStore } from '@/store/app-store';
+import { TourDataContext } from '@/components/onboarding/tour-data';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -29,6 +30,27 @@ export const Layout: React.FC<LayoutProps> = ({
   // question starts the current page's tour immediately.
   const [tourMode, setTourModeState] = React.useState<TourMode | null>(() => readTourMode());
   const tourAvailable = Boolean(getPageTourProfile(currentPath));
+  const [samplePath, setSamplePath] = React.useState<string | null>(null);
+  const showingSamples = samplePath === currentPath;
+  const shellRef = React.useRef<HTMLDivElement>(null);
+  const previousScrollRef = React.useRef(0);
+  const onTourOpenChange = React.useCallback((path: string | null) => {
+    // Capture before the sample projection changes the page's scroll height.
+    if (path) previousScrollRef.current = shellRef.current?.querySelector('main')?.scrollTop ?? 0;
+    setSamplePath(path);
+  }, []);
+
+  React.useLayoutEffect(() => {
+    const shell = shellRef.current;
+    if (!shell || !showingSamples) return;
+    const main = shell.querySelector('main');
+    // Pointer and keyboard actions must not save sample values to the server.
+    shell.inert = true;
+    return () => {
+      shell.inert = false;
+      if (main) main.scrollTop = previousScrollRef.current;
+    };
+  }, [showingSamples]);
 
   const chooseTourMode = React.useCallback((mode: TourMode) => {
     setTourMode(mode);
@@ -63,7 +85,8 @@ export const Layout: React.FC<LayoutProps> = ({
   }, [currentPath, searchTarget]);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <TourDataContext.Provider value={showingSamples}>
+    <div ref={shellRef} className="flex h-screen overflow-hidden bg-background" data-tour-sample={showingSamples || undefined}>
       <Sidebar currentPath={currentPath} onNavigate={onNavigate} />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header
@@ -88,8 +111,10 @@ export const Layout: React.FC<LayoutProps> = ({
         replayToken={tourReplayToken}
         tourMode={tourMode}
         onCloseAllTours={() => chooseTourMode('veteran')}
+        onOpenChange={onTourOpenChange}
       />
     </div>
+    </TourDataContext.Provider>
   );
 };
 

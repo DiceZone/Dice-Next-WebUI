@@ -1,7 +1,7 @@
 {
   "cloud": {
     "title": "雲服務",
-    "desc": "集中管理 BDC 骰娘密鑰、心跳、雲黑名單、雲人物卡與日誌站。與基礎設定、通知設定同級，既有設定無需重新填寫。",
+    "desc": "管理骰娘的雲服務連線、授權與同步。",
     "keys_title": "骰娘密鑰設定管理",
     "keys_desc": "每個適配器分別設定自己的骰娘 API Key。這裡與適配器頁面讀寫同一份設定，留空不修改；儲存只更新密鑰，不改連線參數。",
     "key_configured": "已設定 Key",
@@ -157,6 +157,7 @@
     "toggle_theme": "切換主題"
   },
   "onboarding": {
+    "sample_notice": "教學中顯示的是唯讀示範資料，不會儲存或執行操作；退出後恢復你的真實資料。",
     "replay": "重新查看本頁指引",
     "dialog_label": "{{page}} 新手指引",
     "step_count": "第 {{current}} / {{total}} 步",
@@ -1487,6 +1488,19 @@
     "approval_group_name_keyword_hint": "入群後自動查詢群名，含任一關鍵詞即自動退群並通知骰主（邀請審批時拿不到群名，只能進群後判定）。"
   },
   "groups": {
+    "feature_overall": "本群總開關",
+    "feature_scope": "僅影響目前選取的骰子帳號在本群的功能。",
+    "features_suspended": "總開關已關閉，常規功能暫停；下方設定仍會保留。",
+    "feature_log": "日誌",
+    "feature_log_hint": "控制日誌指令與記錄；關閉不會結束或刪除日誌。",
+    "feature_reply": "自訂回覆",
+    "feature_reply_hint": "控制自訂回覆和因果規則；與 .reply on/off 共用設定。",
+    "feature_roll": "投擲指令",
+    "feature_roll_hint": "控制內建擲骰、檢定、先攻及技能成長；不影響插件自行擲骰。",
+    "feature_plugin": "插件",
+    "feature_plugin_hint": "控制插件指令、訊息鉤子及規則包自訂指令；保留各插件設定。",
+    "log_paused": "日誌已暫停",
+    "log_paused_notice": "尚有未結束的日誌「{{name}}」，將暫停記錄，已有內容會保留。",
     "title": "群組管理",
     "subtitle": "遠端啟用/停用群、編輯骰娘群名片與群備註、退群或發訊息。",
     "account_scope": "介面卡帳號",

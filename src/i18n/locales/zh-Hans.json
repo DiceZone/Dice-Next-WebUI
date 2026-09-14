@@ -1,7 +1,7 @@
 {
   "cloud": {
     "title": "云服务",
-    "desc": "集中管理 BDC 骰娘密钥、心跳、云黑名单、云人物卡与日志站。与基础设置、通知设置同级，原有配置无需重新填写。",
+    "desc": "管理骰娘的云服务连接、授权与同步。",
     "keys_title": "骰娘密钥配置管理",
     "keys_desc": "每个适配器分别配置自己的骰娘 API Key。这里与适配器页面读写同一份配置，留空不修改；保存只更新密钥，不改连接参数。",
     "key_configured": "已配置 Key",
@@ -157,6 +157,7 @@
     "toggle_theme": "切换主题"
   },
   "onboarding": {
+    "sample_notice": "教程中显示的是只读演示数据，不会保存或执行操作；退出后恢复你的真实数据。",
     "replay": "重新查看本页指引",
     "dialog_label": "{{page}} 新手指引",
     "step_count": "第 {{current}} / {{total}} 步",
@@ -1465,6 +1466,19 @@
     "not_implemented": "此功能尚未实现，敬请期待。"
   },
   "groups": {
+    "feature_overall": "本群总开关",
+    "feature_scope": "仅影响当前选中的骰子账号在本群的功能。",
+    "features_suspended": "总开关已关闭，常规功能暂停；下方设置仍会保留。",
+    "feature_log": "日志",
+    "feature_log_hint": "控制日志指令与记录；关闭不会结束或删除日志。",
+    "feature_reply": "自定义回复",
+    "feature_reply_hint": "控制自定义回复和因果规则；与 .reply on/off 共用设置。",
+    "feature_roll": "投掷指令",
+    "feature_roll_hint": "控制内置掷骰、检定、先攻及技能成长；不影响插件自行掷骰。",
+    "feature_plugin": "插件",
+    "feature_plugin_hint": "控制插件指令、消息钩子及规则包自定义指令；保留各插件设置。",
+    "log_paused": "日志已暂停",
+    "log_paused_notice": "尚有未结束的日志「{{name}}」，将暂停记录，已有内容会保留。",
     "title": "群组管理",
     "subtitle": "远程启用/停用群、编辑骰娘群名片与群备注、退群或发消息。",
     "account_scope": "适配器账号",

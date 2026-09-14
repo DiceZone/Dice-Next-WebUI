@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect } from 'react';
+import { useTourState, useTourValue } from '@/components/onboarding/tour-data';
 import { useTranslation } from 'react-i18next';
 import { Cloud, HeartPulse, ScrollText } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
@@ -29,7 +30,7 @@ const formatDateTimeAtOffset = (value: string, offsetMinutes: number) => {
 
 export const CloudSettingsPage: React.FC = () => {
   const { t } = useTranslation();
-  const [timezoneMinutes, setTimezoneMinutes] = useState(0);
+  const [timezoneMinutes, setTimezoneMinutes] = useTourState(0, 0);
   useEffect(() => {
     void getJson('/system/timezone').then((data) => {
       setTimezoneMinutes(Number(data?.effective_offset_minutes ?? data?.offset_minutes ?? 0));
@@ -53,10 +54,10 @@ const LogsiteCard: React.FC = () => {
   const { t } = useTranslation();
   const toast = useToast();
   // — 日志站（API 地址可自建 + 上传协议）—
-  const [logsiteUrl, setLogsiteUrl] = useState('');
-  const [logsiteFormat, setLogsiteFormat] = useState('dicenext');
-  const [logsiteOfficial, setLogsiteOfficial] = useState('');
-  const [savingLogsite, setSavingLogsite] = useState(false);
+  const [logsiteUrl, setLogsiteUrl] = useTourState('', '');
+  const [logsiteFormat, setLogsiteFormat] = useTourState('dicenext', 'dicenext');
+  const [logsiteOfficial, setLogsiteOfficial] = useTourState('', '');
+  const [savingLogsite, setSavingLogsite] = useTourState(false, false);
   const loadLogsite = async () => {
     try {
       const r = await fetch('/api/system/logsite'); const j = await r.json();
@@ -120,17 +121,23 @@ interface HeartbeatConf {
 }
 
 const HeartbeatCard: React.FC<{ timezoneMinutes: number }> = ({ timezoneMinutes }) => {
-  const configuredAdapters = zustandAdapterStore((state) => state.adapters.filter((adapter) => adapter.heartApiKeyConfigured).length);
+  const liveConfiguredAdapters = zustandAdapterStore((state) => state.adapters.filter((adapter) => adapter.heartApiKeyConfigured).length);
+  const configuredAdapters = useTourValue(liveConfiguredAdapters, 0);
   const { t } = useTranslation();
   const toast = useToast();
-  const [c, setC] = useState<HeartbeatConf>({
+  const [c, setC] = useTourState<HeartbeatConf>({
+    enabled: false, url: 'https://heart.dice.zone', configured_adapters: 0,
+    public_show: true, interval: 300,
+    master_qq: '', master_nickname: '', effective_master_qq: '', effective_master_nickname: '', master_source: 'none',
+    last_status: '', last_report_at: '', last_error: '',
+  }, {
     enabled: false, url: 'https://heart.dice.zone', configured_adapters: 0,
     public_show: true, interval: 300,
     master_qq: '', master_nickname: '', effective_master_qq: '', effective_master_nickname: '', master_source: 'none',
     last_status: '', last_report_at: '', last_error: '',
   });
-  const [saving, setSaving] = useState(false);
-  const [testing, setTesting] = useState(false);
+  const [saving, setSaving] = useTourState(false, false);
+  const [testing, setTesting] = useTourState(false, false);
 
   const load = useCallback(async () => {
     try {

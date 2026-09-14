@@ -16,6 +16,8 @@
     "src/lib/update-error-notice.ts",
     "src/lib/build-time.ts",
     "src/lib/onboarding.ts",
-    "src/lib/page-tours.ts"
+    "src/lib/page-tours.ts",
+    "src/lib/tour-samples.ts",
+    "src/components/onboarding/tour-data.tsx"
   ]
 }

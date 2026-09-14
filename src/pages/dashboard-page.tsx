@@ -1,4 +1,6 @@
 import React, { useEffect } from 'react';
+import { useTourValue } from '@/components/onboarding/tour-data';
+import { tourSamples } from '@/lib/tour-samples';
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/ui/page-header';
 import { StatCard } from '@/components/dashboard/stat-card';
@@ -17,7 +19,8 @@ function formatUptime(seconds: number): string {
 
 export const DashboardPage: React.FC = () => {
   const { t } = useTranslation();
-  const { stats, loading, fetchStats } = zustandDashboardStore();
+  const { stats: liveStats, loading, fetchStats } = zustandDashboardStore();
+  const stats = useTourValue(liveStats, tourSamples.dashboard);
 
   useEffect(() => {
     void fetchStats();

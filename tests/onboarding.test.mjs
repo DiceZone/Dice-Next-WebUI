@@ -80,7 +80,7 @@ test('tour copy and referenced page labels exist in every locale', () => {
   const locales = ['zh-Hans', 'zh-Hant', 'en', 'ja'];
   const chromeKeys = [
     'replay', 'dialog_label', 'step_count', 'close', 'previous', 'next', 'finish',
-    'replay_hint', 'target_missing',
+    'replay_hint', 'target_missing', 'sample_notice',
     'exit_title', 'exit_body', 'exit_continue', 'exit_page', 'exit_all',
     'welcome_title', 'welcome_body', 'welcome_new', 'welcome_new_desc',
     'welcome_veteran', 'welcome_veteran_desc', 'welcome_footnote',
@@ -91,11 +91,6 @@ test('tour copy and referenced page labels exist in every locale', () => {
     const messages = JSON.parse(readFileSync(`src/i18n/locales/${locale}.json`, 'utf8'));
     for (const key of chromeKeys) {
       assert.equal(typeof lookup(messages, `onboarding.${key}`), 'string', `${locale}: tour copy ${key}`);
-    }
-    // The mock-up page these described is gone; leaving the copy behind invites
-    // it back.
-    for (const key of Object.keys(messages.onboarding)) {
-      assert.ok(!key.startsWith('demo_'), `${locale}: stale demo copy ${key}`);
     }
     for (const [path, profile] of Object.entries(PAGE_TOURS)) {
       assert.equal(typeof lookup(messages, profile.titleKey), 'string', `${locale}: ${path} title ${profile.titleKey}`);

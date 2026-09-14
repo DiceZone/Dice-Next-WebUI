@@ -1,3 +1,5 @@
+import { useTourState } from '@/components/onboarding/tour-data';
+import { tourSamples } from '@/lib/tour-samples';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -102,13 +104,13 @@ const localTime = (value: string) => {
 
 export const StatisticsPage: React.FC = () => {
   const { t } = useTranslation();
-  const [days, setDays] = useState(30);
-  const [platform, setPlatform] = useState('');
-  const [adapter, setAdapter] = useState('');
-  const [granularity, setGranularity] = useState<OnlineGranularity>('1h');
-  const [data, setData] = useState<StatisticsData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [days, setDays] = useTourState(30, 30);
+  const [platform, setPlatform] = useTourState('', '');
+  const [adapter, setAdapter] = useTourState('', '');
+  const [granularity, setGranularity] = useTourState<OnlineGranularity>('1h', '1h');
+  const [data, setData] = useTourState<StatisticsData | null>(null, tourSamples.statistics);
+  const [loading, setLoading] = useTourState(true, false);
+  const [error, setError] = useTourState('', '');
 
   useEffect(() => {
     let active = true;

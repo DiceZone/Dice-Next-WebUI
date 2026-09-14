@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import { useTourValue } from '@/components/onboarding/tour-data';
+import { tourSamples } from '@/lib/tour-samples';
 import { useTranslation } from 'react-i18next';
 import { AdapterCard } from '@/components/adapter/adapter-card';
 import { AdapterForm } from '@/components/adapter/adapter-form';
@@ -12,9 +14,11 @@ import type { Adapter, AdapterFormData } from '@/types/adapter';
 export const AdaptersPage: React.FC = () => {
   const { t } = useTranslation();
   const {
-    adapters, loading, error, fetchAdapters,
+    adapters: liveAdapters, loading, error: liveError, fetchAdapters,
     createAdapter, updateAdapter, deleteAdapter, toggleAdapter, reconnectAdapter, testConnection,
   } = zustandAdapterStore();
+  const adapters = useTourValue(liveAdapters, tourSamples.adapters);
+  const error = useTourValue(liveError, null);
   const toast = useToast();
   const [formOpen, setFormOpen] = useState(false);
   const [editingAdapter, setEditingAdapter] = useState<Adapter | null>(null);
