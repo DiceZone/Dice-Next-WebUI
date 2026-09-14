@@ -15,6 +15,8 @@ import { ModulesPage } from '@/pages/modules-page';
 import { RulesPage } from '@/pages/rules-page';
 import { BanlistPage } from '@/pages/banlist-page';
 import { SettingsPage } from '@/pages/settings-page';
+import { CloudSettingsPage } from '@/pages/cloud-settings-page';
+import { resolveSettingsRoute } from '@/lib/cloud-settings';
 import { WebuiSettingsPage } from '@/pages/webui-settings-page';
 import { NoticeSettingsPage } from '@/pages/notice-settings-page';
 import { AiPage } from '@/pages/ai-page';
@@ -49,6 +51,7 @@ const ROUTES: Record<string, React.ComponentType> = {
   '/permissions': BanlistPage,
   '/banlist': BanlistPage,
   '/settings': SettingsPage,
+  '/cloud-services': CloudSettingsPage,
   '/ai': AiPage,
   '/ai/chat': AiPage,
   '/ai/npc': AiPage,
@@ -77,7 +80,8 @@ const parseRoute = (value: string): RouteLocation => {
   const queryAt = source.indexOf('?');
   const path = (queryAt >= 0 ? source.slice(0, queryAt) : source) || DEFAULT_ROUTE;
   const query = queryAt >= 0 ? source.slice(queryAt + 1) : '';
-  return { path, query, raw: query ? `${path}?${query}` : path };
+  const resolved = resolveSettingsRoute(path, query);
+  return { ...resolved, raw: resolved.query ? `${resolved.path}?${resolved.query}` : resolved.path };
 };
 
 const readHashRoute = () => parseRoute(window.location.hash.slice(1) || DEFAULT_ROUTE);

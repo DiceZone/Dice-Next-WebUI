@@ -114,6 +114,7 @@ test('tour copy and referenced page labels exist in every locale', () => {
 test('every tour target has a stable source anchor', () => {
   const sourceFiles = [
     ...readdirSync('src/pages').filter((name) => name.endsWith('.tsx')).map((name) => `src/pages/${name}`),
+    ...readdirSync('src/components/settings').filter((name) => name.endsWith('.tsx')).map((name) => `src/components/settings/${name}`),
     'src/components/layout/layout.tsx',
   ];
   const source = sourceFiles.map((file) => readFileSync(file, 'utf8')).join('\n');

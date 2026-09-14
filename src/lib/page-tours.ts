@@ -147,6 +147,13 @@ export const PAGE_TOURS: Readonly<Record<string, PageTourProfile>> = {
     step('[data-setting-anchor="settings-scope"]', 'settings.scope_title', 'configure', 'settings.scope_desc'),
     step('[data-setting-anchor="settings-approval"]', 'settings.approval_title', 'configure', 'settings.approval_desc'),
   ]),
+  '/cloud-services': profile('cloud.title', [
+    step(heading, 'cloud.title', 'overview', 'cloud.desc'),
+    step('[data-setting-anchor="settings-cloud-keys"]', 'cloud.keys_title', 'configure', 'cloud.keys_desc'),
+    step('[data-setting-anchor="settings-cloud-cards"]', 'cloud.cards_title', 'inspect', 'cloud.cards_desc'),
+    step('[data-setting-anchor="settings-cloudban"]', 'banlist.cloudban_title', 'configure', 'banlist.cloudban_desc'),
+    step('[data-setting-anchor="settings-heartbeat"]', 'settings.heartbeat_title', 'configure', 'settings.heartbeat_desc'),
+  ]),
   '/ai': profile('ai.sec_models', [
     step(heading, 'ai.sec_models', 'overview', 'ai.desc'),
     step('[data-setting-anchor="ai-master"]', 'ai.master', 'configure', 'ai.master_desc'),

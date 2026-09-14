@@ -8,7 +8,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "tsc -p tsconfig.app.json --noEmit --emitDeclarationOnly false --composite false",
-    "test": "tsc -p tsconfig.test.json && node --test tests/settings-search.test.mjs tests/update-error-notice.test.mjs tests/onboarding.test.mjs tests/build-time.test.mjs",
+    "test": "tsc -p tsconfig.test.json && node --test tests/cloud-settings.test.mjs tests/settings-search.test.mjs tests/update-error-notice.test.mjs tests/onboarding.test.mjs tests/build-time.test.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -47,6 +47,7 @@
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.0",
     "autoprefixer": "^10.4.0",
+    "esbuild": "0.25.12",
     "postcss": "^8.4.0",
     "sharp": "^0.35.1",
     "tailwindcss": "^3.4.0",

@@ -8,7 +8,7 @@ import {
   LayoutDashboard, PlugZap, MessageSquareReply, FolderKanban, Boxes,
   Settings, Info, ChevronLeft, ChevronDown, FlaskConical, Users, UserCog,
   Map, BookText, Clock, Scroll, ShieldBan, Database, Puzzle, SlidersHorizontal,
-  Monitor, HelpCircle, Archive, Sparkles, Wand2, Languages, Cpu, MessageCircle, Drama, Bell, BarChart3,
+  Monitor, HelpCircle, Archive, Sparkles, Wand2, Languages, Cpu, MessageCircle, Drama, Bell, BarChart3, Cloud,
 } from 'lucide-react';
 
 type Icon = React.ComponentType<{ className?: string }>;
@@ -45,6 +45,7 @@ const NAV: Node[] = [
   ] },
   { labelKey: 'nav.system', icon: Settings, children: [
     { labelKey: 'nav.settings', path: '/settings', icon: SlidersHorizontal },
+    { labelKey: 'cloud.title', path: '/cloud-services', icon: Cloud },
     { labelKey: 'nav.notice', path: '/notice-settings', icon: Bell },
     { labelKey: 'nav.webui', path: '/webui-settings', icon: Monitor },
     { labelKey: 'nav.schedules', path: '/schedules', icon: Clock },
