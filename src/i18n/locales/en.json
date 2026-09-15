@@ -17,6 +17,20 @@
     "cards_help": "Show all list, pull, push, sync, status and logout commands",
     "cards_privacy": "The admin panel neither reads player authorization codes or tokens nor grants consent for players. Restart or expiry requires reauthorization; local cards remain. Synchronization is explicitly requested, never automatic."
   },
+  "qq_rich": {
+    "title": "Character status and shortcuts",
+    "style": "Status panel",
+    "off": "Off (keep existing replies)",
+    "markdown": "Markdown status panel",
+    "math": "Colored formula bars (experimental)",
+    "interactions": "Shortcuts",
+    "none": "Off",
+    "links": "Click text to fill a command",
+    "buttons": "Message buttons (permission required)",
+    "hint": "For .pc status, .pc show, .st show and attribute edits. Requires global card-message mode; falls back to original text if unsupported.",
+    "math_hint": "Colored bars depend on QQ client math rendering and need live testing. Values remain visible; switch to Markdown if rendering fails.",
+    "interaction_hint": "Shortcuts only fill the input; they never auto-send or change data. Custom buttons require separate QQ platform permission."
+  },
   "pagination": {
     "total": "{{n}} items",
     "per_page": "{{n}} / page",

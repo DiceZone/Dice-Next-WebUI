@@ -21,6 +21,8 @@ export interface Adapter {
   appSecret?: string;
   qqNumber?: string;
   forceVerifyImageResource?: boolean;
+  qqRichReplies?: 'off' | 'markdown' | 'math';
+  qqInteractions?: 'off' | 'links' | 'buttons';
   heartApiKeyConfigured?: boolean;
   heartApiKeyTail?: string;
   enabled: boolean;
@@ -42,6 +44,8 @@ export interface AdapterFormData {
   appSecret?: string;
   qqNumber?: string;
   forceVerifyImageResource?: boolean;
+  qqRichReplies?: 'off' | 'markdown' | 'math';
+  qqInteractions?: 'off' | 'links' | 'buttons';
   heartApiKey?: string;
   clearHeartApiKey?: boolean;
   enabled?: boolean;
