@@ -42,6 +42,8 @@ const adapterFormSchema = z.object({
   appSecret: z.string().optional(),
   qqNumber: z.string().regex(/^\d{0,12}$/, 'QQ 号只能由最多 12 位数字组成').optional(),
   forceVerifyImageResource: z.boolean().optional().default(false),
+  qqRichReplies: z.enum(['off', 'markdown', 'math']).default('off'),
+  qqInteractions: z.enum(['off', 'links', 'buttons']).default('links'),
   heartApiKey: z.string().optional(),
   clearHeartApiKey: z.boolean().optional().default(false),
   enabled: z.boolean().optional().default(true),
@@ -84,6 +86,8 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
       appSecret: '',
       qqNumber: adapter?.qqNumber ?? '',
       forceVerifyImageResource: adapter?.forceVerifyImageResource ?? false,
+      qqRichReplies: adapter?.qqRichReplies ?? 'off',
+      qqInteractions: adapter?.qqInteractions ?? 'links',
       heartApiKey: '',
       clearHeartApiKey: false,
       enabled: adapter?.enabled ?? true,
@@ -103,6 +107,8 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
         appSecret: '',
         qqNumber: adapter?.qqNumber ?? '',
         forceVerifyImageResource: adapter?.forceVerifyImageResource ?? false,
+        qqRichReplies: adapter?.qqRichReplies ?? 'off',
+        qqInteractions: adapter?.qqInteractions ?? 'links',
         heartApiKey: '',
         clearHeartApiKey: false,
         enabled: adapter?.enabled ?? true,
@@ -223,7 +229,7 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
           setValue('appId', result.data.appId); setValue('appSecret', result.data.appSecret); qrPollingRef.current = false; setQr(null); setQrBusy(false);
           const current = getValues();
           const name = current.name.trim() || `QQ 官方机器人 ${result.data.appId}`;
-          await onSubmit({ name, type: 'qq_official', connectionMode: 'forward_ws', endpoint: '', accessToken: '', appId: result.data.appId, appSecret: result.data.appSecret, heartApiKey: current.heartApiKey?.trim(), enabled: current.enabled ?? true });
+          await onSubmit({ name, type: 'qq_official', connectionMode: 'forward_ws', endpoint: '', accessToken: '', appId: result.data.appId, appSecret: result.data.appSecret, heartApiKey: current.heartApiKey?.trim(), forceVerifyImageResource: current.forceVerifyImageResource, qqRichReplies: current.qqRichReplies, qqInteractions: current.qqInteractions, enabled: current.enabled ?? true });
           toast({ title: 'QQ 官方机器人已添加，正在连接' }); onOpenChange(false); return;
         }
         if (result.data.status === 'expired') { qrPollingRef.current = false; setQr(null); setQrBusy(false); return; }
@@ -334,6 +340,28 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
                 </div>
                 <Switch id="forceVerifyImageResource" checked={watch('forceVerifyImageResource') ?? false} onCheckedChange={(v) => setValue('forceVerifyImageResource', v)} />
               </div>
+              <section className="space-y-3 rounded-md border p-3">
+                <h3 className="text-sm font-medium">{t('qq_rich.title')}</h3>
+                <p className="text-xs text-muted-foreground">{t('qq_rich.hint')}</p>
+                <Label htmlFor="qqRichReplies">{t('qq_rich.style')}</Label>
+                <Select value={watch('qqRichReplies')} onValueChange={(v) => setValue('qqRichReplies', v as FormValues['qqRichReplies'])}>
+                  <SelectTrigger id="qqRichReplies"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {(['off', 'markdown', 'math'] as const).map((v) => <SelectItem key={v} value={v}>{t(`qq_rich.${v}`)}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                {watch('qqRichReplies') === 'math' && <p className="text-xs text-muted-foreground" role="status">{t('qq_rich.math_hint')}</p>}
+                <Label htmlFor="qqInteractions">{t('qq_rich.interactions')}</Label>
+                <Select value={watch('qqInteractions')} disabled={watch('qqRichReplies') === 'off'} onValueChange={(v) => setValue('qqInteractions', v as FormValues['qqInteractions'])}>
+                  <SelectTrigger id="qqInteractions"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="off">{t('qq_rich.none')}</SelectItem>
+                    <SelectItem value="links">{t('qq_rich.links')}</SelectItem>
+                    <SelectItem value="buttons">{t('qq_rich.buttons')}</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">{t('qq_rich.interaction_hint')}</p>
+              </section>
             </section>
           </div>
           </> : <><div className="space-y-2">
