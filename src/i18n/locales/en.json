@@ -1,4 +1,19 @@
 {
+  "identitymail": {
+    "title": "QQ email binding verification",
+    "desc": "Global SMTP for codes sent to QQnumber@qq.com, separate from owner notifications. .bind qq <QQ> prefers OAuth with a verified key, otherwise email.",
+    "enabled": "Enable email binding verification",
+    "host": "SMTP host",
+    "port": "Port",
+    "user": "SMTP username",
+    "password": "Password / app password",
+    "password_saved": "Saved; leave blank to keep the password",
+    "from": "Sender address",
+    "ssl": "Implicit TLS (usually port 465)",
+    "tls_hint": "When disabled, STARTTLS is mandatory (usually port 587). Plaintext authentication is never allowed. The server must support TLS with a valid certificate.",
+    "usage": "In QQ Official / Discord / KOOK private chat: .bind qq <QQ> starts verification; .bind confirm <8-digit-code> completes email verification. .bind qq <QQ> email explicitly selects email even with a key. Codes last 10 minutes; resend after 60 seconds; 5 incorrect attempts invalidate. Not for group ownership.",
+    "retry": "Reload"
+  },
   "cloud": {
     "title": "Cloud services",
     "desc": "Manage cloud connections, authorization and synchronization for your bots.",

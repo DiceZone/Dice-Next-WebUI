@@ -325,6 +325,7 @@ export const SETTINGS_SEARCH_ENTRIES: SettingsSearchEntry[] = [
   e('webui-log', '/webui-settings', 'nav.webui', 'settings.log_title', '控制台日志 控制台日誌 raw log 原始日志', 'settings.log_desc'),
 
   e('notice-windows', '/notice-settings', 'nav.notice', 'noticeset.tab_windows', '通知窗口 群通知 私聊通知 event window update 更新结果 更新結果', 'noticeset.win_hint', true, 'windows'),
+  e('settings-identity-email', '/settings', 'nav.settings', 'identitymail.title', 'QQ 邮箱 郵箱 绑定 綁定 验证 驗證 smtp email oauth', 'identitymail.desc'),
   e('notice-smtp', '/notice-settings', 'nav.notice', 'noticeset.push_smtp', '邮件 郵件 email smtp ssl host port sender receiver push', 'noticeset.push_smtp_desc', false, 'push'),
   e('notice-webhook', '/notice-settings', 'nav.notice', 'noticeset.push_webhook', 'webhook http callback 回调 回呼 推送 url', 'noticeset.push_webhook_desc', false, 'push'),
   e('notice-audit', '/notice-settings', 'nav.notice', 'noticeset.tab_audit', '审计 審計 审核 日志 日誌 audit operation history', 'noticeset.audit_hint', false, 'audit'),

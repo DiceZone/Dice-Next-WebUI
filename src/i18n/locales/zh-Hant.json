@@ -1,4 +1,19 @@
 {
+  "identitymail": {
+    "title": "QQ 郵箱綁定驗證",
+    "desc": "全域設定。寄送驗證碼至目標 QQ號@qq.com，與骰主通知郵件獨立。.bind qq <QQ號> 有正式 key 優先 OAuth，否則自動郵件。",
+    "enabled": "啟用郵件綁定驗證",
+    "host": "SMTP 伺服器",
+    "port": "連接埠",
+    "user": "SMTP 帳號",
+    "password": "密碼 / 授權碼",
+    "password_saved": "已儲存；留空保留原密碼",
+    "from": "寄件郵箱",
+    "ssl": "隱式 TLS（通常為 465 埠）",
+    "tls_hint": "關閉後強制使用 STARTTLS（通常為 587 埠），不允許明文驗證。伺服器須支援 TLS 並有有效憑證。",
+    "usage": "在 QQ 官方、Discord、KOOK 私聊以 .bind qq <QQ號> 申請，郵件驗證用 .bind confirm <8位驗證碼> 完成。有 key 可用 .bind qq <QQ號> email 主動選郵件。驗證碼有效 10 分鐘，重寄間隔 60 秒，錯誤 5 次失效；不驗證群歸屬。",
+    "retry": "重新載入"
+  },
   "cloud": {
     "title": "雲服務",
     "desc": "管理骰娘的雲服務連線、授權與同步。",

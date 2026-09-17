@@ -20,6 +20,7 @@ import {
   ArrowUp, ArrowDown,
 } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
+import { IdentityEmailSettings } from '@/components/identity-email-settings';
 import { PlatformIcon, platformLabel } from '@/components/platform-icon';
 
 
@@ -72,8 +73,8 @@ const GLOBAL_GROUPS: GGroup[] = [
     { key: 'api_timeout', label: '请求超时（秒）', hint: '1–30', type: 'int' },
   ] },
   { title: '身份绑定（高风险）', opts: [
-    { key: 'allow_official_direct_bind', label: '允许 QQ 官方窗口直接绑定真实 QQ', type: 'bool',
-      hint: '默认关闭。QQ 官方机器人无法验证发言者真实 QQ 或群管理身份；开启后可能有人冒认 QQ，导致人物卡、好感度等用户数据被错误合并或访问。仅在人工协助绑定时短暂开启，完成后请立即关闭。' },
+    { key: 'allow_official_direct_bind', label: '允许 QQ 官方窗口直接绑定真实 QQ 群', type: 'bool',
+      hint: '仅影响未核验的官方群号直绑，默认关闭。开启后可能冒认群号，导致群数据错误合并。个人 QQ 绑定须通过 OAuth、QQ 邮箱验证或真实 QQ 会话反向绑定，不受此开关放行。' },
   ] },
 ];
 
@@ -887,7 +888,7 @@ export const SettingsPage: React.FC = () => {
     if (key === 'allow_official_direct_bind' && value === true) {
       const accepted = await dlg.confirm({
         title: '高风险操作',
-        description: 'QQ 官方机器人无法验证发言者真实 QQ 或群管理身份。开启后，任何人都可能冒认 QQ，造成他人的人物卡、好感度等用户数据被错误关联或访问。仅在人工协助绑定时临时开启，完成后请立即关闭。是否继续？',
+        description: 'QQ 官方机器人无法验证群管理身份。开启后可能有人冒认群号，造成群数据被错误关联或访问。此开关只影响未核验的官方群号直绑，个人 QQ 仍须验证。仅在人工协助绑定时临时开启，完成后请立即关闭。是否继续？',
         destructive: true, confirmText: '仍然开启',
       });
       if (!accepted) return;
@@ -1485,6 +1486,7 @@ export const SettingsPage: React.FC = () => {
 
       <SectionHeading>{t('settings.sec_security')}</SectionHeading>
       {renderGlobalGroup('身份绑定（高风险）')}
+      <IdentityEmailSettings />
       <SensitiveWordCard />
 
       {dlg.node}

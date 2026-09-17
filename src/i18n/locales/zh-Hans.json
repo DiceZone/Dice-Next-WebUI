@@ -1,4 +1,19 @@
 {
+  "identitymail": {
+    "title": "QQ 邮箱绑定验证",
+    "desc": "全局设置。向目标 QQ号@qq.com 发送验证码，与骰主通知邮件独立。.bind qq <QQ号> 有正式 key 优先 OAuth，否则自动邮件。",
+    "enabled": "启用邮件绑定验证",
+    "host": "SMTP 服务器",
+    "port": "端口",
+    "user": "SMTP 账号",
+    "password": "密码 / 授权码",
+    "password_saved": "已保存；留空保留原密码",
+    "from": "发件邮箱",
+    "ssl": "隐式 TLS（通常为 465 端口）",
+    "tls_hint": "关闭隐式 TLS 后强制使用 STARTTLS（通常为 587 端口），不允许明文认证。服务器必须支持 TLS 并具有有效证书。",
+    "usage": "用户在 QQ 官方、Discord、KOOK 私聊输入 .bind qq <QQ号> 发起，邮件验证用 .bind confirm <8位验证码> 完成。有 key 时可用 .bind qq <QQ号> email 主动选邮件。验证码有效 10 分钟，重发间隔 60 秒，错误 5 次失效；不验证群归属。",
+    "retry": "重新加载"
+  },
   "cloud": {
     "title": "云服务",
     "desc": "管理骰娘的云服务连接、授权与同步。",
