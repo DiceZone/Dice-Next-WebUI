@@ -19,6 +19,8 @@ export interface ReplyRule {
     conditions?: ReplyCondition[];
     logic?: ReplyLogic;
     results?: string[];
+    resultWeights?: number[];
+    command?: string;
     enabled: boolean;
     priority: number;
     prob?: number;
@@ -37,6 +39,9 @@ export interface ReplyFormData {
     conditions: ReplyCondition[];
     logic: ReplyLogic;
     results: string[];
+    resultWeights?: number[];
+    enabled?: boolean;
+    command?: string;
     priority: number;
     prob?: number;
     cooldownSec?: number;

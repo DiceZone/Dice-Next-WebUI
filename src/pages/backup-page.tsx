@@ -12,6 +12,10 @@ import { useDialogs } from '@/hooks/use-dialogs';
 import { Archive, Clock3, Database, Download, Loader2, RotateCcw, Save, Trash2, Upload } from 'lucide-react';
 
 type StoredBackup = { name: string; size: number; createdAt: number; automatic: boolean };
+type ReplyReferenceReport = {
+  converted: number; ambiguous: number; unresolved: number;
+  details: { rule: string; field: string; reference: string; status: string; reason: string; target: string }[];
+};
 type BackupSelection = {
   config: boolean;
   coreDatabase: boolean;
@@ -131,6 +135,7 @@ export const BackupPage: React.FC = () => {
   const [legacyDir, setLegacyDir] = useTourState('', '');
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useTourState<string>('', '');
+  const [referenceReport, setReferenceReport] = useState<ReplyReferenceReport | null>(null);
   const [backingUp, setBackingUp] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [archives, setArchives] = useTourState<StoredBackup[]>([], tourSamples.archives);
@@ -158,12 +163,13 @@ export const BackupPage: React.FC = () => {
 
   const runImport = async () => {
     if (!legacyDir.trim()) return;
-    setImporting(true); setImportResult('');
+    setImporting(true); setImportResult(''); setReferenceReport(null);
     try {
       const r = await fetch('/api/legacy/import', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dir: legacyDir.trim() }) });
       const j = await r.json();
       if (j.code !== 0) throw new Error(j.message);
       const d = j.data;
+      setReferenceReport(d.replyReferences ?? null);
       const importedFiles = (value: unknown) => typeof value === 'number'
         ? value
         : (value && typeof value === 'object' && 'success' in value
@@ -265,6 +271,25 @@ export const BackupPage: React.FC = () => {
           </div>
           <p className="text-xs text-muted-foreground">{t('backup.legacy_hint')}</p>
           {importResult && <p className="text-sm text-green-600 dark:text-green-400 whitespace-pre-wrap">{importResult}</p>}
+          {referenceReport && <div className="space-y-2 rounded-md border p-3 text-sm">
+            <p>{t('backup.reply_reference_summary', referenceReport)}</p>
+            {(referenceReport.ambiguous > 0 || referenceReport.unresolved > 0) &&
+              <p className="text-amber-600 dark:text-amber-400">{t('backup.reply_reference_warning')}</p>}
+            <Button size="sm" variant="outline" onClick={() => saveBlob(
+              new Blob([JSON.stringify(referenceReport, null, 2)], { type: 'application/json' }), 'reply-reference-migration.json')}>
+              <Download className="mr-2 h-4 w-4" />{t('backup.reply_reference_download')}
+            </Button>
+            {referenceReport.details.length > 0 && <details>
+              <summary className="cursor-pointer">{t('backup.reply_reference_details')}</summary>
+              <ul className="mt-2 max-h-64 space-y-2 overflow-y-auto">
+                {referenceReport.details.map((item, index) => <li key={index} className="break-words rounded bg-muted/50 p-2">
+                  <span className="font-medium">{item.rule}</span> · {item.field} · {t('backup.reply_reference_' + item.status)}
+                  <div className="font-mono text-xs">{item.reference}{item.target && ' → ' + item.target}</div>
+                  {item.status !== 'converted' && <p className="text-xs text-muted-foreground">{t('backup.reply_reference_reason_' + item.reason)}</p>}
+                </li>)}
+              </ul>
+            </details>}
+          </div>}
         </CardContent>
       </Card>
 

@@ -6,6 +6,7 @@ import { ReplyTable } from '@/components/reply/reply-table';
 import { ReplyForm } from '@/components/reply/reply-form';
 import { ReplyMatchPreview } from '@/components/reply/reply-match-preview';
 import { BroadcastBar } from '@/components/reply/broadcast-bar';
+import { PokeReplyButton } from '@/components/reply/poke-reply-button';
 import { CausalRuleTable } from '@/components/causal/causal-rule-table';
 import { CausalRuleEditor } from '@/components/causal/causal-rule-editor';
 import { CounterManager } from '@/components/causal/counter-manager';
@@ -59,12 +60,12 @@ export const RepliesPage: React.FC = () => {
 
   const handleCreate = async (data: ReplyFormData) => {
     try { await createReply(data); toast({ title: t('replies.added') }); }
-    catch { toast({ title: t('common.create_fail'), variant: 'destructive' }); }
+    catch (e) { toast({ title: t('common.create_fail'), variant: 'destructive' }); throw e; }
   };
   const handleUpdate = async (data: ReplyFormData) => {
     if (!editingReply) return;
     try { await updateReply(editingReply.id, data); toast({ title: t('replies.updated') }); }
-    catch { toast({ title: t('common.update_fail'), variant: 'destructive' }); }
+    catch (e) { toast({ title: t('common.update_fail'), variant: 'destructive' }); throw e; }
   };
   const handleDelete = async (id: string) => {
     try { await deleteReply(id); toast({ title: t('replies.deleted') }); }
@@ -147,12 +148,13 @@ export const RepliesPage: React.FC = () => {
           {/* C#72：活动广播横幅（仅有待发广播时显示，单独一行）。 */}
           <BroadcastBar render="banner" />
           {/* C#72：搜索框 + 添加回复 + 新增广播 同一横排。 */}
-          <div data-tour="replies-toolbar" className="flex items-center gap-2">
-            <div className="relative flex-1">
+          <div data-tour="replies-toolbar" className="flex flex-wrap items-center gap-2">
+            <div className="relative min-w-[180px] flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input placeholder={t('replies.search_placeholder')} value={filterText} onChange={(e) => setFilterText(e.target.value)} className="pl-9" />
             </div>
             <Button size="sm" className="shrink-0" onClick={() => { setEditingReply(null); setFormOpen(true); }}><Plus className="mr-2 h-4 w-4" />{t('replies.add')}</Button>
+            <PokeReplyButton />
             <BroadcastBar render="button" />
           </div>
           <div data-tour="replies-list">{loading ? (

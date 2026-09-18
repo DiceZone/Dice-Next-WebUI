@@ -24,6 +24,8 @@ export interface ReplyRule {
   conditions?: ReplyCondition[];
   logic?: ReplyLogic;
   results?: string[];
+  resultWeights?: number[];
+  command?: string; // poke: legacy mapped-command compatibility
   enabled: boolean;
   priority: number;
   // 触发限制（对齐原版每条规则自带的限制项）：
@@ -44,6 +46,9 @@ export interface ReplyFormData {
   conditions: ReplyCondition[];
   logic: ReplyLogic;
   results: string[];
+  resultWeights?: number[];
+  enabled?: boolean;
+  command?: string;
   priority: number;
   prob?: number;
   cooldownSec?: number;

@@ -15,7 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useDialogs } from '@/hooks/use-dialogs';
 import type { LucideIcon } from 'lucide-react';
 import {
-  SlidersHorizontal, Crown, Globe, Plus, Trash2, ShieldCheck, Zap,
+  SlidersHorizontal, Crown, Globe, Plus, Trash2, ShieldCheck,
   Image, Type, Server, Clock, Layers3, RotateCcw,
   ArrowUp, ArrowDown,
 } from 'lucide-react';
@@ -188,7 +188,6 @@ const APPROVAL_SCOPE_KEYS = [
   'friend_policy', 'friend_keyword', 'group_invite_policy',
   'group_invite_reject_blacklist', 'group_invite_reject_nonfriend', 'group_name_keyword_leave',
 ];
-const POKE_SCOPE_KEYS = ['poke', 'poke_command', 'poke_enabled'];
 const EXPRESSION_SCOPE_KEYS = ['expression_mode', 'expression_order'];
 type ExpressionMode = 'enhanced' | 'compatible' | 'original' | 'custom';
 type ExpressionEngineId = 'dicenext' | 'onedice' | 'dicescript';
@@ -542,13 +541,8 @@ export const SettingsPage: React.FC = () => {
   const [groupRejectNonfriend, setGroupRejectNonfriend] = useTourState(false, false);
   const [groupNameKeywordLeave, setGroupNameKeywordLeave] = useTourState('', '');   // 群名关键词自动退群
   const [savingEvents, setSavingEvents] = useTourState(false, false);
-  // — Nudge —
-  const [pokeText, setPokeText] = useTourState('', '');
-  const [pokeCommand, setPokeCommand] = useTourState('', '');
-  const [pokeEnabled, setPokeEnabled] = useTourState(true, true);   // C#70：戳一戳回复开关
   const [welcomeMinDelay, setWelcomeMinDelay] = useTourState(0, 0);
   const [welcomeMinCooldown, setWelcomeMinCooldown] = useTourState(0, 0);
-  const [savingPoke, setSavingPoke] = useTourState(false, false);
   // — WebUI items (moved here) —
   const [autostart, setAutostart] = useTourState(false, false);
   const [quoteReply, setQuoteReply] = useTourState(true, true);
@@ -602,9 +596,6 @@ export const SettingsPage: React.FC = () => {
     setGroupRejectBlacklist(data.group_invite_reject_blacklist !== false);
     setGroupRejectNonfriend(data.group_invite_reject_nonfriend === true);
     setGroupNameKeywordLeave(data.group_name_keyword_leave || '');
-    setPokeText(data.poke || '');
-    setPokeCommand(data.poke_command || '');
-    setPokeEnabled(data.poke_enabled !== false);
     setWelcomeMinDelay(data.welcome_min_delay || 0);
     setWelcomeMinCooldown(data.welcome_min_cooldown || 0);
     setEventOverrides(data.overrides || {});
@@ -873,17 +864,6 @@ export const SettingsPage: React.FC = () => {
     } catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
   };
 
-  const savePoke = async () => {
-    setSavingPoke(true);
-    try {
-      const r = await fetch('/api/system/events', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(scopedEventBody({ poke: pokeText, poke_command: pokeCommand, poke_enabled: pokeEnabled })) });
-      const j = await r.json(); if (j.code !== 0) throw new Error(j.message);
-      applyEventData(j.data);
-      toast({ title: t('common.save_success') });
-    } catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
-    finally { setSavingPoke(false); }
-  };
   const saveGlobal = async (key: string, value: boolean | number | string | Record<string, unknown>) => {
     if (key === 'allow_official_direct_bind' && value === true) {
       const accepted = await dlg.confirm({
@@ -1332,35 +1312,6 @@ export const SettingsPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* ── 戳一戳 (独立容器) ── */}
-      <Card data-setting-anchor="settings-poke">
-        <CardHeader>
-          <div className="flex flex-wrap items-center justify-between gap-2"><CardTitle className="text-base flex items-center gap-2"><Zap className="h-4 w-4" />{t('settings.poke_title')}</CardTitle><Badge variant={hasScopeOverride(POKE_SCOPE_KEYS) ? 'default' : 'secondary'}>{scopeSourceLabel(POKE_SCOPE_KEYS)}</Badge></div>
-          <CardDescription>{t('settings.poke_desc')}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-center justify-between">
-            <Label className="text-sm">{t('settings.poke_enabled')}</Label>
-            <Switch checked={pokeEnabled} onCheckedChange={setPokeEnabled} />
-          </div>
-          <div>
-            <Label className="text-xs text-muted-foreground">{t('settings.poke_command')}</Label>
-            <Input className="h-8 text-sm" value={pokeCommand} onChange={(e) => setPokeCommand(e.target.value)} placeholder=".jrrp" />
-          </div>
-          <div>
-            <Label className="text-xs text-muted-foreground">{t('settings.poke_text')}</Label>
-            <Input className="h-8 text-sm" value={pokeText} onChange={(e) => setPokeText(e.target.value)} placeholder={t('settings.poke_text_ph')} />
-          </div>
-          <div className="flex flex-wrap justify-end gap-2">
-            {settingsScope !== 'global' && hasScopeOverride(POKE_SCOPE_KEYS) && (
-              <Button size="sm" variant="outline" onClick={() => void resetEventScope(POKE_SCOPE_KEYS)}>
-                <RotateCcw className="mr-1.5 h-3.5 w-3.5" />{t('settings.scope_reset')}
-              </Button>
-            )}
-            <Button size="sm" onClick={savePoke} disabled={savingPoke || (settingsScope !== 'global' && !settingsTarget)}>{t('common.save')}</Button>
-          </div>
-        </CardContent>
-      </Card>
 
       <SectionHeading>{t('settings.sec_group_services')}</SectionHeading>
 

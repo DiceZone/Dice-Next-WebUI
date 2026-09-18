@@ -12,6 +12,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { MAX_REPLY_WEIGHT, replyResults, resultProbabilities, validResultWeights } from '@/lib/reply-results';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
@@ -34,14 +36,21 @@ interface ReplyFormProps {
   onOpenChange: (open: boolean) => void;
   onSubmit: (data: ReplyFormData) => Promise<void>;
   reply?: ReplyRule | null;
+  eventTrigger?: 'poke';
+  headerSlot?: React.ReactNode;
+  onReset?: () => Promise<void>;
+  disabled?: boolean;
 }
 
-export const ReplyForm: React.FC<ReplyFormProps> = ({ open, onOpenChange, onSubmit, reply }) => {
+export const ReplyForm: React.FC<ReplyFormProps> = ({ open, onOpenChange, onSubmit, reply, eventTrigger, headerSlot, onReset, disabled }) => {
   const { t } = useTranslation();
   const isEdit = !!reply;
   const [conditions, setConditions] = React.useState<ReplyCondition[]>([{ type: 'keyword', content: '' }]);
   const [logic, setLogic] = React.useState<ReplyLogic>('or');
   const [results, setResults] = React.useState<string[]>(['']);
+  const [weights, setWeights] = React.useState<number[]>([1]);
+  const [enabled, setEnabled] = React.useState(true);
+  const [command, setCommand] = React.useState('');
   const [priority, setPriority] = React.useState<number>(DEFAULT_REPLY_PRIORITY);
   const [prob, setProb] = React.useState<number>(100);
   const [cooldownSec, setCooldownSec] = React.useState<number>(0);
@@ -60,10 +69,13 @@ export const ReplyForm: React.FC<ReplyFormProps> = ({ open, onOpenChange, onSubm
     const conds = reply?.conditions && reply.conditions.length
       ? reply.conditions.map((c) => ({ ...c }))
       : [{ type: (reply?.matchType ?? 'keyword') as MatchType, content: reply?.matchContent ?? '' }];
-    const res = reply?.results && reply.results.length ? [...reply.results] : [reply?.replyContent ?? ''];
+    const res = replyResults(reply);
     setConditions(conds);
     setLogic(reply?.logic ?? 'or');
-    setResults(res);
+    setResults(res.texts);
+    setWeights(res.weights);
+    setEnabled(reply?.enabled ?? true);
+    setCommand(reply?.command ?? '');
     setPriority(reply?.priority ?? DEFAULT_REPLY_PRIORITY);
     setProb(reply?.prob ?? 100);
     setCooldownSec(reply?.cooldownSec ?? 0);
@@ -83,8 +95,9 @@ export const ReplyForm: React.FC<ReplyFormProps> = ({ open, onOpenChange, onSubm
   const delCond = (i: number) => setConditions((cs) => cs.filter((_, idx) => idx !== i));
 
   const setResult = (i: number, v: string) => setResults((rs) => rs.map((r, idx) => (idx === i ? v : r)));
-  const addResult = () => setResults((rs) => [...rs, '']);
-  const delResult = (i: number) => setResults((rs) => rs.filter((_, idx) => idx !== i));
+  const addResult = () => { setResults((rs) => [...rs, '']); setWeights((ws) => [...ws, 1]); };
+  const delResult = (i: number) => { setResults((rs) => rs.filter((_, idx) => idx !== i)); setWeights((ws) => ws.filter((_, idx) => idx !== i)); };
+  const probabilities = resultProbabilities(results, weights);
 
   // Image upload → append the CQ code to a specific result.
   const imgRef = React.useRef<HTMLInputElement>(null);
@@ -106,9 +119,13 @@ export const ReplyForm: React.FC<ReplyFormProps> = ({ open, onOpenChange, onSubm
 
   const submit = async () => {
     const conds = conditions.filter((c) => c.content.trim());
-    const res = results.map((r) => r).filter((r) => r.trim());
-    if (conds.length === 0) { setError(t('replies.err_need_cond')); return; }
+    const selected = results.map((text, i) => ({ text, weight: weights[i] })).filter((r) => r.text.trim());
+    const res = selected.map((r) => r.text);
+    if (!eventTrigger && conds.length === 0) { setError(t('replies.err_need_cond')); return; }
     if (res.length === 0) { setError(t('replies.err_need_result')); return; }
+    if (!validResultWeights(selected.map((r) => r.weight)) || !selected.some((r) => r.weight > 0)) {
+      setError(t('replies.err_weights')); return;
+    }
     for (const c of conds) {
       if (c.type === 'regex') {
         const re = regexError(c.content);
@@ -120,7 +137,8 @@ export const ReplyForm: React.FC<ReplyFormProps> = ({ open, onOpenChange, onSubm
     setSubmitting(true);
     try {
       await onSubmit({
-        conditions: conds, logic, results: res, priority,
+        conditions: eventTrigger ? [] : conds, logic, results: res, resultWeights: selected.map((r) => r.weight), priority, enabled,
+        ...(eventTrigger ? { command: command.trim() } : {}),
         prob: Math.min(100, Math.max(0, prob)),
         cooldownSec: Math.max(0, cooldownSec),
         scopeMode, scopeIds: scopeMode ? scopeIds.trim() : '',
@@ -135,16 +153,21 @@ export const ReplyForm: React.FC<ReplyFormProps> = ({ open, onOpenChange, onSubm
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[580px] max-h-[85vh] overflow-y-auto">
+    <Dialog open={open} onOpenChange={(next) => { if (!submitting) onOpenChange(next); }}>
+      <DialogContent className="sm:max-w-[680px] max-h-[85vh] flex flex-col overflow-hidden">
         <DialogHeader>
-          <DialogTitle>{isEdit ? t('replies.edit_title') : t('replies.add_title')}</DialogTitle>
-          <DialogDescription>{t('replies.form_desc')}</DialogDescription>
+          <DialogTitle>{eventTrigger ? t('replies.poke_title') : isEdit ? t('replies.edit_title') : t('replies.add_title')}</DialogTitle>
+          <DialogDescription>{eventTrigger ? t('replies.poke_desc') : t('replies.form_desc')}</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="min-h-0 flex-1 overflow-y-auto space-y-5 pr-2">
+          {headerSlot}
+          <div className="flex items-center justify-between rounded-lg border px-3 py-2">
+            <Label htmlFor="reply-enabled">{t('common.enabled')}</Label>
+            <Switch id="reply-enabled" checked={enabled} onCheckedChange={setEnabled} />
+          </div>
           {/* Conditions */}
-          <div className="space-y-2">
+          {!eventTrigger && <div className="space-y-2 rounded-lg border p-3">
             <div className="flex items-center justify-between">
               <Label>{t('replies.cond_label')}</Label>
               {conditions.length > 1 && (
@@ -179,37 +202,43 @@ export const ReplyForm: React.FC<ReplyFormProps> = ({ open, onOpenChange, onSubm
               </div>
             ))}
             <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={addCond}><Plus className="mr-1 h-3.5 w-3.5" />{t('replies.add_cond')}</Button>
-          </div>
+          </div>}
 
           {/* Results */}
-          <div className="space-y-2">
+          <div className="space-y-3 rounded-lg border p-3">
             <Label>{t('replies.result_label')}{results.length > 1 && <span className="ml-1 text-xs text-muted-foreground">{t('replies.result_random')}</span>}</Label>
             {results.map((r, i) => (
-              <div key={i} className="space-y-1">
+              <div key={i} className="space-y-2 rounded-md bg-muted/40 p-3">
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-muted-foreground">{t('replies.result_n', { n: i + 1 })}</span>
                   <div className="flex items-center gap-1">
-                    <button type="button" onClick={() => pickImage(i)}
-                      className="inline-flex items-center gap-1 rounded border border-dashed px-2 py-0.5 text-xs hover:bg-muted transition-colors">
+                    <Button type="button" variant="outline" size="sm" onClick={() => pickImage(i)} className="h-8 text-xs">
                       <ImageIcon className="h-3.5 w-3.5 text-primary" />{t('replies.insert_image')}
-                    </button>
+                    </Button>
                     {results.length > 1 && (
-                      <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => delResult(i)}><X className="h-3.5 w-3.5" /></Button>
+                      <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" aria-label={t('replies.remove_result')} onClick={() => delResult(i)}><X className="h-3.5 w-3.5" /></Button>
                     )}
                   </div>
                 </div>
                 <Textarea rows={3} value={r} onChange={(e) => setResult(i, e.target.value)}
                   placeholder={t('replies.result_ph')} />
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  <Label htmlFor={`reply-weight-${i}`} className="text-xs">{t('replies.result_weight')}</Label>
+                  <Input id={`reply-weight-${i}`} type="number" min={0} max={MAX_REPLY_WEIGHT} step={1} className="h-8 w-24" value={Number.isNaN(weights[i]) ? '' : weights[i]}
+                    onChange={(e) => setWeights((ws) => ws.map((w, idx) => idx === i ? e.target.valueAsNumber : w))} />
+                  <span className="text-muted-foreground">{t('replies.result_probability', { value: probabilities[i].toLocaleString(undefined, { maximumFractionDigits: 2 }) })}</span>
+                </div>
               </div>
             ))}
             <input ref={imgRef} type="file" accept="image/*" className="hidden"
               onChange={(e) => { const f = e.target.files?.[0]; if (f) void uploadImage(f); e.target.value = ''; }} />
             <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={addResult}><Plus className="mr-1 h-3.5 w-3.5" />{t('replies.add_result')}</Button>
+            <p className="text-xs text-muted-foreground">{t('replies.result_weight_hint')}</p>
             <p className="text-xs text-muted-foreground leading-relaxed">{t('replies.var_hint')}</p>
           </div>
 
           {/* 触发限制（原版每条规则自带：概率 / 冷却 / 生效范围） */}
-          <div className="space-y-2">
+          <div className="space-y-2 rounded-lg border p-3">
             <Label>{t('replies.limits_label')}</Label>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="space-y-1">
@@ -277,19 +306,27 @@ export const ReplyForm: React.FC<ReplyFormProps> = ({ open, onOpenChange, onSubm
           </div>
 
           {/* Priority */}
-          <div className="space-y-1.5">
+          {!eventTrigger && <div className="space-y-1.5">
             <Label htmlFor="priority">{t('replies.priority')}</Label>
             <Input id="priority" type="number" min={0} max={9999} className="w-24"
               value={priority} onChange={(e) => setPriority(parseInt(e.target.value) || 0)} />
             <p className="text-xs text-muted-foreground">{t('replies.priority_hint')}</p>
-          </div>
+          </div>}
+          {eventTrigger && <div className="space-y-2 rounded-lg border p-3">
+            <Label htmlFor="poke-command">{t('replies.poke_command')}</Label>
+            <Input id="poke-command" value={command} onChange={(e) => setCommand(e.target.value)} placeholder=".jrrp" />
+            <p className="text-xs text-muted-foreground">{t('replies.poke_command_hint')}</p>
+          </div>}
 
           {error && <p className="text-xs text-destructive">{error}</p>}
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="shrink-0 border-t pt-4 gap-2">
+          {onReset && <Button type="button" variant="ghost" className="sm:mr-auto" disabled={submitting || disabled} onClick={async () => {
+            setSubmitting(true); try { await onReset(); onOpenChange(false); } catch (e) { setError(String(e)); } finally { setSubmitting(false); }
+          }}>{t('settings.scope_reset')}</Button>}
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>{t('common.cancel')}</Button>
-          <Button type="button" onClick={submit} disabled={submitting}>{submitting ? t('common.saving') : isEdit ? t('replies.save_edit') : t('common.add')}</Button>
+          <Button type="button" onClick={submit} disabled={submitting || disabled}>{submitting ? t('common.saving') : eventTrigger ? t('common.save') : isEdit ? t('replies.save_edit') : t('common.add')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

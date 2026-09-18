@@ -286,7 +286,7 @@ export const SETTINGS_SEARCH_ENTRIES: SettingsSearchEntry[] = [
   e('settings-scope', '/settings', 'nav.settings', 'settings.scope_title', '作用域 分账号 分帳號 适配器 適配器 account adapter inherit override 覆盖 覆寫', 'settings.scope_desc'),
   e('settings-expression', '/settings', 'nav.settings', 'settings.expression_title', '表达式 表達式 expression dicescript onedice engine compatibility 兼容 原版 增强 增強', 'settings.expression_desc', true),
   e('settings-approval', '/settings', 'nav.settings', 'settings.approval_title', '好友申请 好友申請 加群邀请 加群邀請 审批 審批 approve reject keyword blacklist whitelist', 'settings.approval_desc'),
-  e('settings-poke', '/settings', 'nav.settings', 'settings.poke_title', '戳一戳 nudge poke jrrp', 'settings.poke_desc'),
+  e('settings-poke', '/replies', 'nav.replies', 'replies.poke_title', '戳一戳 nudge poke jrrp 随机回复 概率', 'replies.poke_desc'),
   e('settings-welcome', '/settings', 'nav.settings', 'settings.welcome_min_title', '欢迎词 歡迎詞 welcome 入群 delay cooldown 延迟 延遲 冷却 冷卻', 'settings.welcome_min_desc'),
   e('settings-user-group', '/settings', 'nav.settings', 'usergroup.title', '用户群 用戶群 user group 分组 分組 邀请 邀請 enforce'),
   e('settings-friend-clean', '/settings', 'nav.settings', 'friendclean.title', '好友清理 群聊清理 自动清理 自動清理 friend clean cleanup leave group'),

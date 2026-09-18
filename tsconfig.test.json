@@ -11,6 +11,8 @@
     "tsBuildInfoFile": ".test-dist/tsconfig.test.tsbuildinfo"
   },
   "include": [
+    "src/lib/reply-results.ts",
+    "src/lib/poke-reply.ts",
     "src/lib/cloud-settings.ts",
     "src/lib/settings-search.ts",
     "src/lib/update-error-notice.ts",
