@@ -40,6 +40,8 @@ export interface ReplyRule {
   scopeUsers?: string;       // 逗号分隔用户ID
   createdAt: string;
   updatedAt: string;
+  /** API-only hint: this save reused or merged an identical rule. */
+  deduplicated?: boolean;
 }
 
 export interface ReplyFormData {

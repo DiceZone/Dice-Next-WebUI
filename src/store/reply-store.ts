@@ -9,7 +9,7 @@ interface ReplyState {
 
   fetchReplies: () => Promise<void>;
   createReply: (data: ReplyFormData) => Promise<ReplyRule>;
-  updateReply: (id: string, data: Partial<ReplyFormData>) => Promise<void>;
+  updateReply: (id: string, data: Partial<ReplyFormData>) => Promise<ReplyRule>;
   deleteReply: (id: string) => Promise<void>;
   toggleReply: (id: string) => Promise<void>;
   clearError: () => void;
@@ -35,16 +35,27 @@ export const zustandReplyStore = create<ReplyState>()((set, get) => ({
     set({ error: null });
     const res = await apiClient.post<ReplyRule>('/replies', data);
     const reply = res.data;
-    set((s) => ({ replies: [...s.replies, reply] }));
+    if (reply.deduplicated) {
+      const refreshed = await apiClient.get<ReplyRule[]>('/replies');
+      set({ replies: refreshed.data });
+    } else {
+      set((s) => ({ replies: [...s.replies.filter((item) => item.id !== reply.id), reply] }));
+    }
     return reply;
   },
 
   updateReply: async (id: string, data: Partial<ReplyFormData>) => {
     set({ error: null });
     const res = await apiClient.put<ReplyRule>(`/replies/${id}`, data);
-    set((s) => ({
-      replies: s.replies.map((r) => (r.id === id ? res.data : r)),
-    }));
+    if (res.data.deduplicated) {
+      const refreshed = await apiClient.get<ReplyRule[]>('/replies');
+      set({ replies: refreshed.data });
+    } else {
+      set((s) => ({
+        replies: s.replies.map((r) => (r.id === id ? res.data : r)),
+      }));
+    }
+    return res.data;
   },
 
   deleteReply: async (id: string) => {

@@ -48,3 +48,13 @@ test('reference migration report labels and reason codes exist in every UI langu
     }
   }
 });
+
+test('reply filtering, sorting and deduplication labels exist in every UI language', async () => {
+  for (const language of ['zh-Hans', 'zh-Hant', 'en', 'ja']) {
+    const { replies } = JSON.parse(await readFile(new URL(`../src/i18n/locales/${language}.json`, import.meta.url), 'utf8'));
+    for (const name of ['filter_match_type', 'filter_type_all', 'filter_status', 'filter_status_all',
+      'filter_enabled', 'filter_disabled', 'sort_hint', 'duplicate_skipped', 'duplicates_merged']) {
+      assert.equal(typeof replies[name], 'string', `${language}: ${name}`);
+    }
+  }
+});
