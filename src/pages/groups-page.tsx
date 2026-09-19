@@ -622,6 +622,7 @@ const FunctionTab: React.FC<any> = ({ group, base, scopedBody, onChanged, onBack
   // the selected adapter's real endpoint. Runtime persona lookup uses the
   // message targetId, so the editor must use that same endpoint here.
   const personaTargetId = group.endpointId || group.groupId;
+  const personaAdapterId = primaryAccount(group)?.adapterId || '';
   useEffect(() => {
     (async () => {
       try { const d = await jget<{ code: string; name: string }[]>('/i18n/locales'); setLocales(d || []); }
@@ -632,7 +633,7 @@ const FunctionTab: React.FC<any> = ({ group, base, scopedBody, onChanged, onBack
   const loadPersonaState = useCallback(async () => {
     setPersonaLoading(true);
     try {
-      const params = new URLSearchParams({ groupId: personaTargetId, platform: group.platform });
+      const params = new URLSearchParams({ groupId: personaTargetId, platform: group.platform, adapterId: personaAdapterId });
       const [templates, active] = await Promise.all([
         jget<PersonaTemplate[]>('/personas'),
         jget<ActivePersonaInfo>('/personas/active?' + params.toString()),
@@ -644,7 +645,7 @@ const FunctionTab: React.FC<any> = ({ group, base, scopedBody, onChanged, onBack
     } finally {
       setPersonaLoading(false);
     }
-  }, [personaTargetId, group.platform, t, toast]);
+  }, [personaTargetId, personaAdapterId, group.platform, t, toast]);
 
   useEffect(() => { void loadPersonaState(); }, [loadPersonaState]);
 
@@ -652,7 +653,7 @@ const FunctionTab: React.FC<any> = ({ group, base, scopedBody, onChanged, onBack
     setPersonaLoading(true);
     try {
       if (value === '__inherit__') {
-        const params = new URLSearchParams({ groupId: personaTargetId, platform: group.platform });
+        const params = new URLSearchParams({ groupId: personaTargetId, platform: group.platform, adapterId: personaAdapterId });
         await jsend('DELETE', '/personas/active?' + params.toString());
       } else {
         const personaId = value === '__off__' ? 0 : Number(value);
@@ -676,8 +677,9 @@ const FunctionTab: React.FC<any> = ({ group, base, scopedBody, onChanged, onBack
   const effectivePersona = personaInfo && personaInfo.activeId > 0
     ? (personas.find((p) => p.id === personaInfo.activeId)?.name || personaInfo.name || t('persona.global_unknown_name'))
     : t('persona.global_base_name');
-  const globalPersona = personaInfo && personaInfo.globalId > 0
-    ? (personas.find((p) => p.id === personaInfo.globalId)?.name || t('persona.global_unknown_name'))
+  const inheritedPersonaId = personaInfo?.adapterDefaultId ?? personaInfo?.globalId ?? 0;
+  const globalPersona = inheritedPersonaId > 0
+    ? (personas.find((p) => p.id === inheritedPersonaId)?.name || t('persona.global_unknown_name'))
     : t('persona.global_base_name');
 
   // Fetch the bot's own nickname for this platform (fallback display when no group card).

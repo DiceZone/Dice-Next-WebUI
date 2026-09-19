@@ -28,6 +28,7 @@ export interface ActivePersonaInfo {
     name?: string;
     description?: string;
     globalId: number;
+    adapterDefaultId?: number | null;
     hasGroupOverride?: boolean;
     inheritsGlobal?: boolean;
 }

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import fs from 'node:fs';
 import {
   matchSettingsSearch,
   SETTINGS_SEARCH_ENTRIES,
@@ -57,4 +58,17 @@ test('a no-space compound keeps every concept as a required qualifier', () => {
 test('spaced multilingual aliases still use AND matching', () => {
   assert.ok(matchSettingsSearch('docker update', updateDocument));
   assert.equal(matchSettingsSearch('docker plugin', updateDocument), null);
+});
+
+test('reply presentation exposes all three scoped profiles in every locale', () => {
+  const source = fs.readFileSync(new URL('../src/pages/settings-page.tsx', import.meta.url), 'utf8');
+  for (const value of ['traditional', 'standard', 'visual'])
+    assert.match(source, new RegExp(`SelectItem value="${value}"`));
+  for (const locale of ['zh-Hans', 'zh-Hant', 'en', 'ja']) {
+    const messages = JSON.parse(fs.readFileSync(new URL(`../src/i18n/locales/${locale}.json`, import.meta.url), 'utf8'));
+    for (const value of ['traditional', 'standard', 'visual']) {
+      assert.ok(messages.settings[`message_style_${value}`]);
+      assert.ok(messages.settings[`message_style_${value}_desc`]);
+    }
+  }
 });

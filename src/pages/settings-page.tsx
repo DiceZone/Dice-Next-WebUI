@@ -193,7 +193,11 @@ type ExpressionMode = 'enhanced' | 'compatible' | 'original' | 'custom';
 type ExpressionEngineId = 'dicenext' | 'onedice' | 'dicescript';
 interface ExpressionEngineInfo { id: ExpressionEngineId; available: boolean; }
 const EXPRESSION_ENGINES: ExpressionEngineId[] = ['dicenext', 'onedice', 'dicescript'];
-interface MessageFormatConf { mode?: 'traditional' | 'card'; }
+type MessageStyle = 'traditional' | 'standard' | 'visual';
+interface MessageFormatConf { mode?: MessageStyle; }
+
+const normalizeMessageStyle = (value: unknown): MessageStyle =>
+  value === 'visual' ? 'visual' : value === 'standard' || value === 'card' ? 'standard' : 'traditional';
 
 const MessageFormatCard: React.FC<ScopedCardProps> = (scopeProps) => {
   const toast = useToast();
@@ -206,7 +210,7 @@ const MessageFormatCard: React.FC<ScopedCardProps> = (scopeProps) => {
       if (scopeUnavailable(scopeProps)) return;
       try {
         const d = await getJson('/system/global?' + scopedQuery(scopeProps)) as any;
-        setMode(d.values?.message_format === 'card' ? 'card' : 'traditional');
+        setMode(normalizeMessageStyle(d.values?.message_format));
       } catch { /* ignore */ }
     })();
   }, [scopeProps.scope, scopeProps.target, scopeProps.platform, scopeProps.overridden]);
@@ -218,9 +222,9 @@ const MessageFormatCard: React.FC<ScopedCardProps> = (scopeProps) => {
     setSaving(true);
     try {
       const d = await putJson('/system/global', scopedBody(scopeProps, {
-        message_format: nextMode === 'card' ? 'card' : 'traditional',
+        message_format: nextMode,
       })) as any;
-      setMode(d.values?.message_format === 'card' ? 'card' : 'traditional');
+      setMode(normalizeMessageStyle(d.values?.message_format));
       toast({ title: t('common.save_success') });
     } catch (e) {
       setMode(previous);
@@ -228,7 +232,6 @@ const MessageFormatCard: React.FC<ScopedCardProps> = (scopeProps) => {
     } finally { setSaving(false); }
   };
 
-  const rich = mode === 'card';
   return (
     <Card data-setting-anchor="settings-message-format">
       <CardHeader>
@@ -238,19 +241,22 @@ const MessageFormatCard: React.FC<ScopedCardProps> = (scopeProps) => {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className="flex items-center justify-between gap-4 rounded-lg border p-3">
-          <div className="min-w-0">
-            <Label className="font-medium">{t('settings.message_format_switch')}</Label>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {t(rich ? 'settings.message_format_rich' : 'settings.message_format_plain')}
-            </p>
-          </div>
-          <Switch checked={rich} disabled={saving || scopeUnavailable(scopeProps)}
-            onCheckedChange={(checked) => void save(checked ? 'card' : 'traditional')} />
+        <div className="space-y-2 rounded-lg border p-3">
+          <Label className="font-medium">{t('settings.message_style_label')}</Label>
+          <Select value={mode} disabled={saving || scopeUnavailable(scopeProps)}
+            onValueChange={(value) => void save(value as MessageStyle)}>
+            <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="traditional">{t('settings.message_style_traditional')}</SelectItem>
+              <SelectItem value="standard">{t('settings.message_style_standard')}</SelectItem>
+              <SelectItem value="visual">{t('settings.message_style_visual')}</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            {t(`settings.message_style_${mode}_desc`)}
+          </p>
         </div>
-        <p className="text-xs text-muted-foreground">
-          {t(rich ? 'settings.message_format_hint_rich' : 'settings.message_format_hint_plain')}
-        </p>
+        <p className="text-xs text-muted-foreground">{t('settings.message_style_fallback')}</p>
         {scopeProps.scope !== 'global' && (
           <p className="text-[11px] text-muted-foreground">{t('settings.message_format_scope_hint')}</p>
         )}

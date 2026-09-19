@@ -655,6 +655,14 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; reply: Reply; person
             className="inline-flex items-center gap-1 rounded border border-dashed px-2 py-1 text-xs hover:bg-muted transition-colors">
             <ImageIcon className="h-3.5 w-3.5 text-primary" />{t('commands.insert_image')}
           </button>
+          <button onClick={() => insertRaw('[[bar:HP|6|10]]')}
+            className="inline-flex items-center gap-1 rounded border border-dashed px-2 py-1 text-xs hover:bg-muted transition-colors">
+            {t('commands.insert_status_bar')}
+          </button>
+          <button onClick={() => insertRaw('[[action:掷骰指令|.r]]')}
+            className="inline-flex items-center gap-1 rounded border border-dashed px-2 py-1 text-xs hover:bg-muted transition-colors">
+            {t('commands.insert_action_hint')}
+          </button>
           <input ref={imgRef} type="file" accept="image/*" className="hidden"
             onChange={(e) => { const f = e.target.files?.[0]; if (f) void uploadImage(f); e.target.value = ''; }} />
         </div>
@@ -671,6 +679,7 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; reply: Reply; person
           <span className="text-xs text-muted-foreground">{t('commands.format_hint')}</span>
         </div>
         <Textarea ref={taRef} rows={4} className="font-mono text-sm" value={text} onChange={(e) => setText(e.target.value)} />
+        <p className="text-[11px] text-muted-foreground">{t('commands.presentation_component_hint')}</p>
 
         {styledVars.length > 0 && (
           <div className="rounded-lg border bg-muted/20 p-3 space-y-2">

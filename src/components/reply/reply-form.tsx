@@ -212,6 +212,14 @@ export const ReplyForm: React.FC<ReplyFormProps> = ({ open, onOpenChange, onSubm
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-muted-foreground">{t('replies.result_n', { n: i + 1 })}</span>
                   <div className="flex items-center gap-1">
+                    <Button type="button" variant="outline" size="sm"
+                      onClick={() => setResult(i, `${r}${r && !r.endsWith('\n') ? '\n' : ''}[[bar:HP|6|10]]`)} className="h-8 text-xs">
+                      {t('replies.insert_status_bar')}
+                    </Button>
+                    <Button type="button" variant="outline" size="sm"
+                      onClick={() => setResult(i, `${r}${r && !r.endsWith('\n') ? '\n' : ''}[[action:掷骰指令|.r]]`)} className="h-8 text-xs">
+                      {t('replies.insert_action_hint')}
+                    </Button>
                     <Button type="button" variant="outline" size="sm" onClick={() => pickImage(i)} className="h-8 text-xs">
                       <ImageIcon className="h-3.5 w-3.5 text-primary" />{t('replies.insert_image')}
                     </Button>
@@ -235,6 +243,7 @@ export const ReplyForm: React.FC<ReplyFormProps> = ({ open, onOpenChange, onSubm
             <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={addResult}><Plus className="mr-1 h-3.5 w-3.5" />{t('replies.add_result')}</Button>
             <p className="text-xs text-muted-foreground">{t('replies.result_weight_hint')}</p>
             <p className="text-xs text-muted-foreground leading-relaxed">{t('replies.var_hint')}</p>
+            <p className="text-xs text-muted-foreground leading-relaxed">{t('replies.presentation_component_hint')}</p>
           </div>
 
           {/* 触发限制（原版每条规则自带：概率 / 冷却 / 生效范围） */}

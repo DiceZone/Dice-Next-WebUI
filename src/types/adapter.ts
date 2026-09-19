@@ -23,6 +23,9 @@ export interface Adapter {
   forceVerifyImageResource?: boolean;
   qqRichReplies?: 'off' | 'markdown' | 'math';
   qqInteractions?: 'off' | 'links' | 'buttons';
+  personaSelection?: 'all' | 'selected' | 'none';
+  selectablePersonaIds?: number[];
+  defaultPersonaId?: number;
   heartApiKeyConfigured?: boolean;
   heartApiKeyTail?: string;
   enabled: boolean;
@@ -46,6 +49,9 @@ export interface AdapterFormData {
   forceVerifyImageResource?: boolean;
   qqRichReplies?: 'off' | 'markdown' | 'math';
   qqInteractions?: 'off' | 'links' | 'buttons';
+  personaSelection?: 'all' | 'selected' | 'none';
+  selectablePersonaIds?: number[];
+  defaultPersonaId?: number;
   heartApiKey?: string;
   clearHeartApiKey?: boolean;
   enabled?: boolean;
