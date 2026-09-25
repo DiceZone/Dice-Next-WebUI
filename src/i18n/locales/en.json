@@ -650,7 +650,7 @@
   },
   "decks": {
     "title": "Decks",
-    "subtitle": "Upload .json deck files; auto hot-reload; online editing",
+    "subtitle": "Browse read-only bundled decks and upload or edit your own .json decks",
     "no_decks": "No deck files",
     "no_decks_hint": "Upload .json deck files with _title/_author/_version/_date/_brief metadata",
     "upload": "Upload Deck",
@@ -665,7 +665,17 @@
     "read_fail": "Cannot read file",
     "read_error": "Read error",
     "saved": "Saved & hot-reloaded",
-    "no_brief": "No description"
+    "no_brief": "No description",
+    "builtin": "Bundled",
+    "user": "User",
+    "readonly": "Read-only",
+    "builtin_hint": "Bundled decks are updated with the app and cannot be edited or deleted directly",
+    "copy_entry": "Copy as user deck",
+    "copy_title": "Copy “{{name}}”",
+    "copy_description": "Only this entry will be copied, so the complete bundled collection stays updateable. Enter a new .json filename.",
+    "copy_success": "Copied as “{{name}}”",
+    "copy_fail": "Copy failed",
+    "delete_fail": "Delete failed"
   },
   "logs": {
     "export_html": "Export HTML",

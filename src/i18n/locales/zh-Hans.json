@@ -650,7 +650,7 @@
   },
   "decks": {
     "title": "牌堆管理",
-    "subtitle": "上传 .json 牌堆文件，自动热加载，支持在线编辑",
+    "subtitle": "浏览只读内置牌堆，并上传、编辑自己的 .json 牌堆",
     "no_brief": "暂无简介",
     "no_decks": "暂无牌堆文件",
     "no_decks_hint": "上传 .json 牌堆文件，支持 _title/_author/_version/_date/_brief 元数据",
@@ -665,7 +665,17 @@
     "upload_fail": "上传失败",
     "read_fail": "无法读取文件",
     "read_error": "读取失败",
-    "saved": "已保存并热加载"
+    "saved": "已保存并热加载",
+    "builtin": "内置",
+    "user": "用户",
+    "readonly": "只读",
+    "builtin_hint": "内置牌堆随程序更新，不能直接修改或删除",
+    "copy_entry": "复制为用户牌堆",
+    "copy_title": "复制「{{name}}」",
+    "copy_description": "只复制这一项，不会覆盖或冻结整份内置牌堆。请输入新的 .json 文件名。",
+    "copy_success": "已复制为「{{name}}」",
+    "copy_fail": "复制失败",
+    "delete_fail": "删除失败"
   },
   "logs": {
     "export_html": "导出网页",

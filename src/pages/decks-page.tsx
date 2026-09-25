@@ -4,12 +4,17 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useDialogs } from '@/hooks/use-dialogs';
-import { Upload, Trash2, RefreshCw, Loader2, FileJson, ChevronDown, ChevronRight, Pencil, X, FolderKanban } from 'lucide-react';
+import { Upload, Trash2, RefreshCw, Loader2, FileJson, ChevronDown, ChevronRight, Pencil, X, FolderKanban, CopyPlus } from 'lucide-react';
 import { PaginationBar } from '@/components/ui/pagination-bar';
 
-interface DeckFile { id: number; filename: string; title: string; author?: string | null; version?: string | null; date?: string | null; description?: string | null; entries: string[]; hidden_entries?: string[]; }
+interface DeckFile {
+  id: number; filename: string; title: string; author?: string | null; version?: string | null;
+  date?: string | null; description?: string | null; entries: string[]; hidden_entries?: string[];
+  source?: 'builtin' | 'user'; readonly?: boolean;
+}
 
 export const DecksPage: React.FC = () => {
   const { t } = useTranslation(); const toast = useToast();
@@ -56,7 +61,8 @@ export const DecksPage: React.FC = () => {
     finally { setUploading(false); if (fileInputRef.current) fileInputRef.current.value = ''; }
   };
   const handleEdit = async (df: DeckFile) => {
-    try { const resp = await fetch(`/api/decks/file?name=${encodeURIComponent(df.filename)}`); const json = await resp.json(); if (json.code === 0) { setEditContent(json.data.content); setEditing(df); } else toast({ title: t('decks.read_fail'), variant: 'destructive' }); }
+    if (df.readonly) return;
+    try { const resp = await fetch(`/api/decks/file?name=${encodeURIComponent(df.filename)}&source=${df.source ?? 'user'}`); const json = await resp.json(); if (json.code === 0) { setEditContent(json.data.content); setEditing(df); } else toast({ title: json.message || t('decks.read_fail'), variant: 'destructive' }); }
     catch { toast({ title: t('decks.read_error'), variant: 'destructive' }); }
   };
   const handleSaveEdit = async () => {
@@ -66,9 +72,36 @@ export const DecksPage: React.FC = () => {
     finally { setEditSaving(false); }
   };
   const handleDelete = async (df: DeckFile) => {
+    if (df.readonly) return;
     if (!(await dlg.confirm({ title: t('common.confirm_delete'), description: t('decks.confirm_delete', { title: df.title, filename: df.filename, count: df.entries.length }), destructive: true, confirmText: t('common.delete') }))) return;
-    try { await fetch(`/api/decks/file/${encodeURIComponent(df.filename)}`, { method: 'DELETE' }); toast({ title: t('decks.deleted') }); void fetchDecks(); }
+    try {
+      const resp = await fetch(`/api/decks/file/${encodeURIComponent(df.filename)}`, { method: 'DELETE' });
+      const json = await resp.json();
+      if (json.code === 0) { toast({ title: t('decks.deleted') }); void fetchDecks(); }
+      else toast({ title: json.message || t('decks.delete_fail'), variant: 'destructive' });
+    }
     catch { toast({ title: t('common.delete_fail'), variant: 'destructive' }); }
+  };
+  const handleCopyEntry = async (df: DeckFile, entry: string) => {
+    const safeBase = entry.replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_').replace(/[. ]+$/g, '').slice(0, 100) || 'deck';
+    const targetFilename = await dlg.prompt({
+      title: t('decks.copy_title', { name: entry }),
+      description: t('decks.copy_description'),
+      defaultValue: `${safeBase}.json`,
+      confirmText: t('decks.copy_entry'),
+    });
+    if (targetFilename === null) return;
+    try {
+      const resp = await fetch('/api/decks/copy', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename: df.filename, entry, targetFilename: targetFilename.trim() }),
+      });
+      const json = await resp.json();
+      if (json.code === 0) {
+        toast({ title: t('decks.copy_success', { name: json.data?.filename ?? targetFilename }) });
+        void fetchDecks();
+      } else toast({ title: json.message || t('decks.copy_fail'), variant: 'destructive' });
+    } catch { toast({ title: t('decks.copy_fail'), variant: 'destructive' }); }
   };
 
   const totalPages = Math.max(1, Math.ceil(files.length / pageSize));
@@ -120,6 +153,9 @@ export const DecksPage: React.FC = () => {
                     <div className="flex-1 min-w-0">
                       <p className="font-medium truncate">{df.title}</p>
                       <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-0.5 text-xs text-muted-foreground">
+                        <Badge variant={df.readonly ? 'info' : 'secondary'} className="px-1.5 py-0 text-[10px]">
+                          {t(df.readonly ? 'decks.builtin' : 'decks.user')}
+                        </Badge>
                         {df.author && <span>{df.author}</span>}
                         {df.version && <span>v{df.version}</span>}
                         {df.date && <span>{df.date}</span>}
@@ -129,14 +165,31 @@ export const DecksPage: React.FC = () => {
                       <p className={`text-xs text-muted-foreground mt-1 truncate ${hasNoDesc ? 'italic opacity-50' : ''}`}>{brief}</p>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
-                      <Button variant="ghost" size="icon" onClick={() => handleEdit(df)} title={t('common.edit')}><Pencil className="h-4 w-4" /></Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleDelete(df)} className="text-muted-foreground hover:text-destructive" title={t('common.delete')}><Trash2 className="h-4 w-4" /></Button>
+                      {df.readonly ? (
+                        <span className="text-xs text-muted-foreground px-2" title={t('decks.builtin_hint')}>{t('decks.readonly')}</span>
+                      ) : (
+                        <>
+                          <Button variant="ghost" size="icon" onClick={() => handleEdit(df)} title={t('common.edit')}><Pencil className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="icon" onClick={() => handleDelete(df)} className="text-muted-foreground hover:text-destructive" title={t('common.delete')}><Trash2 className="h-4 w-4" /></Button>
+                        </>
+                      )}
                     </div>
                   </CardContent>
                   {isOpen && (
                     <div className="border-t px-4 py-3 bg-muted/30">
                       <div className="flex flex-wrap gap-2">
-                        {df.entries.map((e) => (<span key={e} className="inline-flex items-center rounded-md bg-background border px-2 py-1 text-xs font-mono">{e}</span>))}
+                        {df.entries.map((e) => (
+                          <span key={e} className="inline-flex items-center gap-1 rounded-md bg-background border px-2 py-1 text-xs font-mono">
+                            {e}
+                            {df.readonly && (
+                              <button type="button" onClick={() => void handleCopyEntry(df, e)}
+                                className="ml-0.5 text-muted-foreground hover:text-foreground"
+                                title={t('decks.copy_entry')} aria-label={t('decks.copy_title', { name: e })}>
+                                <CopyPlus className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                          </span>
+                        ))}
                         {df.entries.length === 0 && !df.hidden_entries?.length && <span className="text-xs text-muted-foreground">{t('decks.no_entries')}</span>}
                       </div>
                       {df.hidden_entries && df.hidden_entries.length > 0 && (

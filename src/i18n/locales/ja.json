@@ -650,7 +650,7 @@
   },
   "decks": {
     "title": "デッキ",
-    "subtitle": ".json デッキファイルをアップロード；自動ホットリロード；オンライン編集対応",
+    "subtitle": "読み取り専用の内蔵デッキを閲覧し、自分の .json デッキをアップロード・編集",
     "no_decks": "デッキファイルなし",
     "no_decks_hint": "_title/_author/_version/_date/_brief メタデータ付きの .json デッキファイルをアップロード",
     "upload": "デッキをアップロード",
@@ -665,7 +665,17 @@
     "read_fail": "ファイルを読み込めません",
     "read_error": "読み込みエラー",
     "saved": "保存してホットリロードしました",
-    "no_brief": "説明なし"
+    "no_brief": "説明なし",
+    "builtin": "内蔵",
+    "user": "ユーザー",
+    "readonly": "読み取り専用",
+    "builtin_hint": "内蔵デッキはアプリと共に更新されるため、直接編集・削除できません",
+    "copy_entry": "ユーザーデッキとしてコピー",
+    "copy_title": "「{{name}}」をコピー",
+    "copy_description": "この項目だけをコピーし、内蔵コレクション全体は更新可能なまま保ちます。新しい .json ファイル名を入力してください。",
+    "copy_success": "「{{name}}」としてコピーしました",
+    "copy_fail": "コピーに失敗しました",
+    "delete_fail": "削除に失敗しました"
   },
   "logs": {
     "export_html": "HTMLで書き出し",

@@ -650,7 +650,7 @@
   },
   "decks": {
     "title": "牌堆",
-    "subtitle": "上傳 .json 牌堆檔案，自動熱載入，支援線上編輯",
+    "subtitle": "瀏覽唯讀內建牌堆，並上傳、編輯自己的 .json 牌堆",
     "no_decks": "暫無牌堆檔案",
     "no_decks_hint": "上傳 .json 牌堆檔案，支援 _title/_author/_version/_date/_brief 元資料",
     "upload": "上傳牌堆",
@@ -665,7 +665,17 @@
     "read_fail": "無法讀取檔案",
     "read_error": "讀取失敗",
     "saved": "已儲存並熱載入",
-    "no_brief": "暫無簡介"
+    "no_brief": "暫無簡介",
+    "builtin": "內建",
+    "user": "使用者",
+    "readonly": "唯讀",
+    "builtin_hint": "內建牌堆隨程式更新，不能直接修改或刪除",
+    "copy_entry": "複製為使用者牌堆",
+    "copy_title": "複製「{{name}}」",
+    "copy_description": "只複製此項，不會覆蓋或凍結整份內建牌堆。請輸入新的 .json 檔名。",
+    "copy_success": "已複製為「{{name}}」",
+    "copy_fail": "複製失敗",
+    "delete_fail": "刪除失敗"
   },
   "logs": {
     "export_html": "匯出網頁",
