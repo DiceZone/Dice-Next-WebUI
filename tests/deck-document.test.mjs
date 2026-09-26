@@ -1,6 +1,36 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseDeckDocument, editableEntries, replaceDeckEntries, addDeckGroup } from '../.test-dist/lib/deck-document.js';
+import { parseDeckDocument, editableEntries, replaceDeckEntries, addDeckGroup, deckFileKey, isReadonlyDeck } from '../.test-dist/lib/deck-document.js';
+import { readFile } from 'node:fs/promises';
+
+test('same-named built-in and user decks have distinct selection and content identities', () => {
+  const user = { filename: '合集.json', source: 'user', readonly: false };
+  const builtin = { filename: '合集.json', source: 'builtin', readonly: true };
+  assert.notEqual(deckFileKey(user), deckFileKey(builtin));
+  assert.equal(deckFileKey(user), deckFileKey({ filename: user.filename }));
+  assert.equal(deckFileKey(builtin), deckFileKey({ filename: builtin.filename, readonly: true }));
+  assert.equal(isReadonlyDeck(builtin), true);
+  assert.equal(isReadonlyDeck({ filename: builtin.filename, source: 'builtin' }), true);
+  assert.equal(isReadonlyDeck({ filename: builtin.filename, readonly: true }), true);
+  assert.equal(isReadonlyDeck(user), false);
+  assert.equal(isReadonlyDeck({ filename: user.filename }), false);
+});
+
+test('deck UI scopes reads by source and guards built-in mutation controls', async () => {
+  const page = await readFile(new URL('../src/pages/decks-page.tsx', import.meta.url), 'utf8');
+  assert.ok(page.includes('&source=${source}'));
+  assert.ok(page.includes('[filename, source, revision,'));
+  assert.ok(page.includes('deckFileKey(content) === currentKey'));
+  assert.ok(page.includes('key={deckFileKey(file)}'));
+  assert.ok(page.includes('if (!current || readOnly || busy'));
+  assert.ok(page.includes('if (!readOnly) setEditing(current)'));
+  assert.ok(page.includes('disabled={readOnly || currentContent === undefined || busy}'));
+  for (const locale of ['zh-Hans', 'zh-Hant', 'en', 'ja']) {
+    const strings = JSON.parse(await readFile(new URL(`../src/i18n/locales/${locale}.json`, import.meta.url), 'utf8'));
+    assert.ok(strings.decks.builtin_readonly);
+    assert.ok(strings.decks.builtin_readonly_hint);
+  }
+});
 
 test('entry edits preserve metadata, extension fields, weights, references and multiline entries', () => {
   const input = { _title: ['旅行'], _meta: { author: '希亚' }, extension: { enabled: true }, 隐藏: ['::3::{另一牌堆}'], 旅途: ['第一行\n第二行', '旧内容'] };

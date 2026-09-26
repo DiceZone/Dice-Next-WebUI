@@ -1,6 +1,20 @@
 export type DeckDocument = Record<string, unknown>;
 export const DECK_METADATA = new Set(['_title', '_author', '_version', '_date', '_brief', '_meta']);
 
+export interface DeckFileIdentity {
+  filename: string;
+  source?: 'builtin' | 'user';
+  readonly?: boolean;
+}
+
+export function isReadonlyDeck(file: DeckFileIdentity): boolean {
+  return file.source === 'builtin' || file.readonly === true;
+}
+
+export function deckFileKey(file: DeckFileIdentity): string {
+  return JSON.stringify([file.source ?? (file.readonly ? 'builtin' : 'user'), file.filename]);
+}
+
 export function parseDeckDocument(content: string, importing = false): DeckDocument {
   const value: unknown = JSON.parse(content);
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('invalid_deck');

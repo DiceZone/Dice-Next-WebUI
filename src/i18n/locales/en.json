@@ -662,6 +662,8 @@
     "presentation_component_hint": "Status bars and action hints follow the global, platform, or account profile. QQ Official can render actions as buttons that prefill the input box."
   },
   "decks": {
+    "builtin_readonly": "Built-in · Read-only",
+    "builtin_readonly_hint": "Built-in decks can be viewed and downloaded, but cannot be edited or deleted directly.",
     "title": "Decks",
     "subtitle": "Upload .json deck files; auto hot-reload; online editing",
     "no_decks": "No deck files",

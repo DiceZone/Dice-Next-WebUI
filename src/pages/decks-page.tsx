@@ -12,10 +12,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DeckEditor } from '@/components/deck-editor';
 import { useToast } from '@/hooks/use-toast';
 import { useDialogs } from '@/hooks/use-dialogs';
-import { DECK_METADATA, parseDeckDocument } from '@/lib/deck-document';
+import { DECK_METADATA, deckFileKey, isReadonlyDeck, parseDeckDocument, type DeckFileIdentity } from '@/lib/deck-document';
 
-interface DeckFile { id: number; filename: string; title: string; author?: string | null; version?: string | null; date?: string | null; description?: string | null; entries: string[]; hidden_entries?: string[] }
-interface FileContent { filename: string; content: string }
+interface DeckFile extends DeckFileIdentity { id: number; title: string; author?: string | null; version?: string | null; date?: string | null; description?: string | null; entries: string[]; hidden_entries?: string[] }
+interface FileContent extends DeckFileIdentity { content: string }
 
 async function deckRequest<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`/api/decks${path}`, options);
@@ -37,7 +37,7 @@ export const DecksPage: React.FC = () => {
   const [loadError, setLoadError] = useState(false);
   const [tab, setTab] = useTourState('library', 'library');
   const [search, setSearch] = useTourState('', '');
-  const [selected, setSelected] = useTourState('', tourSamples.decks[0].filename);
+  const [selected, setSelected] = useTourState('', deckFileKey(tourSamples.decks[0]));
   const [group, setGroup] = useTourState('', '森林奇遇');
   const [content, setContent] = useTourState<FileContent | null>(null, { filename: tourSamples.decks[0].filename, content: sampleContent });
   const [readError, setReadError] = useTourState(false, false);
@@ -49,9 +49,12 @@ export const DecksPage: React.FC = () => {
   const [entryPage, setEntryPage] = useState(1);
   const query = search.trim().toLocaleLowerCase();
   const matching = files.filter((file) => [file.title, file.filename, file.author, ...file.entries, ...(file.hidden_entries ?? [])].some((value) => value?.toLocaleLowerCase().includes(query)));
-  const current = matching.find((file) => file.filename === selected) ?? matching[0];
+  const current = matching.find((file) => deckFileKey(file) === selected) ?? matching[0];
   const filename = current?.filename;
-  const currentContent = content?.filename === filename ? content?.content : undefined;
+  const source = current?.source ?? (current?.readonly ? 'builtin' : undefined);
+  const currentKey = current ? deckFileKey(current) : undefined;
+  const currentContent = content && deckFileKey(content) === currentKey ? content.content : undefined;
+  const readOnly = !!current && (isReadonlyDeck(current) || (!!content && deckFileKey(content) === currentKey && isReadonlyDeck(content)));
   const document = React.useMemo(() => {
     try { return currentContent === undefined ? null : parseDeckDocument(currentContent); }
     catch { return null; }
@@ -79,11 +82,11 @@ export const DecksPage: React.FC = () => {
     if (!filename || touring) return;
     const controller = new AbortController();
     setContent(null); setReadError(false); setEntryPage(1);
-    void deckRequest<{ content: string }>(`/file?name=${encodeURIComponent(filename)}`, { signal: controller.signal })
-      .then((data) => { if (!controller.signal.aborted) setContent({ filename, content: data.content }); })
+    void deckRequest<{ content: string; readonly?: boolean }>(`/file?name=${encodeURIComponent(filename)}${source ? `&source=${source}` : ''}`, { signal: controller.signal })
+      .then((data) => { if (!controller.signal.aborted) setContent({ filename, source, content: data.content, readonly: data.readonly }); })
       .catch(() => { if (!controller.signal.aborted) setReadError(true); });
     return () => controller.abort();
-  }, [filename, revision, setContent, setReadError, touring]);
+  }, [filename, source, revision, setContent, setReadError, touring]);
 
   const reload = async () => {
     setLoading(true);
@@ -105,7 +108,7 @@ export const DecksPage: React.FC = () => {
   };
   const importFile = async () => {
     if (!pending || busy) return;
-    if (files.some((file) => file.filename === pending.filename) && !(await dlg.confirm({ title: t('ui_refresh.overwrite'), description: t('ui_refresh.overwrite_hint', { name: pending.filename }), destructive: true }))) return;
+    if (files.some((file) => !isReadonlyDeck(file) && file.filename === pending.filename) && !(await dlg.confirm({ title: t('ui_refresh.overwrite'), description: t('ui_refresh.overwrite_hint', { name: pending.filename }), destructive: true }))) return;
     setBusy(true);
     try {
       await deckRequest('/upload', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(pending) });
@@ -113,7 +116,7 @@ export const DecksPage: React.FC = () => {
         await deckRequest('/reload', { method: 'POST' });
         toast({ title: t('decks.uploaded', { name: pending.filename }) });
       } catch { toast({ title: t('ui_refresh.reload_failed'), variant: 'destructive' }); }
-      setSelected(pending.filename); setSearch(''); setPending(null); setRevision((n) => n + 1); setTab('library'); await fetchDecks();
+      setSelected(deckFileKey(pending)); setSearch(''); setPending(null); setRevision((n) => n + 1); setTab('library'); await fetchDecks();
     } catch (error) { notifyError(error, t('common.upload_fail')); }
     finally { setBusy(false); }
   };
@@ -124,7 +127,7 @@ export const DecksPage: React.FC = () => {
     window.document.body.appendChild(link); link.click(); link.remove(); window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
   const remove = async () => {
-    if (!current || busy || !(await dlg.confirm({ title: t('common.confirm_delete'), description: t('decks.confirm_delete', { title: current.title, filename: current.filename, count: current.entries.length }), destructive: true, confirmText: t('common.delete') }))) return;
+    if (!current || readOnly || busy || !(await dlg.confirm({ title: t('common.confirm_delete'), description: t('decks.confirm_delete', { title: current.title, filename: current.filename, count: current.entries.length }), destructive: true, confirmText: t('common.delete') }))) return;
     setBusy(true);
     try { await deckRequest(`/file/${encodeURIComponent(current.filename)}`, { method: 'DELETE' }); toast({ title: t('decks.deleted') }); await fetchDecks(); }
     catch (error) { notifyError(error, t('common.delete_fail')); }
@@ -147,8 +150,8 @@ export const DecksPage: React.FC = () => {
           <Card className="overflow-hidden shadow-none">
             <div className="flex justify-between border-b px-4 py-3 text-xs font-medium text-muted-foreground"><span>{t('ui_refresh.all')}</span><span>{matching.length}</span></div>
             <div className="max-h-[260px] overflow-y-auto p-2 lg:max-h-[65vh]" aria-label={t('ui_refresh.files')}>
-              {matching.map((file) => <button key={file.filename} type="button" aria-pressed={filename === file.filename} onClick={() => { setSelected(file.filename); setGroup(''); setEntryPage(1); }} className={`mb-1 flex w-full items-start gap-3 rounded-lg border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${filename === file.filename ? 'border-primary/20 bg-primary/[0.07]' : 'border-transparent hover:bg-muted/60'}`}>
-                <FileJson className={`mt-0.5 h-4 w-4 shrink-0 ${filename === file.filename ? 'text-primary' : 'text-muted-foreground'}`} /><div className="min-w-0 flex-1"><p className="break-words text-sm font-medium">{file.title}</p><p className="mt-1 truncate text-xs text-muted-foreground">{file.author || file.filename}</p><p className="mt-2 text-[11px] text-muted-foreground">{t('decks.entries_count', { count: file.entries.length })}{file.version ? ` · v${file.version}` : ''}</p></div>{filename === file.filename && <ArrowUpRight className="h-4 w-4 shrink-0 text-primary" />}
+              {matching.map((file) => <button key={deckFileKey(file)} type="button" aria-pressed={currentKey === deckFileKey(file)} onClick={() => { setSelected(deckFileKey(file)); setGroup(''); setEntryPage(1); }} className={`mb-1 flex w-full items-start gap-3 rounded-lg border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${currentKey === deckFileKey(file) ? 'border-primary/20 bg-primary/[0.07]' : 'border-transparent hover:bg-muted/60'}`}>
+                <FileJson className={`mt-0.5 h-4 w-4 shrink-0 ${currentKey === deckFileKey(file) ? 'text-primary' : 'text-muted-foreground'}`} /><div className="min-w-0 flex-1"><p className="break-words text-sm font-medium">{file.title}</p>{isReadonlyDeck(file) && <Badge variant="secondary" className="mt-1">{t('decks.builtin_readonly')}</Badge>}<p className="mt-1 truncate text-xs text-muted-foreground">{file.author || file.filename}</p><p className="mt-2 text-[11px] text-muted-foreground">{t('decks.entries_count', { count: file.entries.length })}{file.version ? ` · v${file.version}` : ''}</p></div>{currentKey === deckFileKey(file) && <ArrowUpRight className="h-4 w-4 shrink-0 text-primary" />}
               </button>)}
             </div>
           </Card>
@@ -157,7 +160,8 @@ export const DecksPage: React.FC = () => {
               <div className="flex items-start gap-3"><div className="rounded-xl bg-primary/10 p-3 text-primary"><FileJson className="h-6 w-6" /></div><div className="min-w-0 flex-1"><p className="mb-1 break-all font-mono text-[11px] text-muted-foreground">{current.filename}</p><h2 className="break-words text-xl font-semibold tracking-tight">{current.title}</h2></div></div>
               <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-muted-foreground">{current.description || t('decks.no_brief')}</p>
               <div className="flex flex-wrap items-center gap-2">{[current.author, current.version && `v${current.version}`, current.date].filter(Boolean).map((value, i) => <Badge key={i} variant="secondary" className="font-normal">{value}</Badge>)}</div>
-              <div className="flex flex-wrap gap-2"><Button size="sm" onClick={() => setEditing(current)} disabled={currentContent === undefined || busy}><Pencil className="mr-2 h-4 w-4" />{t('common.edit')}</Button><Button size="sm" variant="outline" onClick={download} disabled={currentContent === undefined}><Download className="mr-2 h-4 w-4" />{t('ui_refresh.download')}</Button><Button size="sm" variant="ghost" className="ml-auto text-muted-foreground hover:text-destructive" onClick={() => void remove()} disabled={busy}><Trash2 className="mr-2 h-4 w-4" />{t('common.delete')}</Button></div>
+              {readOnly && <p className="text-sm text-muted-foreground">{t('decks.builtin_readonly_hint')}</p>}
+              <div className="flex flex-wrap gap-2"><Button size="sm" onClick={() => { if (!readOnly) setEditing(current); }} disabled={readOnly || currentContent === undefined || busy}><Pencil className="mr-2 h-4 w-4" />{t('common.edit')}</Button><Button size="sm" variant="outline" onClick={download} disabled={currentContent === undefined}><Download className="mr-2 h-4 w-4" />{t('ui_refresh.download')}</Button><Button size="sm" variant="ghost" className="ml-auto text-muted-foreground hover:text-destructive" onClick={() => void remove()} disabled={readOnly || currentContent === undefined || busy}><Trash2 className="mr-2 h-4 w-4" />{t('common.delete')}</Button></div>
             </div>
             <div className="space-y-5 p-5 sm:p-6">
               <div className="flex flex-wrap gap-2">{groups.map((name) => <button key={name} className={`max-w-full break-words rounded-md border px-3 py-1.5 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${activeGroup === name ? 'border-primary bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'} ${name.startsWith('_') ? 'border-dashed' : ''}`} onClick={() => { setGroup(name); setEntryPage(1); }} aria-pressed={activeGroup === name}>{name}</button>)}</div>
@@ -183,7 +187,7 @@ export const DecksPage: React.FC = () => {
         <Card className="space-y-3 p-6 shadow-none"><Download className="h-5 w-5 text-primary" /><h3 className="font-medium">{t('ui_refresh.export_title')}</h3><p className="text-sm leading-relaxed text-muted-foreground">{t('ui_refresh.export_hint')}</p><Button variant="outline" size="sm" onClick={() => setTab('library')}>{t('ui_refresh.library')}<ArrowUpRight className="ml-2 h-4 w-4" /></Button></Card>
       </TabsContent>
     </Tabs>
-    {editing && content?.filename === editing.filename && <DeckEditor filename={editing.filename} title={editing.title} initialContent={content.content} initialGroup={activeGroup} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); setRevision((n) => n + 1); void fetchDecks(); }} />}
+    {editing && !isReadonlyDeck(editing) && content && !isReadonlyDeck(content) && deckFileKey(content) === deckFileKey(editing) && <DeckEditor filename={editing.filename} title={editing.title} initialContent={content.content} initialGroup={activeGroup} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); setRevision((n) => n + 1); void fetchDecks(); }} />}
     {dlg.node}
   </div>;
 };

@@ -662,6 +662,8 @@
     "presentation_component_hint": "狀態條與操作提示會隨全域、平台或帳號的展示方案自動變化；QQ 官方可將操作提示顯示為點擊後填入輸入框的按鈕。"
   },
   "decks": {
+    "builtin_readonly": "內建 · 唯讀",
+    "builtin_readonly_hint": "內建牌堆可檢視和下載，不能直接編輯或刪除。",
     "title": "牌堆",
     "subtitle": "上傳 .json 牌堆檔案，自動熱載入，支援線上編輯",
     "no_decks": "暫無牌堆檔案",
