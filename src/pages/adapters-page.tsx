@@ -6,6 +6,7 @@ import { AdapterCard } from '@/components/adapter/adapter-card';
 import { AdapterForm } from '@/components/adapter/adapter-form';
 import { ReverseWsInfo } from '@/components/adapter/reverse-ws-info';
 import { Button } from '@/components/ui/button';
+import { PageHeader } from '@/components/ui/page-header';
 import { zustandAdapterStore } from '@/store/adapter-store';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, PlugZap } from 'lucide-react';
@@ -34,12 +35,12 @@ export const AdaptersPage: React.FC = () => {
 
   const handleCreate = async (data: AdapterFormData) => {
     try { await createAdapter(data); toast({ title: t('adapters.added') }); }
-    catch { toast({ title: t('adapters.add_fail'), variant: 'destructive' }); }
+    catch (e) { toast({ title: t('adapters.add_fail'), variant: 'destructive' }); throw e; }
   };
   const handleUpdate = async (data: AdapterFormData) => {
     if (!editingAdapter) return;
     try { await updateAdapter(editingAdapter.id, data); toast({ title: t('adapters.updated') }); }
-    catch { toast({ title: t('common.update_fail'), variant: 'destructive' }); }
+    catch (e) { toast({ title: t('common.update_fail'), variant: 'destructive' }); throw e; }
   };
   const errorText = (error: unknown) => error instanceof Error ? error.message : String(error);
   const handleDelete = async (id: string) => {
@@ -64,15 +65,12 @@ export const AdaptersPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2"><PlugZap className="h-5 w-5" />{t('adapters.title')}</h1>
-          <p className="text-sm text-muted-foreground">{t('adapters.subtitle')}</p>
-        </div>
-        <Button data-tour="adapters-add" size="sm" onClick={() => { setEditingAdapter(null); setFormOpen(true); }}>
-          <Plus className="mr-2 h-4 w-4" />{t('adapters.add')}
-        </Button>
-      </div>
+      <PageHeader icon={PlugZap} title={t('adapters.title')} description={t('adapters.subtitle')}
+        actions={
+          <Button data-tour="adapters-add" onClick={() => { setEditingAdapter(null); setFormOpen(true); }}>
+            <Plus className="mr-2 h-4 w-4" />{t('adapters.add')}
+          </Button>
+        } />
       {error && (
         <div className="rounded-md bg-destructive/10 border border-destructive/20 p-3">
           <p className="text-sm text-destructive">{error}</p>

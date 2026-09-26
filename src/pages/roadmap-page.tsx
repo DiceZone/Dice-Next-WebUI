@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { RefreshCw, Loader2, CheckCircle2, Circle, Map, ChevronDown, ChevronRight } from 'lucide-react';
+import { PageHeader } from '@/components/ui/page-header';
 
 interface Item { done: boolean; text: string; }
 interface Section { title: string; items: Item[]; subLabels: Record<number, string>; }
@@ -110,15 +111,10 @@ export const RoadmapPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2"><Map className="h-5 w-5" />{t('roadmap.title')}</h1>
-          <p className="text-sm text-muted-foreground">{t('roadmap.subtitle')}</p>
-        </div>
-        <Button variant="outline" size="sm" onClick={load} disabled={loading}>
+      <PageHeader icon={Map} title={t('roadmap.title')} description={t('roadmap.subtitle')}
+        actions={<Button variant="outline" onClick={load} disabled={loading}>
           <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />{t('common.refresh')}
-        </Button>
-      </div>
+        </Button>} />
 
       {loading ? (
         <div className="flex items-center justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>

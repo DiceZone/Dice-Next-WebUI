@@ -5,6 +5,8 @@ import zhHant from './locales/zh-Hant.json';
 import zhHans from './locales/zh-Hans.json';
 import en from './locales/en.json';
 import ja from './locales/ja.json';
+import { uiRefresh } from './ui-refresh';
+import { uiAudit } from './ui-audit';
 
 /**
  * Front-end i18n setup (繁體中文 / 简体中文 / English).
@@ -43,10 +45,10 @@ const initialLanguage = detectInitialLanguage();
 
 i18n.use(initReactI18next).init({
   resources: {
-    'zh-Hant': { translation: zhHant },
-    'zh-Hans': { translation: zhHans },
-    en: { translation: en },
-    ja: { translation: ja },
+    'zh-Hant': { translation: { ...zhHant, ui_refresh: uiRefresh['zh-Hant'], ui_audit: uiAudit['zh-Hant'] } },
+    'zh-Hans': { translation: { ...zhHans, ui_refresh: uiRefresh['zh-Hans'], ui_audit: uiAudit['zh-Hans'] } },
+    en: { translation: { ...en, ui_refresh: uiRefresh.en, ui_audit: uiAudit.en } },
+    ja: { translation: { ...ja, ui_refresh: uiRefresh.ja, ui_audit: uiAudit.ja } },
   },
   lng: initialLanguage,
   fallbackLng: 'zh-Hans',

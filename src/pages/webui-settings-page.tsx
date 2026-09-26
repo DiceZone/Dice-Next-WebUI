@@ -10,6 +10,7 @@ import { zustandAppStore } from '@/store/app-store';
 import { useToast } from '@/hooks/use-toast';
 import { ADMIN_PASSWORD_MAX_LENGTH, isValidAdminPassword, sanitizeAdminPassword } from '@/lib/admin-password';
 import { Monitor, Key, Eye, EyeOff, Copy, Palette, Terminal, Lock, Server, RefreshCw } from 'lucide-react';
+import { PageHeader } from '@/components/ui/page-header';
 
 export const WebuiSettingsPage: React.FC = () => {
   const { t } = useTranslation();
@@ -100,10 +101,7 @@ export const WebuiSettingsPage: React.FC = () => {
 
   return (
     <div className="space-y-6 max-w-3xl">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2"><Monitor className="h-5 w-5" />{t('webui.title')}</h1>
-        <p className="text-sm text-muted-foreground">{t('webui.desc')}</p>
-      </div>
+      <PageHeader icon={Monitor} title={t('webui.title')} description={t('webui.desc')} />
 
       {/* API Key */}
       <Card data-setting-anchor="webui-api-key">

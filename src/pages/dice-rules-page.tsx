@@ -11,6 +11,7 @@ import { zustandDiceStore } from '@/store/dice-store';
 import { useToast } from '@/hooks/use-toast';
 import { DICE_RULE_GROUPS } from '@/types/dice';
 import type { DiceRules } from '@/types/dice';
+import { PageHeader } from '@/components/ui/page-header';
 
 export const DiceRulesPage: React.FC = () => {
   const { t } = useTranslation();
@@ -33,21 +34,16 @@ export const DiceRulesPage: React.FC = () => {
   const handleReset = () => { resetRules(); toast({ title: t('dice.reset_done') }); };
 
   if (loading && !localRules) {
-    return (<div className="space-y-6"><div><h1 className="text-2xl font-bold tracking-tight flex items-center gap-2"><Dices className="h-5 w-5" />{t('dice.title')}</h1><p className="text-sm text-muted-foreground">{t('common.loading')}</p></div><div className="h-64 animate-pulse rounded-lg bg-muted" /></div>);
+    return (<div className="space-y-6"><PageHeader icon={Dices} title={t('dice.title')} description={t('common.loading')} /><div className="h-64 animate-pulse rounded-lg bg-muted" /></div>);
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2"><Dices className="h-5 w-5" />{t('dice.title')}</h1>
-          <p className="text-sm text-muted-foreground">{t('dice.subtitle')}</p>
-        </div>
-        <div data-tour="dice-actions" className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleReset}>{t('dice.reset_default')}</Button>
-          <Button size="sm" onClick={handleSave} disabled={saving}>{saving ? t('common.saving') : t('dice.save_rules')}</Button>
-        </div>
-      </div>
+      <PageHeader icon={Dices} title={t('dice.title')} description={t('dice.subtitle')}
+        actions={<div data-tour="dice-actions" className="flex items-center gap-2">
+          <Button variant="outline" onClick={handleReset}>{t('dice.reset_default')}</Button>
+          <Button onClick={handleSave} disabled={saving}>{saving ? t('common.saving') : t('dice.save_rules')}</Button>
+        </div>} />
       {localRules && (
         <div data-tour="dice-rule-groups">
           <Accordion type="multiple" value={accordionValue} onValueChange={setAccordionValue}>

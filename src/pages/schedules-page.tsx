@@ -14,6 +14,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useDialogs } from '@/hooks/use-dialogs';
 import { PlatformIcon, platformLabel } from '@/components/platform-icon';
 import { Clock, Plus, Trash2, RefreshCw, Loader2, Pencil, Save, X, Play } from 'lucide-react';
+import { PageHeader } from '@/components/ui/page-header';
+import { nextScheduleRun, scheduleToday, timezoneLabel } from '@/lib/schedule-time';
 
 interface Task {
   id: number; name: string; adapterId?: string; platform: string; targetType: string; targetId: string;
@@ -36,40 +38,6 @@ const parseCond = (c: string): { kind: CondKind; n: number } => {
   return { kind: 'custom', n: 7 };
 };
 
-const localToday = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-};
-
-// 估算下次执行时刻（与后端调度规则对齐；daily 补发窗口内的边缘情况按次日近似）。
-const nextRunOf = (tk: Task): string => {
-  if (!tk.enabled) return '—';
-  const pad = (n: number) => String(n).padStart(2, '0');
-  const fmt = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  const type = tk.triggerType || 'daily';
-  if (type === 'interval') {
-    if (!tk.intervalMin) return '—';
-    const m = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})$/.exec(tk.lastRun || '');
-    if (!m) return '—';
-    const last = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]);
-    return fmt(new Date(last.getTime() + tk.intervalMin * 60000));
-  }
-  if (type === 'once') {
-    if (tk.lastRun) return '—';   // 已执行/已过期
-    return `${tk.onceDate} ${tk.cronTime}`;
-  }
-  const [hh, mm] = tk.cronTime.split(':').map(Number);
-  if (Number.isNaN(hh) || Number.isNaN(mm)) return '—';
-  const daySet = (tk.days || '').split(',').filter(Boolean).map(Number);
-  const okDay = (d: Date) => daySet.length === 0 || daySet.includes(d.getDay());
-  const now = new Date();
-  const cand = new Date(now);
-  cand.setHours(hh, mm, 0, 0);
-  if (tk.lastRun === localToday() || cand.getTime() <= now.getTime()) cand.setDate(cand.getDate() + 1);
-  for (let i = 0; i < 8; i++) { if (okDay(cand)) break; cand.setDate(cand.getDate() + 1); }
-  return fmt(cand);
-};
-
 export const SchedulesPage: React.FC = () => {
   const { t } = useTranslation();
   const toast = useToast();
@@ -82,6 +50,23 @@ export const SchedulesPage: React.FC = () => {
   const [accounts, setAccounts] = useTourState<{ id: string; label: string; short: string; platform: string }[]>([], tourSamples.accounts);
   const [condKind, setCondKind] = useTourState<CondKind>('none', 'none');
   const [condN, setCondN] = useState(7);
+  const formRef = React.useRef<HTMLDivElement>(null);
+  const [timezone, setTimezone] = useTourState<number | null>(null, 480);
+  const [timeError, setTimeError] = useState(false);
+  const [now, setNow] = useState(Date.now());
+  const loadTimezone = React.useCallback(async () => {
+    setTimeError(false);
+    try {
+      const r = await fetch('/api/system/timezone'); const j = await r.json();
+      if (!r.ok || j.code !== 0 || !Number.isFinite(j.data?.effective_offset_minutes)) throw new Error('timezone');
+      setTimezone(j.data.effective_offset_minutes);
+    } catch { setTimezone(null); setTimeError(true); }
+  }, [setTimezone]);
+  useEffect(() => {
+    void loadTimezone();
+    const timer = window.setInterval(() => setNow(Date.now()), 30000);
+    return () => window.clearInterval(timer);
+  }, [loadTimezone]);
 
   const WEEK = t('schedules.week_short').split(',');
   const WEEK_FULL = t('schedules.week_full').split(',');
@@ -119,7 +104,9 @@ export const SchedulesPage: React.FC = () => {
     setDaySet(new Set((tk.days || '').split(',').filter(Boolean).map(Number)));
     const pc = parseCond(tk.condition || '');
     setCondKind(pc.kind); setCondN(pc.n);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    requestAnimationFrame(() => formRef.current?.scrollIntoView({
+      block: 'start', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+    }));
   };
   const cancelEdit = () => { setEditingId(null); setForm({ ...blankForm }); setDaySet(new Set()); setCondKind('none'); setCondN(7); };
   const isLegacyEdit = editingId != null && !form.adapterId && !!form.platform;
@@ -166,6 +153,7 @@ export const SchedulesPage: React.FC = () => {
     } catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
   };
   const remove = async (id: number) => {
+    if (!await dlg.confirm({ title: t('common.confirm_delete'), description: tasks.find((task) => task.id === id)?.name || String(id), confirmText: t('common.delete'), destructive: true })) return;
     try {
       const r = await fetch(`/api/schedules/${id}`, { method: 'DELETE' });
       const j = await r.json(); if (j.code !== 0) throw new Error(j.message);
@@ -174,17 +162,18 @@ export const SchedulesPage: React.FC = () => {
   };
 
   const daysLabel = (d: string) => !d ? t('schedules.everyday_label') : d.split(',').filter(Boolean).map((n) => WEEK_FULL[Number(n)] ?? n).join(' ');
-  const today = localToday();
+  const today = timezone === null ? '' : scheduleToday(timezone, now);
 
   return (
     <div className="space-y-6 max-w-3xl">
       {dlg.node}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2"><Clock className="h-5 w-5" />{t('nav.schedules')}</h1>
-        <p className="text-sm text-muted-foreground">{t('schedules.subtitle')}</p>
-      </div>
+      <PageHeader icon={Clock} title={t('nav.schedules')} description={t('ui_audit.schedule_subtitle')} />
+      <p className="text-sm text-muted-foreground" role="status">
+        {timezone === null ? t('ui_audit.timezone_unavailable') : t('ui_audit.schedule_timezone', { timezone: timezoneLabel(timezone) })}
+        {timeError && <Button variant="outline" className="ml-2" onClick={() => void loadTimezone()}>{t('ui_refresh.retry')}</Button>}
+      </p>
 
-      <Card data-tour="schedules-form">
+      <Card ref={formRef} data-tour="schedules-form" className="scroll-mt-4">
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             {editingId == null ? <Plus className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
@@ -198,7 +187,7 @@ export const SchedulesPage: React.FC = () => {
               <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder={t('schedules.name_ph')} /></div>
             <div className="space-y-1.5"><Label className="font-normal">{t('schedules.trigger_type')}</Label>
               <Select value={form.triggerType} onValueChange={(v) => setForm({ ...form, triggerType: v })}>
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="daily">{t('schedules.trig_daily')}</SelectItem>
                   <SelectItem value="interval">{t('schedules.trig_interval')}</SelectItem>
@@ -226,7 +215,7 @@ export const SchedulesPage: React.FC = () => {
                 const acc = accounts.find((a) => a.id === adapterId);
                 setForm({ ...form, adapterId, platform: acc ? acc.platform : form.platform });
               }}>
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {isLegacyEdit
                     ? <SelectItem value="__legacy__">{t('schedules.account_legacy', { platform: platformLabel(form.platform) })}</SelectItem>
@@ -245,7 +234,7 @@ export const SchedulesPage: React.FC = () => {
               </Select></div>
             <div className="space-y-1.5"><Label className="font-normal">{t('schedules.target_type')}</Label>
               <Select value={form.targetType} onValueChange={(v) => setForm({ ...form, targetType: v })}>
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="group">{t('schedules.group')}</SelectItem>
                   <SelectItem value="private">{t('schedules.private')}</SelectItem>
@@ -255,7 +244,7 @@ export const SchedulesPage: React.FC = () => {
               <Input value={form.targetId} onChange={(e) => setForm({ ...form, targetId: e.target.value })} placeholder={t('schedules.target_id_ph')} /></div>
             <div className="space-y-1.5"><Label className="font-normal">{t('schedules.action')}</Label>
               <Select value={form.action} onValueChange={(v) => setForm({ ...form, action: v })}>
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="send">{t('schedules.action_send')}</SelectItem>
                   <SelectItem value="command">{t('schedules.action_command')}</SelectItem>
@@ -266,7 +255,7 @@ export const SchedulesPage: React.FC = () => {
               <div className="space-y-1.5"><Label className="font-normal">{t('schedules.condition')}</Label>
                 <div className="flex items-center gap-2">
                   <Select value={condKind} onValueChange={(v) => setCondKind(v as CondKind)}>
-                    <SelectTrigger className="h-9 flex-1"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-10 flex-1"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">{t('schedules.cond_none')}</SelectItem>
                       <SelectItem value="inactive">{t('schedules.cond_inactive')}</SelectItem>
@@ -328,7 +317,7 @@ export const SchedulesPage: React.FC = () => {
                     <th className="text-left font-medium p-2.5">{t('schedules.action')}</th>
                     <th className="text-left font-medium p-2.5">{t('schedules.content')}</th>
                     <th className="text-left font-medium p-2.5">{t('schedules.last_run')}</th>
-                    <th className="text-left font-medium p-2.5">{t('schedules.next_run')}</th>
+                    <th className="text-left font-medium p-2.5">{t('ui_audit.next_run_estimate')}</th>
                     <th className="text-left font-medium p-2.5 w-44"></th>
                   </tr>
                 </thead>
@@ -356,7 +345,7 @@ export const SchedulesPage: React.FC = () => {
                           ? <span className="inline-block rounded bg-primary/10 px-1.5 py-0.5 text-primary">{t('schedules.ran_today')}</span>
                           : <span className="text-muted-foreground font-mono">{tk.lastRun || '—'}</span>}
                       </td>
-                      <td data-label={t('schedules.next_run')} className="p-2.5 whitespace-nowrap text-xs text-muted-foreground font-mono">{nextRunOf(tk)}</td>
+                      <td data-label={t('ui_audit.next_run_estimate')} className="p-2.5 whitespace-nowrap text-xs text-muted-foreground font-mono">{nextScheduleRun(tk, timezone, now)}</td>
                       <td data-label={t('common.actions')} className="p-2.5">
                         <div className="flex flex-wrap items-center gap-1.5">
                           <Switch checked={tk.enabled} onCheckedChange={() => toggle(tk)} />

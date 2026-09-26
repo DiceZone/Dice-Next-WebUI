@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import {
@@ -19,9 +20,10 @@ import { useToast } from '@/hooks/use-toast';
 import { useDialogs } from '@/hooks/use-dialogs';
 import {
   Puzzle, Upload, RefreshCw, Trash2, Settings2, Info, ArrowUpCircle,
-  ExternalLink, Download, Database,
+  ExternalLink, Download, Database, FileCode2, MoonStar,
 } from 'lucide-react';
 import { PaginationBar } from '@/components/ui/pagination-bar';
+import { PageHeader } from '@/components/ui/page-header';
 
 interface PluginConfig {
   ext: string; key: string; type: string;
@@ -378,31 +380,22 @@ export const ModulesPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {dlg.node}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2"><Puzzle className="h-5 w-5" />{t('modules.title')}</h1>
-          <p className="text-sm text-muted-foreground">{t('modules.subtitle')}</p>
-        </div>
-        <div data-tour="modules-actions" className="flex flex-wrap gap-2">
+      <PageHeader icon={Puzzle} title={t('modules.title')} description={t('modules.subtitle')}
+        actions={<div data-tour="modules-actions" className="flex flex-wrap gap-2">
           <input ref={fileRef} type="file" accept=".js,.lua,.zip,.json" className="hidden" onChange={onFileChosen} />
-          <Button variant="outline" size="sm" onClick={checkAll} disabled={busy}><ArrowUpCircle className="mr-2 h-4 w-4" />{t('modules.check_all')}</Button>
-          <Button variant="outline" size="sm" onClick={reload} disabled={busy}><RefreshCw className={`mr-2 h-4 w-4 ${busy ? 'animate-spin' : ''}`} />{t('modules.reload')}</Button>
-          <Button size="sm" onClick={onPickFile} disabled={busy}><Upload className="mr-2 h-4 w-4" />{t('modules.upload')}</Button>
-        </div>
-      </div>
+          <Button variant="outline" onClick={checkAll} disabled={busy}><ArrowUpCircle className="mr-2 h-4 w-4" />{t('modules.check_all')}</Button>
+          <Button variant="outline" onClick={reload} disabled={busy}><RefreshCw className={`mr-2 h-4 w-4 ${busy ? 'animate-spin' : ''}`} />{t('modules.reload')}</Button>
+          <Button onClick={onPickFile} disabled={busy}><Upload className="mr-2 h-4 w-4" />{t('modules.upload')}</Button>
+        </div>} />
 
       {/* JS 插件 / Lua 模组 选项卡 */}
-      <div data-tour="modules-tabs" className="flex gap-1 border-b">
-        {([['js', `{js} ${t('modules.tab_js')} (${jsCount})`], ['lua', `{lua} ${t('modules.tab_lua')} (${luaCount})`]] as const).map(([k, label]) => (
-          <button key={k}
-            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap ${tab === k ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
-            onClick={() => { setTab(k); setPage(1); }}>
-            {label}
-          </button>
-        ))}
-      </div>
+      <Tabs value={tab} onValueChange={(value) => { setTab(value === 'lua' ? 'lua' : 'js'); setPage(1); }} className="space-y-5">
+      <TabsList variant="page" data-tour="modules-tabs" aria-label={t('modules.title')}>
+        <TabsTrigger value="js"><FileCode2 className="h-4 w-4" aria-hidden="true" />{t('modules.tab_js')} ({jsCount})</TabsTrigger>
+        <TabsTrigger value="lua"><MoonStar className="h-4 w-4" aria-hidden="true" />{t('modules.tab_lua')} ({luaCount})</TabsTrigger>
+      </TabsList>
 
-      <div data-tour="modules-list">
+      <TabsContent value={tab} data-tour="modules-list" className="mt-0">
       {loading ? (
         <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
       ) : shown.length === 0 ? (
@@ -428,8 +421,8 @@ export const ModulesPage: React.FC = () => {
           )}
         </>
       )}
-      </div>
-
+      </TabsContent>
+      </Tabs>
       {configPlugin && <ConfigDialog plugin={configPlugin} onClose={() => setConfigPlugin(null)} onSaved={loadAll} />}
       {detailPlugin && <DetailDialog plugin={detailPlugin} update={updates[detailPlugin.file]} onClose={() => setDetailPlugin(null)} onCheck={() => checkOne(detailPlugin)} onUpdate={() => doUpdate(detailPlugin)} />}
     </div>

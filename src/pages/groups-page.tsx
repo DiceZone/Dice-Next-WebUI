@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { useDialogs } from '@/hooks/use-dialogs';
 import { Switch } from '@/components/ui/switch';
@@ -22,6 +23,7 @@ import {
 import { cn } from '@/lib/utils';
 import { PlatformIcon, platformLabel } from '@/components/platform-icon';
 import { LogActionButtons } from '@/components/log-action-buttons';
+import { PageHeader } from '@/components/ui/page-header';
 import type { ActivePersonaInfo, PersonaTemplate } from '@/types/persona';
 
 interface GroupFeatures {
@@ -228,41 +230,35 @@ export const GroupsPage: React.FC = () => {
         </TourDataContext.Provider>
       </div>
       <div hidden={Boolean(selected) && !showingSamples} className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2"><Users className="h-5 w-5" />{t('groups.title')}</h1>
-            <p className="text-sm text-muted-foreground">{t('groups.subtitle')}</p>
-          </div>
-          <div data-tour="groups-view-actions" className="flex items-center gap-2">
-            <Button variant="outline" size="icon" className="h-9 w-9" title={view === 'card' ? t('groups.view_table') : t('groups.view_card')}
+        <PageHeader icon={Users} title={t('groups.title')} description={t('groups.subtitle')}
+          actions={<div data-tour="groups-view-actions" className="flex items-center gap-2">
+            <Button variant="outline" size="icon" title={view === 'card' ? t('groups.view_table') : t('groups.view_card')}
               onClick={() => setView(view === 'card' ? 'table' : 'card')}>
               {view === 'card' ? <Table2 className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
             </Button>
-            <Button variant="outline" size="sm" onClick={fetchGroups} disabled={loading}>
+            <Button variant="outline" onClick={fetchGroups} disabled={loading}>
               <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />{t('common.refresh')}
             </Button>
-          </div>
-        </div>
+          </div>} />
 
+        <Tabs value={tab} onValueChange={(value) => { setTab(value === 'archived' ? 'archived' : 'active'); setPage(1); }} className="space-y-5">
         <div data-tour="groups-toolbar" className="flex flex-wrap items-center gap-3">
           <div className="relative max-w-xs flex-1 min-w-[12rem]">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input className="pl-8" placeholder={t('groups.search_placeholder')} value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
           </div>
-          <div className="flex gap-1 border-b">
-            <button onClick={() => { setTab('active'); setPage(1); }}
-              className={cn('flex items-center gap-1.5 px-3 py-1.5 text-sm border-b-2 -mb-px transition-colors', tab === 'active' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground')}>
+          <TabsList variant="page" aria-label={t('groups.title')}>
+            <TabsTrigger value="active">
               <Users2 className="h-4 w-4" />{t('groups.tab_active')}<span className="text-xs text-muted-foreground">{activeGroups.length}</span>
-            </button>
-            <button onClick={() => { setTab('archived'); setPage(1); }}
-              className={cn('flex items-center gap-1.5 px-3 py-1.5 text-sm border-b-2 -mb-px transition-colors', tab === 'archived' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground')}>
+            </TabsTrigger>
+            <TabsTrigger value="archived">
               <LogOut className="h-4 w-4" />{t('groups.tab_archived')}<span className="text-xs text-muted-foreground">{archivedGroups.length}</span>
-            </button>
-          </div>
+            </TabsTrigger>
+          </TabsList>
         </div>
 
-        <div data-tour="groups-list">
+        <TabsContent value={tab} data-tour="groups-list" className="mt-0">
         {loading ? (
           <div className="flex items-center justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
         ) : groups.length === 0 ? (
@@ -350,7 +346,8 @@ export const GroupsPage: React.FC = () => {
             <Pager page={curPage} pages={pages} onPage={setPage} />
           </>
         )}
-        </div>
+        </TabsContent>
+        </Tabs>
       </div>
     </>
   );
@@ -440,15 +437,15 @@ const GroupDetail: React.FC<{ group: Group; dlg: any; onBack: () => void; onChan
         </Select>
       </div>
 
-      <div className="flex gap-1 border-b">
+      <Tabs value={tab} onValueChange={(value) => setTab(value as typeof tab)} className="space-y-5">
+      <TabsList variant="page" aria-label={t('groups.title')}>
         {([['function', Settings2, t('groups.tab_function')], ['ai', Sparkles, t('groups.tab_ai')], ['plugins', Blocks, t('groups.tab_plugins')], ['members', Users, t('groups.tab_members')], ['qqadmin', ShieldCheck, '官方群管'], ['logs', ScrollText, t('groups.tab_logs')], ['files', FolderOpen, t('groups.tab_files')], ['chat', MessagesSquare, t('groups.tab_chat')]] as const).filter(([k]) => tabVisible(k)).map(([k, Icon, label]) => (
-          <button key={k} onClick={() => setTab(k)}
-            className={`flex items-center gap-1.5 px-3 py-2 text-sm border-b-2 -mb-px transition-colors ${tab === k ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
+          <TabsTrigger key={k} value={k}>
             <Icon className="h-4 w-4" />{label}
-          </button>
+          </TabsTrigger>
         ))}
-      </div>
-
+      </TabsList>
+      <TabsContent value={tab} className="mt-0">
       {tab === 'function' && <FunctionTab group={activeGroup} base={base} scopedBody={scopedBody} onChanged={onChanged} onBack={onBack} goChat={() => setTab('chat')} t={t} toast={toast} dlg={dlg} welcomeRef={welcomeRef} />}
       {tab === 'ai' && <AiGroupTab group={activeGroup} base={base} scopedBody={scopedBody} onChanged={onChanged} t={t} toast={toast} dlg={dlg} />}
       {tab === 'plugins' && <PluginsTab group={activeGroup} adapterId={account.adapterId} t={t} toast={toast} />}
@@ -468,6 +465,8 @@ const GroupDetail: React.FC<{ group: Group; dlg: any; onBack: () => void; onChan
             return `${nick}${idPart ? `(${idPart})` : ''}`;
           })(),
         }))} />}
+      </TabsContent>
+      </Tabs>
     </div>
   );
 };
@@ -1095,13 +1094,15 @@ const QQOfficialAdminTab: React.FC<any> = ({ base, adapterId, endpointId, toast,
         </div>
         <Button variant="outline" size="sm" onClick={load} disabled={loading}><RefreshCw className={cn('mr-2 h-4 w-4', loading && 'animate-spin')} />刷新</Button>
       </div>
-      <div className="flex gap-1 border-b overflow-x-auto">
+      <Tabs value={section} onValueChange={(value) => setSection(value as typeof section)} className="space-y-4">
+      <TabsList aria-label="QQ 官方群管理">
         {([['requests', UserPlus, '入群申请'], ['mute', ShieldBan, '群禁言'], ['strategies', ShieldCheck, '自动审批策略']] as const).map(([key, Icon, label]) => (
-          <button key={key} onClick={() => setSection(key)} className={cn('flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2 text-sm -mb-px', section === key ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground')}>
+          <TabsTrigger key={key} value={key}>
             <Icon className="h-4 w-4" />{label}
-          </button>
+          </TabsTrigger>
         ))}
-      </div>
+      </TabsList>
+      <TabsContent value={section} className="mt-0">
       {loading ? <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div> : section === 'requests' ? (
         <div className="space-y-2">
           {requests.length === 0 ? <div className="rounded-lg border py-12 text-center text-sm text-muted-foreground">当前没有待处理的入群申请</div> : requests.map((r) => (
@@ -1164,6 +1165,8 @@ const QQOfficialAdminTab: React.FC<any> = ({ base, adapterId, endpointId, toast,
           ))}
         </div>
       )}
+      </TabsContent>
+      </Tabs>
     </div>
   );
 };

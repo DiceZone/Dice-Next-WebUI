@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { AdvancedOptions } from '@/components/ui/advanced-options';
 import { MAX_REPLY_WEIGHT, replyResults, resultProbabilities, validResultWeights } from '@/lib/reply-results';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -62,7 +63,9 @@ export const ReplyForm: React.FC<ReplyFormProps> = ({ open, onOpenChange, onSubm
   const [scopeUsersMode, setScopeUsersMode] = React.useState<ReplyScopeMode>('');
   const [scopeUsers, setScopeUsers] = React.useState<string>('');
   const [submitting, setSubmitting] = React.useState(false);
+  const [uploading, setUploading] = React.useState(false);
   const [error, setError] = React.useState('');
+  const [revealAdvanced, setRevealAdvanced] = React.useState(0);
 
   React.useEffect(() => {
     if (!open) return;
@@ -104,6 +107,9 @@ export const ReplyForm: React.FC<ReplyFormProps> = ({ open, onOpenChange, onSubm
   const imgTarget = React.useRef<number>(0);
   const pickImage = (idx: number) => { imgTarget.current = idx; imgRef.current?.click(); };
   const uploadImage = async (file: File) => {
+    if (uploading) return;
+    const target = imgTarget.current;
+    setUploading(true); setError('');
     try {
       const dataUrl: string = await new Promise((res, rej) => {
         const fr = new FileReader(); fr.onload = () => res(String(fr.result)); fr.onerror = rej; fr.readAsDataURL(file);
@@ -112,12 +118,13 @@ export const ReplyForm: React.FC<ReplyFormProps> = ({ open, onOpenChange, onSubm
         body: JSON.stringify({ filename: file.name, data: dataUrl }) });
       const j = await r.json();
       if (j.code !== 0) throw new Error(j.message);
-      const i = imgTarget.current;
-      setResults((rs) => rs.map((x, idx) => (idx === i ? x + j.data.code : x)));
-    } catch { /* ignore — empty-content validation will catch issues */ }
+      setResults((rs) => rs.map((x, idx) => (idx === target ? x + j.data.code : x)));
+    } catch (e) { setError(`${t('ui_audit.upload_failed')} ${e instanceof Error ? e.message : ''}`); }
+    finally { setUploading(false); }
   };
 
   const submit = async () => {
+    if (uploading || submitting) return;
     const conds = conditions.filter((c) => c.content.trim());
     const selected = results.map((text, i) => ({ text, weight: weights[i] })).filter((r) => r.text.trim());
     const res = selected.map((r) => r.text);
@@ -132,8 +139,8 @@ export const ReplyForm: React.FC<ReplyFormProps> = ({ open, onOpenChange, onSubm
         if (re) { setError(t('replies.err_bad_regex', { err: re })); return; }
       }
     }
-    if (scopeMode && !scopeIds.trim()) { setError(t('replies.err_need_scope_ids')); return; }
-    if (scopeUsersMode && !scopeUsers.trim()) { setError(t('replies.err_need_scope_users')); return; }
+    if (scopeMode && !scopeIds.trim()) { setRevealAdvanced((n) => n + 1); setError(t('replies.err_need_scope_ids')); return; }
+    if (scopeUsersMode && !scopeUsers.trim()) { setRevealAdvanced((n) => n + 1); setError(t('replies.err_need_scope_users')); return; }
     setSubmitting(true);
     try {
       await onSubmit({
@@ -153,19 +160,17 @@ export const ReplyForm: React.FC<ReplyFormProps> = ({ open, onOpenChange, onSubm
   };
 
   return (
-    <Dialog open={open} onOpenChange={(next) => { if (!submitting) onOpenChange(next); }}>
-      <DialogContent className="sm:max-w-[680px] max-h-[85vh] flex flex-col overflow-hidden">
+    <Dialog open={open} onOpenChange={(next) => { if (!submitting && !uploading) onOpenChange(next); }}>
+      <DialogContent className="max-w-2xl lg:max-w-6xl max-h-[90dvh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>{eventTrigger ? t('replies.poke_title') : isEdit ? t('replies.edit_title') : t('replies.add_title')}</DialogTitle>
           <DialogDescription>{eventTrigger ? t('replies.poke_desc') : t('replies.form_desc')}</DialogDescription>
         </DialogHeader>
 
-        <div className="min-h-0 flex-1 overflow-y-auto space-y-5 pr-2">
+        <fieldset disabled={uploading || submitting} className="min-h-0 min-w-0 flex-1 overflow-y-auto space-y-5 pr-2">
           {headerSlot}
-          <div className="flex items-center justify-between rounded-lg border px-3 py-2">
-            <Label htmlFor="reply-enabled">{t('common.enabled')}</Label>
-            <Switch id="reply-enabled" checked={enabled} onCheckedChange={setEnabled} />
-          </div>
+          <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+          <div className="min-w-0 space-y-5">
           {/* Conditions */}
           {!eventTrigger && <div className="space-y-2 rounded-lg border p-3">
             <div className="flex items-center justify-between">
@@ -209,9 +214,9 @@ export const ReplyForm: React.FC<ReplyFormProps> = ({ open, onOpenChange, onSubm
             <Label>{t('replies.result_label')}{results.length > 1 && <span className="ml-1 text-xs text-muted-foreground">{t('replies.result_random')}</span>}</Label>
             {results.map((r, i) => (
               <div key={i} className="space-y-2 rounded-md bg-muted/40 p-3">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="text-xs text-muted-foreground">{t('replies.result_n', { n: i + 1 })}</span>
-                  <div className="flex items-center gap-1">
+                  <div className="flex flex-wrap items-center gap-1">
                     <Button type="button" variant="outline" size="sm"
                       onClick={() => setResult(i, `${r}${r && !r.endsWith('\n') ? '\n' : ''}[[bar:HP|6|10]]`)} className="h-8 text-xs">
                       {t('replies.insert_status_bar')}
@@ -245,11 +250,17 @@ export const ReplyForm: React.FC<ReplyFormProps> = ({ open, onOpenChange, onSubm
             <p className="text-xs text-muted-foreground leading-relaxed">{t('replies.var_hint')}</p>
             <p className="text-xs text-muted-foreground leading-relaxed">{t('replies.presentation_component_hint')}</p>
           </div>
-
+          </div>
+          <AdvancedOptions title={t('ui_refresh.advanced_options')} description={t('ui_refresh.reply_advanced_hint')} sessionOpen={open} revealToken={revealAdvanced}>
+          <div className="space-y-4">
+          <div className="flex items-center justify-between rounded-lg border bg-card px-3 py-2">
+            <Label htmlFor="reply-enabled">{t('common.enabled')}</Label>
+            <Switch id="reply-enabled" checked={enabled} onCheckedChange={setEnabled} />
+          </div>
           {/* 触发限制（原版每条规则自带：概率 / 冷却 / 生效范围） */}
-          <div className="space-y-2 rounded-lg border p-3">
+          <div className="space-y-3">
             <Label>{t('replies.limits_label')}</Label>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <span className="text-xs text-muted-foreground">{t('replies.limit_prob')}</span>
                 <div className="flex items-center gap-1.5">
@@ -283,7 +294,7 @@ export const ReplyForm: React.FC<ReplyFormProps> = ({ open, onOpenChange, onSubm
               <Input value={dayLimitNotice} onChange={(e) => setDayLimitNotice(e.target.value)}
                 placeholder={t('replies.limit_daylimit_notice_ph')} />
             )}
-            <div className="flex items-start gap-1.5">
+            <div className="flex flex-wrap items-start gap-2">
               <Select value={scopeMode || 'all'} onValueChange={(v) => setScopeMode((v === 'all' ? '' : v) as ReplyScopeMode)}>
                 <SelectTrigger className="w-36 shrink-0"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -294,10 +305,10 @@ export const ReplyForm: React.FC<ReplyFormProps> = ({ open, onOpenChange, onSubm
               </Select>
               {scopeMode && (
                 <Input value={scopeIds} onChange={(e) => setScopeIds(e.target.value)}
-                  placeholder={t('replies.scope_ids_ph')} className="flex-1 font-mono" />
+                  placeholder={t('replies.scope_ids_ph')} className="min-w-[150px] flex-1 font-mono" />
               )}
             </div>
-            <div className="flex items-start gap-1.5">
+            <div className="flex flex-wrap items-start gap-2">
               <Select value={scopeUsersMode || 'all'} onValueChange={(v) => setScopeUsersMode((v === 'all' ? '' : v) as ReplyScopeMode)}>
                 <SelectTrigger className="w-36 shrink-0"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -308,7 +319,7 @@ export const ReplyForm: React.FC<ReplyFormProps> = ({ open, onOpenChange, onSubm
               </Select>
               {scopeUsersMode && (
                 <Input value={scopeUsers} onChange={(e) => setScopeUsers(e.target.value)}
-                  placeholder={t('replies.scope_users_ph')} className="flex-1 font-mono" />
+                  placeholder={t('replies.scope_users_ph')} className="min-w-[150px] flex-1 font-mono" />
               )}
             </div>
             <p className="text-xs text-muted-foreground">{t('replies.limits_hint')}</p>
@@ -326,16 +337,18 @@ export const ReplyForm: React.FC<ReplyFormProps> = ({ open, onOpenChange, onSubm
             <Input id="poke-command" value={command} onChange={(e) => setCommand(e.target.value)} placeholder=".jrrp" />
             <p className="text-xs text-muted-foreground">{t('replies.poke_command_hint')}</p>
           </div>}
-
-          {error && <p className="text-xs text-destructive">{error}</p>}
-        </div>
+          </div>
+          </AdvancedOptions>
+          </div>
+          {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
+        </fieldset>
 
         <DialogFooter className="shrink-0 border-t pt-4 gap-2">
-          {onReset && <Button type="button" variant="ghost" className="sm:mr-auto" disabled={submitting || disabled} onClick={async () => {
+          {onReset && <Button type="button" variant="ghost" className="sm:mr-auto" disabled={uploading || submitting || disabled} onClick={async () => {
             setSubmitting(true); try { await onReset(); onOpenChange(false); } catch (e) { setError(String(e)); } finally { setSubmitting(false); }
           }}>{t('settings.scope_reset')}</Button>}
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>{t('common.cancel')}</Button>
-          <Button type="button" onClick={submit} disabled={submitting || disabled}>{submitting ? t('common.saving') : eventTrigger ? t('common.save') : isEdit ? t('replies.save_edit') : t('common.add')}</Button>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={uploading || submitting}>{t('common.cancel')}</Button>
+          <Button type="button" onClick={submit} disabled={uploading || submitting || disabled}>{submitting ? t('common.saving') : eventTrigger ? t('common.save') : isEdit ? t('replies.save_edit') : t('common.add')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

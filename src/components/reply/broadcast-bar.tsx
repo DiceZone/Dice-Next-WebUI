@@ -63,7 +63,7 @@ export const BroadcastBar: React.FC<{ render?: 'both' | 'banner' | 'button' }> =
     </div>
   ) : null;
   const newButton = (
-    <Button size="sm" variant="outline" onClick={() => { setText(''); setOpen(true); }}>
+    <Button variant="outline" onClick={() => { setText(''); setOpen(true); }}>
       <Megaphone className="mr-2 h-4 w-4" />{t('broadcast.new')}
     </Button>
   );

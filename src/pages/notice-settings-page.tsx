@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -132,8 +133,6 @@ export const NoticeSettingsPage: React.FC = () => {
     setPicking(false); setPick('');
   };
 
-  const tabCls = (active: boolean) =>
-    `px-4 py-2 text-sm font-medium border-b-2 transition-colors ${active ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`;
   const areaBadgeCls = (a: number) => a === 8 ? 'bg-red-500/15 text-red-600 dark:text-red-400'
     : a === 4 ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
     : a === 2 ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400' : 'bg-muted text-muted-foreground';
@@ -142,11 +141,13 @@ export const NoticeSettingsPage: React.FC = () => {
     <div className="space-y-6">
       <PageHeader icon={Bell} title={t('noticeset.title')} description={t('noticeset.desc')} />
 
-      <div data-tour="notice-tabs" className="flex gap-2 border-b">
-        <button className={tabCls(tab === 'windows')} onClick={() => setTab('windows')}>{t('noticeset.tab_windows')}</button>
-        <button className={tabCls(tab === 'push')} onClick={() => setTab('push')}>{t('noticeset.tab_push')}</button>
-        <button className={tabCls(tab === 'audit')} onClick={() => setTab('audit')}>{t('noticeset.tab_audit')}</button>
-      </div>
+      <Tabs value={tab} onValueChange={(value) => setTab(value as typeof tab)} className="space-y-5">
+      <TabsList variant="page" data-tour="notice-tabs" aria-label={t('noticeset.title')}>
+        <TabsTrigger value="windows">{t('noticeset.tab_windows')}</TabsTrigger>
+        <TabsTrigger value="push">{t('noticeset.tab_push')}</TabsTrigger>
+        <TabsTrigger value="audit">{t('noticeset.tab_audit')}</TabsTrigger>
+      </TabsList>
+      <TabsContent value={tab} className="mt-0">
 
       {/* ══ 通知窗口 ══ */}
       {tab === 'windows' && (
@@ -370,6 +371,8 @@ export const NoticeSettingsPage: React.FC = () => {
           </CardContent>
         </Card>
       )}
+      </TabsContent>
+      </Tabs>
     </div>
   );
 };

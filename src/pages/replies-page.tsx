@@ -12,14 +12,17 @@ import { CausalRuleEditor } from '@/components/causal/causal-rule-editor';
 import { CounterManager } from '@/components/causal/counter-manager';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { zustandReplyStore } from '@/store/reply-store';
 import { useToast } from '@/hooks/use-toast';
+import { useDialogs } from '@/hooks/use-dialogs';
 import { MessageSquareReply, Plus, Search } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import type { ReplyRule, ReplyFormData, MatchType } from '@/types/reply';
 import type { CausalRule } from '@/types/causal';
 import { emptyCausalRule } from '@/types/causal';
+import { PageHeader } from '@/components/ui/page-header';
 
 type Tab = 'replies' | 'causal' | 'counters';
 type MatchTypeFilter = 'all' | MatchType;
@@ -27,7 +30,9 @@ type StatusFilter = 'all' | 'enabled' | 'disabled';
 
 export const RepliesPage: React.FC = () => {
   const { t } = useTranslation();
-  const { replies: liveReplies, loading: liveLoading, fetchReplies, createReply, updateReply, deleteReply, toggleReply } = zustandReplyStore();
+  const { replies: liveReplies, loading: liveLoading, error: liveError, fetchReplies, createReply, updateReply, deleteReply, toggleReply } = zustandReplyStore();
+  const error = useTourValue(liveError, null);
+  const dlg = useDialogs(t);
   const replies = useTourValue(liveReplies, tourSamples.replies);
   const loading = useTourValue(liveLoading, false);
   const toast = useToast();
@@ -79,6 +84,8 @@ export const RepliesPage: React.FC = () => {
     catch (e) { toast({ title: t('common.update_fail'), variant: 'destructive' }); throw e; }
   };
   const handleDelete = async (id: string) => {
+    const rule = replies.find((item) => item.id === id);
+    if (!await dlg.confirm({ title: t('common.confirm_delete'), description: rule?.matchContent || rule?.replyContent || id, confirmText: t('common.delete'), destructive: true })) return;
     try { await deleteReply(id); toast({ title: t('replies.deleted') }); }
     catch { toast({ title: t('common.delete_fail'), variant: 'destructive' }); }
   };
@@ -99,11 +106,12 @@ export const RepliesPage: React.FC = () => {
       }
       void fetchCausalRules();
     } catch (e) {
-      toast({ title: (e as Error).message, variant: 'destructive' });
+      throw e; // The editor keeps the draft and displays the save error.
     }
   };
 
   const handleCausalDelete = async (id: number) => {
+    if (!await dlg.confirm({ title: t('common.confirm_delete'), description: causalRules.find((rule) => rule.id === id)?.name || String(id), confirmText: t('common.delete'), destructive: true })) return;
     try {
       await apiClient.delete(`/causal/rules/${id}`);
       toast({ title: t('common.delete_success') });
@@ -124,34 +132,17 @@ export const RepliesPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2"><MessageSquareReply className="h-5 w-5" />{t('replies.title')}</h1>
-          <p className="text-sm text-muted-foreground">{t('replies.subtitle')}</p>
-        </div>
-      </div>
+      {dlg.node}
+      <PageHeader icon={MessageSquareReply} title={t('replies.title')} description={t('replies.subtitle')} />
 
       {/* Tab switcher */}
-      <div data-tour="replies-tabs" className="flex gap-2 border-b">
-        <button
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${tab === 'replies' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
-          onClick={() => setTab('replies')}
-        >
-          {t('replies.tab_replies')}
-        </button>
-        <button
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${tab === 'causal' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
-          onClick={() => setTab('causal')}
-        >
-          {t('replies.tab_causal')}
-        </button>
-        <button
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${tab === 'counters' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
-          onClick={() => setTab('counters')}
-        >
-          {t('replies.tab_counters')}
-        </button>
-      </div>
+      <Tabs value={tab} onValueChange={(value) => setTab(value as Tab)} className="space-y-5">
+      <TabsList variant="page" data-tour="replies-tabs" aria-label={t('replies.title')}>
+        <TabsTrigger value="replies">{t('replies.tab_replies')}</TabsTrigger>
+        <TabsTrigger value="causal">{t('replies.tab_causal')}</TabsTrigger>
+        <TabsTrigger value="counters">{t('replies.tab_counters')}</TabsTrigger>
+      </TabsList>
+      <TabsContent value={tab} className="mt-0 space-y-6">
 
       {/* Tab content */}
       {tab === 'replies' && (
@@ -160,12 +151,12 @@ export const RepliesPage: React.FC = () => {
           <BroadcastBar render="banner" />
           {/* C#72：搜索框 + 添加回复 + 新增广播 同一横排。 */}
           <div data-tour="replies-toolbar" className="flex flex-wrap items-center gap-2">
-            <div className="relative min-w-[180px] flex-1">
+            <div className="relative min-w-[180px] flex-[1_1_100%] sm:flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input placeholder={t('replies.search_placeholder')} value={filterText} onChange={(e) => setFilterText(e.target.value)} className="pl-9" />
             </div>
             <Select value={matchTypeFilter} onValueChange={(value) => setMatchTypeFilter(value as MatchTypeFilter)}>
-              <SelectTrigger className="w-[150px]" aria-label={t('replies.filter_match_type')}>
+              <SelectTrigger className="w-[calc(50vw-24px)] min-w-[130px] sm:w-[150px]" aria-label={t('replies.filter_match_type')}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -177,7 +168,7 @@ export const RepliesPage: React.FC = () => {
               </SelectContent>
             </Select>
             <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as StatusFilter)}>
-              <SelectTrigger className="w-[130px]" aria-label={t('replies.filter_status')}>
+              <SelectTrigger className="w-[calc(50vw-24px)] min-w-[120px] sm:w-[130px]" aria-label={t('replies.filter_status')}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -186,11 +177,16 @@ export const RepliesPage: React.FC = () => {
                 <SelectItem value="disabled">{t('replies.filter_disabled')}</SelectItem>
               </SelectContent>
             </Select>
-            <Button size="sm" className="shrink-0" onClick={() => { setEditingReply(null); setFormOpen(true); }}><Plus className="mr-2 h-4 w-4" />{t('replies.add')}</Button>
+            <Button className="shrink-0" onClick={() => { setEditingReply(null); setFormOpen(true); }}><Plus className="mr-2 h-4 w-4" />{t('replies.add')}</Button>
             <PokeReplyButton />
             <BroadcastBar render="button" />
           </div>
-          <div data-tour="replies-list">{loading ? (
+          <div data-tour="replies-list">{error ? (
+            <div role="alert" className="space-y-2 rounded-lg border border-destructive/40 p-4">
+              <p className="text-sm text-destructive">{t('common.load_fail')}：{error}</p>
+              <Button variant="outline" onClick={() => void fetchReplies()}>{t('ui_refresh.retry')}</Button>
+            </div>
+          ) : loading ? (
             <div className="h-64 animate-pulse rounded-lg bg-muted" />
           ) : (
             <ReplyTable replies={replies} onEdit={(r) => { setEditingReply(r); setFormOpen(true); }} onDelete={handleDelete} onToggle={handleToggle} filterText={filterText} matchTypeFilter={matchTypeFilter} statusFilter={statusFilter} />
@@ -222,6 +218,8 @@ export const RepliesPage: React.FC = () => {
       )}
 
       {tab === 'counters' && <CounterManager />}
+      </TabsContent>
+      </Tabs>
     </div>
   );
 };

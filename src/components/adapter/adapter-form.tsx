@@ -75,6 +75,7 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
   const isEdit = !!adapter;
   const [qr, setQr] = React.useState<{ sessionId: string; url: string } | null>(null);
   const [qrBusy, setQrBusy] = React.useState(false);
+  const [qrSaving, setQrSaving] = React.useState(false);
   const qrPollingRef = React.useRef(false);
   const [personas, setPersonas] = React.useState<PersonaTemplate[]>([]);
 
@@ -243,11 +244,14 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
         await new Promise((resolve) => window.setTimeout(resolve, 2000));
         if (!qrPollingRef.current) return;
         const result = await apiClient.get<{ status: string; appId?: string; appSecret?: string }>(`/adapters/qq-official/qr/${encodeURIComponent(session.sessionId)}`);
+        if (!qrPollingRef.current) return;
         if (result.data.status === 'completed' && result.data.appId && result.data.appSecret) {
-          setValue('appId', result.data.appId); setValue('appSecret', result.data.appSecret); qrPollingRef.current = false; setQr(null); setQrBusy(false);
+          setValue('appId', result.data.appId); setValue('appSecret', result.data.appSecret); qrPollingRef.current = false; setQr(null); setQrSaving(true);
           const current = getValues();
           const name = current.name.trim() || `QQ 官方机器人 ${result.data.appId}`;
+          setValue('name', name);
           await onSubmit({ name, type: 'qq_official', connectionMode: 'forward_ws', endpoint: '', accessToken: '', appId: result.data.appId, appSecret: result.data.appSecret, heartApiKey: current.heartApiKey?.trim(), forceVerifyImageResource: current.forceVerifyImageResource, qqRichReplies: current.qqRichReplies, qqInteractions: current.qqInteractions, personaSelection: current.personaSelection, selectablePersonaIds: current.selectablePersonaIds, defaultPersonaId: current.defaultPersonaId, enabled: current.enabled ?? true });
+          setQrSaving(false); setQrBusy(false);
           toast({ title: 'QQ 官方机器人已添加，正在连接' }); onOpenChange(false); return;
         }
         if (result.data.status === 'expired') { qrPollingRef.current = false; setQr(null); setQrBusy(false); return; }
@@ -259,7 +263,7 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
       const message = error instanceof Error ? error.message : '无法创建 QQ 官方机器人扫码任务。';
       setError('appId', { message });
       toast({ title: 'QQ 官方机器人扫码绑定失败', description: message, variant: 'destructive' });
-      setQr(null); setQrBusy(false);
+      setQr(null); setQrBusy(false); setQrSaving(false);
     }
   };
 
@@ -286,13 +290,19 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(next) => { if (!isSubmitting && !qrSaving) onOpenChange(next); }}>
       <DialogContent className={official || milky ? 'max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-[760px]' : 'max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-[500px]'}>
         <DialogHeader>
           <DialogTitle>{isEdit ? t('adapters.edit_title') : t('adapters.add_title')}</DialogTitle>
           <DialogDescription>{isEdit ? t('adapters.edit_subtitle') : t('adapters.add_subtitle')}</DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4" autoComplete="off">
+        <form onSubmit={handleSubmit(async (data) => {
+          if (qrBusy) return;
+          try { await handleFormSubmit(data); }
+          catch (error) { setError('root', { message: error instanceof Error ? error.message : t('common.save_fail') }); }
+        })} className="space-y-4" autoComplete="off">
+          {errors.root && <p role="alert" className="text-sm text-destructive">{errors.root.message}</p>}
+          <fieldset disabled={isSubmitting || qrSaving} className="min-w-0 space-y-4">
           <div className="space-y-2">
             <Label htmlFor="name">{t('adapters.name')}</Label>
             <Input id="name" placeholder={t('adapters.name_placeholder')} {...register('name')} />
@@ -509,8 +519,9 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
           </section>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>{t('common.cancel')}</Button>
-            <Button type="submit" disabled={isSubmitting || (!official && !milky && !tokenBot && !modeChosen)}>{isSubmitting ? t('common.saving') : isEdit ? t('adapters.save_edit') : t('adapters.add')}</Button>
+            <Button type="submit" disabled={qrBusy || isSubmitting || (!official && !milky && !tokenBot && !modeChosen)}>{isSubmitting || qrSaving ? t('common.saving') : isEdit ? t('adapters.save_edit') : t('adapters.add')}</Button>
           </DialogFooter>
+          </fieldset>
         </form>
       </DialogContent>
     </Dialog>

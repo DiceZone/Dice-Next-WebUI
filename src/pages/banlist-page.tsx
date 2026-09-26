@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -547,26 +548,26 @@ export const BanlistPage: React.FC = () => {
     catch (e) { toast({ title: (e as Error).message, variant: 'destructive' }); }
   };
 
-  const tabCls = (active: boolean) =>
-    `px-4 py-2 text-sm font-medium border-b-2 transition-colors ${active ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`;
-
   return (
     <div className="space-y-6">
       <PageHeader icon={ShieldCheck} title={t('banlist.title')} description={t('banlist.desc')}
         actions={
-          <Button size="sm" variant="outline" onClick={load} disabled={loading}>
+          <Button variant="outline" onClick={load} disabled={loading}>
             <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />{t('common.refresh')}
           </Button>
         } />
 
       {/* 选项卡：权限管理 / 骰娘识别 / 黑名单 */}
-      <div data-tour="permissions-tabs" className="flex gap-2 border-b">
-        <button className={tabCls(tab === 'perm')} onClick={() => setTab('perm')}>{t('banlist.tab_perm')}</button>
-        <button className={tabCls(tab === 'dicebots')} onClick={() => setTab('dicebots')}>{t('banlist.tab_dicebots')}</button>
-        <button className={tabCls(tab === 'black')} onClick={() => setTab('black')}>{t('banlist.tab_black')}</button>
-        <a className={tabCls(false)} href="#/cloud-services?focus=settings-cloudban">{t('banlist.tab_cloud')} ↗</a>
+      <Tabs value={tab} onValueChange={(value) => setTab(value as typeof tab)} className="space-y-5">
+      <div className="flex flex-wrap items-center gap-3">
+        <TabsList variant="page" data-tour="permissions-tabs" aria-label={t('banlist.title')}>
+          <TabsTrigger value="perm">{t('banlist.tab_perm')}</TabsTrigger>
+          <TabsTrigger value="dicebots">{t('banlist.tab_dicebots')}</TabsTrigger>
+          <TabsTrigger value="black">{t('banlist.tab_black')}</TabsTrigger>
+        </TabsList>
+        <Button variant="outline" asChild><a href="#/cloud-services?focus=settings-cloudban">{t('banlist.tab_cloud')} ↗</a></Button>
       </div>
-
+      <TabsContent value={tab} className="mt-0 space-y-6">
       {tab === 'perm' && <PermTab entries={entries} reload={load} del={del} />}
 
       {tab === 'dicebots' && (
@@ -632,7 +633,8 @@ export const BanlistPage: React.FC = () => {
       )}
 
       {tab === 'black' && <BlackTab entries={entries} reload={load} del={del} />}
-
+      </TabsContent>
+      </Tabs>
     </div>
   );
 };

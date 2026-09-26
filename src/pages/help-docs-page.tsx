@@ -1,6 +1,6 @@
-import { useTourState } from '@/components/onboarding/tour-data';
+import { useTourActive, useTourState } from '@/components/onboarding/tour-data';
 import { tourSamples } from '@/lib/tour-samples';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent } from '@/components/ui/card';
@@ -8,333 +8,195 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { HelpCircle, Plus, Pencil, Eye, RotateCcw, Trash2, RefreshCw, Search, ChevronLeft, ChevronRight, Download, Upload, List, FolderTree, ChevronDown, ChevronRight as ChevR } from 'lucide-react';
+import { useDialogs } from '@/hooks/use-dialogs';
+import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
+import { parseHelpImport, validHelpName } from '@/lib/help-document';
+import { HelpCircle, Plus, Pencil, RotateCcw, Trash2, RefreshCw, Search, ChevronLeft, ChevronRight, Download, Upload, FileText, Lock } from 'lucide-react';
 
-interface HelpEntry {
-  key: string; content: string; source: string;   // builtin | rule:<pack> | plugin:<name> | lua:<mod> | file:<name>
-  i18nKey?: string; editable: boolean;
-}
-type Kind = 'builtin' | 'rule' | 'plugin' | 'lua' | 'helpdoc' | 'file';
-const kindOf = (s: string): Kind =>
-  s === 'builtin' ? 'builtin'
-    : s.startsWith('rule:') ? 'rule'
-    : s.startsWith('file:') ? 'file'
-    : s.startsWith('lua:') ? 'lua'
-    : s.startsWith('helpdoc:') ? 'helpdoc'
-    : 'plugin';
-
+interface HelpEntry { key: string; content: string; source: string; i18nKey?: string; editable: boolean; shadowed?: boolean; }
+interface EditState { mode: 'new' | 'file' | 'builtin'; name: string; content: string; initial: string; i18nKey?: string; }
 const PAGE_SIZE = 30;
+const entryId = (entry: HelpEntry) => JSON.stringify([entry.source, entry.key]);
+const canEdit = (entry: HelpEntry) => entry.editable && (entry.source.startsWith('file:') || (entry.source === 'builtin' && !!entry.i18nKey));
 
-async function jget(path: string) {
-  const r = await fetch('/api' + path); const j = await r.json();
-  if (j.code !== 0) throw new Error(j.message); return j.data;
+async function request(path: string, method = 'GET', body?: unknown, signal?: AbortSignal) {
+  const res = await fetch('/api' + path, { method, signal, headers: { 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
+  const json = await res.json();
+  if (!res.ok || json.code !== 0) throw new Error(json.message || `HTTP ${res.status}`);
+  return json.data;
 }
-async function jsend(method: string, path: string, body?: unknown) {
-  const r = await fetch('/api' + path, {
-    method, headers: { 'Content-Type': 'application/json' },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  const j = await r.json(); if (j.code !== 0) throw new Error(j.message); return j.data;
+function download(name: string, content: string, type = 'text/markdown;charset=utf-8') {
+  const url = URL.createObjectURL(new Blob([content], { type }));
+  const a = document.createElement('a'); a.href = url; a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
-
-// 编辑器状态：mode 决定保存去向。
-interface EditState { mode: 'new' | 'file' | 'builtin' | 'view'; key: string; i18nKey?: string; content: string; source: string; }
 
 export const HelpDocsPage: React.FC = () => {
   const { t, i18n } = useTranslation();
   const toast = useToast();
+  const dlg = useDialogs(t);
+  const tour = useTourActive();
   const [entries, setEntries] = useTourState<HelpEntry[]>([], tourSamples.helpEntries);
+  const [groups, setGroups] = useTourState<{ source: string; count: number }[]>([], [{ source: 'builtin', count: 3 }]);
   const [total, setTotal] = useTourState(0, 3);
   const [page, setPage] = useTourState(1, 1);
-  const [loading, setLoading] = useTourState(false, false);
-  const [q, setQ] = useTourState('', '');
-  const [qDebounced, setQDebounced] = useTourState('', '');
+  const [source, setSource] = useTourState('', '');
+  const [query, setQuery] = useTourState('', '');
+  const [search, setSearch] = useState('');
+  const [selectedId, setSelectedId] = useTourState('', '');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [revision, setRevision] = useState(0);
   const [edit, setEdit] = useState<EditState | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [confirmDel, setConfirmDel] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
-  // 视图模式：flat=条目平铺(分页) / grouped=按来源(规则/插件/文件)分组，展开看全部条目。
-  const [viewMode, setViewMode] = useTourState<'flat' | 'grouped'>('grouped', 'grouped');   // C#41: 默认按来源分组展示
-  const [groups, setGroups] = useTourState<{ source: string; count: number }[]>([], [{ source: 'builtin', count: 3 }]);
-  const [expanded, setExpanded] = useTourState<string | null>(null, 'builtin');
-  const [groupEntries, setGroupEntries] = useTourState<HelpEntry[]>([], tourSamples.helpEntries);
-  const [groupLoading, setGroupLoading] = useTourState(false, false);
-
-  // 搜索防抖（300ms）→ 重置到第 1 页。
-  useEffect(() => {
-    const h = setTimeout(() => { setQDebounced(q.trim()); setPage(1); }, 300);
-    return () => clearTimeout(h);
-  }, [q]);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({
-        lang: i18n.language, q: qDebounced, page: String(page), size: String(PAGE_SIZE),
-      });
-      const d = await jget('/help?' + params.toString());
-      setEntries(d.entries || []); setTotal(d.total || 0);
-    } catch (e) { toast({ title: (e as Error).message, variant: 'destructive' }); }
-    finally { setLoading(false); }
-  }, [toast, i18n.language, qDebounced, page]);
-  useEffect(() => { if (viewMode === 'flat') void load(); }, [load, viewMode]);
-
-  // 分组视图：加载来源分组（搜索同样作用于分组）。
-  const loadGroups = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({ lang: i18n.language, q: qDebounced });
-      const d = await jget('/help/groups?' + params.toString());
-      setGroups(d.groups || []);
-    } catch (e) { toast({ title: (e as Error).message, variant: 'destructive' }); }
-    finally { setLoading(false); }
-  }, [toast, i18n.language, qDebounced]);
-  useEffect(() => { if (viewMode === 'grouped') { setExpanded(null); void loadGroups(); } }, [loadGroups, viewMode]);
-
-  // 展开某来源 → 拉取该来源全部条目（带当前搜索词）。
-  const toggleExpand = async (source: string) => {
-    if (expanded === source) { setExpanded(null); return; }
-    setExpanded(source); setGroupEntries([]); setGroupLoading(true);
-    try {
-      const params = new URLSearchParams({ lang: i18n.language, q: qDebounced, source, page: '1', size: '200' });
-      const d = await jget('/help?' + params.toString());
-      setGroupEntries(d.entries || []);
-    } catch (e) { toast({ title: (e as Error).message, variant: 'destructive' }); }
-    finally { setGroupLoading(false); }
-  };
-
+  const dirty = !!edit && (edit.content !== edit.initial || (edit.mode === 'new' && !!edit.name));
+  const selected = entries.find((entry) => entryId(entry) === selectedId) ?? entries[0];
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  // 删除后当前页可能越界（服务端分页返回空列表）→ 钳制到最后一页，而不是显示空白。
-  useEffect(() => { if (page > pageCount) setPage(pageCount); }, [page, pageCount]);
+  const refresh = () => setRevision((value) => value + 1);
+  const fail = (e: unknown) => toast({ title: e instanceof Error ? e.message : String(e), variant: 'destructive' });
 
-  const sourceLabel = (source: string) => {
-    const k = kindOf(source);
-    return k === 'builtin' ? t('helpdoc.src_builtin')
-      : k === 'rule' ? t('helpdoc.src_rule', { name: source.slice(5) })
-      : k === 'file' ? t('helpdoc.src_file')
-      : k === 'lua' ? t('helpdoc.src_lua', { name: source.slice(4) })
-      : k === 'helpdoc' ? t('helpdoc.src_helpdoc', { name: source.slice(8) })
-      : t('helpdoc.src_plugin', { name: source.slice(7) });
-  };
-  const sourceBadge = (e: HelpEntry) => {
-    const k = kindOf(e.source);
-    const label = sourceLabel(e.source);
-    const variant = k === 'builtin' ? 'secondary' : k === 'file' ? 'default' : 'outline';
-    return <Badge variant={variant as 'secondary' | 'default' | 'outline'} className="text-[11px] shrink-0 max-w-[45vw] truncate">{label}</Badge>;
-  };
+  useEffect(() => {
+    if (tour) return;
+    const timer = setTimeout(() => { setSearch(query.trim()); setPage(1); }, 300);
+    return () => clearTimeout(timer);
+  }, [query, tour, setPage]);
+  useEffect(() => {
+    if (tour) return;
+    const controller = new AbortController();
+    setLoading(true); setError('');
+    const params = new URLSearchParams({ lang: i18n.language, q: search, source, page: String(page), size: String(PAGE_SIZE), management: '1' });
+    const groupParams = new URLSearchParams({ lang: i18n.language, q: search, management: '1' });
+    void Promise.all([request('/help?' + params, 'GET', undefined, controller.signal), request('/help/groups?' + groupParams, 'GET', undefined, controller.signal)])
+      .then(([data, groupData]) => {
+        if (controller.signal.aborted) return;
+        setEntries(data.entries || []); setTotal(data.total || 0); setGroups(groupData.groups || []);
+        const lastPage = Math.max(1, Math.ceil((data.total || 0) / PAGE_SIZE));
+        if (page > lastPage) setPage(lastPage);
+      }).catch((e) => { if (!controller.signal.aborted) setError(e.message); })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
+  }, [i18n.language, search, source, page, revision, tour, setEntries, setTotal, setGroups, setPage]);
+  useUnsavedChanges(dirty || busy, async () => !busy && await dlg.confirm({
+    title: t('ui_refresh.discard'), description: t('ui_refresh.help_discard_hint'),
+    cancelText: t('ui_refresh.keep_editing'), confirmText: t('ui_refresh.discard_edits'), destructive: true,
+  }));
 
-  const openEdit = (e: HelpEntry) => {
-    const k = kindOf(e.source);
-    if (k === 'builtin') setEdit({ mode: 'builtin', key: e.key, i18nKey: e.i18nKey, content: e.content, source: e.source });
-    else if (k === 'file') setEdit({ mode: 'file', key: e.source.slice(5), content: e.content, source: e.source });
-    else setEdit({ mode: 'view', key: e.key, content: e.content, source: e.source });
+  const sourceLabel = (value: string) => value === 'builtin' ? t('helpdoc.src_builtin')
+    : value.startsWith('file:') ? `${t('helpdoc.src_file')} · ${value.slice(5)}`
+    : value.startsWith('rule:') ? t('helpdoc.src_rule', { name: value.slice(5) })
+    : value.startsWith('lua:') ? t('helpdoc.src_lua', { name: value.slice(4) })
+    : value.startsWith('helpdoc:') ? t('helpdoc.src_helpdoc', { name: value.slice(8) })
+    : t('helpdoc.src_plugin', { name: value.slice(7) });
+  const closeEditor = async () => {
+    if (busy) return;
+    if (!dirty || await dlg.confirm({ title: t('ui_refresh.discard'), description: t('ui_refresh.help_discard_hint'), confirmText: t('ui_refresh.discard_edits'), cancelText: t('ui_refresh.keep_editing'), destructive: true })) setEdit(null);
   };
-
   const save = async () => {
-    if (!edit) return;
-    if ((edit.mode === 'new' || edit.mode === 'file') && !edit.key.trim()) {
-      toast({ title: t('helpdoc.need_name'), variant: 'destructive' }); return;
-    }
-    setSaving(true);
+    if (!edit || busy || tour) return;
+    const name = edit.name.trim();
+    if (edit.mode !== 'builtin' && !validHelpName(name)) { toast({ title: t('ui_refresh.help_invalid_name'), variant: 'destructive' }); return; }
+    setBusy(true);
     try {
-      if (edit.mode === 'builtin') await jsend('PUT', '/templates', { locale: i18n.language, key: edit.i18nKey, value: edit.content });
-      else await jsend('POST', '/help/file', { name: edit.key.trim(), content: edit.content });
-      toast({ title: t('common.save_success') }); setEdit(null); await load();
-    } catch (e) { toast({ title: (e as Error).message, variant: 'destructive' }); }
-    finally { setSaving(false); }
+      if (edit.mode === 'new') {
+        const data = await request('/help/files');
+        if (data.files?.some((file: { name: string }) => file.name === name) && !await dlg.confirm({ title: t('ui_refresh.help_replace'), description: name, destructive: true })) return;
+      }
+      if (edit.mode === 'builtin') await request('/templates', 'PUT', { locale: i18n.language, key: edit.i18nKey, value: edit.content });
+      else await request('/help/file', 'POST', { name, content: edit.content });
+      if (edit.mode === 'new') { setQuery(''); setSearch(''); setSource('file:' + name); setPage(1); }
+      setEdit(null); refresh(); toast({ title: t('common.save_success') });
+    } catch (e) { fail(e); } finally { setBusy(false); }
   };
-
-  const resetBuiltin = async (e: HelpEntry) => {
-    try { await jsend('DELETE', `/templates/${encodeURIComponent(i18n.language)}/${encodeURIComponent(e.i18nKey || '')}`); toast({ title: t('helpdoc.reset_done') }); await load(); }
-    catch (err) { toast({ title: (err as Error).message, variant: 'destructive' }); }
+  const removeOrReset = async (entry: HelpEntry) => {
+    const builtin = entry.source === 'builtin';
+    if (busy || tour || !await dlg.confirm({ title: builtin ? t('helpdoc.reset') : t('helpdoc.delete_confirm', { name: entry.source.slice(5) }), description: builtin ? t('ui_refresh.help_reset_hint') : undefined, destructive: true })) return;
+    setBusy(true);
+    try {
+      await request(builtin ? `/templates/${encodeURIComponent(i18n.language)}/${encodeURIComponent(entry.i18nKey!)}` : `/help/file/${encodeURIComponent(entry.source.slice(5))}`, 'DELETE');
+      if (!builtin && source === entry.source) { setSource(''); setPage(1); }
+      refresh(); toast({ title: t(builtin ? 'helpdoc.reset_done' : 'helpdoc.deleted') });
+    } catch (e) { fail(e); } finally { setBusy(false); }
   };
-  const delFile = async (name: string) => {
-    try { await jsend('DELETE', `/help/file/${encodeURIComponent(name)}`); setConfirmDel(null); toast({ title: t('helpdoc.deleted') }); await load(); }
-    catch (e) { toast({ title: (e as Error).message, variant: 'destructive' }); }
-  };
-  // C#26#6 导出：把自管帮助文档（data/help/*.md）打成一个 JSON {名:内容} 下载。
   const exportDocs = async () => {
+    if (busy || tour) return;
+    setBusy(true);
     try {
-      const d = await jget('/help/files');
-      const files: { name: string }[] = d.files || [];
-      if (files.length === 0) { toast({ title: t('helpdoc.export_empty') }); return; }
-      const bundle: Record<string, string> = {};
-      for (const f of files) { const fd = await jget('/help/file?name=' + encodeURIComponent(f.name)); bundle[f.name] = fd.content || ''; }
-      const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob); const a = document.createElement('a');
-      a.href = url; a.download = 'helpdocs-export.json'; a.click(); URL.revokeObjectURL(url);
-      toast({ title: t('helpdoc.export_done', { n: files.length }) });
-    } catch (e) { toast({ title: (e as Error).message, variant: 'destructive' }); }
+      const data = await request('/help/files');
+      if (!data.files?.length) { toast({ title: t('helpdoc.export_empty') }); return; }
+      const bundle: Record<string, string> = Object.create(null);
+      for (const file of data.files) { const doc = await request('/help/file?name=' + encodeURIComponent(file.name)); bundle[file.name] = doc.content; }
+      download('helpdocs-export.json', JSON.stringify(bundle, null, 2), 'application/json');
+      toast({ title: t('helpdoc.export_done', { n: data.files.length }) });
+    } catch (e) { fail(e); } finally { setBusy(false); }
   };
-  // C#26#6 导入：.json（{名:内容} 批量）或单个 .md（文件名作条目名）→ 写入 data/help/。
-  const importDocs = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    if (f) {
-      try {
-        const text = await f.text();
-        let count = 0;
-        if (f.name.toLowerCase().endsWith('.json')) {
-          const obj = JSON.parse(text);
-          const map: Record<string, string> = Array.isArray(obj)
-            ? Object.fromEntries(obj.map((it: any) => [it.name || it.key, it.content]))
-            : obj;
-          for (const [name, content] of Object.entries(map))
-            if (name && typeof content === 'string') { await jsend('POST', '/help/file', { name, content }); count++; }
-        } else {
-          const name = f.name.replace(/\.(md|txt)$/i, '');
-          await jsend('POST', '/help/file', { name, content: text }); count = 1;
-        }
-        toast({ title: t('helpdoc.import_done', { n: count }) }); await load();
-      } catch (err) { toast({ title: (err as Error).message, variant: 'destructive' }); }
-    }
-    if (importRef.current) importRef.current.value = '';
+  const importDocs = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]; event.target.value = '';
+    if (!file || busy || tour) return;
+    setBusy(true); let count = 0;
+    try {
+      let files;
+      try { files = parseHelpImport(file.name, await file.text()); }
+      catch { throw new Error(t('ui_refresh.help_invalid_import')); }
+      const existing = await request('/help/files');
+      const names = new Set((existing.files || []).map((item: { name: string }) => item.name));
+      const conflicts = files.filter((item) => names.has(item.name));
+      if (conflicts.length && !await dlg.confirm({ title: t('ui_refresh.help_replace'), description: conflicts.map((item) => item.name).join('\n'), destructive: true })) return;
+      for (const item of files) { await request('/help/file', 'POST', item); count++; }
+      setQuery(''); setSearch(''); setSource(''); setPage(1);
+      toast({ title: t('helpdoc.import_done', { n: count }) });
+    } catch (e) { fail(e); if (count) toast({ title: t('ui_refresh.help_partial_import', { count }) }); }
+    finally { if (count) refresh(); setBusy(false); }
   };
 
-  const renderEntry = (e: HelpEntry, showBadge = true) => {
-    const k = kindOf(e.source);
-    return (
-      <Card key={e.source + '|' + e.key}>
-        <CardContent className="flex items-center gap-3 py-2.5">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="font-mono text-sm font-medium truncate">.{e.key}</span>
-              {showBadge && sourceBadge(e)}
-            </div>
-            <p className="mt-0.5 truncate text-xs text-muted-foreground">{e.content}</p>
-          </div>
-          {(k === 'builtin' || k === 'file') ? (
-            <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0" title={t('helpdoc.edit')} onClick={() => openEdit(e)}><Pencil className="h-4 w-4" /></Button>
-          ) : (
-            <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0" title={t('helpdoc.view')} onClick={() => openEdit(e)}><Eye className="h-4 w-4" /></Button>
-          )}
-          {k === 'builtin' && <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0" title={t('helpdoc.reset')} onClick={() => resetBuiltin(e)}><RotateCcw className="h-4 w-4" /></Button>}
-          {k === 'file' && <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0 text-destructive" title={t('common.delete')} onClick={() => setConfirmDel(e.source.slice(5))}><Trash2 className="h-4 w-4" /></Button>}
-        </CardContent>
+  return <div className="space-y-6 min-w-0">
+    <PageHeader icon={HelpCircle} title={t('helpdoc.title')} description={t('helpdoc.desc')} />
+    <Card><CardContent data-tour="help-toolbar" className="flex flex-wrap items-center gap-2 p-4">
+      <div className="relative min-w-[180px] flex-1"><Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" /><Input className="pl-9" aria-label={t('helpdoc.search')} placeholder={t('helpdoc.search')} value={query} onChange={(e) => setQuery(e.target.value)} /></div>
+      <Button variant="outline" disabled={busy || loading || tour} onClick={refresh}><RefreshCw className="mr-2 h-4 w-4" />{t('common.refresh')}</Button>
+      <Button variant="outline" disabled={busy || tour} onClick={exportDocs}><Download className="mr-2 h-4 w-4" />{t('helpdoc.export')}</Button>
+      <Button variant="outline" disabled={busy || tour} onClick={() => importRef.current?.click()}><Upload className="mr-2 h-4 w-4" />{t('helpdoc.import')}</Button>
+      <input ref={importRef} type="file" accept=".json,.md,.txt" className="hidden" onChange={importDocs} />
+      <Button disabled={busy || tour} onClick={() => setEdit({ mode: 'new', name: '', content: '', initial: '' })}><Plus className="mr-2 h-4 w-4" />{t('helpdoc.new')}</Button>
+    </CardContent></Card>
+    {error && !tour && <div role="alert" className="flex flex-wrap items-center gap-3 rounded-xl border border-destructive/30 p-4 text-sm text-destructive">{error}<Button variant="outline" onClick={refresh}>{t('ui_refresh.retry')}</Button></div>}
+    <div data-tour="help-content" className="grid items-start gap-5 lg:grid-cols-[minmax(240px,0.8fr)_minmax(0,2fr)]" aria-busy={loading && !tour}>
+      <Card className="min-w-0 overflow-hidden">
+        <div className="space-y-3 border-b p-4"><div className="flex items-center justify-between gap-2"><h2 className="text-sm font-semibold">{t('ui_refresh.help_library')}</h2><Badge variant="secondary">{total}</Badge></div>
+          <Select value={source || '__all__'} onValueChange={(value) => { setSource(value === '__all__' ? '' : value); setPage(1); }}><SelectTrigger aria-label={t('ui_refresh.help_source')}><SelectValue /></SelectTrigger><SelectContent><SelectItem value="__all__">{t('ui_refresh.help_all_sources')}</SelectItem>{source && !groups.some((group) => group.source === source) && <SelectItem value={source}>{sourceLabel(source)} · 0</SelectItem>}{groups.map((group) => <SelectItem key={group.source} value={group.source}>{sourceLabel(group.source)} · {group.count}</SelectItem>)}</SelectContent></Select>
+        </div>
+        <div className="max-h-[36vh] overflow-y-auto p-2 lg:max-h-[65vh]">
+          {entries.map((entry) => <button key={entryId(entry)} type="button" aria-pressed={entry === selected} onClick={() => setSelectedId(entryId(entry))} className={`mb-1 flex w-full gap-3 rounded-lg border p-3 text-left transition-colors ${entry === selected ? 'border-primary/20 bg-primary/10' : 'border-transparent hover:bg-muted/70'}`}>
+            <FileText className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" /><span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium">{entry.key}</span><span className="mt-1 block truncate text-xs text-muted-foreground">{sourceLabel(entry.source)}</span><span className="mt-1 block truncate text-xs text-muted-foreground">{entry.content}</span></span>{!canEdit(entry) && <Lock className="mt-1 h-3 w-3 shrink-0 text-muted-foreground" />}
+          </button>)}
+          {!entries.length && <p className="p-6 text-center text-sm text-muted-foreground">{t(loading && !tour ? 'common.loading' : 'helpdoc.empty')}</p>}
+        </div>
+        {pageCount > 1 && <div className="flex items-center justify-between border-t p-3"><Button size="icon" variant="ghost" aria-label={t('ui_refresh.previous')} disabled={page <= 1 || loading} onClick={() => setPage(page - 1)}><ChevronLeft className="h-4 w-4" /></Button><span className="text-xs tabular-nums">{t('ui_refresh.page', { page, total: pageCount })}</span><Button size="icon" variant="ghost" aria-label={t('ui_refresh.next')} disabled={page >= pageCount || loading} onClick={() => setPage(page + 1)}><ChevronRight className="h-4 w-4" /></Button></div>}
       </Card>
-    );
-  };
-
-  return (
-    <div className="space-y-6 max-w-full overflow-x-hidden">
-      <PageHeader icon={HelpCircle} title={t('helpdoc.title')} description={t('helpdoc.desc')} />
-
-      <div data-tour="help-toolbar" className="flex flex-wrap items-center gap-2">
-        <div className="relative flex-1 min-w-[180px] max-w-sm">
-          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input className="h-9 pl-8" placeholder={t('helpdoc.search')} value={q} onChange={(e) => setQ(e.target.value)} />
-        </div>
-        <Button size="sm" variant="outline" onClick={() => setViewMode((m) => (m === 'flat' ? 'grouped' : 'flat'))} title={viewMode === 'flat' ? t('helpdoc.view_grouped') : t('helpdoc.view_flat')}>
-          {viewMode === 'flat' ? <FolderTree className="mr-2 h-4 w-4" /> : <List className="mr-2 h-4 w-4" />}
-          {viewMode === 'flat' ? t('helpdoc.view_grouped') : t('helpdoc.view_flat')}
-        </Button>
-        <Button size="sm" variant="outline" onClick={() => (viewMode === 'grouped' ? loadGroups() : load())} disabled={loading}>
-          <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />{t('common.refresh')}
-        </Button>
-        <Button size="sm" variant="outline" onClick={exportDocs} title={t('helpdoc.export')}><Download className="mr-2 h-4 w-4" />{t('helpdoc.export')}</Button>
-        <Button size="sm" variant="outline" onClick={() => importRef.current?.click()} title={t('helpdoc.import')}><Upload className="mr-2 h-4 w-4" />{t('helpdoc.import')}</Button>
-        <input ref={importRef} type="file" accept=".json,.md,.txt" className="hidden" onChange={importDocs} />
-        <Button size="sm" onClick={() => setEdit({ mode: 'new', key: '', content: '', source: 'file:' })}>
-          <Plus className="mr-2 h-4 w-4" />{t('helpdoc.new')}
-        </Button>
-      </div>
-
-      <p className="text-xs text-muted-foreground">
-        {viewMode === 'grouped' ? t('helpdoc.group_count', { n: groups.length }) : t('helpdoc.count', { total })}
-      </p>
-
-      <div data-tour="help-content">
-      {/* 平铺视图 */}
-      {viewMode === 'flat' && (<>
-        <div className="grid gap-2">
-          {entries.map((e) => renderEntry(e))}
-          {entries.length === 0 && !loading && <p className="py-8 text-center text-sm text-muted-foreground">{t('helpdoc.empty')}</p>}
-        </div>
-        {pageCount > 1 && (
-          <div className="flex items-center justify-center gap-2 pt-1">
-            <Button size="icon" variant="outline" className="h-8 w-8" disabled={page <= 1 || loading} onClick={() => setPage((p) => Math.max(1, p - 1))}><ChevronLeft className="h-4 w-4" /></Button>
-            <span className="text-xs text-muted-foreground tabular-nums">{t('helpdoc.page_of', { page, total: pageCount })}</span>
-            <Button size="icon" variant="outline" className="h-8 w-8" disabled={page >= pageCount || loading} onClick={() => setPage((p) => Math.min(pageCount, p + 1))}><ChevronRight className="h-4 w-4" /></Button>
+      <Card className="min-w-0 overflow-hidden">{selected ? <>
+        <div className="space-y-4 border-b p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><h2 className="break-words text-xl font-semibold">{selected.key}</h2><p className="mt-2 break-words text-xs text-muted-foreground">{sourceLabel(selected.source)}</p></div><Badge variant={canEdit(selected) ? 'secondary' : 'outline'}>{t(canEdit(selected) ? 'ui_refresh.help_editable' : 'ui_refresh.help_readonly')}</Badge></div>
+          <div className="flex flex-wrap gap-2">{canEdit(selected) && <Button disabled={busy || tour || loading || !!error} onClick={() => setEdit({ mode: selected.source === 'builtin' ? 'builtin' : 'file', name: selected.source.startsWith('file:') ? selected.source.slice(5) : selected.key, content: selected.content, initial: selected.content, i18nKey: selected.i18nKey })}><Pencil className="mr-2 h-4 w-4" />{t('helpdoc.edit')}</Button>}
+            <Button variant="outline" onClick={() => download(selected.key.replace(/[\\/]/g, '_') + '.md', selected.content)}><Download className="mr-2 h-4 w-4" />{t('ui_refresh.help_download')}</Button>
+            {canEdit(selected) && <Button variant="ghost" disabled={busy || tour || loading || !!error} onClick={() => removeOrReset(selected)}>{selected.source === 'builtin' ? <RotateCcw className="mr-2 h-4 w-4" /> : <Trash2 className="mr-2 h-4 w-4" />}{t(selected.source === 'builtin' ? 'helpdoc.reset' : 'common.delete')}</Button>}
           </div>
-        )}
-      </>)}
-
-      {/* 分组视图：按来源（规则/插件/文件）折叠，展开看全部条目 */}
-      {viewMode === 'grouped' && (
-        <div className="grid gap-1.5">
-          {groups.map((g) => {
-            const open = expanded === g.source;
-            return (
-              <Card key={g.source} className="overflow-hidden">
-                <button className="flex w-full items-center gap-2 px-3 py-2.5 text-left hover:bg-muted/40" onClick={() => toggleExpand(g.source)}>
-                  {open ? <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" /> : <ChevR className="h-4 w-4 shrink-0 text-muted-foreground" />}
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium">{sourceLabel(g.source)}</span>
-                  <Badge variant="secondary" className="shrink-0 text-[11px]">{t('helpdoc.group_entries', { n: g.count })}</Badge>
-                </button>
-                {open && (
-                  <div className="border-t bg-muted/20 p-1.5">
-                    {groupLoading ? (
-                      <p className="py-3 text-center text-xs text-muted-foreground">{t('common.loading')}</p>
-                    ) : (
-                      <div className="grid gap-1.5">
-                        {groupEntries.map((e) => renderEntry(e, false))}
-                        {g.count > groupEntries.length && !groupLoading && <p className="px-2 py-1 text-[11px] text-muted-foreground">{t('helpdoc.group_more', { n: g.count - groupEntries.length })}</p>}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </Card>
-            );
-          })}
-          {groups.length === 0 && !loading && <p className="py-8 text-center text-sm text-muted-foreground">{t('helpdoc.empty')}</p>}
         </div>
-      )}
-      </div>
-
-      {edit && (
-        <Dialog open onOpenChange={(o) => { if (!o) setEdit(null); }}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader><DialogTitle>
-              {edit.mode === 'new' ? t('helpdoc.new') : edit.mode === 'view' ? t('helpdoc.view') : t('helpdoc.edit')}
-            </DialogTitle></DialogHeader>
-            <div className="space-y-3">
-              {(edit.mode === 'new' || edit.mode === 'file') ? (
-                <div>
-                  <label className="text-xs text-muted-foreground">{t('helpdoc.name')}</label>
-                  <Input className="h-8 text-sm" value={edit.key} disabled={edit.mode === 'file'}
-                    placeholder={t('helpdoc.name_ph')} onChange={(ev) => setEdit({ ...edit, key: ev.target.value })} />
-                </div>
-              ) : (
-                <p className="text-xs text-muted-foreground font-mono break-all">.{edit.key} · {edit.source}</p>
-              )}
-              <Textarea className="text-sm h-[45vh] font-mono" value={edit.content} readOnly={edit.mode === 'view'}
-                spellCheck={false} onChange={(ev) => setEdit({ ...edit, content: ev.target.value })} />
-              {edit.mode === 'view' && <p className="text-xs text-muted-foreground">{t('helpdoc.readonly_hint')}</p>}
-            </div>
-            <DialogFooter className="gap-2">
-              <Button variant="ghost" size="sm" onClick={() => setEdit(null)}>{edit.mode === 'view' ? t('common.close') : t('common.cancel')}</Button>
-              {edit.mode !== 'view' && <Button size="sm" onClick={save} disabled={saving}>{t('common.save')}</Button>}
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
-
-      {confirmDel && (
-        <Dialog open onOpenChange={(o) => { if (!o) setConfirmDel(null); }}>
-          <DialogContent className="max-w-sm">
-            <DialogHeader><DialogTitle>{t('helpdoc.delete_confirm', { name: confirmDel })}</DialogTitle></DialogHeader>
-            <DialogFooter className="gap-2">
-              <Button variant="ghost" size="sm" onClick={() => setConfirmDel(null)}>{t('common.cancel')}</Button>
-              <Button variant="destructive" size="sm" onClick={() => delFile(confirmDel)}>{t('common.delete')}</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
+        {!canEdit(selected) && <p className="border-b bg-muted/30 px-5 py-3 text-xs leading-relaxed text-muted-foreground">{t('helpdoc.readonly_hint')}</p>}
+        {(selected.shadowed || !selected.content) && <p role="status" className="border-b bg-muted/30 px-5 py-3 text-sm text-muted-foreground">{t(selected.shadowed ? 'ui_audit.help_shadowed' : 'ui_audit.help_empty')}</p>}
+        <pre className="max-h-[65vh] overflow-y-auto whitespace-pre-wrap break-words p-5 font-sans text-sm leading-7">{selected.content}</pre>
+      </> : <div className="flex min-h-64 flex-col items-center justify-center gap-3 p-6 text-muted-foreground"><FileText className="h-8 w-8" /><p className="text-sm">{t('helpdoc.empty')}</p></div>}</Card>
     </div>
-  );
+    <Dialog open={!!edit} onOpenChange={(open) => { if (!open) void closeEditor(); }}>
+      {edit && <DialogContent className="flex max-h-[90dvh] max-w-4xl flex-col overflow-hidden"><DialogHeader><DialogTitle>{t(edit.mode === 'new' ? 'helpdoc.new' : 'helpdoc.edit')}</DialogTitle><DialogDescription>{t(edit.mode === 'builtin' ? 'ui_refresh.help_builtin_hint' : 'ui_refresh.help_file_hint')}</DialogDescription></DialogHeader>
+        <div className="min-h-0 space-y-4 overflow-y-auto"><label className="block space-y-2 text-sm"><span>{t('helpdoc.name')}</span><Input value={edit.name} disabled={edit.mode !== 'new' || busy} placeholder={t('helpdoc.name_ph')} onChange={(event) => setEdit({ ...edit, name: event.target.value })} /></label>
+          <label className="block space-y-2 text-sm"><span>{t('ui_refresh.help_content')}</span><Textarea className="min-h-[35vh] font-mono text-sm leading-relaxed sm:min-h-[45vh]" spellCheck={false} value={edit.content} disabled={busy} onChange={(event) => setEdit({ ...edit, content: event.target.value })} /></label>
+        </div>
+        <DialogFooter className="shrink-0 gap-2 border-t pt-4"><span className="mr-auto self-center text-xs text-muted-foreground">{dirty ? t('ui_refresh.unsaved') : ''}</span><Button variant="outline" disabled={busy} onClick={closeEditor}>{t('common.cancel')}</Button><Button disabled={busy} onClick={save}>{t(busy ? 'common.loading' : 'common.save')}</Button></DialogFooter>
+      </DialogContent>}
+    </Dialog>
+    {dlg.node}
+  </div>;
 };
-
 export default HelpDocsPage;

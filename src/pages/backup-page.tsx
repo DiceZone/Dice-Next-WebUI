@@ -10,6 +10,7 @@ import { TimePicker } from '@/components/ui/date-time-picker';
 import { useToast } from '@/hooks/use-toast';
 import { useDialogs } from '@/hooks/use-dialogs';
 import { Archive, Clock3, Database, Download, Loader2, RotateCcw, Save, Trash2, Upload } from 'lucide-react';
+import { PageHeader } from '@/components/ui/page-header';
 
 type StoredBackup = { name: string; size: number; createdAt: number; automatic: boolean };
 type ReplyReferenceReport = {
@@ -251,10 +252,7 @@ export const BackupPage: React.FC = () => {
   return (
     <div className="space-y-6 max-w-3xl">
       {dlg.node}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2"><Archive className="h-5 w-5" />{t('backup.title')}</h1>
-        <p className="text-sm text-muted-foreground">{t('backup.subtitle')}</p>
-      </div>
+      <PageHeader icon={Archive} title={t('backup.title')} description={t('backup.subtitle')} />
 
       {/* 导入旧版数据 */}
       <Card data-tour="backup-legacy">

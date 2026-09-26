@@ -185,7 +185,12 @@ export const PageTour: React.FC<PageTourProps> = ({
     if (!open || !step) return;
     let alive = true;
 
-    resolveTarget(step)?.scrollIntoView({ behavior: 'auto', block: 'nearest', inline: 'nearest' });
+    const selectors = typeof step.target === 'string' ? [step.target] : step.target;
+    if (!resolveTarget(step)) {
+      const hidden = selectors.map((selector) => document.querySelector<HTMLElement>(selector)).find(Boolean);
+      if (hidden) window.dispatchEvent(new CustomEvent('settings:reveal', { detail: hidden }));
+    }
+    let scrolled = false;
 
     let frame = 0;
     const tick = () => {
@@ -200,6 +205,10 @@ export const PageTour: React.FC<PageTourProps> = ({
         ));
       }
       const target = resolveTarget(step);
+      if (target && !scrolled) {
+        target.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'nearest', inline: 'nearest' });
+        scrolled = true;
+      }
       const next = target ? boxOf(target) : null;
       setBox((previous) => (sameBox(previous, next) ? previous : next));
       frame = window.requestAnimationFrame(tick);

@@ -4,6 +4,7 @@ import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { useDialogs } from '@/hooks/use-dialogs';
 import { Loader2, RefreshCw, Check, X, Pencil, ArrowLeft, ChevronRight, ChevronDown, Copy, Save, UserCog } from 'lucide-react';
@@ -11,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { PaginationBar } from '@/components/ui/pagination-bar';
 import { ChatTab } from '@/pages/groups-page';
 import { PlatformIcon, platformLabel } from '@/components/platform-icon';
+import { PageHeader } from '@/components/ui/page-header';
 
 interface Player {
   platform: string;
@@ -196,7 +198,8 @@ const PlayerDetailView: React.FC<{
         </Button>
       </div>
 
-      <div className="flex gap-1 overflow-x-auto border-b">
+      <Tabs value={tab} onValueChange={(value) => setTab(value as typeof tab)} className="space-y-5">
+      <TabsList variant="page" aria-label={t('players.title')}>
         {([
           ['info', t('players.tab_info')],
           ['cards', `${t('players.tab_cards')}(${detail?.cards.length ?? 0})`],
@@ -204,13 +207,12 @@ const PlayerDetailView: React.FC<{
           ['plugins', `${t('players.tab_plugins')}(${(detail?.luaVars.length ?? 0) + (detail?.luaCards.length ?? 0)})`],
           ['chat', t('players.tab_chat')],
         ] as const).map(([key, label]) => (
-          <button key={key} onClick={() => setTab(key)}
-            className={`shrink-0 px-3 py-2 text-sm border-b-2 -mb-px transition-colors ${tab === key ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
+          <TabsTrigger key={key} value={key}>
             {label}
-          </button>
+          </TabsTrigger>
         ))}
-      </div>
-
+      </TabsList>
+      <TabsContent value={tab} className="mt-0">
       {loading || !detail ? (
         <div className="flex items-center justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
       ) : (
@@ -398,6 +400,8 @@ const PlayerDetailView: React.FC<{
             }))} />}
         </div>
       )}
+      </TabsContent>
+      </Tabs>
     </div>
   );
 };
@@ -539,14 +543,10 @@ export const PlayersPage: React.FC = () => {
     </div>
     <div hidden={Boolean(selected) && !showingSamples} className="space-y-5">
       {dlg.node}
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2"><UserCog className="h-5 w-5" />{t('players.title')}</h1>
-          <p className="text-sm text-muted-foreground">{t('players.subtitle')}</p>
-        </div>
-        <div data-tour="players-filters" className="flex flex-wrap items-center gap-2">
+      <PageHeader icon={UserCog} title={t('players.title')} description={t('players.subtitle')}
+        actions={<div data-tour="players-filters" className="flex flex-wrap items-center gap-2">
           <Select value={platFilter} onValueChange={setPlatFilter}>
-            <SelectTrigger className="h-9 w-36 text-sm"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-36 text-sm"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t('players.all_platforms')}</SelectItem>
               <SelectItem value="onebot_v11"><span className="inline-flex items-center gap-2"><PlatformIcon platform="onebot_v11" />OneBot (QQ)</span></SelectItem>
@@ -556,12 +556,11 @@ export const PlayersPage: React.FC = () => {
             </SelectContent>
           </Select>
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('players.search')}
-            className="h-9 rounded-md border border-input bg-background px-3 text-sm w-44" />
-          <Button variant="outline" size="sm" onClick={load} disabled={loading}>
+            className="h-10 rounded-md border border-input bg-background px-3 text-sm w-44" />
+          <Button variant="outline" onClick={load} disabled={loading}>
             <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />{t('common.refresh')}
           </Button>
-        </div>
-      </div>
+        </div>} />
 
       <div data-tour="players-list">
       {loading ? (

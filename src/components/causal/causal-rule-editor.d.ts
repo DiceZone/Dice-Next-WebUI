@@ -10,7 +10,7 @@ interface Props {
     rule: CausalRule;
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    onSave: (rule: CausalRule) => void;
+    onSave: (rule: CausalRule) => Promise<void>;
 }
 export declare const CausalRuleEditor: React.FC<Props>;
 export default CausalRuleEditor;

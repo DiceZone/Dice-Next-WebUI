@@ -170,7 +170,7 @@ export const StatisticsPage: React.FC = () => {
           <div className="inline-flex rounded-lg bg-muted p-1" aria-label={t('statistics.date_range')}>
             {[7, 30, 90].map((value) => (
               <Button key={value} type="button" variant="ghost" size="sm"
-                className={cn('h-7 px-3 text-xs', days === value && 'bg-background text-foreground shadow-sm hover:bg-background')}
+                className={cn('h-8 px-3 text-xs', days === value && 'bg-background text-foreground shadow-sm hover:bg-background')}
                 onClick={() => selectDays(value)}>
                 {t('statistics.days', { count: value })}
               </Button>
@@ -179,7 +179,7 @@ export const StatisticsPage: React.FC = () => {
 
           <Select value={platform || '__all_platforms__'}
             onValueChange={(value) => selectPlatform(value === '__all_platforms__' ? '' : value)}>
-            <SelectTrigger aria-label={t('statistics.platform_filter')} className="h-9 w-40">
+            <SelectTrigger aria-label={t('statistics.platform_filter')} className="h-10 w-40">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -190,7 +190,7 @@ export const StatisticsPage: React.FC = () => {
 
           <Select value={adapter || '__all_adapters__'}
             onValueChange={(value) => setAdapter(value === '__all_adapters__' ? '' : value)}>
-            <SelectTrigger aria-label={t('statistics.adapter_filter')} className="h-9 w-56">
+            <SelectTrigger aria-label={t('statistics.adapter_filter')} className="h-10 w-56">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

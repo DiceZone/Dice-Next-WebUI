@@ -62,7 +62,7 @@ export const PokeReplyButton: React.FC = () => {
   const inherited = selection !== 'global' && POKE_KEYS.some((key) => Object.prototype.hasOwnProperty.call(settings.overrides ?? {}, key));
 
   return <>
-    <Button data-setting-anchor="settings-poke" size="sm" variant="outline" className="shrink-0" disabled={loading} onClick={() => void start()}>
+    <Button data-setting-anchor="settings-poke" variant="outline" className="shrink-0" disabled={loading} onClick={() => void start()}>
       <Hand className="mr-2 h-4 w-4" />{t('replies.poke_title')}
     </Button>
     <ReplyForm open={open} onOpenChange={setOpen} reply={rule} eventTrigger="poke" onSubmit={save} disabled={loading}
