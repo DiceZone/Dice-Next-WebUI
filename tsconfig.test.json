@@ -11,6 +11,7 @@
     "tsBuildInfoFile": ".test-dist/tsconfig.test.tsbuildinfo"
   },
   "include": [
+    "src/lib/batch-operation.ts",
     "src/lib/request-gate.ts",
     "src/lib/navigation-guard.ts",
     "src/lib/schedule-time.ts",

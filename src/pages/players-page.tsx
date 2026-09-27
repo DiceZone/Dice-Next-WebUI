@@ -1,7 +1,10 @@
-import { useTourActive, useTourState, TourDataContext } from '@/components/onboarding/tour-data';
+import { useTourActive, useTourState } from '@/components/onboarding/tour-data';
 import { tourSamples } from '@/lib/tour-samples';
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -52,18 +55,30 @@ const typedValue = (s: string): number | string => (/^-?\d+$/.test(s.trim()) ? N
 
 // ── C#96 玩家详情二级页面 ──────────────────────────────────────
 const PlayerDetailView: React.FC<{
-  player: Player; isMaster: boolean; onBack: () => void;
-}> = ({ player, isMaster, onBack }) => {
+  player: Player; isMaster: boolean; onBack: () => void; embedded?: boolean; leaveGuard?: React.MutableRefObject<() => Promise<boolean>>;
+}> = ({ player, isMaster, onBack, embedded, leaveGuard }) => {
   const { t } = useTranslation();
+  const showingSamples = useTourActive();
   const toast = useToast();
   const dlg = useDialogs(t);
-  const [detail, setDetail] = useState<PlayerDetail | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [detail, setDetail] = useState<PlayerDetail | null>(() => showingSamples ? {
+    groups: tourSamples.groups.map((g) => ({ id: g.groupId, name: g.name })),
+    cards: [{ id: -1, name: '调查员 · 示例', attrs: { 力量: 50, 敏捷: 60, HP: 12 }, bound: [], updatedAt: player.createdAt }],
+    settings: [], luaVars: [], luaCards: [], lastMessageAt: Date.parse(player.lastCmdAt) / 1000,
+  } : null);
+  const [loading, setLoading] = useState(!showingSamples);
   const [drafts, setDrafts] = useState<Record<string, string>>({});   // 行内编辑草稿（键=行标识）
   const [saving, setSaving] = useState(false);
   const [openCards, setOpenCards] = useState<Record<string, boolean>>({});   // 卡片展开状态（默认收起）
   const [newAttr, setNewAttr] = useState<Record<string, { k: string; v: string }>>({});
   const [tab, setTab] = useState<'info' | 'cards' | 'settings' | 'plugins' | 'chat'>('info');
+
+  const confirmLeave = async () => !saving && (!Object.keys(drafts).length || await dlg.confirm({ title: t('ui_refresh.discard'), description: t('workspace.discard_hint'), cancelText: t('ui_refresh.keep_editing'), confirmText: t('ui_refresh.discard_edits'), destructive: true }));
+  useUnsavedChanges(Object.keys(drafts).length > 0 || saving, confirmLeave);
+  useEffect(() => {
+    if (leaveGuard) leaveGuard.current = confirmLeave;
+    return () => { if (leaveGuard) leaveGuard.current = async () => true; };
+  });
 
   const base = `/api/players/${encodeURIComponent(player.platform)}/${encodeURIComponent(player.userId)}`;
 
@@ -78,7 +93,7 @@ const PlayerDetailView: React.FC<{
     finally { setLoading(false); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [base]);
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { if (!showingSamples) void load(); }, [load, showingSamples]);
 
   const post = async (path: string, body: unknown) => {
     const r = await fetch(`${base}/${path}`,
@@ -167,12 +182,12 @@ const PlayerDetailView: React.FC<{
     <div className="space-y-4">
       {dlg.node}
       {/* 页头：返回按钮独立一行，头像/信息组在下（同排会显得怪） */}
-      <div>
+      {!embedded && <div>
         <Button variant="outline" size="sm" onClick={onBack}><ArrowLeft className="mr-1 h-4 w-4" />{t('common.back')}</Button>
-      </div>
+      </div>}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex items-center gap-3">
-          {!player.virtualId && (
+          {!player.virtualId && player.platform === 'onebot_v11' && !player.userId.startsWith('demo-') && (
             <img src={`https://q1.qlogo.cn/g?b=qq&nk=${player.userId}&s=640`} alt=""
               className="h-16 w-16 rounded-full object-cover bg-muted"
               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
@@ -424,6 +439,8 @@ export const PlayersPage: React.FC = () => {
   const PAGE_SIZE = 20;
   const [selected, setSelected] = useState<Player | null>(null);   // C#96：详情二级页面
   const showingSamples = useTourActive();
+  const leaveGuard = React.useRef<() => Promise<boolean>>(async () => true);
+  const change = async (action: () => void) => { if (await leaveGuard.current()) action(); };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -534,84 +551,35 @@ export const PlayersPage: React.FC = () => {
   const paged = shown.slice((curPage - 1) * PAGE_SIZE, curPage * PAGE_SIZE);
   useEffect(() => { setPage(1); }, [q, platFilter, sortCol, sortDir]);
 
-  return (
-    <>
-    <div hidden={showingSamples}>
-      <TourDataContext.Provider value={false}>
-        {selected && <PlayerDetailView player={selected} isMaster={masterSet.has(selected.userId)} onBack={() => setSelected(null)} />}
-      </TourDataContext.Provider>
-    </div>
-    <div hidden={Boolean(selected) && !showingSamples} className="space-y-5">
-      {dlg.node}
-      <PageHeader icon={UserCog} title={t('players.title')} description={t('players.subtitle')}
-        actions={<div data-tour="players-filters" className="flex flex-wrap items-center gap-2">
-          <Select value={platFilter} onValueChange={setPlatFilter}>
-            <SelectTrigger className="w-36 text-sm"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t('players.all_platforms')}</SelectItem>
-              <SelectItem value="onebot_v11"><span className="inline-flex items-center gap-2"><PlatformIcon platform="onebot_v11" />OneBot (QQ)</span></SelectItem>
-              <SelectItem value="qq_official"><span className="inline-flex items-center gap-2"><PlatformIcon platform="qq_official" />QQ 官方</span></SelectItem>
-              <SelectItem value="discord"><span className="inline-flex items-center gap-2"><PlatformIcon platform="discord" />Discord</span></SelectItem>
-              <SelectItem value="kook"><span className="inline-flex items-center gap-2"><PlatformIcon platform="kook" />KOOK</span></SelectItem>
-            </SelectContent>
-          </Select>
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('players.search')}
-            className="h-10 rounded-md border border-input bg-background px-3 text-sm w-44" />
-          <Button variant="outline" onClick={load} disabled={loading}>
-            <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />{t('common.refresh')}
-          </Button>
-        </div>} />
+  const active = paged.find((p) => selected && key(p) === key(selected)) ?? paged[0];
+  useEffect(() => { if (active && (!selected || key(active) !== key(selected))) setSelected(active); }, [active, selected]);
+  const platforms = [...new Set(rows.map((p) => p.platform))];
 
-      <div data-tour="players-list">
-      {loading ? (
-        <div className="flex items-center justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
-      ) : shown.length === 0 ? (
-        <div className="rounded-lg border py-16 text-center text-sm text-muted-foreground">{t('players.empty')}</div>
-      ) : (
-        <div className="rounded-lg border overflow-x-auto">
-          <table className="rt w-full text-sm">
-            <thead className="bg-muted/50 text-muted-foreground">
-              <tr>
-                {[['nickname', 'players.col_nickname'], ['userId', 'players.col_id'], ['trustLevel', 'players.col_trust'], ['favor', 'players.col_favor'], ['cmdCount', 'players.col_count'], ['lastCmdAt', 'players.col_last']].map(([col, label]) => (
-                  <th key={col} className="text-left font-medium p-2.5 whitespace-nowrap cursor-pointer select-none hover:text-foreground"
-                    onClick={() => { if (sortCol === col) setSortDir(sortDir === 'asc' ? 'desc' : 'asc'); else { setSortCol(col); setSortDir('desc'); } }}>
-                    {t(label)}{sortCol === col && (sortDir === 'asc' ? ' ▲' : ' ▼')}
-                  </th>
-                ))}
-                <th className="text-left font-medium p-2.5 w-28"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {paged.map((p) => (
-                <tr key={key(p)} className="border-t hover:bg-muted/30">
-                  <td data-label={t('players.col_nickname')} className="p-2.5">
-                    <button className="flex items-center gap-2 hover:underline text-left" onClick={() => setSelected(p)}>
-                      {!p.virtualId && !p.userId.startsWith('demo-') && (
-                        <img
-                          src={`https://q1.qlogo.cn/g?b=qq&nk=${p.userId}&s=100`}
-                          alt=""
-                          className="h-7 w-7 rounded-full object-cover shrink-0 bg-muted"
-                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                        />
-                      )}
-                      <span className="font-medium">{p.nickname || '—'}</span>
-                    </button>
-                  </td>
-                  <td data-label={t('players.col_id')} className="p-2.5 font-mono text-xs">
-                    <span className="inline-flex items-center gap-1.5">
-                      <PlatformIcon platform={p.platform} className="h-3.5 w-3.5" />
-                      {p.userId}
-                      {p.platform && p.platform !== 'onebot_v11' && (
-                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-sans">
-                          {p.platform === 'qq_official' ? 'QQ官方' : p.platform === 'discord' ? 'Discord' : p.platform === 'kook' ? 'KOOK' : p.platform}
-                        </Badge>
-                      )}
-                    </span>
-                  </td>
-                  <td data-label={t('players.col_trust')} className="p-2.5">
-                    {/* C#92：骰主(256)是可选等级——选中即写入 dice.masters，切走即移出。 */}
+  return <div className="space-y-5">
+    {dlg.node}
+    <PageHeader icon={UserCog} title={t('players.title')} description={t('players.subtitle')} actions={<Button variant="outline" onClick={load} disabled={loading}><RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />{t('common.refresh')}</Button>} />
+    <div data-tour="players-filters" className="flex flex-wrap gap-3">
+      <Input className="min-w-0 flex-1 bg-card" aria-label={t('players.search')} placeholder={t('players.search')} value={q} onChange={(e) => { const value = e.target.value; void change(() => setQ(value)); }} />
+      <Select value={platFilter} onValueChange={(v) => void change(() => setPlatFilter(v))}><SelectTrigger aria-label={t('players.all_platforms')} className="w-40"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">{t('players.all_platforms')}</SelectItem>{platforms.map((p) => <SelectItem key={p} value={p}>{platformLabel(p)}</SelectItem>)}</SelectContent></Select>
+      <Select value={sortCol} onValueChange={(v) => void change(() => setSortCol(v))}><SelectTrigger aria-label={t('workspace.sort')} className="w-40"><SelectValue /></SelectTrigger><SelectContent>{[['nickname','players.col_nickname'],['userId','players.col_id'],['trustLevel','players.col_trust'],['favor','players.col_favor'],['cmdCount','players.col_count'],['lastCmdAt','players.col_last']].map(([value,label]) => <SelectItem key={value} value={value}>{t(label)}</SelectItem>)}</SelectContent></Select>
+      <Button variant="outline" onClick={() => void change(() => setSortDir(sortDir === 'asc' ? 'desc' : 'asc'))}>{t(sortDir === 'asc' ? 'workspace.ascending' : 'workspace.descending')}</Button>
+    </div>
+    {loading && !rows.length ? <Loader2 className="mx-auto my-16 h-8 w-8 animate-spin" /> : !shown.length ? <Card className="p-16 text-center text-sm text-muted-foreground">{t('players.empty')}</Card> :
+      <div data-tour="players-list" className="grid items-start gap-4 lg:grid-cols-[300px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)]">
+        <Card className="min-w-0 p-2 shadow-none">
+          <div className="max-h-[260px] space-y-1 overflow-y-auto lg:max-h-[65vh]">
+            {paged.map((p) => <button type="button" key={key(p)} aria-pressed={active && key(active) === key(p)} onClick={() => void change(() => { setSelected(p); setEditFav(null); })} className={`flex w-full items-start gap-3 rounded-lg border p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${active && key(active) === key(p) ? 'border-primary/20 bg-primary/[0.07]' : 'border-transparent hover:bg-muted/60'}`}>
+              <span className="rounded-lg bg-primary/10 p-2 text-primary"><UserCog className="h-5 w-5" /></span><span className="min-w-0 flex-1"><span className="block break-words text-sm font-medium">{p.nickname || p.userId}</span><span className="mt-1 flex items-center gap-1 break-all text-xs text-muted-foreground"><PlatformIcon platform={p.platform} />{p.userId}</span><span className="mt-2 block text-xs text-muted-foreground">{t('players.col_count')}: {p.cmdCount} · {t('players.col_favor')}: {p.favor}</span></span>
+            </button>)}
+          </div>
+          <PaginationBar total={shown.length} page={curPage} pageSize={PAGE_SIZE} onPageChange={(value) => void change(() => setPage(value))} fixedSize />
+        </Card>
+        <Card className="min-w-0 space-y-5 p-4 shadow-none sm:p-6">
+          {active && (() => { const p = active; return <>
+            <div className="flex flex-wrap items-end gap-4 border-b pb-4">
+              <div className="space-y-2"><p className="text-xs text-muted-foreground">{t('players.col_trust')}</p>{/* C#92：骰主(256)是可选等级——选中即写入 dice.masters，切走即移出。 */}
                     <Select value={masterSet.has(p.userId) ? '256' : String(p.trustLevel)} onValueChange={(v) => saveTrust(p, Number(v))}>
-                      <SelectTrigger className="h-7 w-28 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="0">{t('banlist.perm_lv0')}</SelectItem>
                         <SelectItem value="1">{t('banlist.perm_lv1')}</SelectItem>
@@ -624,10 +592,8 @@ export const PlayersPage: React.FC = () => {
                         )}
                         <SelectItem value="256" className="text-red-600 dark:text-red-400">{t('banlist.perm_master')}</SelectItem>
                       </SelectContent>
-                    </Select>
-                  </td>
-                  <td data-label={t('players.col_favor')} className="p-2.5">
-                    {editFav === key(p) ? (
+                    </Select></div>
+              <div className="space-y-2"><p className="text-xs text-muted-foreground">{t('players.col_favor')}</p>{editFav === key(p) ? (
                       <span className="inline-flex items-center gap-1">
                         <input type="number" value={favVal} onChange={(e) => setFavVal(parseInt(e.target.value) || 0)}
                           className="h-7 w-16 rounded border border-input bg-background px-2 text-sm" />
@@ -639,14 +605,8 @@ export const PlayersPage: React.FC = () => {
                         <span className="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium bg-pink-100 text-pink-700 dark:bg-pink-950/50 dark:text-pink-400">{p.favor}</span>
                         <button onClick={() => { setEditFav(key(p)); setFavVal(p.favor); }} className="text-muted-foreground hover:text-foreground"><Pencil className="h-3.5 w-3.5" /></button>
                       </span>
-                    )}
-                  </td>
-                  <td data-label={t('players.col_count')} className="p-2.5">{p.cmdCount}</td>
-                  <td data-label={t('players.col_last')} className="p-2.5 text-muted-foreground text-xs whitespace-nowrap">{fmtTime(p.lastCmdAt)}</td>
-                  <td data-label={t('common.actions')} className="p-2.5">
-                    <div className="flex flex-wrap items-center gap-1">
-                      <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setSelected(p)}>{t('players.detail_btn')}</Button>
-                      {canDeleteFriend(p) ? (
+                    )}</div>
+              <div className="ml-auto flex flex-wrap gap-1">{canDeleteFriend(p) ? (
                         <Button variant="ghost" size="sm" className="h-7 text-xs text-destructive hover:text-destructive" onClick={() => delFriend(p)}>{t('players.del_friend')}</Button>
                       ) : (
                         <Button variant="ghost" size="sm" disabled
@@ -655,22 +615,13 @@ export const PlayersPage: React.FC = () => {
                           {t('players.del_friend')}
                         </Button>
                       )}
-                      <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground hover:text-destructive" onClick={() => del(p)}>{t('players.del_record')}</Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-      </div>
-      {!loading && shown.length > 0 && (
-        <PaginationBar total={shown.length} page={curPage} pageSize={PAGE_SIZE} onPageChange={setPage} fixedSize />
-      )}
-    </div>
-    </>
-  );
+                      <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground hover:text-destructive" onClick={() => del(p)}>{t('players.del_record')}</Button></div>
+            </div>
+            <PlayerDetailView key={key(p) + String(showingSamples)} player={p} isMaster={masterSet.has(p.userId)} embedded leaveGuard={leaveGuard} onBack={() => setSelected(null)} />
+          </>; })()}
+        </Card>
+      </div>}
+  </div>;
 };
 
 export default PlayersPage;

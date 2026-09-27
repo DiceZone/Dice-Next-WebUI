@@ -40,7 +40,7 @@ export const DecksPage: React.FC = () => {
   const [selected, setSelected] = useTourState('', deckFileKey(tourSamples.decks[0]));
   const [group, setGroup] = useTourState('', '森林奇遇');
   const [content, setContent] = useTourState<FileContent | null>(null, { filename: tourSamples.decks[0].filename, content: sampleContent });
-  const [readError, setReadError] = useTourState(false, false);
+  const [readError, setReadError] = useTourState('', '');
   const [revision, setRevision] = useState(0);
   const [editing, setEditing] = useState<DeckFile | null>(null);
   const [pending, setPending] = useState<FileContent | null>(null);
@@ -81,10 +81,10 @@ export const DecksPage: React.FC = () => {
   useEffect(() => {
     if (!filename || touring) return;
     const controller = new AbortController();
-    setContent(null); setReadError(false); setEntryPage(1);
+    setContent(null); setReadError(''); setEntryPage(1);
     void deckRequest<{ content: string; readonly?: boolean }>(`/file?name=${encodeURIComponent(filename)}${source ? `&source=${source}` : ''}`, { signal: controller.signal })
       .then((data) => { if (!controller.signal.aborted) setContent({ filename, source, content: data.content, readonly: data.readonly }); })
-      .catch(() => { if (!controller.signal.aborted) setReadError(true); });
+      .catch((error) => { if (!controller.signal.aborted) setReadError(error instanceof Error ? error.message : String(error)); });
     return () => controller.abort();
   }, [filename, source, revision, setContent, setReadError, touring]);
 
@@ -165,7 +165,7 @@ export const DecksPage: React.FC = () => {
             </div>
             <div className="space-y-5 p-5 sm:p-6">
               <div className="flex flex-wrap gap-2">{groups.map((name) => <button key={name} className={`max-w-full break-words rounded-md border px-3 py-1.5 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${activeGroup === name ? 'border-primary bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'} ${name.startsWith('_') ? 'border-dashed' : ''}`} onClick={() => { setGroup(name); setEntryPage(1); }} aria-pressed={activeGroup === name}>{name}</button>)}</div>
-              {readError ? <div role="alert" className="rounded-lg border border-destructive/20 p-4 text-sm"><p>{t('ui_refresh.read_error')}</p><Button size="sm" variant="outline" className="mt-3" onClick={() => setRevision((n) => n + 1)}>{t('ui_refresh.retry')}</Button></div> : currentContent === undefined ? <Loader2 className="mx-auto my-10 h-6 w-6 animate-spin text-muted-foreground" /> : !document ? <p className="text-sm text-destructive">{t('ui_refresh.invalid_json')}</p> : <>
+              {readError ? <div role="alert" className="rounded-lg border border-destructive/20 p-4 text-sm"><p>{t('ui_refresh.read_error')}</p><p className="mt-2 break-words text-xs text-muted-foreground">{readError}</p><Button size="sm" variant="outline" className="mt-3" onClick={() => setRevision((n) => n + 1)}>{t('ui_refresh.retry')}</Button></div> : currentContent === undefined ? <Loader2 className="mx-auto my-10 h-6 w-6 animate-spin text-muted-foreground" /> : !document ? <p className="text-sm text-destructive">{t('ui_refresh.invalid_json')}</p> : <>
                 <h3 className="text-sm font-medium">{activeGroup || t('decks.no_entries')} <span className="ml-2 text-xs font-normal text-muted-foreground">{t('ui_refresh.entries', { count: entries.length })}</span></h3>
                 <ol className="divide-y rounded-lg border bg-muted/15">{entries.slice((page - 1) * 30, page * 30).map((entry, i) => <li key={i} className="flex gap-3 px-4 py-3"><span className="w-5 shrink-0 pt-0.5 font-mono text-[11px] text-muted-foreground">{(page - 1) * 30 + i + 1}</span><p className="min-w-0 whitespace-pre-wrap break-words text-sm leading-relaxed">{typeof entry === 'string' ? entry : JSON.stringify(entry)}</p></li>)}{!entries.length && <li className="p-8 text-center text-sm text-muted-foreground">{t('ui_refresh.empty_group')}</li>}</ol>
                 {pages > 1 && <div className="flex items-center justify-end gap-3"><Button size="sm" variant="outline" disabled={page === 1} onClick={() => setEntryPage(page - 1)}>{t('ui_refresh.previous')}</Button><span className="text-xs text-muted-foreground">{t('ui_refresh.page', { page, total: pages })}</span><Button size="sm" variant="outline" disabled={page === pages} onClick={() => setEntryPage(page + 1)}>{t('ui_refresh.next')}</Button></div>}

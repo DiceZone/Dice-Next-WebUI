@@ -6,6 +6,7 @@ import ts from 'typescript';
 import { createRequestGate } from '../.test-dist/lib/request-gate.js';
 import { confirmPageLeave, registerNavigationGuard } from '../.test-dist/lib/navigation-guard.js';
 import { nextScheduleRun, scheduleToday, timezoneLabel } from '../.test-dist/lib/schedule-time.js';
+import { runBatch } from '../.test-dist/lib/batch-operation.js';
 
 const deferred = () => { let resolve, reject; const promise = new Promise((a, b) => { resolve = a; reject = b; }); return { promise, resolve, reject }; };
 // Execute the actual component handlers with controlled responses. This catches
@@ -175,14 +176,56 @@ test('schedule estimates handle catch-up, intervals, one-off tasks and unknown t
   assert.equal(nextScheduleRun({ ...task, cronTime: '99:99' }, 480, now), '—');
 });
 
-test('schedule edit scrolls its form, respecting reduced-motion preference', () => {
-  for (const reduced of [true, false]) {
-    let options;
-    const run = handler('pages/schedules-page.tsx', 'startEdit', {
-      setEditingId() {}, setForm() {}, setDaySet() {}, setCondKind() {}, setCondN() {}, parseCond: () => ({ kind: 'none', n: 7 }),
-      requestAnimationFrame: (fn) => fn(), formRef: { current: { scrollIntoView: (o) => { options = o; } } },
-      window: { matchMedia: () => ({ matches: reduced }) },
-    });
-    run({ ...task, id: 1 }); assert.equal(options.behavior, reduced ? 'auto' : 'smooth');
+test('schedule edit opens a dialog with the task and a matching clean baseline', () => {
+  let form, baseline, opened = false;
+  const run = handler('pages/schedules-page.tsx', 'startEdit', {
+    setEditingId() {}, setForm(v) { form = v; }, setDaySet() {}, setCondKind() {}, setCondN() {}, parseCond: () => ({ kind: 'none', n: 7 }),
+    snapshot: (v) => JSON.stringify(v), setBaseline(v) { baseline = v; }, setEditorOpen(v) { opened = v; },
+  });
+  run({ ...task, id: 1 }); assert.equal(opened, true); assert.equal(baseline, JSON.stringify(form));
+});
+
+test('batch operations preserve failures for retry without stopping subsequent tasks', async () => {
+  const called = [];
+  const result = await runBatch([1, 2, 3], async (id) => { called.push(id); if (id === 2) throw new Error('offline'); });
+  assert.deepEqual(called, [1, 2, 3]); assert.deepEqual(result.succeeded, [1, 3]); assert.deepEqual(result.failed, [2]);
+});
+
+test('schedule batch delete cancellation sends no requests and releases the operation lock', async () => {
+  let writes = 0; const lock = { current: false };
+  const run = handler('pages/schedules-page.tsx', 'batch', { operationLock: lock, selectedIds: new Set([1, 2]), setBusy() {},
+    dlg: { confirm: async () => false }, t: (s) => s, fetch() { writes++; } });
+  await run('delete'); assert.equal(writes, 0); assert.equal(lock.current, false);
+});
+
+test('schedule batch updates only enabled and reports partial failures', async () => {
+  const calls = []; let selected, notice;
+  const run = handler('pages/schedules-page.tsx', 'batch', { operationLock: { current: false }, selectedIds: new Set([1, 2]), setBusy() {}, runBatch,
+    fetch: async (url, opts) => { calls.push([url, JSON.parse(opts.body)]); return { ok: true, json: async () => ({ code: url.endsWith('/2') ? 1 : 0 }) }; },
+    setSelectedIds(v) { selected = [...v]; }, toast(v) { notice = v; }, t: (_s, v) => v, load: async () => {} });
+  await run('disable'); assert.deepEqual(calls, [['/api/schedules/1', { enabled: false }], ['/api/schedules/2', { enabled: false }]]);
+  assert.deepEqual(selected, [2]); assert.equal(notice.title.ok, 1); assert.equal(notice.title.fail, 1);
+});
+
+test('workspace width defaults to modern, persists, and leaves classic page widths intact', () => {
+  const store = fs.readFileSync(new URL('../src/store/app-store.ts', import.meta.url), 'utf8');
+  const layout = fs.readFileSync(new URL('../src/components/layout/layout.tsx', import.meta.url), 'utf8');
+  assert.ok(store.includes("contentWidth: 'modern'")); assert.ok(store.includes('contentWidth: state.contentWidth'));
+  assert.ok(layout.includes("contentWidth !== 'classic' && 'mx-auto w-full max-w-7xl [&>*]:max-w-none'"));
+});
+
+test('group mutations choose the filtered adapter instead of another primary account', () => {
+  const primary = { adapterId: 'A', endpointId: 'group-A' }, filtered = { adapterId: 'B', endpointId: 'group-B' };
+  const run = handler('pages/groups-page.tsx', 'accountPayload', { primaryAccount: () => primary });
+  assert.equal(run({ accounts: [primary, filtered] }, 'B').endpointId, 'group-B');
+  assert.equal(run({ accounts: [primary, filtered] }, 'all').adapterId, 'A');
+});
+
+test('player selection waits for the detail leave guard and respects cancellation', async () => {
+  for (const allowed of [false, true]) {
+    const answer = deferred(); let changed = false;
+    const run = handler('pages/players-page.tsx', 'change', { leaveGuard: { current: () => answer.promise } });
+    const pending = run(() => { changed = true; });
+    assert.equal(changed, false); answer.resolve(allowed); await pending; assert.equal(changed, allowed);
   }
 });

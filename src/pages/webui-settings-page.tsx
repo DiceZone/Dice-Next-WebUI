@@ -14,7 +14,7 @@ import { PageHeader } from '@/components/ui/page-header';
 
 export const WebuiSettingsPage: React.FC = () => {
   const { t } = useTranslation();
-  const { apiKey, setApiKey, theme, setTheme } = zustandAppStore();
+  const { apiKey, setApiKey, theme, setTheme, contentWidth, setContentWidth } = zustandAppStore();
   const toast = useToast();
   const [localApiKey, setLocalApiKey] = useTourState(apiKey ?? '', 'demo-api-key');
   const [showKey, setShowKey] = useTourState(false, false);
@@ -102,6 +102,15 @@ export const WebuiSettingsPage: React.FC = () => {
   return (
     <div className="space-y-6 max-w-3xl">
       <PageHeader icon={Monitor} title={t('webui.title')} description={t('webui.desc')} />
+
+      <Card data-setting-anchor="webui-content-width">
+        <CardHeader><CardTitle className="text-base">{t('workspace.width')}</CardTitle><CardDescription>{t('workspace.width_hint')}</CardDescription></CardHeader>
+        <CardContent className="grid gap-3 sm:grid-cols-2">
+          {(['classic', 'modern'] as const).map((mode) => <button key={mode} type="button" aria-pressed={contentWidth === mode} onClick={() => setContentWidth(mode)} className={`rounded-lg border p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${contentWidth === mode ? 'border-primary bg-primary/5' : 'hover:bg-muted/50'}`}>
+            <span className="block text-sm font-medium">{t(`workspace.${mode}`)}</span><span className="mt-1 block text-sm text-muted-foreground">{t(`workspace.${mode}_hint`)}</span>
+          </button>)}
+        </CardContent>
+      </Card>
 
       {/* API Key */}
       <Card data-setting-anchor="webui-api-key">

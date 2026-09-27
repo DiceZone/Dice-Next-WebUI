@@ -24,7 +24,7 @@ export const Layout: React.FC<LayoutProps> = ({
   wsConnected = false,
   searchTarget,
 }) => {
-  const { sidebarCollapsed } = zustandAppStore();
+  const { sidebarCollapsed, contentWidth } = zustandAppStore();
   const [tourReplayToken, setTourReplayToken] = React.useState(0);
   // Held here rather than read inside the tour so that answering the welcome
   // question starts the current page's tour immediately.
@@ -107,7 +107,9 @@ export const Layout: React.FC<LayoutProps> = ({
             sidebarCollapsed ? 'lg:ml-0' : 'ml-0'
           )}
         >
-          {children}
+          <div className={cn('min-w-0', contentWidth !== 'classic' && 'mx-auto w-full max-w-7xl [&>*]:max-w-none')} data-content-width={contentWidth}>
+            {children}
+          </div>
         </main>
       </div>
       <OnboardingGate mode={tourMode} onChoose={chooseTourMode} />

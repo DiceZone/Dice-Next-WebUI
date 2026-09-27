@@ -3,6 +3,21 @@
 import { createServer } from 'vite';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath } from 'node:url';
+import { readFile } from 'node:fs/promises';
+import { transform } from 'esbuild';
+
+const sampleModule = await transform(await readFile(new URL('../src/lib/tour-samples.ts', import.meta.url), 'utf8'), { loader: 'ts', format: 'esm' });
+const { tourSamples } = await import('data:text/javascript;base64,' + Buffer.from(sampleModule.code).toString('base64'));
+const previewGroups = structuredClone(tourSamples.groups);
+previewGroups[1].accounts = [{ ...previewGroups[0].accounts[0], adapterId: 'preview-onebot', adapterName: '月海 · 预览', endpointId: previewGroups[1].groupId }];
+previewGroups.push({ ...structuredClone(previewGroups[1]), platform: 'qq_official', groupId: 'demo-official', name: '官方测试群 · 示例', accounts: [{ ...previewGroups[1].accounts[0], adapterId: 'preview-qq', adapterName: '星灯 · 预览', platform: 'qq_official', endpointId: 'demo-official' }] });
+const previewPlayers = structuredClone(tourSamples.players);
+const previewTasks = [
+  ...structuredClone(tourSamples.tasks),
+  { ...tourSamples.tasks[0], id: 2, name: '每小时提醒 · 示例', triggerType: 'interval', intervalMin: 60 },
+  { ...tourSamples.tasks[0], id: 3, name: '单次提醒 · 示例', triggerType: 'once', onceDate: '2026-10-01', enabled: false },
+];
+let nextTaskId = 4;
 
 const deckFiles = new Map(Object.entries({
   'journey.json': { _title: ['旅途奇遇集'], _author: ['Dice!Next · 预览样例'], _version: ['2.1'], _date: ['2026-09-21'], _brief: ['让每一次启程都有故事。\n森林、城镇与旅途中的随机灵感，适合在跑团间隙即兴使用。'], 森林奇遇: ['::3::一只白鹿停在林间，似乎在等你跟上。', '古老的树洞里藏着一封未寄出的信。', '溪流在这里分成两股，分别流向不同的季节。', '一位采药人向你打听{_旅人姓名}的下落。', '苔藓覆盖的石碑上，刻着队伍中某个人的名字。'], 酒馆传闻: ['北方的钟楼昨夜响了十三次。', '船长愿意用一张地图换你的故事。'], 旅途天气: ['晴朗，微风。', '::2::绵绵细雨，远处的山脊隐入云雾。'], _旅人姓名: ['艾琳', '灰雀', '莫里斯'] },
@@ -11,6 +26,10 @@ const deckFiles = new Map(Object.entries({
   'names.json': { _title: ['名字与地名'], _author: ['Dice!Next · 预览样例'], _brief: ['短名字，大世界。'], 城镇名: ['晨雾镇', '白石港', '风铃谷', '落星城'], 人物名: Array.from({ length: 67 }, (_, i) => `旅人 ${i + 1}`) },
 } ).map(([name, content]) => [name, JSON.stringify(content, null, 2)]));
 const state = {
+  '/groups': previewGroups, '/players': previewPlayers, '/schedules': previewTasks,
+  '/statistics/overview': tourSamples.statistics,
+  '/friends': { lists: {}, deletePlatforms: [], officialRealFriends: [] },
+  '/platform-caps': {},
   '/auth/status': { required: false, need_setup: false },
   '/system/status': { version: 'local-ui-preview', buildNumber: 0 },
   '/dashboard/stats': { uptime_seconds: 3600, active_connections: 0, total_adapters: 2, total_commands: 0, total_rules: 0, active_sessions: 0, recent_logs: [] },
@@ -76,6 +95,26 @@ const server = await createServer({
             const text = Buffer.concat(chunks).toString(); body = text ? JSON.parse(text) : {};
           }
           if (path === '/commands') return reply([{ cmd: 'r', title: '掷骰', category: '掷骰', sources: ['core'], example: '.r 1d100', desc: '投掷骰子，支持表达式与原因。', replies: [commandReply] }, ...commandCategories]);
+          if (path === '/schedules' && req.method === 'POST') { const task = { ...body, id: nextTaskId++, lastRun: '' }; previewTasks.push(task); return reply(task); }
+          if (/^\/schedules\/\d+$/.test(path)) {
+            const index = previewTasks.findIndex((task) => task.id === Number(path.split('/').at(-1)));
+            if (index < 0) throw new Error('Task not found');
+            if (req.method === 'PUT') { Object.assign(previewTasks[index], body); return reply(previewTasks[index]); }
+            if (req.method === 'DELETE') { previewTasks.splice(index, 1); return reply(null); }
+          }
+          if (/^\/players\/[^/]+\/[^/]+\/detail$/.test(path)) return reply({
+            groups: [{ id: 'demo-group', name: '周末调查团 · 示例' }],
+            cards: [{ id: 1, name: '调查员', attrs: { 力量: 50, 敏捷: 60, HP: 12 }, bound: [], updatedAt: '2026-09-01' }],
+            settings: [], luaVars: [], luaCards: [], lastMessageAt: 1788264000,
+          });
+          if (/^\/groups\/[^/]+\/[^/]+$/.test(path) && req.method === 'PUT') {
+            const [, , platform, groupId] = path.split('/');
+            const group = previewGroups.find((g) => g.platform === platform && g.groupId === groupId);
+            if (!group) throw new Error('Group not found');
+            const account = group.accounts?.find((a) => a.adapterId === body.adapterId);
+            Object.assign(account || group, body); if (account === group.accounts?.[0]) Object.assign(group, body);
+            return reply({});
+          }
           if (path === '/templates/preview') return reply({ markdown: body.text, onebot: body.text.replace(/\*\*/g, '') });
           if (path === '/templates' && req.method === 'PUT') {
             const help = helpDocs.find((entry) => entry.i18nKey === body.key);

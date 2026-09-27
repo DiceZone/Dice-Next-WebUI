@@ -3,6 +3,7 @@ import { tourSamples } from '@/lib/tour-samples';
 ﻿import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -16,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import {
   RefreshCw, Loader2, Users, Users2, Search, LogOut, ArrowLeft, X, Tag,
   Power, PowerOff, ShieldBan, Settings2, MessagesSquare, Send, Blocks, Moon,
-  LayoutGrid, Table2, ChevronLeft, ChevronRight, ScrollText, Trash2, Download, Upload,
+  LayoutGrid, Table2, Columns2, ChevronLeft, ChevronRight, ScrollText, Trash2, Download, Upload,
   ShieldCheck, UserPlus, Play,
   ChevronDown, Pencil, Image as ImageIcon, Smile, Plus, Sparkles, FolderOpen, FileText,
 } from 'lucide-react';
@@ -55,8 +56,8 @@ interface ChatLine { id: number; sender: string; userId?: string; content: strin
 
 const tagsOf = (g: Group) => g.remark.split(',').map((s) => s.trim()).filter(Boolean);
 const primaryAccount = (g: Group) => g.accounts?.find((a) => a.connected && !a.left) || g.accounts?.[0];
-const accountPayload = (g: Group) => {
-  const a = primaryAccount(g);
+const accountPayload = (g: Group, adapterId?: string) => {
+  const a = g.accounts?.find((a) => a.adapterId === adapterId) || primaryAccount(g);
   return a ? { adapterId: a.adapterId, endpointId: a.endpointId } : {};
 };
 
@@ -126,11 +127,16 @@ export const GroupsPage: React.FC = () => {
   const [search, setSearch] = useTourState('', '');
   const [selected, setSelected] = useState<Group | null>(null);
   const showingSamples = useTourActive();
-  const [view, setView] = useTourState<'card' | 'table'>('card', 'card');
+  const [view, setView] = useTourState<'split' | 'card' | 'table'>('split', 'split');
   const [page, setPage] = useTourState(1, 1);
   const welcomeRef = useRef<HTMLTextAreaElement>(null);
   const [tab, setTab] = useTourState<'active' | 'archived'>('active', 'active');
 
+  const [adapterFilter, setAdapterFilter] = useTourState('all', 'all');
+  const groupKey = (g: Group) => JSON.stringify([g.platform, g.groupId]);
+  const adapterOptions = [...new Map(groups.flatMap((g) => g.accounts?.length
+    ? g.accounts.map((a) => [a.adapterId, a.adapterName || a.loginName || a.adapterId] as const).filter(([id]) => id)
+    : [[`platform:${g.platform}`, platformLabel(g.platform)] as const])).entries()];
   const pageSize = view === 'card' ? 12 : 15;
 
   const fetchGroups = useCallback(async () => {
@@ -138,7 +144,7 @@ export const GroupsPage: React.FC = () => {
     try {
       const data = await jget<Group[]>('/groups');
       setGroups(data || []);
-      setSelected((cur) => cur ? (data || []).find((g) => g.groupId === cur.groupId) || cur : cur);
+      setSelected((cur) => cur ? (data || []).find((g) => groupKey(g) === groupKey(cur)) || null : cur);
     } catch { toast({ title: t('common.load_fail'), variant: 'destructive' }); }
     finally { setLoading(false); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -147,7 +153,7 @@ export const GroupsPage: React.FC = () => {
 
   const put = async (g: Group, body: Record<string, unknown>, silent = false) => {
     try {
-      const result: GroupControlResult | null = await jsend('PUT', `/groups/${g.platform}/${g.groupId}`, { ...body, ...accountPayload(g) });
+      const result: GroupControlResult | null = await jsend('PUT', `/groups/${g.platform}/${g.groupId}`, { ...body, ...accountPayload(g, adapterFilter) });
       if (!silent || result?.logPaused) toast({ title: t('common.save_success'),
         description: result?.logPaused ? t('groups.log_paused_notice', { name: result.logName }) : undefined });
       await fetchGroups();
@@ -170,15 +176,21 @@ export const GroupsPage: React.FC = () => {
   // Groups are auto-discovered from the bot's joined-group list, so there's no
   // manual "add" — this box filters the list by name / group id / remark tag.
   const q = search.trim().toLowerCase();
+  const scoped = groups.filter((g) => adapterFilter === 'all' || g.accounts?.some((a) => a.adapterId === adapterFilter) || (!g.accounts?.length && adapterFilter === `platform:${g.platform}`)).map((g) => {
+    const account = g.accounts?.find((a) => a.adapterId === adapterFilter);
+    return account ? { ...g, ...account, platform: g.platform } : g;
+  });
   const matched = q
-    ? groups.filter((g) => g.name.toLowerCase().includes(q) || g.groupId.includes(q) || g.remark.toLowerCase().includes(q))
-    : groups;
+    ? scoped.filter((g) => g.name.toLowerCase().includes(q) || g.groupId.includes(q) || g.remark.toLowerCase().includes(q))
+    : scoped;
   const activeGroups = matched.filter((g) => !g.left);
   const archivedGroups = matched.filter((g) => g.left);
   const list = tab === 'active' ? activeGroups : archivedGroups;
   const pages = Math.max(1, Math.ceil(list.length / pageSize));
   const curPage = Math.min(page, pages);
   const shown = list.slice((curPage - 1) * pageSize, curPage * pageSize);
+
+  const active = shown.find((g) => selected && groupKey(g) === groupKey(selected)) ?? shown[0];
 
   // ── tag chips + add button (shared by card & table) ──
   const Tags: React.FC<{ g: Group; compact?: boolean }> = ({ g, compact }) => (
@@ -224,18 +236,22 @@ export const GroupsPage: React.FC = () => {
   return (
     <>
       {dlg.node}
-      <div hidden={showingSamples}>
+      <div hidden={showingSamples || view === 'split'}>
         <TourDataContext.Provider value={false}>
-          {selected && <GroupDetail group={selected} dlg={dlg} onBack={() => setSelected(null)} onChanged={fetchGroups} welcomeRef={welcomeRef} />}
+          {view !== 'split' && selected && <GroupDetail key={groupKey(selected) + adapterFilter} initialAdapterId={adapterFilter} group={selected} dlg={dlg} onBack={() => setSelected(null)} onChanged={fetchGroups} welcomeRef={welcomeRef} />}
         </TourDataContext.Provider>
       </div>
-      <div hidden={Boolean(selected) && !showingSamples} className="space-y-6">
+      <div hidden={Boolean(selected) && !showingSamples && view !== 'split'} className="space-y-6">
         <PageHeader icon={Users} title={t('groups.title')} description={t('groups.subtitle')}
           actions={<div data-tour="groups-view-actions" className="flex items-center gap-2">
-            <Button variant="outline" size="icon" title={view === 'card' ? t('groups.view_table') : t('groups.view_card')}
-              onClick={() => setView(view === 'card' ? 'table' : 'card')}>
-              {view === 'card' ? <Table2 className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
-            </Button>
+            <Select value={view} onValueChange={(value) => { setView(value as typeof view); setSelected(null); setPage(1); }}>
+              <SelectTrigger aria-label={t('workspace.view')} className="w-36"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="split"><span className="flex items-center gap-2"><Columns2 className="h-4 w-4" />{t('workspace.split')}</span></SelectItem>
+                <SelectItem value="card"><span className="flex items-center gap-2"><LayoutGrid className="h-4 w-4" />{t('groups.view_card')}</span></SelectItem>
+                <SelectItem value="table"><span className="flex items-center gap-2"><Table2 className="h-4 w-4" />{t('groups.view_table')}</span></SelectItem>
+              </SelectContent>
+            </Select>
             <Button variant="outline" onClick={fetchGroups} disabled={loading}>
               <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />{t('common.refresh')}
             </Button>
@@ -248,6 +264,10 @@ export const GroupsPage: React.FC = () => {
             <Input className="pl-8" placeholder={t('groups.search_placeholder')} value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
           </div>
+          <Select value={adapterFilter} onValueChange={(v) => { setAdapterFilter(v); setSelected(null); setPage(1); }}>
+            <SelectTrigger aria-label={t('workspace.adapter')} className="w-full sm:w-56"><SelectValue /></SelectTrigger>
+            <SelectContent><SelectItem value="all">{t('workspace.all_adapters')}</SelectItem>{adapterOptions.map(([id, name]) => <SelectItem key={id} value={id}>{name}</SelectItem>)}</SelectContent>
+          </Select>
           <TabsList variant="page" aria-label={t('groups.title')}>
             <TabsTrigger value="active">
               <Users2 className="h-4 w-4" />{t('groups.tab_active')}<span className="text-xs text-muted-foreground">{activeGroups.length}</span>
@@ -259,7 +279,7 @@ export const GroupsPage: React.FC = () => {
         </div>
 
         <TabsContent value={tab} data-tour="groups-list" className="mt-0">
-        {loading ? (
+        {loading && !groups.length ? (
           <div className="flex items-center justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
         ) : groups.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
@@ -271,6 +291,21 @@ export const GroupsPage: React.FC = () => {
           <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
             {tab === 'archived' ? <LogOut className="h-12 w-12 mb-3" /> : <Search className="h-12 w-12 mb-3" />}
             <p className="text-lg mb-1">{tab === 'archived' ? t('groups.archived_empty') : t('groups.no_match')}</p>
+          </div>
+        ) : view === 'split' ? (
+          <div className="grid items-start gap-4 lg:grid-cols-[300px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)]">
+            <Card className="overflow-hidden p-2 shadow-none">
+              <div className="max-h-[260px] space-y-1 overflow-y-auto lg:max-h-[65vh]" aria-label={t('groups.title')}>
+                {shown.map((g) => <button key={groupKey(g)} type="button" aria-pressed={active && groupKey(active) === groupKey(g)} onClick={() => setSelected(g)} className={cn('flex w-full items-start gap-3 rounded-lg border p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', active && groupKey(active) === groupKey(g) ? 'border-primary/20 bg-primary/[0.07]' : 'border-transparent hover:bg-muted/60')}>
+                  <GroupAvatar groupId={g.groupId} platform={g.platform} />
+                  <span className="min-w-0 flex-1"><span className="block break-words text-sm font-medium">{g.name}</span><span className="mt-1 block break-all font-mono text-xs text-muted-foreground">{g.groupId}</span><span className="mt-2 flex flex-wrap gap-1"><StatusBadge g={g} t={t} /><PlatformIcon platform={g.platform} /></span></span>
+                </button>)}
+              </div>
+              <Pager page={curPage} pages={pages} onPage={setPage} />
+            </Card>
+            <Card className="min-w-0 p-4 shadow-none sm:p-6">
+              {active ? <GroupDetail key={groupKey(active) + adapterFilter + String(showingSamples)} embedded initialAdapterId={adapterFilter} group={active} dlg={dlg} onBack={() => setSelected(null)} onChanged={fetchGroups} welcomeRef={welcomeRef} /> : <p>{t('workspace.select_group')}</p>}
+            </Card>
           </div>
         ) : view === 'card' ? (
           <>
@@ -354,8 +389,9 @@ export const GroupsPage: React.FC = () => {
 };
 
 // ─── Detail view: 功能管理 / 人员管理 / 模拟聊天 ────────────────
-const GroupDetail: React.FC<{ group: Group; dlg: any; onBack: () => void; onChanged: () => void; welcomeRef: React.RefObject<HTMLTextAreaElement> }> = ({ group, dlg, onBack, onChanged, welcomeRef }) => {
+const GroupDetail: React.FC<{ group: Group; embedded?: boolean; initialAdapterId?: string; dlg: any; onBack: () => void; onChanged: () => void; welcomeRef: React.RefObject<HTMLTextAreaElement> }> = ({ group, embedded, initialAdapterId, dlg, onBack, onChanged, welcomeRef }) => {
   const { t } = useTranslation();
+  const showingSamples = useTourActive();
   const toast = useToast();
   const [tab, setTab] = useState<'function' | 'plugins' | 'members' | 'qqadmin' | 'logs' | 'chat' | 'ai' | 'files'>('function');
   const accounts = group.accounts?.length ? group.accounts : [{
@@ -365,7 +401,7 @@ const GroupDetail: React.FC<{ group: Group; dlg: any; onBack: () => void; onChan
     memberCount: group.memberCount, inviter: group.inviter, locale: group.locale, left: group.left,
     welcome: group.welcome, welcome_delay: group.welcome_delay, welcome_cooldown: group.welcome_cooldown,
   } satisfies GroupAccount];
-  const [accountId, setAccountId] = useState(() => (accounts.find((a) => a.connected && !a.left) || accounts[0]).adapterId);
+  const [accountId, setAccountId] = useState(() => (accounts.find((a) => a.adapterId === initialAdapterId) || accounts.find((a) => a.connected && !a.left) || accounts[0]).adapterId);
   const account = accounts.find((a) => a.adapterId === accountId) || accounts[0];
   const activeGroup: Group = { ...group, ...account, platform: account.platform, accounts: group.accounts };
   const base = `/groups/${activeGroup.platform}/${group.groupId}`;
@@ -373,9 +409,10 @@ const GroupDetail: React.FC<{ group: Group; dlg: any; onBack: () => void; onChan
   // 平台能力位：按能力隐藏该平台不支持的 tab（成员列表/群文件），取不到时全显示。
   const [caps, setCaps] = useState<Record<string, Record<string, boolean>> | null>(null);
   useEffect(() => {
+    if (showingSamples) return;
     fetch('/api/platform-caps').then((r) => r.json())
       .then((j) => setCaps(j.data || {})).catch(() => setCaps(null));
-  }, []);
+  }, [showingSamples]);
   const pcaps = caps?.[activeGroup.platform];
   const tabVisible = (k: string) => {
     if (!pcaps) return true;
@@ -387,11 +424,11 @@ const GroupDetail: React.FC<{ group: Group; dlg: any; onBack: () => void; onChan
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={onBack}><ArrowLeft className="h-4 w-4" /></Button>
+      <div className="flex min-w-0 flex-wrap items-center gap-3">
+        {!embedded && <Button variant="ghost" size="icon" onClick={onBack}><ArrowLeft className="h-4 w-4" /></Button>}
         <GroupAvatar groupId={group.groupId} platform={activeGroup.platform} />
         <div>
-          <h1 className="text-xl font-bold tracking-tight leading-tight">{group.name}</h1>
+          <h1 className="break-words text-xl font-bold tracking-tight leading-tight">{group.name}</h1>
           <div className="flex items-center gap-2 mt-0.5">
             <StatusBadge g={activeGroup} t={t} />
             <span className="inline-flex min-w-0 items-center gap-1 rounded bg-muted px-2 py-0.5 text-xs">
@@ -445,7 +482,7 @@ const GroupDetail: React.FC<{ group: Group; dlg: any; onBack: () => void; onChan
           </TabsTrigger>
         ))}
       </TabsList>
-      <TabsContent value={tab} className="mt-0">
+      <TabsContent key={`${base}:${account.adapterId}`} value={tab} className="mt-0">
       {tab === 'function' && <FunctionTab group={activeGroup} base={base} scopedBody={scopedBody} onChanged={onChanged} onBack={onBack} goChat={() => setTab('chat')} t={t} toast={toast} dlg={dlg} welcomeRef={welcomeRef} />}
       {tab === 'ai' && <AiGroupTab group={activeGroup} base={base} scopedBody={scopedBody} onChanged={onChanged} t={t} toast={toast} dlg={dlg} />}
       {tab === 'plugins' && <PluginsTab group={activeGroup} adapterId={account.adapterId} t={t} toast={toast} />}
@@ -605,6 +642,7 @@ const PluginsTab: React.FC<any> = ({ group, adapterId, t, toast }) => {
 
 // ── 功能管理 ──
 const FunctionTab: React.FC<any> = ({ group, base, scopedBody, onChanged, onBack, goChat, t, toast, dlg, welcomeRef }) => {
+  const showingSamples = useTourActive();
   const [savingSwitch, setSavingSwitch] = useState(false);
   const [card, setCard] = useState(group.card || '');
   const [editingCard, setEditingCard] = useState(false);   // C#50: 名片默认只读，点「修改」才编辑
@@ -616,18 +654,19 @@ const FunctionTab: React.FC<any> = ({ group, base, scopedBody, onChanged, onBack
   const [locales, setLocales] = useState<{ code: string; name: string }[]>([]);
   const [personas, setPersonas] = useState<PersonaTemplate[]>([]);
   const [personaInfo, setPersonaInfo] = useState<ActivePersonaInfo | null>(null);
-  const [personaLoading, setPersonaLoading] = useState(true);
+  const [personaLoading, setPersonaLoading] = useState(!showingSamples);
   // Bound cross-platform groups may have a logical groupId that differs from
   // the selected adapter's real endpoint. Runtime persona lookup uses the
   // message targetId, so the editor must use that same endpoint here.
   const personaTargetId = group.endpointId || group.groupId;
-  const personaAdapterId = primaryAccount(group)?.adapterId || '';
+  const personaAdapterId = scopedBody.adapterId || primaryAccount(group)?.adapterId || '';
   useEffect(() => {
+    if (showingSamples) return;
     (async () => {
       try { const d = await jget<{ code: string; name: string }[]>('/i18n/locales'); setLocales(d || []); }
       catch { /* ignore */ }
     })();
-  }, []);
+  }, [showingSamples]);
 
   const loadPersonaState = useCallback(async () => {
     setPersonaLoading(true);
@@ -646,7 +685,7 @@ const FunctionTab: React.FC<any> = ({ group, base, scopedBody, onChanged, onBack
     }
   }, [personaTargetId, personaAdapterId, group.platform, t, toast]);
 
-  useEffect(() => { void loadPersonaState(); }, [loadPersonaState]);
+  useEffect(() => { if (!showingSamples) void loadPersonaState(); }, [loadPersonaState, showingSamples]);
 
   const setGroupPersona = async (value: string) => {
     setPersonaLoading(true);
@@ -683,6 +722,7 @@ const FunctionTab: React.FC<any> = ({ group, base, scopedBody, onChanged, onBack
 
   // Fetch the bot's own nickname for this platform (fallback display when no group card).
   useEffect(() => {
+    if (showingSamples) return;
     (async () => {
       try {
         const list = await jget<any[]>('/adapters');
@@ -690,7 +730,7 @@ const FunctionTab: React.FC<any> = ({ group, base, scopedBody, onChanged, onBack
         if (a?.loginName) setBotNick(a.loginName);
       } catch { /* ignore — fallback stays empty */ }
     })();
-  }, [group.platform]);
+  }, [group.platform, showingSamples]);
 
   const save = async (body: Record<string, unknown>) => {
     try {
