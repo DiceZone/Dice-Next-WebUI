@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Scroll, Upload, Trash2, Pencil, Download, RefreshCw, Dices, Plus, Package, Info } from 'lucide-react';
 import { RuleEditor } from './rule-editor';
 import { PaginationBar } from '@/components/ui/pagination-bar';
+import { PageHeader } from '@/components/ui/page-header';
 
 // C#27：规则包 bundle（data/rulepacks/<包>/，含 pack.json + rules/helpdoc/lua/js）。
 interface RuleBundle {
@@ -130,20 +131,15 @@ export const RulesPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2"><Scroll className="h-5 w-5" />{t('rules.title')}</h1>
-          <p className="text-sm text-muted-foreground">{t('rules.desc')}</p>
-        </div>
-        <div data-tour="rules-actions" className="flex flex-wrap gap-2">
-          <Button size="sm" variant="outline" onClick={loadAll} disabled={loading}><RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />{t('common.refresh')}</Button>
-          <Button size="sm" variant="outline" onClick={() => zipRef.current?.click()}><Package className="mr-2 h-4 w-4" />{t('rules.import_bundle')}</Button>
+      <PageHeader icon={Scroll} title={t('rules.title')} description={t('rules.desc')}
+        actions={<div data-tour="rules-actions" className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={loadAll} disabled={loading}><RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />{t('common.refresh')}</Button>
+          <Button variant="outline" onClick={() => zipRef.current?.click()}><Package className="mr-2 h-4 w-4" />{t('rules.import_bundle')}</Button>
           <input ref={zipRef} type="file" accept=".zip" className="hidden" onChange={onUploadZip} />
-          <Button size="sm" variant="outline" onClick={() => fileRef.current?.click()}><Upload className="mr-2 h-4 w-4" />{t('rules.import')}</Button>
+          <Button variant="outline" onClick={() => fileRef.current?.click()}><Upload className="mr-2 h-4 w-4" />{t('rules.import')}</Button>
           <input ref={fileRef} type="file" accept=".json,application/json" className="hidden" onChange={onUpload} />
-          <Button size="sm" onClick={() => setEditorFile('')}><Plus className="mr-2 h-4 w-4" />{t('ruleed.new')}</Button>
-        </div>
-      </div>
+          <Button onClick={() => setEditorFile('')}><Plus className="mr-2 h-4 w-4" />{t('ruleed.new')}</Button>
+        </div>} />
 
       {/* C#27 规则包 bundle 区 */}
       {bundles.length > 0 && (
@@ -155,9 +151,10 @@ export const RulesPage: React.FC = () => {
           </div>
           {bundles.map((b) => (
             <Card key={b.folder} className={b.enabled ? 'overflow-hidden border-primary/30' : 'opacity-60 overflow-hidden'}>
-              <CardContent className="flex items-center gap-3 py-3">
-                <span className="flex h-9 w-9 items-center justify-center rounded-md bg-primary/10 text-primary shrink-0"><Package className="h-5 w-5" /></span>
-                <div className="min-w-0 flex-1">
+              <CardContent className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center">
+                <div className="flex min-w-0 w-full items-start gap-3 sm:flex-1">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-md bg-primary/10 text-primary shrink-0"><Package className="h-5 w-5" /></span>
+                  <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-medium">{b.name}</span>
                     {b.version && <span className="text-xs text-muted-foreground">v{b.version}</span>}
@@ -171,10 +168,13 @@ export const RulesPage: React.FC = () => {
                     <span>· {t('rules.bundle_stat', { rules: b.ruleFiles, cmds: b.cmdCount, help: b.helpdocEntries })}</span>
                     {(b.luaMods > 0 || b.jsPlugins > 0) && <span>· {t('rules.bundle_plugins', { lua: b.luaMods, js: b.jsPlugins })}</span>}
                   </div>
+                  </div>
                 </div>
-                <Button size="icon" variant="ghost" className="h-9 w-9 shrink-0" title={t('rules.bundle_contents')} onClick={() => setDetailBundle(b)}><Info className="h-4 w-4" /></Button>
-                <Switch checked={b.enabled} onCheckedChange={() => toggleBundle(b)} title={t('rules.toggle')} />
-                <Button size="icon" variant="ghost" className="h-9 w-9 shrink-0 text-destructive" title={t('common.delete')} onClick={() => setConfirmDelBundle(b)}><Trash2 className="h-4 w-4" /></Button>
+                <div className="flex w-full items-center justify-end gap-1 sm:w-auto">
+                  <Button size="icon" variant="ghost" className="h-9 w-9 shrink-0" title={t('rules.bundle_contents')} onClick={() => setDetailBundle(b)}><Info className="h-4 w-4" /></Button>
+                  <Switch checked={b.enabled} onCheckedChange={() => toggleBundle(b)} title={t('rules.toggle')} />
+                  <Button size="icon" variant="ghost" className="h-9 w-9 shrink-0 text-destructive" title={t('common.delete')} onClick={() => setConfirmDelBundle(b)}><Trash2 className="h-4 w-4" /></Button>
+                </div>
               </CardContent>
             </Card>
           ))}
@@ -194,9 +194,10 @@ export const RulesPage: React.FC = () => {
                 const p = item.data as RulePack;
                 return (
           <Card key={p.file} className={p.enabled ? 'overflow-hidden' : 'opacity-60 overflow-hidden'}>
-            <CardContent className="flex items-center gap-3 py-3">
-              <span className="flex h-9 w-9 items-center justify-center rounded-md bg-primary/10 text-primary shrink-0"><Dices className="h-5 w-5" /></span>
-              <div className="min-w-0 flex-1">
+            <CardContent className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center">
+              <div className="flex min-w-0 w-full items-start gap-3 sm:flex-1">
+                <span className="flex h-9 w-9 items-center justify-center rounded-md bg-primary/10 text-primary shrink-0"><Dices className="h-5 w-5" /></span>
+                <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-medium">{p.fullName || p.name}</span>
                   {p.version && <span className="text-xs text-muted-foreground">v{p.version}</span>}
@@ -217,11 +218,14 @@ export const RulesPage: React.FC = () => {
                     {p.disableCmds.map((d) => <Badge key={'d' + d} variant="outline" className="font-mono text-[11px] line-through opacity-70">.{d}</Badge>)}
                   </div>
                 )}
+                </div>
               </div>
-              <Switch checked={p.enabled} onCheckedChange={() => toggle(p)} title={t('rules.toggle')} />
-              <Button size="icon" variant="ghost" className="h-9 w-9 shrink-0" title={t('rules.edit')} onClick={() => setEditorFile(p.file)}><Pencil className="h-4 w-4" /></Button>
-              <Button size="icon" variant="ghost" className="h-9 w-9 shrink-0" title={t('rules.export')} onClick={() => exportPack(p.file)}><Download className="h-4 w-4" /></Button>
-              {!p.builtin && <Button size="icon" variant="ghost" className="h-9 w-9 shrink-0 text-destructive" title={t('common.delete')} onClick={() => setConfirmDel(p.file)}><Trash2 className="h-4 w-4" /></Button>}
+              <div className="flex w-full items-center justify-end gap-1 sm:w-auto">
+                <Switch checked={p.enabled} onCheckedChange={() => toggle(p)} title={t('rules.toggle')} />
+                <Button size="icon" variant="ghost" className="h-9 w-9 shrink-0" title={t('rules.edit')} onClick={() => setEditorFile(p.file)}><Pencil className="h-4 w-4" /></Button>
+                <Button size="icon" variant="ghost" className="h-9 w-9 shrink-0" title={t('rules.export')} onClick={() => exportPack(p.file)}><Download className="h-4 w-4" /></Button>
+                {!p.builtin && <Button size="icon" variant="ghost" className="h-9 w-9 shrink-0 text-destructive" title={t('common.delete')} onClick={() => setConfirmDel(p.file)}><Trash2 className="h-4 w-4" /></Button>}
+              </div>
             </CardContent>
           </Card>
               );
@@ -230,11 +234,12 @@ export const RulesPage: React.FC = () => {
             const langBadge = cr.kind === 'js' ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' : 'bg-blue-500/10 text-blue-600 dark:text-blue-400';
             return (
               <Card key={cr.kind + '/' + cr.file} className={cr.enabled ? 'overflow-hidden' : 'opacity-60 overflow-hidden'}>
-                <CardContent className="flex items-center gap-3 py-3">
-                  <span className={`flex h-9 w-9 items-center justify-center rounded-md shrink-0 ${langBadge}`}>
-                    <span className="font-mono font-bold text-xs">{cr.kind === 'js' ? '{js}' : '{lua}'}</span>
-                  </span>
-                  <div className="min-w-0 flex-1">
+                <CardContent className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center">
+                  <div className="flex min-w-0 w-full items-start gap-3 sm:flex-1">
+                    <span className={`flex h-9 w-9 items-center justify-center rounded-md shrink-0 ${langBadge}`}>
+                      <span className="font-mono font-bold text-xs">{cr.kind === 'js' ? '{js}' : '{lua}'}</span>
+                    </span>
+                    <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium">{cr.name}</span>
                       {cr.version && <span className="text-xs text-muted-foreground">v{cr.version}</span>}
@@ -250,8 +255,9 @@ export const RulesPage: React.FC = () => {
                     ) : (
                       <p className="mt-1 text-[10px] text-muted-foreground italic opacity-50">{t('modules.no_commands')}</p>
                     )}
+                    </div>
                   </div>
-                  <Switch checked={cr.enabled} onCheckedChange={() => toggleCompat(cr)} title={t('rules.toggle')} />
+                  <div className="flex w-full justify-end sm:w-auto"><Switch checked={cr.enabled} onCheckedChange={() => toggleCompat(cr)} title={t('rules.toggle')} /></div>
                 </CardContent>
               </Card>
             );

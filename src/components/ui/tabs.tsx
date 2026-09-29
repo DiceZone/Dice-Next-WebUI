@@ -6,12 +6,16 @@ const Tabs = TabsPrimitive.Root;
 
 const TabsList = React.forwardRef<
   React.ElementRef<typeof TabsPrimitive.List>,
-  React.ComponentPropsWithoutRef<typeof TabsPrimitive.List>
->(({ className, ...props }, ref) => (
+  React.ComponentPropsWithoutRef<typeof TabsPrimitive.List> & { variant?: 'compact' | 'page' }
+>(({ className, variant = 'compact', ...props }, ref) => (
   <TabsPrimitive.List
     ref={ref}
+    data-variant={variant}
     className={cn(
-      'inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground',
+      'group/tabs inline-flex h-auto max-w-full flex-wrap items-center gap-1 rounded-lg p-1 text-muted-foreground',
+      variant === 'page'
+        ? 'h-[42px] w-fit flex-nowrap justify-start overflow-x-auto overflow-y-hidden rounded-lg border bg-card p-1 shadow-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
+        : 'justify-start bg-muted/70',
       className
     )}
     {...props}
@@ -26,7 +30,7 @@ const TabsTrigger = React.forwardRef<
   <TabsPrimitive.Trigger
     ref={ref}
     className={cn(
-      'inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm',
+      'inline-flex min-w-0 max-w-full items-center justify-center gap-2 whitespace-normal break-words rounded-md px-3 py-1.5 text-sm font-medium ring-offset-background transition-colors hover:bg-background/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm [&_svg]:shrink-0 group-data-[variant=page]/tabs:h-full group-data-[variant=page]/tabs:max-w-none group-data-[variant=page]/tabs:shrink-0 group-data-[variant=page]/tabs:whitespace-nowrap group-data-[variant=page]/tabs:rounded-md group-data-[variant=page]/tabs:px-3 group-data-[variant=page]/tabs:py-1 group-data-[variant=page]/tabs:focus-visible:ring-inset group-data-[variant=page]/tabs:focus-visible:ring-offset-0 group-data-[variant=page]/tabs:data-[state=active]:bg-primary/10 group-data-[variant=page]/tabs:data-[state=active]:shadow-none',
       className
     )}
     {...props}
@@ -41,7 +45,7 @@ const TabsContent = React.forwardRef<
   <TabsPrimitive.Content
     ref={ref}
     className={cn(
-      'mt-2 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+      'mt-2 min-w-0 w-full ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
       className
     )}
     {...props}

@@ -60,7 +60,7 @@ export const CausalRuleTable: React.FC<Props> = ({
             className="pl-9"
           />
         </div>
-        <Button size="sm" onClick={onCreate}><Plus className="mr-2 h-4 w-4" />{t('causal.new')}</Button>
+        <Button onClick={onCreate}><Plus className="mr-2 h-4 w-4" />{t('causal.new')}</Button>
       </div>
 
       {loading ? (
@@ -75,7 +75,7 @@ export const CausalRuleTable: React.FC<Props> = ({
         <div className="space-y-2">
           {filtered.map((rule) => (
             <Card key={rule.id} className={!rule.enabled ? 'opacity-60' : ''}>
-              <CardContent className="flex items-start gap-3 py-3">
+              <CardContent className="flex flex-col gap-3 py-3 sm:flex-row sm:items-start">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-medium">{rule.name || t('causal.unnamed')}</span>
@@ -94,8 +94,8 @@ export const CausalRuleTable: React.FC<Props> = ({
                     ))}
                   </div>
                 </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  <Switch checked={rule.enabled} onCheckedChange={() => onToggle(rule.id)} />
+                <div className="flex w-full items-center justify-end gap-1 border-t pt-2 sm:w-auto sm:shrink-0 sm:border-0 sm:pt-0">
+                  <Switch className="mr-auto sm:mr-0" checked={rule.enabled} aria-label={`${t('common.enabled')} · ${rule.name || t('causal.unnamed')}`} onCheckedChange={() => onToggle(rule.id)} />
                   <Button variant="ghost" size="icon" className="h-8 w-8" title={t('common.edit')} onClick={() => onEdit(rule)}>
                     <Edit3 className="h-4 w-4" />
                   </Button>

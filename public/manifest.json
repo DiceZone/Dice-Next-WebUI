@@ -1,0 +1,18 @@
+{
+  "id": "/",
+  "name": "Dice!Next — 管理面板",
+  "short_name": "Dice!Next",
+  "description": "Dice!Next 骰子机器人管理面板，用于管理连接、群组、玩家、牌堆与回复。",
+  "lang": "zh-CN",
+  "start_url": "/#/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#fafbff",
+  "theme_color": "#fafbff",
+  "prefer_related_applications": false,
+  "icons": [
+    { "src": "/icons/app-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/app-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/app-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

@@ -33,19 +33,11 @@ export const PlaygroundPage: React.FC = () => {
   const [locale, setLocale] = React.useState('');
   const [nickname, setNickname] = useTourState(t('playground.default_nick'), '小夏');
   const [sending, setSending] = React.useState(false);
-  const bottomRef = React.useRef<HTMLDivElement>(null);
+  const chatRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
-    // Prevent main container from scrolling — playground handles its own scroll
-    const main = document.querySelector('main');
-    if (main) {
-      main.style.overflow = 'hidden';
-      return () => { main.style.overflow = ''; };
-    }
-  }, []);
-
-  React.useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const chat = chatRef.current;
+    chat?.scrollTo({ top: chat.scrollHeight, behavior: 'smooth' });
   }, [items]);
 
   const send = async (text: string) => {
@@ -129,7 +121,7 @@ export const PlaygroundPage: React.FC = () => {
       </div>
 
       {/* Chat area */}
-      <div data-tour="playground-chat" className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
+      <div ref={chatRef} data-tour="playground-chat" className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
         {items.map((item, i) => (
           <div key={i} className={cn('flex', item.role === 'user' ? 'justify-end' : 'justify-start')}>
             <div
@@ -145,7 +137,6 @@ export const PlaygroundPage: React.FC = () => {
             </div>
           </div>
         ))}
-        <div ref={bottomRef} />
       </div>
 
       {/* Quick commands */}
@@ -159,7 +150,7 @@ export const PlaygroundPage: React.FC = () => {
       </div>
 
       {/* Input */}
-      <div data-tour="playground-composer" className="flex gap-2 p-4 pt-3">
+      <div data-tour="playground-composer" className="flex shrink-0 gap-2 p-4 pt-3">
         <Input
           value={input}
           onChange={(e) => setInput(e.target.value)}

@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { apiClient } from '@/lib/api-client';
 import { formatBuildTimeUtc8 } from '@/lib/build-time';
 import { useDialogs } from '@/hooks/use-dialogs';
+import { PageHeader } from '@/components/ui/page-header';
 import {
   getVisibleUpdateError,
   INITIAL_UPDATE_ERROR_NOTICE,
@@ -240,10 +241,7 @@ export const AboutPage: React.FC = () => {
 
   return (
     <div className="space-y-6 max-w-2xl">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2"><Info className="h-5 w-5" />{t('about.title')}</h1>
-        <p className="text-sm text-muted-foreground">{t('about.subtitle')}</p>
-      </div>
+      <PageHeader icon={Info} title={t('about.title')} description={t('about.subtitle')} />
 
       <Card>
         <CardHeader>

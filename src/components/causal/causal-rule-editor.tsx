@@ -16,6 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { useRequestGate } from '@/hooks/use-request-gate';
 import { Plus, Trash2, FlaskConical, Sparkles } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import type { CausalRule, CausalCondition, CausalAction, CausalCondType, CausalActionType } from '@/types/causal';
@@ -26,7 +27,7 @@ interface Props {
   rule: CausalRule;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (rule: CausalRule) => void;
+  onSave: (rule: CausalRule) => Promise<void>;
 }
 
 // ── 条件「白话操作符」→ 后端类型映射（修掉 keyword=完全等于 的误导）──
@@ -114,6 +115,14 @@ export const CausalRuleEditor: React.FC<Props> = ({ rule, open, onOpenChange, on
   const [testMsg, setTestMsg] = useState('');
   const [testResult, setTestResult] = useState<CausalMatchResult | null>(null);
   const [testing, setTesting] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
+  const [testUser, setTestUser] = useState('test-user');
+  const [testGroup, setTestGroup] = useState('test-group');
+  const [testNick, setTestNick] = useState('TestUser');
+  const testKey = JSON.stringify([open, editing, testMsg, testUser, testGroup, testNick]);
+  const testGate = useRequestGate(testKey);
+  React.useEffect(() => { setTestResult(null); }, [testKey]);
   const replyRefs = useRef<Record<number, HTMLTextAreaElement | null>>({});
 
   React.useEffect(() => {
@@ -152,29 +161,34 @@ export const CausalRuleEditor: React.FC<Props> = ({ rule, open, onOpenChange, on
   const handleTest = async () => {
     if (!testMsg.trim()) return;
     setTesting(true); setTestResult(null);
+    const current = testGate.start();
     try {
-      const res = await apiClient.post<CausalMatchResult>('/causal/rules/test', {
-        msg: testMsg, userId: 'test-user', groupId: 'test-group', nick: 'TestUser',
+      const res = await apiClient.post<CausalMatchResult & { draftTested?: boolean }>('/causal/rules/test', {
+        rule: editing, msg: testMsg, userId: testUser.trim(), groupId: testGroup.trim(), nick: testNick,
       });
-      setTestResult(res.data);
+      if (!res.data.draftTested) throw new Error(t('ui_audit.draft_requires_server'));
+      if (current()) setTestResult(res.data);
     } catch (e) { toast({ title: (e as Error).message, variant: 'destructive' }); }
     finally { setTesting(false); }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (savingRef.current) return;
     if (!editing.name.trim()) { toast({ title: t('causal.ed.need_name'), variant: 'destructive' }); return; }
-    onSave(editing);
-    onOpenChange(false);
+    savingRef.current = true; setSaving(true);
+    try { await onSave(editing); onOpenChange(false); }
+    catch (error) { toast({ title: t('common.save_fail'), description: String(error), variant: 'destructive' }); }
+    finally { savingRef.current = false; setSaving(false); }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(next) => { if (!savingRef.current) onOpenChange(next); }}>
       <DialogContent className="max-w-2xl max-h-[88vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isNew ? t('causal.ed.new_title') : t('causal.ed.edit_title')}</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 py-2">
+        <fieldset disabled={saving} className="min-w-0 space-y-4 py-2">
           {/* ── 模板库（新建且空白时显示）── */}
           {isNew && isBlank && (
             <div className="rounded-lg border border-dashed p-3 space-y-2">
@@ -380,10 +394,15 @@ export const CausalRuleEditor: React.FC<Props> = ({ rule, open, onOpenChange, on
               <FlaskConical className="h-4 w-4 text-muted-foreground" />
               <Label className="text-sm font-medium">{t('causal.v2.test')}</Label>
             </div>
-            <p className="text-[11px] text-muted-foreground">{t('causal.v2.test_hint')}</p>
+            <p className="text-xs text-muted-foreground">{t('ui_audit.draft_test_hint')}</p>
+            <div className="grid gap-2 sm:grid-cols-3">
+              <Label className="space-y-1"><span>{t('ui_audit.test_user')}</span><Input value={testUser} onChange={(e) => setTestUser(e.target.value)} /></Label>
+              <Label className="space-y-1"><span>{t('ui_audit.test_group')}</span><Input value={testGroup} onChange={(e) => setTestGroup(e.target.value)} /></Label>
+              <Label className="space-y-1"><span>{t('ui_audit.test_nick')}</span><Input value={testNick} onChange={(e) => setTestNick(e.target.value)} /></Label>
+            </div>
             <div className="flex gap-2">
-              <Input value={testMsg} onChange={(e) => setTestMsg(e.target.value)} placeholder={t('causal.ed.test_ph')} className="h-8 text-sm" />
-              <Button size="sm" variant="outline" onClick={handleTest} disabled={testing || !testMsg.trim()}>
+              <Input value={testMsg} onChange={(e) => setTestMsg(e.target.value)} placeholder={t('causal.ed.test_ph')} />
+              <Button variant="outline" onClick={handleTest} disabled={testing || !testMsg.trim()}>
                 {testing ? t('causal.ed.testing') : t('causal.ed.test_btn')}
               </Button>
             </div>
@@ -408,11 +427,11 @@ export const CausalRuleEditor: React.FC<Props> = ({ rule, open, onOpenChange, on
               </div>
             )}
           </div>
-        </div>
+        </fieldset>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>{t('common.cancel')}</Button>
-          <Button onClick={handleSave}>{t('common.save')}</Button>
+          <Button variant="outline" disabled={saving} onClick={() => onOpenChange(false)}>{t('common.cancel')}</Button>
+          <Button disabled={saving} onClick={handleSave}>{t(saving ? 'common.saving' : 'common.save')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

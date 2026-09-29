@@ -4,6 +4,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { AdvancedOptions } from '@/components/ui/advanced-options';
 import {
   Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription,
 } from '@/components/ui/dialog';
@@ -11,11 +12,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { useDialogs } from '@/hooks/use-dialogs';
+import { useRequestGate } from '@/hooks/use-request-gate';
 import { PersonaManagerCard } from '@/components/persona/persona-manager';
 import {
   Loader2, RefreshCw, RotateCcw, Save, ChevronRight, ChevronDown, Pencil, Trash2, Download, Upload,
   Image as ImageIcon, Globe, HelpCircle, Users, BookText,
 } from 'lucide-react';
+import { PageHeader } from '@/components/ui/page-header';
 
 interface Var { name: string; desc: string; }
 type ReplyFormat = 'plain' | 'markdown';
@@ -113,6 +116,14 @@ export const CommandsPage: React.FC = () => {
   const [personaMap, setPersonaMap] = useTourState<Record<string, { value: string; format: ReplyFormat }>>({}, {});
   const [mgrOpen, setMgrOpen] = useState(false);
   const editScrollY = useRef(0);
+  const personaKey = `${personaId}:${lang}`;
+  const personaGate = useRequestGate(personaKey);
+  const commandGate = useRequestGate(lang);
+  const allGate = useRequestGate(lang);
+  const [personaLoaded, setPersonaLoaded] = useState('');
+  const [personaError, setPersonaError] = useState('');
+  const [rowsLocale, setRowsLocale] = useState('');
+  const [allLocale, setAllLocale] = useState('');
 
   const fetchPersonas = useCallback(async () => {
     try { const r = await fetch('/api/personas'); const j = await r.json(); if (j.code === 0) setPersonas(j.data || []); }
@@ -121,41 +132,49 @@ export const CommandsPage: React.FC = () => {
   useEffect(() => { void fetchPersonas(); }, [fetchPersonas]);
 
   const loadPersonaMap = useCallback(async () => {
-    if (personaId === 0) { setPersonaMap({}); return; }
+    const current = personaGate.start();
+    setPersonaLoaded(''); setPersonaError(''); setPersonaMap({});
+    if (personaId === 0) { setPersonaLoaded(personaKey); return; }
     try {
       const r = await fetch(`/api/personas/${personaId}/entries`); const j = await r.json();
-      if (j.code === 0) {
+      if (!r.ok || j.code !== 0) throw new Error(j.message || t('common.load_fail'));
+      if (current()) {
         const m: Record<string, { value: string; format: ReplyFormat }> = {};
         for (const e of (j.data || [])) if (e.locale === lang) m[e.key] = { value: e.value, format: e.format === 'markdown' ? 'markdown' : 'plain' };
         setPersonaMap(m);
+        setPersonaLoaded(personaKey);
       }
-    } catch { /* ignore */ }
+    } catch (e) { if (current()) setPersonaError(String(e)); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [personaId, lang]);
   useEffect(() => { void loadPersonaMap(); }, [loadPersonaMap]);
 
   const load = useCallback(async () => {
+    const current = commandGate.start();
+    setRowsLocale('');
     setLoading(true);
     try {
       const r = await fetch(`/api/commands?lang=${encodeURIComponent(lang)}`);
       const j = await r.json();
       if (j.code !== 0) throw new Error(j.message);
-      setRows(j.data || []);
-    } catch { toast({ title: t('common.load_fail'), variant: 'destructive' }); }
-    finally { setLoading(false); }
+      if (current()) { setRows(j.data || []); setRowsLocale(lang); }
+    } catch { if (current()) toast({ title: t('common.load_fail'), variant: 'destructive' }); }
+    finally { if (current()) setLoading(false); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lang]);
   useEffect(() => { void load(); }, [load]);
 
   const loadAll = useCallback(async () => {
+    const current = allGate.start();
+    setAllLocale('');
     setAllLoading(true);
     try {
       const r = await fetch(`/api/i18n/all?lang=${encodeURIComponent(lang)}`);
       const j = await r.json();
       if (j.code !== 0) throw new Error(j.message);
-      setAllRows(j.data || []);
-    } catch { toast({ title: t('common.load_fail'), variant: 'destructive' }); }
-    finally { setAllLoading(false); }
+      if (current()) { setAllRows(j.data || []); setAllLocale(lang); }
+    } catch { if (current()) toast({ title: t('common.load_fail'), variant: 'destructive' }); }
+    finally { if (current()) setAllLoading(false); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lang]);
   useEffect(() => { if (SPECIAL_TABS.includes(cat)) void loadAll(); }, [cat, loadAll]);
@@ -181,11 +200,14 @@ export const CommandsPage: React.FC = () => {
     setExpanded((p) => { const n = new Set(p); n.has(cmd) ? n.delete(cmd) : n.add(cmd); return n; });
 
   const beginEdit = (next: { cmd: string; reply: Reply }) => {
-    editScrollY.current = window.scrollY;
+    if (personaLoaded !== personaKey || (SPECIAL_TABS.includes(cat) ? allLocale : rowsLocale) !== lang) {
+      toast({ title: t('ui_audit.wait_for_data'), variant: 'destructive' }); return;
+    }
+    editScrollY.current = document.querySelector('main')?.scrollTop ?? 0;
     setEditing(next);
   };
   const restoreEditScroll = () => requestAnimationFrame(() => requestAnimationFrame(() =>
-    window.scrollTo({ top: editScrollY.current, behavior: 'auto' })));
+    document.querySelector('main')?.scrollTo({ top: editScrollY.current, behavior: 'auto' })));
   const closeEditor = () => { setEditing(null); restoreEditScroll(); };
   const savedEditor = (key: string, value: string | null, format: ReplyFormat) => {
     if (personaId > 0) {
@@ -260,36 +282,32 @@ export const CommandsPage: React.FC = () => {
   return (
     <div className="space-y-5">
       {dlg.node}
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2"><BookText className="h-5 w-5" />{t('commands.title')}</h1>
-          <p className="text-sm text-muted-foreground">{t('commands.subtitle')}</p>
-          <p className="text-sm text-muted-foreground">{t('commands.compat_note')}</p>
-        </div>
-        <div data-tour="commands-toolbar" className="flex flex-wrap items-center gap-2">
+      <PageHeader icon={BookText} title={t('commands.title')}
+        description={<><span className="block">{t('commands.subtitle')}</span><span className="block">{t('commands.compat_note')}</span></>}
+        actions={<div data-tour="commands-toolbar" className="flex flex-wrap items-center gap-2">
           {/* persona being edited (default = global). Switching shows that persona's reply text. */}
-          <Select value={String(personaId)} onValueChange={(v) => setPersonaId(Number(v))}>
-            <SelectTrigger className="h-9 w-36"><SelectValue /></SelectTrigger>
+          <Select value={String(personaId)} disabled={!!editing} onValueChange={(v) => setPersonaId(Number(v))}>
+            <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="0">{t('commands.persona_default')}</SelectItem>
               {personas.map((p) => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Button variant="outline" size="sm" onClick={() => setMgrOpen(true)}><Users className="mr-2 h-4 w-4" />{t('commands.persona_manage')}</Button>
-          <Select value={lang} onValueChange={(v) => setLang(v)}>
-            <SelectTrigger className="h-9 w-32"><SelectValue /></SelectTrigger>
+          <Button variant="outline" onClick={() => setMgrOpen(true)}><Users className="mr-2 h-4 w-4" />{t('commands.persona_manage')}</Button>
+          <Select value={lang} disabled={!!editing} onValueChange={(v) => setLang(v)}>
+            <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
             <SelectContent>
               {LANGS.map((l) => <SelectItem key={l.code} value={l.code}>{l.label}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Button variant="outline" size="sm" onClick={doExport}><Download className="mr-2 h-4 w-4" />{t('commands.export')}</Button>
-          <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}><Upload className="mr-2 h-4 w-4" />{t('commands.import')}</Button>
+          <Button variant="outline" onClick={doExport}><Download className="mr-2 h-4 w-4" />{t('commands.export')}</Button>
+          <Button variant="outline" onClick={() => fileRef.current?.click()}><Upload className="mr-2 h-4 w-4" />{t('commands.import')}</Button>
           <input ref={fileRef} type="file" accept="application/json,.json" className="hidden"
             onChange={(e) => { const f = e.target.files?.[0]; if (f) void doImport(f); e.target.value = ''; }} />
-          <Button variant="outline" size="sm" onClick={() => { void load(); void loadAll(); }} disabled={loading}><RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />{t('common.refresh')}</Button>
-        </div>
-      </div>
+          <Button variant="outline" onClick={() => { void load(); void loadAll(); void loadPersonaMap(); }} disabled={loading}><RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />{t('common.refresh')}</Button>
+        </div>} />
 
+      {personaError && <p role="alert" className="text-sm text-destructive">{t('common.load_fail')}：{personaError}</p>}
       {personaId > 0 && (
         <div className="flex items-center gap-2 rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
           <Users className="h-4 w-4 text-primary shrink-0" />
@@ -301,16 +319,16 @@ export const CommandsPage: React.FC = () => {
       )}
 
       {/* category + special tabs */}
-      <div data-tour="commands-filters" className="flex gap-1 border-b flex-wrap">
+      <Tabs value={cat} onValueChange={setCat} className="space-y-5">
+      <TabsList variant="page" data-tour="commands-filters" aria-label={t('commands.title')}>
         {cats.map((c) => (
-          <button key={c} onClick={() => setCat(c)}
-            className={`px-3 py-2 text-sm border-b-2 -mb-px transition-colors ${cat === c ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
+          <TabsTrigger key={c} value={c}>
             {tabLabel(c)}
-          </button>
+          </TabsTrigger>
         ))}
-      </div>
+      </TabsList>
 
-      <div data-tour="commands-list">
+      <TabsContent value={cat} data-tour="commands-list" className="mt-0">
       {SPECIAL_TABS.includes(cat) ? (
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
@@ -470,8 +488,8 @@ export const CommandsPage: React.FC = () => {
           </table>
         </div>
       )}
-      </div>
-
+      </TabsContent>
+      </Tabs>
       {editing && (
         <EditReplyModal lang={lang} cmd={editing.cmd} reply={editing.reply} personaId={personaId}
           onClose={closeEditor} onSaved={savedEditor} />
@@ -631,12 +649,32 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; reply: Reply; person
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="flex max-h-[90dvh] max-w-2xl flex-col overflow-hidden lg:max-w-6xl">
         <DialogHeader>
           <DialogTitle>{cmd} · {replyLabel(reply.key)}</DialogTitle>
           <DialogDescription>{t('commands.var_insert_hint')}{reply.v2key ? `　${t('commands.v2_label')}: ${reply.v2key}` : ''}</DialogDescription>
         </DialogHeader>
-
+        <div className="grid min-h-0 flex-1 items-start gap-5 overflow-y-auto pr-1 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+        <div className="min-w-0 space-y-4">
+          <div className="flex items-center justify-between gap-2"><span className="text-sm font-medium">{t('commands.edit')}</span><span className="text-xs text-muted-foreground">{t('commands.format_' + format)}</span></div>
+          <Textarea ref={taRef} aria-label={t('commands.edit')} rows={8} className="min-h-48 font-mono text-sm" value={text} onChange={(e) => setText(e.target.value)} />
+          {unknown.length > 0 && <p role="alert" className="text-xs text-destructive">{t('commands.err_unknown', { vars: unknown.map((u) => `{${u}}`).join(' ') })}</p>}
+          {missing.length > 0 && unknown.length === 0 && <p className="text-xs text-amber-600">{t('commands.warn_missing', { vars: missing.map((m) => `{${m}}`).join(' ') })}</p>}
+          <Tabs defaultValue="markdown" className="rounded-lg border bg-muted/20 p-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <span className="text-sm font-medium">{t('commands.preview_title')}</span>
+              <TabsList aria-label={t('commands.preview_title')}>
+                <TabsTrigger value="markdown" className="px-2.5 text-xs">{t('commands.preview_markdown')}</TabsTrigger>
+                <TabsTrigger value="onebot" className="px-2.5 text-xs">{t('commands.preview_onebot')}</TabsTrigger>
+              </TabsList>
+            </div>
+            <p className="mt-2 text-[11px] text-muted-foreground">{t('commands.preview_hint')}</p>
+            <TabsContent value="markdown" className="min-h-24 rounded-md bg-background p-3 text-sm"><MarkdownExample text={preview.markdown} enabled={format === 'markdown'} /></TabsContent>
+            <TabsContent value="onebot" className="min-h-24 whitespace-pre-wrap break-words rounded-md bg-background p-3 text-sm">{preview.onebot}</TabsContent>
+          </Tabs>
+        </div>
+        <AdvancedOptions title={t('ui_refresh.advanced_options')} description={t('ui_refresh.template_advanced_hint')}>
+        <div className="space-y-4">
         {/* command-specific chips + insert image + insert global var */}
         <div className="flex flex-wrap items-center gap-1.5">
           {exclusiveVars.length === 0 && <span className="text-xs text-muted-foreground">{t('commands.no_vars')}</span>}
@@ -655,11 +693,19 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; reply: Reply; person
             className="inline-flex items-center gap-1 rounded border border-dashed px-2 py-1 text-xs hover:bg-muted transition-colors">
             <ImageIcon className="h-3.5 w-3.5 text-primary" />{t('commands.insert_image')}
           </button>
+          <button onClick={() => insertRaw('[[bar:HP|6|10]]')}
+            className="inline-flex items-center gap-1 rounded border border-dashed px-2 py-1 text-xs hover:bg-muted transition-colors">
+            {t('commands.insert_status_bar')}
+          </button>
+          <button onClick={() => insertRaw('[[action:掷骰指令|.r]]')}
+            className="inline-flex items-center gap-1 rounded border border-dashed px-2 py-1 text-xs hover:bg-muted transition-colors">
+            {t('commands.insert_action_hint')}
+          </button>
           <input ref={imgRef} type="file" accept="image/*" className="hidden"
             onChange={(e) => { const f = e.target.files?.[0]; if (f) void uploadImage(f); e.target.value = ''; }} />
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <label className="text-sm font-medium shrink-0">{t('commands.format_label')}</label>
           <Select value={format} onValueChange={(v) => setFormat(v as ReplyFormat)}>
             <SelectTrigger className="h-9 w-44"><SelectValue /></SelectTrigger>
@@ -670,7 +716,7 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; reply: Reply; person
           </Select>
           <span className="text-xs text-muted-foreground">{t('commands.format_hint')}</span>
         </div>
-        <Textarea ref={taRef} rows={4} className="font-mono text-sm" value={text} onChange={(e) => setText(e.target.value)} />
+        <p className="text-[11px] text-muted-foreground">{t('commands.presentation_component_hint')}</p>
 
         {styledVars.length > 0 && (
           <div className="rounded-lg border bg-muted/20 p-3 space-y-2">
@@ -678,7 +724,7 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; reply: Reply; person
               <p className="text-sm font-medium">{t('commands.variable_styles_title')}</p>
               <p className="text-[11px] text-muted-foreground">{t('commands.variable_styles_desc')}</p>
             </div>
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid gap-2">
               {styledVars.map((name) => (
                 <div key={name} className="flex items-center justify-between gap-2 rounded-md bg-background px-2.5 py-2">
                   <code className="min-w-0 truncate text-xs text-primary">{'{' + name + '}'}</code>
@@ -696,32 +742,11 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; reply: Reply; person
           </div>
         )}
 
-        {unknown.length > 0 && (
-          <p className="text-xs text-destructive">{t('commands.err_unknown', { vars: unknown.map((u) => `{${u}}`).join(' ') })}</p>
-        )}
-        {missing.length > 0 && unknown.length === 0 && (
-          <p className="text-xs text-amber-600">{t('commands.warn_missing', { vars: missing.map((m) => `{${m}}`).join(' ') })}</p>
-        )}
-        <Tabs defaultValue="markdown" className="rounded-lg border bg-muted/20 p-3">
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-sm font-medium">{t('commands.preview_title')}</span>
-            <TabsList className="h-8">
-              <TabsTrigger value="markdown" className="h-6 px-2.5 text-xs">{t('commands.preview_markdown')}</TabsTrigger>
-              <TabsTrigger value="onebot" className="h-6 px-2.5 text-xs">{t('commands.preview_onebot')}</TabsTrigger>
-            </TabsList>
-          </div>
-          <p className="mt-1 text-[11px] text-muted-foreground">{t('commands.preview_hint')}</p>
-          <TabsContent value="markdown" className="min-h-24 rounded-md bg-background p-3 text-sm">
-            <MarkdownExample text={preview.markdown} enabled={format === 'markdown'} />
-          </TabsContent>
-          <TabsContent value="onebot" className="min-h-24 whitespace-pre-wrap break-words rounded-md bg-background p-3 text-sm">
-            {preview.onebot}
-          </TabsContent>
-        </Tabs>
-
         <p className="text-[11px] text-muted-foreground">{t('commands.default_label')}: <span className="font-mono">{reply.default}</span></p>
-
-        <DialogFooter className="gap-2 sm:gap-2">
+        </div>
+        </AdvancedOptions>
+        </div>
+        <DialogFooter className="shrink-0 gap-2 border-t pt-4 sm:gap-2">
           <Button variant="outline" disabled={text === reply.default && reply.override == null} onClick={reset}><RotateCcw className="mr-2 h-4 w-4" />{t('commands.reset')}</Button>
           <Button variant="ghost" onClick={onClose}>{t('common.cancel')}</Button>
           <Button disabled={unknown.length > 0} onClick={save}><Save className="mr-2 h-4 w-4" />{t('common.save')}</Button>

@@ -9,6 +9,7 @@ import { LoadingState } from '@/components/ui/state';
 import { useToast } from '@/hooks/use-toast';
 import { useDialogs } from '@/hooks/use-dialogs';
 import { LogActionButtons } from '@/components/log-action-buttons';
+import { PageHeader } from '@/components/ui/page-header';
 
 interface GameLog {
   id: number;
@@ -289,17 +290,12 @@ export const LogsPage: React.FC = () => {
 
   return <div className="space-y-6">
     {dlg.node}
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2"><Scroll className="h-5 w-5" />{t('logs.title')}</h1>
-        <p className="text-sm text-muted-foreground">{t('logs.subtitle')}</p>
-      </div>
-      <Button variant="outline" size="sm" onClick={load} disabled={loading}><RefreshCw className="mr-2 h-4 w-4" />{t('common.refresh')}</Button>
-    </div>
+    <PageHeader icon={Scroll} title={t('logs.title')} description={t('logs.subtitle')}
+      actions={<Button variant="outline" onClick={load} disabled={loading}><RefreshCw className="mr-2 h-4 w-4" />{t('common.refresh')}</Button>} />
 
     <div data-tour="logs-search" className="relative max-w-xl">
-      <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-      <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('logs.search_ph')} className="h-9 w-full rounded-md border bg-background pl-9 pr-3 text-sm" />
+      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('logs.search_ph')} className="h-10 w-full rounded-md border bg-background pl-9 pr-3 text-sm" />
     </div>
 
     {loading ? <LoadingState /> :
@@ -308,9 +304,9 @@ export const LogsPage: React.FC = () => {
         onValueChange={(value) => setActiveTab(value === 'sessions' ? 'sessions' : 'logs')}
         className="space-y-4"
       >
-        <TabsList data-tour="logs-tabs">
-          <TabsTrigger value="logs"><ScrollText className="mr-2 h-4 w-4" />{t('logs.tab_logs')} ({visibleLogs.length})</TabsTrigger>
-          <TabsTrigger value="sessions"><UsersRound className="mr-2 h-4 w-4" />{t('logs.tab_sessions')} ({visibleSessions.length})</TabsTrigger>
+        <TabsList variant="page" data-tour="logs-tabs" aria-label={t('logs.title')}>
+          <TabsTrigger value="logs"><ScrollText className="h-4 w-4" />{t('logs.tab_logs')} ({visibleLogs.length})</TabsTrigger>
+          <TabsTrigger value="sessions"><UsersRound className="h-4 w-4" />{t('logs.tab_sessions')} ({visibleSessions.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent data-tour="logs-content" value="logs" className="mt-0">

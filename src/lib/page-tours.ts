@@ -100,8 +100,8 @@ export const PAGE_TOURS: Readonly<Record<string, PageTourProfile>> = {
   ]),
   '/schedules': profile('nav.schedules', [
     step(heading, 'nav.schedules', 'overview', 'schedules.subtitle'),
-    step('[data-tour="schedules-form"]', 'schedules.trigger_type', 'configure', 'schedules.add_hint'),
-    step('[data-tour="schedules-submit"]', 'schedules.add', 'save'),
+    step('[data-tour="schedules-form"]', 'workspace.search_tasks', 'filter'),
+    step('[data-tour="schedules-submit"]', 'schedules.add', 'configure', 'schedules.add_hint'),
     step('[data-tour="schedules-list"]', 'schedules.run_now', 'manage'),
   ]),
   '/roadmap': profile('roadmap.title', [

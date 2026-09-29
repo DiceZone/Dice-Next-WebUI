@@ -1,4 +1,5 @@
-import { useTourState } from '@/components/onboarding/tour-data';
+import { useTourState, useTourActive } from '@/components/onboarding/tour-data';
+import { useRequestGate } from '@/hooks/use-request-gate';
 import { tourSamples } from '@/lib/tour-samples';
 import React, { useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -22,6 +23,7 @@ import {
 import { apiClient } from '@/lib/api-client';
 import { IdentityEmailSettings } from '@/components/identity-email-settings';
 import { PlatformIcon, platformLabel } from '@/components/platform-icon';
+import { SettingsWorkspace, SettingsPanel } from '@/components/settings-workspace';
 
 
 interface Master { platform: string; adapter_id?: string; id: string; nickname?: string; }
@@ -118,6 +120,31 @@ const scopedBody = ({ scope, target, platform }: ScopedCardProps,
 });
 const scopeUnavailable = ({ scope, target }: ScopedCardProps) => scope !== 'global' && !target;
 
+function useScopedLoader(props: ScopedCardProps, apply: (data: any) => void) {
+  const { t } = useTranslation();
+  const tour = useTourActive();
+  const key = JSON.stringify([scopedQuery(props), props.overridden]);
+  const gate = useRequestGate(key);
+  const applyRef = React.useRef(apply); applyRef.current = apply;
+  const [loaded, setLoaded] = React.useState('');
+  const [error, setError] = React.useState('');
+  const load = useCallback(async () => {
+    const current = gate.start(); setLoaded(''); setError('');
+    if (scopeUnavailable(props)) return;
+    try {
+      const data = await getJson('/system/global?' + scopedQuery(props));
+      if (current()) { applyRef.current(data); setLoaded(key); }
+    } catch (e) { if (current()) setError(String(e)); }
+  }, [key, gate]);
+  useEffect(() => { void load(); }, [load]);
+  const ready = tour || loaded === key;
+  const status = !ready && <div role="status" className="flex flex-wrap items-center gap-2 px-6 pb-3 text-sm text-muted-foreground">
+    {error || t('ui_audit.wait_for_data')}
+    <Button variant="outline" onClick={() => void load()}>{t('ui_refresh.retry')}</Button>
+  </div>;
+  return { ready, status };
+}
+
 // ── 图片发送方式（C#56）──────────────────────────────────
 interface ImageSendConf { mode?: string; host?: string; default_host?: string; }
 
@@ -127,18 +154,13 @@ const ImageSendCard: React.FC<ScopedCardProps> = (scopeProps) => {
   const [c, setC] = useTourState<ImageSendConf>({ mode: 'base64', host: '' }, { mode: 'base64', host: '' });
   const [saving, setSaving] = useTourState(false, false);
 
-  useEffect(() => {
-    (async () => {
-      if (scopeUnavailable(scopeProps)) return;
-      try {
-        const d = await getJson('/system/global?' + scopedQuery(scopeProps)) as any;
+  const { ready, status } = useScopedLoader(scopeProps, (d) => {
         const value = (d.values?.image_send || {}) as ImageSendConf;
         setC({ mode: value.mode || 'base64', host: value.host || '' });
-      } catch { /* ignore */ }
-    })();
-  }, [scopeProps.scope, scopeProps.target, scopeProps.platform, scopeProps.overridden]);
+  });
 
   const save = async () => {
+    if (!ready || saving) return;
     if (scopeUnavailable(scopeProps)) return;
     setSaving(true);
     try {
@@ -157,6 +179,8 @@ const ImageSendCard: React.FC<ScopedCardProps> = (scopeProps) => {
         <CardTitle className="text-base flex items-center gap-2"><Image className="h-4 w-4" />{t('settings.imgsend_title')}</CardTitle>
         <CardDescription>{t('settings.imgsend_desc')}</CardDescription>
       </CardHeader>
+      {status}
+      <fieldset disabled={!ready || saving} className="min-w-0">
       <CardContent className="space-y-3">
         <Select value={c.mode || 'base64'} onValueChange={(v) => setC({ ...c, mode: v })}>
           <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
@@ -178,6 +202,7 @@ const ImageSendCard: React.FC<ScopedCardProps> = (scopeProps) => {
           <Button size="sm" onClick={save} disabled={saving || scopeUnavailable(scopeProps)}>{t('common.save')}</Button>
         </div>
       </CardContent>
+      </fieldset>
     </Card>
   );
 };
@@ -193,7 +218,11 @@ type ExpressionMode = 'enhanced' | 'compatible' | 'original' | 'custom';
 type ExpressionEngineId = 'dicenext' | 'onedice' | 'dicescript';
 interface ExpressionEngineInfo { id: ExpressionEngineId; available: boolean; }
 const EXPRESSION_ENGINES: ExpressionEngineId[] = ['dicenext', 'onedice', 'dicescript'];
-interface MessageFormatConf { mode?: 'traditional' | 'card'; }
+type MessageStyle = 'traditional' | 'standard' | 'visual';
+interface MessageFormatConf { mode?: MessageStyle; }
+
+const normalizeMessageStyle = (value: unknown): MessageStyle =>
+  value === 'visual' ? 'visual' : value === 'standard' || value === 'card' ? 'standard' : 'traditional';
 
 const MessageFormatCard: React.FC<ScopedCardProps> = (scopeProps) => {
   const toast = useToast();
@@ -201,26 +230,21 @@ const MessageFormatCard: React.FC<ScopedCardProps> = (scopeProps) => {
   const [mode, setMode] = useTourState<MessageFormatConf['mode']>('traditional', 'traditional');
   const [saving, setSaving] = useTourState(false, false);
 
-  useEffect(() => {
-    (async () => {
-      if (scopeUnavailable(scopeProps)) return;
-      try {
-        const d = await getJson('/system/global?' + scopedQuery(scopeProps)) as any;
-        setMode(d.values?.message_format === 'card' ? 'card' : 'traditional');
-      } catch { /* ignore */ }
-    })();
-  }, [scopeProps.scope, scopeProps.target, scopeProps.platform, scopeProps.overridden]);
+  const { ready, status } = useScopedLoader(scopeProps, (d) => {
+        setMode(normalizeMessageStyle(d.values?.message_format));
+  });
 
   const save = async (nextMode: MessageFormatConf['mode']) => {
+    if (!ready || saving) return;
     if (scopeUnavailable(scopeProps) || saving) return;
     const previous = mode;
     setMode(nextMode);
     setSaving(true);
     try {
       const d = await putJson('/system/global', scopedBody(scopeProps, {
-        message_format: nextMode === 'card' ? 'card' : 'traditional',
+        message_format: nextMode,
       })) as any;
-      setMode(d.values?.message_format === 'card' ? 'card' : 'traditional');
+      setMode(normalizeMessageStyle(d.values?.message_format));
       toast({ title: t('common.save_success') });
     } catch (e) {
       setMode(previous);
@@ -228,7 +252,6 @@ const MessageFormatCard: React.FC<ScopedCardProps> = (scopeProps) => {
     } finally { setSaving(false); }
   };
 
-  const rich = mode === 'card';
   return (
     <Card data-setting-anchor="settings-message-format">
       <CardHeader>
@@ -237,20 +260,25 @@ const MessageFormatCard: React.FC<ScopedCardProps> = (scopeProps) => {
           {t(scopeProps.scope === 'global' ? 'settings.message_format_desc_global' : 'settings.message_format_desc_scoped')}
         </CardDescription>
       </CardHeader>
+      {status}
+      <fieldset disabled={!ready || saving} className="min-w-0">
       <CardContent className="space-y-3">
-        <div className="flex items-center justify-between gap-4 rounded-lg border p-3">
-          <div className="min-w-0">
-            <Label className="font-medium">{t('settings.message_format_switch')}</Label>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {t(rich ? 'settings.message_format_rich' : 'settings.message_format_plain')}
-            </p>
-          </div>
-          <Switch checked={rich} disabled={saving || scopeUnavailable(scopeProps)}
-            onCheckedChange={(checked) => void save(checked ? 'card' : 'traditional')} />
+        <div className="space-y-2 rounded-lg border p-3">
+          <Label className="font-medium">{t('settings.message_style_label')}</Label>
+          <Select value={mode} disabled={saving || scopeUnavailable(scopeProps)}
+            onValueChange={(value) => void save(value as MessageStyle)}>
+            <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="traditional">{t('settings.message_style_traditional')}</SelectItem>
+              <SelectItem value="standard">{t('settings.message_style_standard')}</SelectItem>
+              <SelectItem value="visual">{t('settings.message_style_visual')}</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            {t(`settings.message_style_${mode}_desc`)}
+          </p>
         </div>
-        <p className="text-xs text-muted-foreground">
-          {t(rich ? 'settings.message_format_hint_rich' : 'settings.message_format_hint_plain')}
-        </p>
+        <p className="text-xs text-muted-foreground">{t('settings.message_style_fallback')}</p>
         {scopeProps.scope !== 'global' && (
           <p className="text-[11px] text-muted-foreground">{t('settings.message_format_scope_hint')}</p>
         )}
@@ -262,6 +290,7 @@ const MessageFormatCard: React.FC<ScopedCardProps> = (scopeProps) => {
           </div>
         )}
       </CardContent>
+      </fieldset>
     </Card>
   );
 };
@@ -275,19 +304,14 @@ const ImageHostCard: React.FC<ScopedCardProps> = (scopeProps) => {
   const [headersText, setHeadersText] = useTourState('', '');
   const [saving, setSaving] = useTourState(false, false);
 
-  useEffect(() => {
-    (async () => {
-      if (scopeUnavailable(scopeProps)) return;
-      try {
-        const d = await getJson('/system/global?' + scopedQuery(scopeProps)) as any;
+  const { ready, status } = useScopedLoader(scopeProps, (d) => {
         const value = (d.values?.image_host || {}) as ImageHostConf;
         setC({ mode: value.mode || 'none', url: value.url || '', file_field: value.file_field || 'file', result_path: value.result_path || 'data.url', public_base: value.public_base || '' });
         setHeadersText((value.headers || []).join('\n'));
-      } catch { /* ignore */ }
-    })();
-  }, [scopeProps.scope, scopeProps.target, scopeProps.platform, scopeProps.overridden]);
+  });
 
   const save = async () => {
+    if (!ready || saving) return;
     setSaving(true);
     try {
       const headers = headersText.split('\n').map((s) => s.trim()).filter(Boolean);
@@ -308,6 +332,8 @@ const ImageHostCard: React.FC<ScopedCardProps> = (scopeProps) => {
         <CardTitle className="text-base flex items-center gap-2"><Image className="h-4 w-4" />{t('settings.imghost_title')}</CardTitle>
         <CardDescription>{t('settings.imghost_desc')}</CardDescription>
       </CardHeader>
+      {status}
+      <fieldset disabled={!ready || saving} className="min-w-0">
       <CardContent className="space-y-3">
         <Select value={mode} onValueChange={(v) => setC({ ...c, mode: v })}>
           <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
@@ -344,6 +370,7 @@ const ImageHostCard: React.FC<ScopedCardProps> = (scopeProps) => {
           <Button size="sm" onClick={save} disabled={saving || scopeUnavailable(scopeProps)}>{t('common.save')}</Button>
         </div>
       </CardContent>
+      </fieldset>
     </Card>
   );
 };
@@ -369,23 +396,23 @@ const SettingGroup: React.FC<{ title?: string; icon?: LucideIcon; children: Reac
 // A switch row that lives inside a SettingGroup.
 const SettingSwitch: React.FC<{ title: string; desc: string; checked: boolean; onToggle: (v: boolean) => void; searchId?: string }> = ({ title, desc, checked, onToggle, searchId }) => (
   <div className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0" data-setting-anchor={searchId}>
-    <div className="min-w-0 pr-2">
+    <div className="min-w-0 flex-1 pr-2">
       <Label className="text-sm font-medium">{title}</Label>
       <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
     </div>
-    <Switch checked={checked} onCheckedChange={onToggle} />
+    <Switch aria-label={title} className="shrink-0" checked={checked} onCheckedChange={onToggle} />
   </div>
 );
 
 // A row with arbitrary controls (input + save button) inside a SettingGroup.
 const SettingRow: React.FC<{ title: string; desc: string; children: React.ReactNode; extra?: React.ReactNode; searchId?: string }> = ({ title, desc, children, extra, searchId }) => (
-  <div className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0" data-setting-anchor={searchId}>
-    <div className="min-w-0 pr-2">
+  <div className="flex flex-col items-start justify-between gap-3 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:gap-6" data-setting-anchor={searchId}>
+    <div className="min-w-0 flex-1 pr-2">
       <Label className="text-sm font-medium">{title}</Label>
       <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
       {extra}
     </div>
-    <div className="flex items-center gap-2 shrink-0">{children}</div>
+    <div className="flex shrink-0 flex-wrap items-center gap-2">{children}</div>
   </div>
 );
 
@@ -589,6 +616,15 @@ export const SettingsPage: React.FC = () => {
   const settingsPlatform = settingsScope === 'adapter'
     ? settingsTarget
     : settingsScope === 'account' ? (selectedScopeAccount?.type || '') : '';
+  const scopeKey = JSON.stringify([settingsScope, settingsTarget, settingsPlatform]);
+  const scopeGate = useRequestGate(scopeKey);
+  const eventGate = useRequestGate(scopeKey);
+  const expressionGate = useRequestGate(scopeKey);
+  const globalGate = useRequestGate(scopeKey);
+  const tour = useTourActive();
+  const [loadedScopes, setLoadedScopes] = React.useState<Record<string, string>>({});
+  const [scopeError, setScopeError] = React.useState('');
+  const scopedReady = tour || ['events', 'expression', 'global'].every((key) => loadedScopes[key] === scopeKey);
   const applyEventData = useCallback((data: any) => {
     setFriendPolicy(data.friend_policy || 'manual');
     setFriendKeyword(data.friend_keyword || '');
@@ -602,14 +638,17 @@ export const SettingsPage: React.FC = () => {
     setEventSources(data.sources || {});
   }, []);
   const loadEvents = useCallback(async () => {
+    const current = eventGate.start();
+    setLoadedScopes((s) => ({ ...s, events: '' }));
     if (settingsScope !== 'global' && !settingsTarget) return;
     try {
       const q = new URLSearchParams({ scope: settingsScope });
       if (settingsTarget) q.set('target', settingsTarget);
       if (settingsPlatform) q.set('platform', settingsPlatform);
       const r = await fetch('/api/system/events?' + q.toString()); const j = await r.json();
-      if (j.code === 0) applyEventData(j.data);
-    } catch { /* ignore */ }
+      if (!r.ok || j.code !== 0) throw new Error(j.message || 'Load failed');
+      if (current()) { applyEventData(j.data); setLoadedScopes((s) => ({ ...s, events: scopeKey })); }
+    } catch (e) { if (current()) setScopeError(String(e)); }
   }, [settingsScope, settingsTarget, settingsPlatform, applyEventData]);
   const applyExpressionData = useCallback((data: any) => {
     const mode = ['enhanced', 'compatible', 'original', 'custom'].includes(data?.mode)
@@ -624,14 +663,17 @@ export const SettingsPage: React.FC = () => {
     setExpressionSources(data?.sources || {});
   }, []);
   const loadExpression = useCallback(async () => {
+    const current = expressionGate.start();
+    setLoadedScopes((s) => ({ ...s, expression: '' }));
     if (settingsScope !== 'global' && !settingsTarget) return;
     try {
       const q = new URLSearchParams({ scope: settingsScope });
       if (settingsTarget) q.set('target', settingsTarget);
       if (settingsPlatform) q.set('platform', settingsPlatform);
       const r = await fetch('/api/system/expression-engine?' + q.toString()); const j = await r.json();
-      if (j.code === 0) applyExpressionData(j.data);
-    } catch { /* ignore */ }
+      if (!r.ok || j.code !== 0) throw new Error(j.message || 'Load failed');
+      if (current()) { applyExpressionData(j.data); setLoadedScopes((s) => ({ ...s, expression: scopeKey })); }
+    } catch (e) { if (current()) setScopeError(String(e)); }
   }, [settingsScope, settingsTarget, settingsPlatform, applyExpressionData]);
   const loadWebui = useCallback(async () => {
     try { setAutostart(!!(await getJson('/system/autostart')).enabled); } catch { /* ignore */ }
@@ -648,12 +690,15 @@ export const SettingsPage: React.FC = () => {
     setGlobalSources(data?.sources || {});
   }, []);
   const loadGlobals = useCallback(async () => {
+    const current = globalGate.start();
+    setLoadedScopes((s) => ({ ...s, global: '' }));
     if (settingsScope !== 'global' && !settingsTarget) return;
     try {
       const r = await fetch('/api/system/global?' + scopedQuery({ scope: settingsScope, target: settingsTarget, platform: settingsPlatform }));
       const j = await r.json();
-      if (j.code === 0) applyGlobalData(j.data);
-    } catch { /* ignore */ }
+      if (!r.ok || j.code !== 0) throw new Error(j.message || 'Load failed');
+      if (current()) { applyGlobalData(j.data); setLoadedScopes((s) => ({ ...s, global: scopeKey })); }
+    } catch (e) { if (current()) setScopeError(String(e)); }
   }, [settingsScope, settingsTarget, settingsPlatform, applyGlobalData]);
   const loadPluginVerify = async () => {
     try { const d = await getJson('/system/plugin-verify'); setPluginKey(d.public_key || ''); } catch { /* ignore */ }
@@ -682,8 +727,12 @@ export const SettingsPage: React.FC = () => {
   };
 
   useEffect(() => {
-    void loadMasters(); void loadMasterAccounts(); void loadPrefixes(); void loadEvents(); void loadExpression(); void loadWebui(); void loadGlobals(); void loadPluginVerify(); void loadJsFetch(); void loadTimezone();
-  }, [loadWebui, loadEvents, loadExpression, loadGlobals]);
+    void loadMasters(); void loadMasterAccounts(); void loadPrefixes(); void loadWebui(); void loadPluginVerify(); void loadJsFetch(); void loadTimezone();
+  }, [loadWebui]);
+  useEffect(() => {
+    setScopeError('');
+    void loadEvents(); void loadExpression(); void loadGlobals();
+  }, [loadEvents, loadExpression, loadGlobals]);
 
   // —— Handlers ——————————————————————————————————————————
   const addMaster = async () => {
@@ -763,6 +812,8 @@ export const SettingsPage: React.FC = () => {
     ...(clear ? { clear } : {}),
   });
   const saveEvents = async () => {
+    if (!scopedReady || savingEvents) return;
+    const current = scopeGate.capture();
     setSavingEvents(true);
     try {
       const r = await fetch('/api/system/events', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
@@ -775,29 +826,33 @@ export const SettingsPage: React.FC = () => {
           group_name_keyword_leave: groupNameKeywordLeave.trim(),
         })) });
       const j = await r.json(); if (j.code !== 0) throw new Error(j.message);
-      applyEventData(j.data);
+      if (current()) applyEventData(j.data);
       toast({ title: t('common.save_success') });
     } catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
     finally { setSavingEvents(false); }
   };
   const saveWelcomeMinimums = async () => {
+    if (!scopedReady || savingEvents) return;
+    const current = scopeGate.capture();
     setSavingEvents(true);
     try {
       const r = await fetch('/api/system/events', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(scopedEventBody({ welcome_min_delay: welcomeMinDelay, welcome_min_cooldown: welcomeMinCooldown })) });
       const j = await r.json(); if (j.code !== 0) throw new Error(j.message);
-      applyEventData(j.data);
+      if (current()) applyEventData(j.data);
       toast({ title: t('common.save_success') });
     } catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
     finally { setSavingEvents(false); }
   };
   const resetEventScope = async (keys: string[]) => {
+    if (!scopedReady) return;
+    const current = scopeGate.capture();
     if (settingsScope === 'global') return;
     try {
       const r = await fetch('/api/system/events', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(scopedEventBody({}, keys)) });
       const j = await r.json(); if (j.code !== 0) throw new Error(j.message);
-      applyEventData(j.data);
+      if (current()) applyEventData(j.data);
       toast({ title: t('settings.scope_reset_success') });
     } catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
   };
@@ -839,6 +894,8 @@ export const SettingsPage: React.FC = () => {
     setExpressionOrder(order);
   };
   const saveExpression = async () => {
+    if (!scopedReady || savingExpression) return;
+    const current = scopeGate.capture();
     setSavingExpression(true);
     try {
       const r = await fetch('/api/system/expression-engine', {
@@ -846,12 +903,14 @@ export const SettingsPage: React.FC = () => {
         body: JSON.stringify(scopedEventBody({ expression_mode: expressionMode, expression_order: expressionOrder })),
       });
       const j = await r.json(); if (j.code !== 0) throw new Error(j.message);
-      applyExpressionData(j.data);
+      if (current()) applyExpressionData(j.data);
       toast({ title: t('common.save_success') });
     } catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
     finally { setSavingExpression(false); }
   };
   const resetExpressionScope = async () => {
+    if (!scopedReady) return;
+    const current = scopeGate.capture();
     if (settingsScope === 'global') return;
     try {
       const r = await fetch('/api/system/expression-engine', {
@@ -859,36 +918,40 @@ export const SettingsPage: React.FC = () => {
         body: JSON.stringify(scopedEventBody({}, EXPRESSION_SCOPE_KEYS)),
       });
       const j = await r.json(); if (j.code !== 0) throw new Error(j.message);
-      applyExpressionData(j.data);
+      if (current()) applyExpressionData(j.data);
       toast({ title: t('settings.scope_reset_success') });
     } catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
   };
 
   const saveGlobal = async (key: string, value: boolean | number | string | Record<string, unknown>) => {
+    if (!scopedReady) return;
+    const current = scopeGate.capture();
     if (key === 'allow_official_direct_bind' && value === true) {
       const accepted = await dlg.confirm({
         title: '高风险操作',
         description: 'QQ 官方机器人无法验证群管理身份。开启后可能有人冒认群号，造成群数据被错误关联或访问。此开关只影响未核验的官方群号直绑，个人 QQ 仍须验证。仅在人工协助绑定时临时开启，完成后请立即关闭。是否继续？',
         destructive: true, confirmText: '仍然开启',
       });
-      if (!accepted) return;
+      if (!accepted || !current()) return;
     }
     setGlobals((g) => ({ ...g, [key]: value }));
     try {
       const r = await fetch('/api/system/global', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(scopedEventBody({ [key]: value })) });
       const j = await r.json(); if (j.code !== 0) throw new Error(j.message);
-      applyGlobalData(j.data);
+      if (current()) applyGlobalData(j.data);
       toast({ title: t('common.save_success') });
-    } catch (e) { void loadGlobals(); toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
+    } catch (e) { if (current()) void loadGlobals(); toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
   };
   const resetGlobalScope = async (keys: string[]) => {
+    if (!scopedReady) return;
+    const current = scopeGate.capture();
     if (settingsScope === 'global') return;
     try {
       const r = await fetch('/api/system/global', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(scopedEventBody({}, keys)) });
       const j = await r.json(); if (j.code !== 0) throw new Error(j.message);
-      applyGlobalData(j.data);
+      if (current()) applyGlobalData(j.data);
       toast({ title: t('settings.scope_reset_success') });
     } catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
   };
@@ -951,6 +1014,7 @@ export const SettingsPage: React.FC = () => {
     const hasOverride = settingsScope !== 'global'
       && keys.some((key) => Object.prototype.hasOwnProperty.call(globalOverrides, key));
     return (
+      <fieldset key={group.title} disabled={!scopedReady} className="min-w-0 disabled:opacity-60">
       <Card key={group.title} data-setting-anchor={GLOBAL_GROUP_SEARCH_ANCHORS[group.title]}>
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -979,23 +1043,25 @@ export const SettingsPage: React.FC = () => {
           ))}
         </CardContent>
       </Card>
+      </fieldset>
     );
   };
 
   const scopeSelector = (
-      <Card className="border-primary/20" data-setting-anchor="settings-scope">
-        <CardHeader>
+      <Card className="border-primary/15 bg-primary/[0.025] shadow-none" data-setting-anchor="settings-scope">
+        <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2"><Layers3 className="h-4 w-4" />{t('settings.scope_title')}</CardTitle>
           <CardDescription>{t('settings.scope_desc')}</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+        <CardContent className="grid items-center gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-3 gap-1 rounded-lg bg-background/80 p-1">
             {([
               ['global', t('settings.scope_global')],
               ['adapter', t('settings.scope_adapter')],
               ['account', t('settings.scope_account')],
             ] as [SettingsScope, string][]).map(([value, label]) => (
               <Button key={value} type="button" size="sm"
+                aria-pressed={settingsScope === value}
                 variant={settingsScope === value ? 'default' : 'outline'}
                 onClick={() => changeSettingsScope(value)}>{label}</Button>
             ))}
@@ -1024,7 +1090,7 @@ export const SettingsPage: React.FC = () => {
               </SelectContent>
             </Select>
           )}
-          <div className="rounded-md bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
+          <div className="text-xs leading-relaxed text-muted-foreground sm:col-span-2">
             {settingsScope === 'global' ? t('settings.scope_current_global')
               : settingsScope === 'adapter' ? t('settings.scope_current_adapter', { name: platformLabel(settingsTarget) })
               : selectedScopeAccount ? t('settings.scope_current_account', {
@@ -1037,10 +1103,14 @@ export const SettingsPage: React.FC = () => {
   );
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="mx-auto max-w-5xl space-y-6 pb-6">
       <PageHeader icon={SlidersHorizontal} title={t('settings.title')} description={t('settings.subtitle')} />
-
-
+      <SettingsWorkspace scope={scopeSelector}>
+      {!scopedReady && <div role="status" className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+        {scopeError || t('ui_audit.wait_for_data')}
+        <Button variant="outline" onClick={() => { setScopeError(''); void loadEvents(); void loadExpression(); void loadGlobals(); }}>{t('ui_refresh.retry')}</Button>
+      </div>}
+      <SettingsPanel value="basic">
       <SectionHeading>{t('settings.sec_basic')}</SectionHeading>
 
       {/* ── Master ── */}
@@ -1068,15 +1138,15 @@ export const SettingsPage: React.FC = () => {
               ))}
             </div>
           )}
-          <div className="flex items-center gap-2">
+          <div className="grid grid-cols-2 items-center gap-2 xl:grid-cols-[160px_208px_minmax(0,1fr)_auto]">
             <Select value={mPlatform} onValueChange={switchMasterPlatform}>
-              <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {PLATFORMS.map((p) => <SelectItem key={p.value} value={p.value}><span className="flex items-center gap-2"><PlatformIcon platform={p.value} />{p.label}</span></SelectItem>)}
               </SelectContent>
             </Select>
             <Select value={mPlatform === 'qq_official' ? (mAdapter || '__none__') : (mAdapter || '__all__')} onValueChange={(v) => setMAdapter(v === '__all__' ? '' : v)}>
-              <SelectTrigger className="w-52"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {mPlatform !== 'qq_official' && <SelectItem value="__all__">{t('settings.master_all_accounts')}</SelectItem>}
                 {masterAccounts.filter((a) => a.type === mPlatform).map((a) => (
@@ -1089,8 +1159,8 @@ export const SettingsPage: React.FC = () => {
                 ))}
               </SelectContent>
             </Select>
-            <Input className="flex-1" placeholder={mPlatform === 'qq_official' ? t('settings.master_id_placeholder_qq') : t('settings.master_id_placeholder')} value={mId} onChange={(e) => setMId(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') void addMaster(); }} />
-            <Button onClick={addMaster}><Plus className="mr-2 h-4 w-4" />{t('settings.master_add')}</Button>
+            <Input className="col-span-2 min-w-0 xl:col-span-1" placeholder={mPlatform === 'qq_official' ? t('settings.master_id_placeholder_qq') : t('settings.master_id_placeholder')} value={mId} onChange={(e) => setMId(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') void addMaster(); }} />
+            <Button className="col-span-2 xl:col-span-1" onClick={addMaster}><Plus className="mr-2 h-4 w-4" />{t('settings.master_add')}</Button>
           </div>
           {mPlatform === 'qq_official' && (
             <p className="text-xs text-muted-foreground">{t('settings.master_openid_hint')}</p>
@@ -1102,19 +1172,6 @@ export const SettingsPage: React.FC = () => {
             </div>
             <Switch checked={masterInherit} onCheckedChange={(v) => void saveMasterInherit(v)} />
           </div>
-        </CardContent>
-      </Card>
-
-      {/* ── 插件签名（可选）── */}
-      <Card data-setting-anchor="settings-plugin-verify">
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2"><ShieldCheck className="h-4 w-4" />{t('settings.plugin_verify_title')}</CardTitle>
-          <CardDescription>{t('settings.plugin_verify_desc')}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Textarea value={pluginKey} onChange={(e) => setPluginKey(e.target.value)} rows={4} placeholder={t('settings.plugin_verify_placeholder')} />
-          <p className="text-xs text-muted-foreground">{t('settings.plugin_verify_hint')}</p>
-          <div className="flex justify-end"><Button size="sm" onClick={() => void savePluginVerify()}>{t('common.save')}</Button></div>
         </CardContent>
       </Card>
 
@@ -1162,10 +1219,7 @@ export const SettingsPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      <SectionHeading>{t('settings.sec_scoped')}</SectionHeading>
-
-      {scopeSelector}
-
+      <fieldset disabled={!scopedReady} className="min-w-0 disabled:opacity-60">
       <Card data-setting-anchor="settings-expression">
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1248,8 +1302,12 @@ export const SettingsPage: React.FC = () => {
           </div>
         </CardContent>
       </Card>
+      </fieldset>
 
+      </SettingsPanel>
+      <SettingsPanel value="groups">
       {/* ── 好友 / 加群邀请审批 ── */}
+      <fieldset disabled={!scopedReady} className="min-w-0 disabled:opacity-60">
       <Card data-setting-anchor="settings-approval">
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-2"><CardTitle className="text-base flex items-center gap-2"><ShieldCheck className="h-4 w-4" />{t('settings.approval_title')}</CardTitle><Badge variant={hasScopeOverride(APPROVAL_SCOPE_KEYS) ? 'default' : 'secondary'}>{scopeSourceLabel(APPROVAL_SCOPE_KEYS)}</Badge></div>
@@ -1311,11 +1369,13 @@ export const SettingsPage: React.FC = () => {
           </div>
         </CardContent>
       </Card>
+      </fieldset>
 
 
       <SectionHeading>{t('settings.sec_group_services')}</SectionHeading>
 
       {/* C#76: Welcome delay/cooldown minimums */}
+      <fieldset disabled={!scopedReady} className="min-w-0 disabled:opacity-60">
       <Card data-setting-anchor="settings-welcome">
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-2"><CardTitle className="text-base flex items-center gap-2"><Clock className="h-4 w-4" />{t('settings.welcome_min_title')}</CardTitle><Badge variant={hasScopeOverride(['welcome_min_delay', 'welcome_min_cooldown']) ? 'default' : 'secondary'}>{scopeSourceLabel(['welcome_min_delay', 'welcome_min_cooldown'])}</Badge></div>
@@ -1338,15 +1398,17 @@ export const SettingsPage: React.FC = () => {
           </div>
         </CardContent>
       </Card>
+      </fieldset>
 
       {/* 用户群 */}
-      <UserGroupCard {...currentScopeProps}
+      <UserGroupCard key={scopeKey} {...currentScopeProps}
         overridden={settingsScope !== 'global' && ['user_group', 'user_group_enforce', 'user_group_invite'].some((key) => Object.prototype.hasOwnProperty.call(globalOverrides, key))}
         onReset={() => void resetGlobalScope(['user_group', 'user_group_enforce', 'user_group_invite'])} />
       {renderGlobalGroup('事件响应')}
       {/* 自动清理好友与群聊 */}
       <FriendCleanCard />
-
+      </SettingsPanel>
+      <SettingsPanel value="reply">
       <SectionHeading>{t('settings.sec_reply')}</SectionHeading>
 
       <SettingGroup searchId="settings-reply">
@@ -1382,12 +1444,13 @@ export const SettingsPage: React.FC = () => {
         </SettingRow>
       </SettingGroup>
 
-      <MessageFormatCard {...currentScopeProps}
+      <MessageFormatCard key={scopeKey} {...currentScopeProps}
         overridden={settingsScope !== 'global' && Object.prototype.hasOwnProperty.call(globalOverrides, 'message_format')}
         onReset={() => void resetGlobalScope(['message_format'])} />
       {renderGlobalGroup('响应开关')}
       {renderGlobalGroup('牌堆 / 显示')}
-
+      </SettingsPanel>
+      <SettingsPanel value="media">
       <SectionHeading>{t('settings.sec_data')}</SectionHeading>
 
       <SettingGroup searchId="settings-data">
@@ -1396,19 +1459,20 @@ export const SettingsPage: React.FC = () => {
       </SettingGroup>
 
       {/* 图片发送方式 */}
-      <ImageSendCard {...currentScopeProps}
+      <ImageSendCard key={scopeKey} {...currentScopeProps}
         overridden={settingsScope !== 'global' && Object.prototype.hasOwnProperty.call(globalOverrides, 'image_send')}
         onReset={() => void resetGlobalScope(['image_send'])} />
 
       {/* 图床 */}
-      <ImageHostCard {...currentScopeProps}
+      <ImageHostCard key={scopeKey} {...currentScopeProps}
         overridden={settingsScope !== 'global' && Object.prototype.hasOwnProperty.call(globalOverrides, 'image_host')}
         onReset={() => void resetGlobalScope(['image_host'])} />
       {/* 聊天记录保留期 */}
-      <ChatRetentionCard {...currentScopeProps}
+      <ChatRetentionCard key={scopeKey} {...currentScopeProps}
         overridden={settingsScope !== 'global' && Object.prototype.hasOwnProperty.call(globalOverrides, 'chat_retention_days')}
         onReset={() => void resetGlobalScope(['chat_retention_days'])} />
-
+      </SettingsPanel>
+      <SettingsPanel value="advanced">
       <SectionHeading>{t('settings.sec_network')}</SectionHeading>
 
       {/* ── JS 插件网络访问（T8，默认放行对齐海豹）── */}
@@ -1434,12 +1498,25 @@ export const SettingsPage: React.FC = () => {
       <SettingGroup searchId="settings-maintenance">
         <SettingSwitch searchId="settings-autostart" title={t('settings.autostart')} desc={t('settings.autostart_desc')} checked={autostart} onToggle={toggleAutostart} />
       </SettingGroup>
-
+      </SettingsPanel>
+      <SettingsPanel value="security">
       <SectionHeading>{t('settings.sec_security')}</SectionHeading>
+      <Card data-setting-anchor="settings-plugin-verify">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2"><ShieldCheck className="h-4 w-4" />{t('settings.plugin_verify_title')}</CardTitle>
+          <CardDescription>{t('settings.plugin_verify_desc')}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Textarea value={pluginKey} onChange={(e) => setPluginKey(e.target.value)} rows={4} placeholder={t('settings.plugin_verify_placeholder')} />
+          <p className="text-xs text-muted-foreground">{t('settings.plugin_verify_hint')}</p>
+          <div className="flex justify-end"><Button size="sm" onClick={() => void savePluginVerify()}>{t('common.save')}</Button></div>
+        </CardContent>
+      </Card>
       {renderGlobalGroup('身份绑定（高风险）')}
       <IdentityEmailSettings />
       <SensitiveWordCard />
-
+      </SettingsPanel>
+      </SettingsWorkspace>
       {dlg.node}
     </div>
   );
@@ -1453,17 +1530,11 @@ const ChatRetentionCard: React.FC<ScopedCardProps> = (scopeProps) => {
   const toast = useToast();
   const [days, setDays] = useTourState(7, 7);
   const [saving, setSaving] = useTourState(false, false);
-  useEffect(() => {
-    (async () => {
-      if (scopeUnavailable(scopeProps)) return;
-      try {
-        const d = await getJson('/system/global?' + scopedQuery(scopeProps)) as any;
+  const { ready, status } = useScopedLoader(scopeProps, (d) => {
         setDays(Number(d.values?.chat_retention_days ?? 7));
-      }
-      catch { /* ignore */ }
-    })();
-  }, [scopeProps.scope, scopeProps.target, scopeProps.platform, scopeProps.overridden]);
+  });
   const save = async () => {
+    if (!ready || saving) return;
     if (scopeUnavailable(scopeProps)) return;
     setSaving(true);
     try {
@@ -1480,6 +1551,8 @@ const ChatRetentionCard: React.FC<ScopedCardProps> = (scopeProps) => {
         <CardTitle className="text-base">{t('chatcfg.title')}</CardTitle>
         <CardDescription>{t('chatcfg.desc')}</CardDescription>
       </CardHeader>
+      {status}
+      <fieldset disabled={!ready || saving} className="min-w-0">
       <CardContent className="flex items-end gap-2">
         <div className="space-y-1">
           <Label className="text-xs">{t('chatcfg.days')}</Label>
@@ -1490,6 +1563,7 @@ const ChatRetentionCard: React.FC<ScopedCardProps> = (scopeProps) => {
         <Button size="sm" onClick={save} disabled={saving || scopeUnavailable(scopeProps)}>{t('common.save')}</Button>
         <p className="text-xs text-muted-foreground pb-2">{t('chatcfg.hint')}</p>
       </CardContent>
+      </fieldset>
     </Card>
   );
 };
@@ -1564,18 +1638,13 @@ const UserGroupCard: React.FC<ScopedCardProps> = (scopeProps) => {
   const [enforce, setEnforce] = useTourState(false, false);
   const [invite, setInvite] = useTourState(true, true);
   const [saving, setSaving] = useTourState(false, false);
-  useEffect(() => {
-    (async () => {
-      if (scopeUnavailable(scopeProps)) return;
-      try {
-        const d = await getJson('/system/global?' + scopedQuery(scopeProps)) as any;
+  const { ready, status } = useScopedLoader(scopeProps, (d) => {
         setGroup(d.values?.user_group || '');
         setEnforce(!!d.values?.user_group_enforce);
         setInvite(d.values?.user_group_invite !== false);
-      } catch { /* ignore */ }
-    })();
-  }, [scopeProps.scope, scopeProps.target, scopeProps.platform, scopeProps.overridden]);
+  });
   const save = async () => {
+    if (!ready || saving) return;
     if (scopeUnavailable(scopeProps)) return;
     setSaving(true);
     try {
@@ -1592,6 +1661,8 @@ const UserGroupCard: React.FC<ScopedCardProps> = (scopeProps) => {
         <CardTitle className="text-base">{t('usergroup.title')}</CardTitle>
         <CardDescription>{t('usergroup.desc')}</CardDescription>
       </CardHeader>
+      {status}
+      <fieldset disabled={!ready || saving} className="min-w-0">
       <CardContent className="space-y-3">
         <div className="flex items-end gap-2">
           <div className="flex-1 space-y-1 max-w-xs">
@@ -1611,6 +1682,7 @@ const UserGroupCard: React.FC<ScopedCardProps> = (scopeProps) => {
         </div>
         <p className="text-xs text-muted-foreground">{t('usergroup.hint')}</p>
       </CardContent>
+      </fieldset>
     </Card>
   );
 };

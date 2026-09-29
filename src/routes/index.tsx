@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import { confirmPageLeave } from '@/lib/navigation-guard';
 import { Layout } from '@/components/layout/layout';
 import { Toaster } from '@/components/ui/toaster';
 import { DashboardPage } from '@/pages/dashboard-page';
@@ -92,26 +93,54 @@ export const AppRouter: React.FC = () => {
     return initial.path in ROUTES ? initial : parseRoute(DEFAULT_ROUTE);
   });
 
-  const navigate = useCallback((destination: string) => {
+  const locationRef = React.useRef(location);
+  locationRef.current = location;
+  const navigating = React.useRef(false);
+  const navigate = useCallback(async (destination: string) => {
     const requested = parseRoute(destination);
     const next = requested.path in ROUTES ? requested : parseRoute(DEFAULT_ROUTE);
-    if (window.location.hash.slice(1) !== next.raw) window.location.hash = next.raw;
-    setLocation((current) => current.raw === next.raw ? current : next);
+    if (next.raw === locationRef.current.raw || navigating.current) return;
+    navigating.current = true;
+    try {
+      if (!await confirmPageLeave()) return;
+      if (window.location.hash.slice(1) !== next.raw) window.location.hash = next.raw;
+      locationRef.current = next;
+      setLocation((current) => current.raw === next.raw ? current : next);
+    } finally { navigating.current = false; }
   }, []);
 
   React.useEffect(() => {
-    const handleHashChange = () => {
+    const handleHashChange = async () => {
       const next = readHashRoute();
-      if (next.path in ROUTES) {
-        setLocation(next);
-      } else if (!NOT_FOUND_ROUTES.has(next.path) && !notifiedAboutNotFound) {
-        notifiedAboutNotFound = true;
-        console.warn(`Unknown route: "${next.path}", redirecting to ${DEFAULT_ROUTE}`);
-        NOT_FOUND_ROUTES.add(next.path);
-        const fallback = parseRoute(DEFAULT_ROUTE);
-        window.location.hash = fallback.raw;
-        setLocation(fallback);
+      if (next.raw === locationRef.current.raw) return;
+      // Do not unmount the editor before it has approved leaving. On cancellation
+      // push its route back, rather than overwriting the destination history entry.
+      if (navigating.current) {
+        window.history.pushState(null, '', '#' + locationRef.current.raw);
+        return;
       }
+      navigating.current = true;
+      try {
+        if (!await confirmPageLeave()) {
+          window.history.pushState(null, '', '#' + locationRef.current.raw);
+          return;
+        }
+        if (next.path in ROUTES) {
+          window.history.replaceState(null, '', '#' + next.raw);
+          locationRef.current = next;
+          setLocation(next);
+        } else {
+          if (!NOT_FOUND_ROUTES.has(next.path) && !notifiedAboutNotFound) {
+            notifiedAboutNotFound = true;
+            console.warn(`Unknown route: "${next.path}", redirecting to ${DEFAULT_ROUTE}`);
+            NOT_FOUND_ROUTES.add(next.path);
+          }
+          const fallback = parseRoute(DEFAULT_ROUTE);
+          window.history.replaceState(null, '', '#' + fallback.raw);
+          locationRef.current = fallback;
+          setLocation(fallback);
+        }
+      } finally { navigating.current = false; }
     };
 
     window.addEventListener('hashchange', handleHashChange);

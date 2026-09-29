@@ -21,6 +21,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { truncate } from '@/lib/utils';
 import { ArrowDown, ArrowUp, ArrowUpDown, Pencil, Trash2 } from 'lucide-react';
@@ -52,7 +53,7 @@ const SortableHeader = <T,>({
   return (
     <button
       type="button"
-      className="inline-flex items-center gap-1 rounded-sm hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="inline-flex items-center gap-1 whitespace-nowrap rounded-sm hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       onClick={() => column.toggleSorting(direction === 'asc')}
       title={hint}
     >
@@ -98,6 +99,18 @@ export const ReplyTable: React.FC<ReplyTableProps> = ({
     });
   }, [replies, filterText, matchTypeFilter, statusFilter]);
 
+  const ruleLimits = React.useCallback((row: ReplyRule) => {
+    const limits: string[] = [];
+    if ((row.prob ?? 100) < 100) limits.push(`${row.prob}%`);
+    if ((row.cooldownSec ?? 0) > 0) limits.push(`CD ${row.cooldownSec}s`);
+    if ((row.dayLimit ?? 0) > 0) limits.push(t('replies.daylimit_badge', { n: row.dayLimit }));
+    if (row.scopeMode === 'allow') limits.push(t('replies.scope_allow_short'));
+    if (row.scopeMode === 'deny') limits.push(t('replies.scope_deny_short'));
+    if (row.scopeUsersMode === 'allow') limits.push(t('replies.scope_users_allow_short'));
+    if (row.scopeUsersMode === 'deny') limits.push(t('replies.scope_users_deny_short'));
+    return limits;
+  }, [t]);
+
   const columns = useMemo(
     () => [
       columnHelper.accessor('matchType', {
@@ -126,14 +139,7 @@ export const ReplyTable: React.FC<ReplyTableProps> = ({
         sortingFn: textSorting,
         cell: (info) => {
           const row = info.row.original;
-          const limits: string[] = [];
-          if ((row.prob ?? 100) < 100) limits.push(`${row.prob}%`);
-          if ((row.cooldownSec ?? 0) > 0) limits.push(`CD ${row.cooldownSec}s`);
-          if ((row.dayLimit ?? 0) > 0) limits.push(t('replies.daylimit_badge', { n: row.dayLimit }));
-          if (row.scopeMode === 'allow') limits.push(t('replies.scope_allow_short'));
-          if (row.scopeMode === 'deny') limits.push(t('replies.scope_deny_short'));
-          if (row.scopeUsersMode === 'allow') limits.push(t('replies.scope_users_allow_short'));
-          if (row.scopeUsersMode === 'deny') limits.push(t('replies.scope_users_deny_short'));
+          const limits = ruleLimits(row);
           return (
             <div>
               <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">
@@ -169,7 +175,7 @@ export const ReplyTable: React.FC<ReplyTableProps> = ({
         cell: (info) => (
           <span className="text-xs font-mono">{info.getValue()}</span>
         ),
-        size: 70,
+        size: 90,
       }),
       columnHelper.accessor('enabled', {
         header: ({ column }) => <SortableHeader column={column} label={t('replies.col_status')} hint={t('replies.sort_hint')} />,
@@ -178,11 +184,12 @@ export const ReplyTable: React.FC<ReplyTableProps> = ({
           return (
             <Switch
               checked={info.getValue()}
+              aria-label={`${t('replies.col_status')} · ${row.matchContent}`}
               onCheckedChange={() => onToggle(row.id)}
             />
           );
         },
-        size: 60,
+        size: 84,
       }),
       columnHelper.display({
         id: 'actions',
@@ -193,6 +200,7 @@ export const ReplyTable: React.FC<ReplyTableProps> = ({
               variant="ghost"
               size="icon"
               className="h-8 w-8"
+              aria-label={`${t('common.edit')} · ${info.row.original.matchContent}`}
               onClick={() => onEdit(info.row.original)}
             >
               <Pencil className="h-3.5 w-3.5" />
@@ -201,6 +209,7 @@ export const ReplyTable: React.FC<ReplyTableProps> = ({
               variant="ghost"
               size="icon"
               className="h-8 w-8 text-destructive"
+              aria-label={`${t('common.delete')} · ${info.row.original.matchContent}`}
               onClick={() => onDelete(info.row.original.id)}
             >
               <Trash2 className="h-3.5 w-3.5" />
@@ -210,7 +219,7 @@ export const ReplyTable: React.FC<ReplyTableProps> = ({
         size: 80,
       }),
     ],
-    [onEdit, onDelete, onToggle, t, textSorting]
+    [onEdit, onDelete, onToggle, t, textSorting, ruleLimits]
   );
 
   const table = useReactTable({
@@ -223,8 +232,49 @@ export const ReplyTable: React.FC<ReplyTableProps> = ({
   });
 
   return (
-    <div className="rounded-md border">
-      <Table className="rt">
+    <>
+    <div className="space-y-3 sm:hidden">
+      <div className="flex items-center gap-2">
+        <Select value={sorting[0]?.id || 'default'} onValueChange={(id) => setSorting(id === 'default' ? [] : [{ id, desc: sorting[0]?.desc ?? false }])}>
+          <SelectTrigger className="min-w-0 flex-1" aria-label={t('ui_audit.sort_by')}><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="default">{t('ui_audit.sort_default')}</SelectItem>
+            {([['matchType', 'match_type'], ['matchContent', 'match_content'], ['replyContent', 'reply_content'], ['priority', 'priority'], ['enabled', 'col_status']] as const).map(([id, label]) => <SelectItem key={id} value={id}>{t('replies.' + label)}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Button variant="outline" disabled={!sorting.length} onClick={() => setSorting(([first]) => first ? [{ ...first, desc: !first.desc }] : [])}>
+          {sorting[0]?.desc ? <ArrowDown className="mr-1.5 h-4 w-4" /> : <ArrowUp className="mr-1.5 h-4 w-4" />}{t(sorting[0]?.desc ? 'ui_audit.descending' : 'ui_audit.ascending')}
+        </Button>
+      </div>
+      {table.getRowModel().rows.length === 0 ? (
+        <div className="rounded-lg border px-4 py-10 text-center text-sm text-muted-foreground">{filterText ? t('replies.no_match') : t('replies.empty')}</div>
+      ) : table.getRowModel().rows.map(({ original: row }) => {
+        const conditions = row.conditions?.length ? row.conditions : [{ type: row.matchType, content: row.matchContent }];
+        const results = row.results?.length ? row.results : [row.replyContent];
+        const limits = ruleLimits(row);
+        return <article key={row.id} className={cn('overflow-hidden rounded-xl border bg-card shadow-sm', !row.enabled && 'opacity-70')}>
+          <div className="flex items-start justify-between gap-3 border-b px-4 py-3">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-1.5"><Badge variant="secondary" className="text-[11px]">{t('replies.mt_' + conditions[0].type, conditions[0].type)}</Badge>{conditions.length > 1 && <Badge variant="outline" className="text-[11px]">+{conditions.length - 1} {t('replies.match_type')}</Badge>}</div>
+              <h3 className="mt-2 whitespace-pre-wrap break-words font-mono text-sm font-semibold leading-5">{conditions[0].content}</h3>
+            </div>
+            <Switch checked={row.enabled} aria-label={`${t('replies.col_status')} · ${row.matchContent}`} onCheckedChange={() => onToggle(row.id)} />
+          </div>
+          <div className="space-y-3 px-4 py-3">
+            {conditions.length > 1 && <p className="line-clamp-2 break-words text-xs text-muted-foreground">{conditions.slice(1).map((condition) => `${t('replies.mt_' + condition.type, condition.type)}: ${condition.content}`).join(' · ')}</p>}
+            <div><p className="text-[11px] font-medium text-muted-foreground">{t('replies.reply_content')}</p><p className="mt-1 line-clamp-3 whitespace-pre-wrap break-words text-sm leading-5">{results[0]}</p>{results.length > 1 && <span className="mt-1 inline-block text-[11px] text-muted-foreground">+{results.length - 1} {t('replies.result_label')}</span>}</div>
+            {limits.length > 0 && <div className="flex flex-wrap gap-1.5">{limits.map((limit) => <Badge key={limit} variant="outline" className="text-[11px] font-normal">{limit}</Badge>)}</div>}
+          </div>
+          <div className="flex items-center gap-2 border-t bg-muted/20 px-4 py-2">
+            <span className="mr-auto text-xs text-muted-foreground">{t('replies.priority')} {row.priority}</span>
+            <Button variant="ghost" size="sm" aria-label={`${t('common.edit')} · ${row.matchContent}`} onClick={() => onEdit(row)}><Pencil className="mr-1.5 h-3.5 w-3.5" />{t('common.edit')}</Button>
+            <Button variant="ghost" size="sm" className="text-destructive" aria-label={`${t('common.delete')} · ${row.matchContent}`} onClick={() => onDelete(row.id)}><Trash2 className="mr-1.5 h-3.5 w-3.5" />{t('common.delete')}</Button>
+          </div>
+        </article>;
+      })}
+    </div>
+    <div className="hidden overflow-x-auto rounded-md border sm:block">
+      <Table>
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>
@@ -267,6 +317,7 @@ export const ReplyTable: React.FC<ReplyTableProps> = ({
         </TableBody>
       </Table>
     </div>
+    </>
   );
 };
 

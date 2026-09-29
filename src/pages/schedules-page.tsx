@@ -2,7 +2,7 @@ import { useTourState } from '@/components/onboarding/tour-data';
 import { tourSamples } from '@/lib/tour-samples';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,6 +14,12 @@ import { useToast } from '@/hooks/use-toast';
 import { useDialogs } from '@/hooks/use-dialogs';
 import { PlatformIcon, platformLabel } from '@/components/platform-icon';
 import { Clock, Plus, Trash2, RefreshCw, Loader2, Pencil, Save, X, Play } from 'lucide-react';
+import { PageHeader } from '@/components/ui/page-header';
+import { nextScheduleRun, scheduleToday, timezoneLabel } from '@/lib/schedule-time';
+
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
+import { runBatch } from '@/lib/batch-operation';
 
 interface Task {
   id: number; name: string; adapterId?: string; platform: string; targetType: string; targetId: string;
@@ -36,40 +42,6 @@ const parseCond = (c: string): { kind: CondKind; n: number } => {
   return { kind: 'custom', n: 7 };
 };
 
-const localToday = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-};
-
-// 估算下次执行时刻（与后端调度规则对齐；daily 补发窗口内的边缘情况按次日近似）。
-const nextRunOf = (tk: Task): string => {
-  if (!tk.enabled) return '—';
-  const pad = (n: number) => String(n).padStart(2, '0');
-  const fmt = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  const type = tk.triggerType || 'daily';
-  if (type === 'interval') {
-    if (!tk.intervalMin) return '—';
-    const m = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})$/.exec(tk.lastRun || '');
-    if (!m) return '—';
-    const last = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]);
-    return fmt(new Date(last.getTime() + tk.intervalMin * 60000));
-  }
-  if (type === 'once') {
-    if (tk.lastRun) return '—';   // 已执行/已过期
-    return `${tk.onceDate} ${tk.cronTime}`;
-  }
-  const [hh, mm] = tk.cronTime.split(':').map(Number);
-  if (Number.isNaN(hh) || Number.isNaN(mm)) return '—';
-  const daySet = (tk.days || '').split(',').filter(Boolean).map(Number);
-  const okDay = (d: Date) => daySet.length === 0 || daySet.includes(d.getDay());
-  const now = new Date();
-  const cand = new Date(now);
-  cand.setHours(hh, mm, 0, 0);
-  if (tk.lastRun === localToday() || cand.getTime() <= now.getTime()) cand.setDate(cand.getDate() + 1);
-  for (let i = 0; i < 8; i++) { if (okDay(cand)) break; cand.setDate(cand.getDate() + 1); }
-  return fmt(cand);
-};
-
 export const SchedulesPage: React.FC = () => {
   const { t } = useTranslation();
   const toast = useToast();
@@ -82,13 +54,41 @@ export const SchedulesPage: React.FC = () => {
   const [accounts, setAccounts] = useTourState<{ id: string; label: string; short: string; platform: string }[]>([], tourSamples.accounts);
   const [condKind, setCondKind] = useTourState<CondKind>('none', 'none');
   const [condN, setCondN] = useState(7);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState('');
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [busy, setBusy] = useState(false);
+  const operationLock = React.useRef(false);
+  const [baseline, setBaseline] = useState('');
+  const snapshot = (value = form, days = daySet, kind = condKind, n = condN) => JSON.stringify([value, [...days].sort(), kind, n]);
+  const dirty = editorOpen && snapshot() !== baseline;
+  const confirmDiscard = () => dlg.confirm({ title: t('ui_refresh.discard'), description: t('workspace.discard_hint'), cancelText: t('ui_refresh.keep_editing'), confirmText: t('ui_refresh.discard_edits'), destructive: true });
+  useUnsavedChanges(dirty || saving, async () => !saving && (!dirty || await confirmDiscard()));
+  const filtered = tasks.filter((task) => [task.name, task.targetId, task.content, task.platform].some((v) => v.toLowerCase().includes(search.trim().toLowerCase())));
+  const [timezone, setTimezone] = useTourState<number | null>(null, 480);
+  const [timeError, setTimeError] = useState(false);
+  const [now, setNow] = useState(Date.now());
+  const loadTimezone = React.useCallback(async () => {
+    setTimeError(false);
+    try {
+      const r = await fetch('/api/system/timezone'); const j = await r.json();
+      if (!r.ok || j.code !== 0 || !Number.isFinite(j.data?.effective_offset_minutes)) throw new Error('timezone');
+      setTimezone(j.data.effective_offset_minutes);
+    } catch { setTimezone(null); setTimeError(true); }
+  }, [setTimezone]);
+  useEffect(() => {
+    void loadTimezone();
+    const timer = window.setInterval(() => setNow(Date.now()), 30000);
+    return () => window.clearInterval(timer);
+  }, [loadTimezone]);
 
   const WEEK = t('schedules.week_short').split(',');
   const WEEK_FULL = t('schedules.week_full').split(',');
 
   const load = async () => {
     setLoading(true);
-    try { const r = await fetch('/api/schedules'); const j = await r.json(); if (j.code === 0) setTasks(j.data || []); }
+    try { const r = await fetch('/api/schedules'); const j = await r.json(); if (!r.ok || j.code !== 0) throw new Error(j.message); setTasks(j.data || []); setSelectedIds((ids) => new Set([...ids].filter((id) => (j.data || []).some((task: Task) => task.id === id)))); }
     catch { toast({ title: t('common.load_fail'), variant: 'destructive' }); }
     finally { setLoading(false); }
   };
@@ -119,12 +119,17 @@ export const SchedulesPage: React.FC = () => {
     setDaySet(new Set((tk.days || '').split(',').filter(Boolean).map(Number)));
     const pc = parseCond(tk.condition || '');
     setCondKind(pc.kind); setCondN(pc.n);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setBaseline(snapshot({ name: tk.name, adapterId: tk.adapterId || '', platform: tk.platform, targetType: tk.targetType, targetId: tk.targetId,
+      cronTime: tk.cronTime, days: tk.days, content: tk.content, action: tk.action || 'send', condition: tk.condition || '', triggerType: tk.triggerType || 'daily', intervalMin: tk.intervalMin || 30, onceDate: tk.onceDate || '' }, new Set((tk.days || '').split(',').filter(Boolean).map(Number)), pc.kind, pc.n));
+    setEditorOpen(true);
   };
   const cancelEdit = () => { setEditingId(null); setForm({ ...blankForm }); setDaySet(new Set()); setCondKind('none'); setCondN(7); };
+  const startNew = () => { cancelEdit(); setBaseline(snapshot({ ...blankForm }, new Set(), 'none', 7)); setEditorOpen(true); };
+  const closeEditor = async () => { if (!saving && (!dirty || await confirmDiscard())) { setEditorOpen(false); cancelEdit(); } };
   const isLegacyEdit = editingId != null && !form.adapterId && !!form.platform;
 
   const save = async () => {
+    if (operationLock.current) return;
     if (!isLegacyEdit && !form.adapterId) {
       toast({ title: t('schedules.need_account'), variant: 'destructive' }); return;
     }
@@ -138,14 +143,16 @@ export const SchedulesPage: React.FC = () => {
     const condition = form.targetType === 'private' || condKind === 'none' ? ''
       : condKind === 'inactive' ? `inactive>=${Math.max(1, condN)}`
       : form.condition;
+    operationLock.current = true; setSaving(true);
     try {
       const body = JSON.stringify({ ...form, condition, days, ...(editingId == null ? { enabled: true } : {}) });
       const url = editingId == null ? '/api/schedules' : `/api/schedules/${editingId}`;
       const r = await fetch(url, { method: editingId == null ? 'POST' : 'PUT', headers: { 'Content-Type': 'application/json' }, body });
       const j = await r.json();
       if (j.code !== 0) throw new Error(j.message);
-      cancelEdit(); toast({ title: t('common.save_success') }); void load();
+      setEditorOpen(false); cancelEdit(); toast({ title: t('common.save_success') }); await load();
     } catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
+    finally { operationLock.current = false; setSaving(false); }
   };
   // 立即执行：无视时刻/条件真跑一次（leave 任务先确认，会真的退群）。
   const runNow = async (tk: Task) => {
@@ -166,6 +173,7 @@ export const SchedulesPage: React.FC = () => {
     } catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
   };
   const remove = async (id: number) => {
+    if (!await dlg.confirm({ title: t('common.confirm_delete'), description: tasks.find((task) => task.id === id)?.name || String(id), confirmText: t('common.delete'), destructive: true })) return;
     try {
       const r = await fetch(`/api/schedules/${id}`, { method: 'DELETE' });
       const j = await r.json(); if (j.code !== 0) throw new Error(j.message);
@@ -173,32 +181,54 @@ export const SchedulesPage: React.FC = () => {
     } catch (e) { toast({ title: t('common.delete_fail'), description: String(e), variant: 'destructive' }); }
   };
 
+  const batch = async (action: 'enable' | 'disable' | 'delete') => {
+    if (operationLock.current || !selectedIds.size) return;
+    const ids = [...selectedIds];
+    operationLock.current = true; setBusy(true);
+    try {
+      if (action === 'delete' && !await dlg.confirm({ title: t('workspace.delete'), description: t('workspace.delete_hint', { count: ids.length }), destructive: true, confirmText: t('common.delete') })) return;
+      const result = await runBatch(ids, async (id) => {
+        const r = await fetch(`/api/schedules/${id}`, action === 'delete' ? { method: 'DELETE' } : { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled: action === 'enable' }) });
+        const j = await r.json(); if (!r.ok || j.code !== 0) throw new Error(j.message);
+      });
+      setSelectedIds(new Set(result.failed));
+      toast({ title: t('workspace.batch_result', { ok: result.succeeded.length, fail: result.failed.length }), variant: result.failed.length ? 'destructive' : 'default' });
+      await load();
+    } finally { operationLock.current = false; setBusy(false); }
+  };
+
   const daysLabel = (d: string) => !d ? t('schedules.everyday_label') : d.split(',').filter(Boolean).map((n) => WEEK_FULL[Number(n)] ?? n).join(' ');
-  const today = localToday();
+  const today = timezone === null ? '' : scheduleToday(timezone, now);
 
   return (
     <div className="space-y-6 max-w-3xl">
       {dlg.node}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2"><Clock className="h-5 w-5" />{t('nav.schedules')}</h1>
-        <p className="text-sm text-muted-foreground">{t('schedules.subtitle')}</p>
-      </div>
+      <PageHeader icon={Clock} title={t('nav.schedules')} description={t('ui_audit.schedule_subtitle')} />
+      <p className="text-sm text-muted-foreground" role="status">
+        {timezone === null ? t('ui_audit.timezone_unavailable') : t('ui_audit.schedule_timezone', { timezone: timezoneLabel(timezone) })}
+        {timeError && <Button variant="outline" className="ml-2" onClick={() => void loadTimezone()}>{t('ui_refresh.retry')}</Button>}
+      </p>
 
-      <Card data-tour="schedules-form">
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
+      <div className="flex flex-wrap gap-3" data-tour="schedules-form">
+        <Input className="min-w-0 flex-1 bg-card" aria-label={t('workspace.search_tasks')} placeholder={t('workspace.search_tasks')} value={search} onChange={(e) => { setSearch(e.target.value); setSelectedIds(new Set()); }} disabled={busy} />
+        <Button data-tour="schedules-submit" onClick={startNew} disabled={busy}><Plus className="mr-2 h-4 w-4" />{t('schedules.add')}</Button>
+      </div>
+      <Dialog open={editorOpen} onOpenChange={(open) => { if (!open) void closeEditor(); }}>
+      <DialogContent className="max-w-3xl max-h-[90dvh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="text-base flex items-center gap-2">
             {editingId == null ? <Plus className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
             {editingId == null ? t('schedules.add') : t('schedules.editing')}
-          </CardTitle>
-          <CardDescription>{t('schedules.add_hint')}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
+          </DialogTitle>
+          <DialogDescription>{t('schedules.add_hint')}</DialogDescription>
+        </DialogHeader>
+        <fieldset disabled={saving} className="min-w-0 space-y-3">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1.5"><Label className="font-normal">{t('schedules.name')}</Label>
               <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder={t('schedules.name_ph')} /></div>
             <div className="space-y-1.5"><Label className="font-normal">{t('schedules.trigger_type')}</Label>
               <Select value={form.triggerType} onValueChange={(v) => setForm({ ...form, triggerType: v })}>
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="daily">{t('schedules.trig_daily')}</SelectItem>
                   <SelectItem value="interval">{t('schedules.trig_interval')}</SelectItem>
@@ -226,7 +256,7 @@ export const SchedulesPage: React.FC = () => {
                 const acc = accounts.find((a) => a.id === adapterId);
                 setForm({ ...form, adapterId, platform: acc ? acc.platform : form.platform });
               }}>
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {isLegacyEdit
                     ? <SelectItem value="__legacy__">{t('schedules.account_legacy', { platform: platformLabel(form.platform) })}</SelectItem>
@@ -245,7 +275,7 @@ export const SchedulesPage: React.FC = () => {
               </Select></div>
             <div className="space-y-1.5"><Label className="font-normal">{t('schedules.target_type')}</Label>
               <Select value={form.targetType} onValueChange={(v) => setForm({ ...form, targetType: v })}>
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="group">{t('schedules.group')}</SelectItem>
                   <SelectItem value="private">{t('schedules.private')}</SelectItem>
@@ -255,7 +285,7 @@ export const SchedulesPage: React.FC = () => {
               <Input value={form.targetId} onChange={(e) => setForm({ ...form, targetId: e.target.value })} placeholder={t('schedules.target_id_ph')} /></div>
             <div className="space-y-1.5"><Label className="font-normal">{t('schedules.action')}</Label>
               <Select value={form.action} onValueChange={(v) => setForm({ ...form, action: v })}>
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="send">{t('schedules.action_send')}</SelectItem>
                   <SelectItem value="command">{t('schedules.action_command')}</SelectItem>
@@ -266,7 +296,7 @@ export const SchedulesPage: React.FC = () => {
               <div className="space-y-1.5"><Label className="font-normal">{t('schedules.condition')}</Label>
                 <div className="flex items-center gap-2">
                   <Select value={condKind} onValueChange={(v) => setCondKind(v as CondKind)}>
-                    <SelectTrigger className="h-9 flex-1"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-10 flex-1"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">{t('schedules.cond_none')}</SelectItem>
                       <SelectItem value="inactive">{t('schedules.cond_inactive')}</SelectItem>
@@ -301,26 +331,36 @@ export const SchedulesPage: React.FC = () => {
               placeholder={form.action === 'command' ? t('schedules.plugin_command_placeholder') : t('schedules.content_placeholder')} />
             {form.action === 'command' && <p className="text-xs text-muted-foreground">{t('schedules.plugin_command_hint')}</p>}
           </div>
-          <div data-tour="schedules-submit" className="flex gap-2">
+          <div className="flex justify-end gap-2">
             <Button onClick={save}>{editingId == null ? <><Plus className="mr-2 h-4 w-4" />{t('schedules.add')}</> : <><Save className="mr-2 h-4 w-4" />{t('common.save')}</>}</Button>
-            {editingId != null && <Button variant="outline" onClick={cancelEdit}><X className="mr-2 h-4 w-4" />{t('common.cancel')}</Button>}
+            <Button variant="outline" onClick={() => void closeEditor()}><X className="mr-2 h-4 w-4" />{t('common.cancel')}</Button>
           </div>
-        </CardContent>
-      </Card>
+        </fieldset>
+      </DialogContent>
+      </Dialog>
 
       <Card data-tour="schedules-list">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-base">{t('schedules.list')} ({tasks.length})</CardTitle>
-          <Button variant="outline" size="sm" onClick={load} disabled={loading}><RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />{t('common.refresh')}</Button>
+          <Button variant="outline" size="sm" onClick={load} disabled={loading || busy}><RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />{t('common.refresh')}</Button>
         </CardHeader>
         <CardContent>
+          <div className="mb-4 flex flex-wrap items-center gap-3">
+            <label className="flex items-center gap-2 text-sm"><input type="checkbox" disabled={busy || !filtered.length} checked={filtered.length > 0 && filtered.every((task) => selectedIds.has(task.id))} ref={(el) => { if (el) el.indeterminate = filtered.some((task) => selectedIds.has(task.id)) && !filtered.every((task) => selectedIds.has(task.id)); }} onChange={(e) => setSelectedIds(e.target.checked ? new Set(filtered.map((task) => task.id)) : new Set())} />{t('workspace.select_all')}</label>
+            {selectedIds.size > 0 && <><span className="text-sm text-muted-foreground">{t('workspace.selected', { count: selectedIds.size })}</span>
+              <Button variant="outline" size="sm" disabled={busy} onClick={() => void batch('enable')}>{t('workspace.enable')}</Button>
+              <Button variant="outline" size="sm" disabled={busy} onClick={() => void batch('disable')}>{t('workspace.disable')}</Button>
+              <Button variant="outline" size="sm" className="text-destructive" disabled={busy} onClick={() => void batch('delete')}>{t('workspace.delete')}</Button>
+            </>}
+          </div>
           {loading ? <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
-            : tasks.length === 0 ? <p className="text-sm text-muted-foreground py-6 text-center">{t('schedules.empty')}</p>
+            : filtered.length === 0 ? <p className="text-sm text-muted-foreground py-6 text-center">{t('schedules.empty')}</p>
             : (
             <div className="rounded-lg border overflow-x-auto">
               <table className="rt w-full text-sm">
                 <thead className="bg-muted/50 text-muted-foreground">
                   <tr>
+                    <th className="w-10 p-2.5"><span className="sr-only">{t('workspace.select')}</span></th>
                     <th className="text-left font-medium p-2.5">{t('schedules.name')}</th>
                     <th className="text-left font-medium p-2.5">{t('schedules.target')}</th>
                     <th className="text-left font-medium p-2.5">{t('schedules.time')}</th>
@@ -328,13 +368,14 @@ export const SchedulesPage: React.FC = () => {
                     <th className="text-left font-medium p-2.5">{t('schedules.action')}</th>
                     <th className="text-left font-medium p-2.5">{t('schedules.content')}</th>
                     <th className="text-left font-medium p-2.5">{t('schedules.last_run')}</th>
-                    <th className="text-left font-medium p-2.5">{t('schedules.next_run')}</th>
+                    <th className="text-left font-medium p-2.5">{t('ui_audit.next_run_estimate')}</th>
                     <th className="text-left font-medium p-2.5 w-44"></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {tasks.map((tk) => (
+                  {filtered.map((tk) => (
                     <tr key={tk.id} className="border-t align-top hover:bg-muted/30">
+                      <td data-label={t('workspace.select')} className="p-2.5"><input type="checkbox" aria-label={t('workspace.select') + ' ' + (tk.name || tk.id)} disabled={busy} checked={selectedIds.has(tk.id)} onChange={(e) => setSelectedIds((ids) => { const next = new Set(ids); e.target.checked ? next.add(tk.id) : next.delete(tk.id); return next; })} /></td>
                       <td data-label={t('schedules.name')} className="p-2.5 font-medium whitespace-nowrap">{tk.name}</td>
                       <td data-label={t('schedules.target')} className="p-2.5 whitespace-nowrap text-muted-foreground">{tk.action === 'lua' ? t('schedules.lua_internal_target') : <>{(tk.targetType === 'private' ? t('schedules.private') : t('schedules.group'))} {tk.targetId === '*' ? t('schedules.all_groups') : tk.targetId}</>}</td>
                       <td data-label={t('schedules.time')} className="p-2.5 font-mono whitespace-nowrap">
@@ -356,13 +397,13 @@ export const SchedulesPage: React.FC = () => {
                           ? <span className="inline-block rounded bg-primary/10 px-1.5 py-0.5 text-primary">{t('schedules.ran_today')}</span>
                           : <span className="text-muted-foreground font-mono">{tk.lastRun || '—'}</span>}
                       </td>
-                      <td data-label={t('schedules.next_run')} className="p-2.5 whitespace-nowrap text-xs text-muted-foreground font-mono">{nextRunOf(tk)}</td>
+                      <td data-label={t('ui_audit.next_run_estimate')} className="p-2.5 whitespace-nowrap text-xs text-muted-foreground font-mono">{nextScheduleRun(tk, timezone, now)}</td>
                       <td data-label={t('common.actions')} className="p-2.5">
                         <div className="flex flex-wrap items-center gap-1.5">
-                          <Switch checked={tk.enabled} onCheckedChange={() => toggle(tk)} />
-                          <Button size="icon" variant="ghost" className="h-7 w-7" title={t('schedules.run_now')} onClick={() => runNow(tk)}><Play className="h-4 w-4" /></Button>
-                          {tk.action !== 'lua' && <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => startEdit(tk)}><Pencil className="h-4 w-4" /></Button>}
-                          <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => remove(tk.id)}><Trash2 className="h-4 w-4" /></Button>
+                          <Switch disabled={busy} aria-label={tk.name} checked={tk.enabled} onCheckedChange={() => toggle(tk)} />
+                          <Button disabled={busy} size="icon" variant="ghost" className="h-7 w-7" title={t('schedules.run_now')} onClick={() => runNow(tk)}><Play className="h-4 w-4" /></Button>
+                          {tk.action !== 'lua' && <Button aria-label={t('common.edit')} title={t('common.edit')} disabled={busy} size="icon" variant="ghost" className="h-7 w-7" onClick={() => startEdit(tk)}><Pencil className="h-4 w-4" /></Button>}
+                          <Button aria-label={t('common.delete')} title={t('common.delete')} disabled={busy} size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => remove(tk.id)}><Trash2 className="h-4 w-4" /></Button>
                         </div>
                       </td>
                     </tr>

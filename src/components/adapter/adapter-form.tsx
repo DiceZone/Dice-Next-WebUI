@@ -13,6 +13,7 @@ import { Switch } from '@/components/ui/switch';
 import { QRCodeSVG } from 'qrcode.react';
 import { useToast } from '@/hooks/use-toast';
 import type { Adapter, AdapterFormData, AdapterType } from '@/types/adapter';
+import type { PersonaTemplate } from '@/types/persona';
 import { PlatformIcon } from '@/components/platform-icon';
 import apiClient from '@/lib/api-client';
 
@@ -44,6 +45,9 @@ const adapterFormSchema = z.object({
   forceVerifyImageResource: z.boolean().optional().default(false),
   qqRichReplies: z.enum(['off', 'markdown', 'math']).default('off'),
   qqInteractions: z.enum(['off', 'links', 'buttons']).default('links'),
+  personaSelection: z.enum(['all', 'selected', 'none']).default('all'),
+  selectablePersonaIds: z.array(z.number().int().positive()).default([]),
+  defaultPersonaId: z.number().int().nonnegative().default(0),
   heartApiKey: z.string().optional(),
   clearHeartApiKey: z.boolean().optional().default(false),
   enabled: z.boolean().optional().default(true),
@@ -71,7 +75,9 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
   const isEdit = !!adapter;
   const [qr, setQr] = React.useState<{ sessionId: string; url: string } | null>(null);
   const [qrBusy, setQrBusy] = React.useState(false);
+  const [qrSaving, setQrSaving] = React.useState(false);
   const qrPollingRef = React.useRef(false);
+  const [personas, setPersonas] = React.useState<PersonaTemplate[]>([]);
 
   const { register, handleSubmit, setValue, watch, getValues, reset, setError, clearErrors, formState: { errors, isSubmitting } } = useForm<FormValues>({
     resolver: zodResolver(adapterFormSchema),
@@ -88,6 +94,9 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
       forceVerifyImageResource: adapter?.forceVerifyImageResource ?? false,
       qqRichReplies: adapter?.qqRichReplies ?? 'off',
       qqInteractions: adapter?.qqInteractions ?? 'links',
+      personaSelection: adapter?.personaSelection ?? 'all',
+      selectablePersonaIds: adapter?.selectablePersonaIds ?? [],
+      defaultPersonaId: adapter?.defaultPersonaId ?? 0,
       heartApiKey: '',
       clearHeartApiKey: false,
       enabled: adapter?.enabled ?? true,
@@ -109,12 +118,22 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
         forceVerifyImageResource: adapter?.forceVerifyImageResource ?? false,
         qqRichReplies: adapter?.qqRichReplies ?? 'off',
         qqInteractions: adapter?.qqInteractions ?? 'links',
+        personaSelection: adapter?.personaSelection ?? 'all',
+        selectablePersonaIds: adapter?.selectablePersonaIds ?? [],
+        defaultPersonaId: adapter?.defaultPersonaId ?? 0,
         heartApiKey: '',
         clearHeartApiKey: false,
         enabled: adapter?.enabled ?? true,
       });
     }
   }, [open, adapter, reset]);
+
+  React.useEffect(() => {
+    if (!open) return;
+    void apiClient.get<PersonaTemplate[]>('/personas')
+      .then((result) => setPersonas(result.data || []))
+      .catch(() => setPersonas([]));
+  }, [open]);
 
   React.useEffect(() => () => { qrPollingRef.current = false; }, []);
 
@@ -225,11 +244,14 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
         await new Promise((resolve) => window.setTimeout(resolve, 2000));
         if (!qrPollingRef.current) return;
         const result = await apiClient.get<{ status: string; appId?: string; appSecret?: string }>(`/adapters/qq-official/qr/${encodeURIComponent(session.sessionId)}`);
+        if (!qrPollingRef.current) return;
         if (result.data.status === 'completed' && result.data.appId && result.data.appSecret) {
-          setValue('appId', result.data.appId); setValue('appSecret', result.data.appSecret); qrPollingRef.current = false; setQr(null); setQrBusy(false);
+          setValue('appId', result.data.appId); setValue('appSecret', result.data.appSecret); qrPollingRef.current = false; setQr(null); setQrSaving(true);
           const current = getValues();
           const name = current.name.trim() || `QQ 官方机器人 ${result.data.appId}`;
-          await onSubmit({ name, type: 'qq_official', connectionMode: 'forward_ws', endpoint: '', accessToken: '', appId: result.data.appId, appSecret: result.data.appSecret, heartApiKey: current.heartApiKey?.trim(), forceVerifyImageResource: current.forceVerifyImageResource, qqRichReplies: current.qqRichReplies, qqInteractions: current.qqInteractions, enabled: current.enabled ?? true });
+          setValue('name', name);
+          await onSubmit({ name, type: 'qq_official', connectionMode: 'forward_ws', endpoint: '', accessToken: '', appId: result.data.appId, appSecret: result.data.appSecret, heartApiKey: current.heartApiKey?.trim(), forceVerifyImageResource: current.forceVerifyImageResource, qqRichReplies: current.qqRichReplies, qqInteractions: current.qqInteractions, personaSelection: current.personaSelection, selectablePersonaIds: current.selectablePersonaIds, defaultPersonaId: current.defaultPersonaId, enabled: current.enabled ?? true });
+          setQrSaving(false); setQrBusy(false);
           toast({ title: 'QQ 官方机器人已添加，正在连接' }); onOpenChange(false); return;
         }
         if (result.data.status === 'expired') { qrPollingRef.current = false; setQr(null); setQrBusy(false); return; }
@@ -241,7 +263,7 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
       const message = error instanceof Error ? error.message : '无法创建 QQ 官方机器人扫码任务。';
       setError('appId', { message });
       toast({ title: 'QQ 官方机器人扫码绑定失败', description: message, variant: 'destructive' });
-      setQr(null); setQrBusy(false);
+      setQr(null); setQrBusy(false); setQrSaving(false);
     }
   };
 
@@ -259,15 +281,28 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
     : isReverse
     ? t('adapters.port_placeholder')
     : 'ws://192.168.6.245:3001';
+  const selectedPersonaIds = watch('selectablePersonaIds') ?? [];
+  const toggleSelectablePersona = (id: number, enabled: boolean) => {
+    const next = enabled
+      ? Array.from(new Set([...selectedPersonaIds, id]))
+      : selectedPersonaIds.filter((value) => value !== id);
+    setValue('selectablePersonaIds', next, { shouldDirty: true });
+  };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(next) => { if (!isSubmitting && !qrSaving) onOpenChange(next); }}>
       <DialogContent className={official || milky ? 'max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-[760px]' : 'max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-[500px]'}>
         <DialogHeader>
           <DialogTitle>{isEdit ? t('adapters.edit_title') : t('adapters.add_title')}</DialogTitle>
           <DialogDescription>{isEdit ? t('adapters.edit_subtitle') : t('adapters.add_subtitle')}</DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4" autoComplete="off">
+        <form onSubmit={handleSubmit(async (data) => {
+          if (qrBusy) return;
+          try { await handleFormSubmit(data); }
+          catch (error) { setError('root', { message: error instanceof Error ? error.message : t('common.save_fail') }); }
+        })} className="space-y-4" autoComplete="off">
+          {errors.root && <p role="alert" className="text-sm text-destructive">{errors.root.message}</p>}
+          <fieldset disabled={isSubmitting || qrSaving} className="min-w-0 space-y-4">
           <div className="space-y-2">
             <Label htmlFor="name">{t('adapters.name')}</Label>
             <Input id="name" placeholder={t('adapters.name_placeholder')} {...register('name')} />
@@ -444,10 +479,49 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
               )}
             </div>
           </section>
+          <section className="space-y-3 rounded-lg border bg-muted/20 p-4">
+            <div>
+              <Label>{t('adapters.persona_scope_title')}</Label>
+              <p className="mt-1 text-xs text-muted-foreground">{t('adapters.persona_scope_desc')}</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="defaultPersonaId">{t('adapters.persona_default')}</Label>
+              <Select value={String(watch('defaultPersonaId') ?? 0)} onValueChange={(value) => setValue('defaultPersonaId', Number(value), { shouldDirty: true })}>
+                <SelectTrigger id="defaultPersonaId"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0">{t('adapters.persona_follow_global')}</SelectItem>
+                  {personas.map((persona) => <SelectItem key={persona.id} value={String(persona.id)}>{persona.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="personaSelection">{t('adapters.persona_user_selection')}</Label>
+              <Select value={watch('personaSelection') ?? 'all'} onValueChange={(value) => setValue('personaSelection', value as FormValues['personaSelection'], { shouldDirty: true })}>
+                <SelectTrigger id="personaSelection"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t('adapters.persona_all')}</SelectItem>
+                  <SelectItem value="selected">{t('adapters.persona_selected')}</SelectItem>
+                  <SelectItem value="none">{t('adapters.persona_none')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {watch('personaSelection') === 'selected' && (
+              <div className="space-y-2 rounded-md border bg-background/60 p-3">
+                {personas.length === 0 ? <p className="text-xs text-muted-foreground">{t('adapters.persona_empty')}</p> : personas.map((persona) => (
+                  <label key={persona.id} className="flex items-center justify-between gap-3 text-sm">
+                    <span className="min-w-0 truncate">{persona.name}</span>
+                    <Switch checked={selectedPersonaIds.includes(persona.id)} onCheckedChange={(checked) => toggleSelectablePersona(persona.id, checked)} />
+                  </label>
+                ))}
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">{t('adapters.persona_scope_hint')}</p>
+          </section>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>{t('common.cancel')}</Button>
-            <Button type="submit" disabled={isSubmitting || (!official && !milky && !tokenBot && !modeChosen)}>{isSubmitting ? t('common.saving') : isEdit ? t('adapters.save_edit') : t('adapters.add')}</Button>
+            <Button type="submit" disabled={qrBusy || isSubmitting || (!official && !milky && !tokenBot && !modeChosen)}>{isSubmitting || qrSaving ? t('common.saving') : isEdit ? t('adapters.save_edit') : t('adapters.add')}</Button>
           </DialogFooter>
+          </fieldset>
         </form>
       </DialogContent>
     </Dialog>

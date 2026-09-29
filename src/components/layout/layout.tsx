@@ -24,7 +24,7 @@ export const Layout: React.FC<LayoutProps> = ({
   wsConnected = false,
   searchTarget,
 }) => {
-  const { sidebarCollapsed } = zustandAppStore();
+  const { sidebarCollapsed, contentWidth } = zustandAppStore();
   const [tourReplayToken, setTourReplayToken] = React.useState(0);
   // Held here rather than read inside the tour so that answering the welcome
   // question starts the current page's tour immediately.
@@ -70,6 +70,11 @@ export const Layout: React.FC<LayoutProps> = ({
         if (attempts++ < 30) retryTimer = window.setTimeout(locate, 100);
         return;
       }
+      if (!target.getClientRects().length) {
+        window.dispatchEvent(new CustomEvent('settings:reveal', { detail: target }));
+        if (attempts++ < 30) retryTimer = window.setTimeout(locate, 50);
+        return;
+      }
       target.scrollIntoView({ behavior: 'smooth', block: 'center' });
       target.classList.remove('settings-search-highlight');
       void target.offsetWidth;
@@ -98,11 +103,15 @@ export const Layout: React.FC<LayoutProps> = ({
         <main
           data-tour="page-content"
           className={cn(
-            'flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6',
+            'flex-1 overflow-y-auto overflow-x-hidden bg-muted/25 p-4 md:p-6',
             sidebarCollapsed ? 'lg:ml-0' : 'ml-0'
           )}
         >
-          {children}
+          {/* Chat pages need a definite height through the width wrapper.
+              Keep short viewports scrollable so controls cannot crowd out chat. */}
+          <div className={cn('min-w-0', currentPath === '/playground' && 'h-full min-h-[32rem]', contentWidth !== 'classic' && 'mx-auto w-full max-w-7xl [&>*]:max-w-none')} data-content-width={contentWidth}>
+            {children}
+          </div>
         </main>
       </div>
       <OnboardingGate mode={tourMode} onChoose={chooseTourMode} />

@@ -1,0 +1,58 @@
+const en = {
+  wait_for_data: 'Wait for the selected configuration to load. If loading fails, retry before editing.',
+  draft_requires_server: 'This server cannot test unsaved rules yet. Update the server and retry.',
+  draft_test_hint: 'Tests only this draft, including its enabled state and scope. Cooldowns are ignored; counters are not saved and external APIs are not called. The result is a reply template, not the final rendered message.',
+  test_user: 'Test user ID', test_group: 'Group ID (blank for private chat)', test_nick: 'Test nickname',
+  upload_failed: 'Image upload failed. Your existing reply is unchanged; please retry.',
+  sort_by: 'Sort by', sort_default: 'Default order', ascending: 'Ascending', descending: 'Descending',
+  schedule_subtitle: 'Run messages, commands or other actions daily, once, or at an interval. Supports a single target or all groups.',
+  schedule_timezone: 'Times use the bot’s timezone: {{timezone}}. The next run is an estimate; connectivity and conditions may affect execution. System timezone changes require refreshing this page.',
+  timezone_unavailable: 'Bot timezone unavailable. Next-run estimates are hidden until it loads.',
+  next_run_estimate: 'Next run (estimated)',
+  help_shadowed: 'A higher-priority source has the same topic. This document is stored and editable, but the help command may return the other source.',
+  help_empty: 'This document is stored but empty, so it is not included in help-command results.',
+};
+type Labels = typeof en;
+const zhHans: Labels = {
+  wait_for_data: '请等待当前配置加载完成；如果加载失败，请重试后再编辑。',
+  draft_requires_server: '当前后端尚不支持测试未保存的规则，请更新后端后重试。',
+  draft_test_hint: '只测试当前草稿，包含启用状态和生效范围。忽略冷却，不保存计数器，也不调用外部接口；结果是回复模板，并非最终渲染后的消息。',
+  test_user: '测试用户 ID', test_group: '测试群 ID（留空为私聊）', test_nick: '测试昵称',
+  upload_failed: '图片上传失败，原有回复未改变，请重试。',
+  sort_by: '排序字段', sort_default: '默认顺序', ascending: '升序', descending: '降序',
+  schedule_subtitle: '按每日、单次或固定间隔发送消息、执行指令等操作，支持指定会话或全部群。',
+  schedule_timezone: '时间按机器人时区 {{timezone}} 显示和设置。“下次执行”为估算，实际执行还取决于连接状态和触发条件；系统时区变化后请刷新页面。',
+  timezone_unavailable: '尚未取得机器人时区，暂不显示下次执行时间估算。',
+  next_run_estimate: '下次执行（估算）',
+  help_shadowed: '存在优先级更高的同名帮助。本文档已保存且可以编辑，但帮助指令可能返回其他来源的内容。',
+  help_empty: '本文档已保存，但内容为空，暂不会出现在帮助指令的查询结果中。',
+};
+const zhHant: Labels = {
+  wait_for_data: '請等待目前設定載入完成；若載入失敗，請重試後再編輯。',
+  draft_requires_server: '目前後端尚不支援測試未儲存的規則，請更新後端後重試。',
+  draft_test_hint: '只測試目前草稿，包含啟用狀態和生效範圍。忽略冷卻，不儲存計數器，也不呼叫外部介面；結果是回覆範本，並非最終呈現的訊息。',
+  test_user: '測試使用者 ID', test_group: '測試群組 ID（留空為私聊）', test_nick: '測試暱稱',
+  upload_failed: '圖片上傳失敗，原有回覆未變更，請重試。',
+  sort_by: '排序欄位', sort_default: '預設順序', ascending: '升冪', descending: '降冪',
+  schedule_subtitle: '按每日、單次或固定間隔傳送訊息、執行指令等操作，支援指定對話或全部群組。',
+  schedule_timezone: '時間按機器人時區 {{timezone}} 顯示和設定。「下次執行」為估算，實際執行仍取決於連線狀態和觸發條件；系統時區變更後請重新整理頁面。',
+  timezone_unavailable: '尚未取得機器人時區，暫不顯示下次執行時間估算。',
+  next_run_estimate: '下次執行（估算）',
+  help_shadowed: '存在優先級較高的同名說明。本文件已儲存且可以編輯，但說明指令可能傳回其他來源的內容。',
+  help_empty: '本文件已儲存，但內容為空，暫不會出現在說明指令的查詢結果中。',
+};
+const ja: Labels = {
+  wait_for_data: '選択した設定の読み込みを待ってください。失敗した場合は再試行してから編集してください。',
+  draft_requires_server: 'このサーバーは未保存のルールのテストに未対応です。サーバーを更新してください。',
+  draft_test_hint: '有効状態と適用範囲を含め、この下書きのみをテストします。クールダウンを無視し、カウンターの保存や外部 API の呼び出しは行いません。結果は最終表示ではなく返信テンプレートです。',
+  test_user: 'テストユーザー ID', test_group: 'グループ ID（個別チャットは空欄）', test_nick: 'テスト表示名',
+  upload_failed: '画像をアップロードできませんでした。既存の返信は変更されていません。再試行してください。',
+  sort_by: '並べ替え項目', sort_default: '既定の順序', ascending: '昇順', descending: '降順',
+  schedule_subtitle: '毎日・一度だけ・一定間隔でメッセージ送信やコマンド実行などを行います。個別の会話または全グループを指定できます。',
+  schedule_timezone: '時刻の表示と設定にはボットのタイムゾーン {{timezone}} を使用します。次回実行は目安です。接続状態や条件により変わります。システムのタイムゾーン変更後は再読み込みしてください。',
+  timezone_unavailable: 'ボットのタイムゾーンを取得するまで、次回実行の予測は表示しません。',
+  next_run_estimate: '次回実行（目安）',
+  help_shadowed: '同名の優先度の高いヘルプがあります。この文書は保存・編集できますが、ヘルプコマンドは別の内容を返す場合があります。',
+  help_empty: 'この文書は保存されていますが空です。ヘルプコマンドの検索結果には含まれません。',
+};
+export const uiAudit = { en, 'zh-Hans': zhHans, 'zh-Hant': zhHant, ja };

@@ -519,7 +519,7 @@ export const AiPage: React.FC = () => {
               {memory.short.enabled && (
                 <div className="mt-3 space-y-3">
                   <div className="space-y-1 max-w-xs"><Label className="text-xs">{t('ai.mem_model')}</Label>{modelSelect(memory.short.summary_model_id, (v) => setMemory((p) => ({ ...p, short: { ...p.short, summary_model_id: v } })))}</div>
-                  <div className="grid max-w-md grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="grid min-w-0 w-full grid-cols-1 gap-3 sm:grid-cols-2">
                     <div className="space-y-1"><Label className="text-xs">{t('ai.mem_rounds')}</Label>
                       <Input type="number" className="h-8 text-sm" value={memory.short.rounds} onChange={(e) => setMemory((p) => ({ ...p, short: { ...p.short, rounds: num(e.target.value) } }))} /></div>
                     <div className="space-y-1"><Label className="text-xs">{t('ai.mem_maxchars')}</Label>
@@ -572,13 +572,13 @@ export const AiPage: React.FC = () => {
                 </div>
                 {memory.long.enabled && (
                   <div className="mt-3 space-y-3">
-                    <div className="grid max-w-md grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="grid min-w-0 w-full grid-cols-1 gap-3 sm:grid-cols-2">
                       <div className="space-y-1"><Label className="text-xs">{t('ai.mlong_embed_model_conn')}</Label>{modelSelect(memory.long.embed_model_id, (v) => setMemory((p) => ({ ...p, long: { ...p.long, embed_model_id: v } })))}</div>
                       <div className="space-y-1"><Label className="text-xs">{t('ai.mlong_embed_model')}</Label>
                         <Input className="h-8 text-sm" value={memory.long.embed_model} placeholder="text-embedding-3-small" onChange={(e) => setMemory((p) => ({ ...p, long: { ...p.long, embed_model: e.target.value } }))} /></div>
                     </div>
                     <div className="space-y-1 max-w-xs"><Label className="text-xs">{t('ai.mlong_extract_model')}</Label>{modelSelect(memory.long.extract_model_id, (v) => setMemory((p) => ({ ...p, long: { ...p.long, extract_model_id: v } })))}</div>
-                    <div className="grid max-w-lg grid-cols-1 gap-3 sm:grid-cols-3">
+                    <div className="grid min-w-0 w-full grid-cols-1 gap-3 sm:grid-cols-3">
                       <div className="space-y-1"><Label className="text-xs">{t('ai.mlong_topk')}</Label>
                         <Input type="number" className="h-8 text-sm" value={memory.long.top_k} onChange={(e) => setMemory((p) => ({ ...p, long: { ...p.long, top_k: num(e.target.value) } }))} /></div>
                       <div className="space-y-1"><Label className="text-xs">{t('ai.mlong_minsim')}</Label>
@@ -756,7 +756,7 @@ export const AiPage: React.FC = () => {
               </div>
               {vision.enabled && (
                 <div className="mt-3 space-y-3">
-                  <div className="grid max-w-md grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="grid min-w-0 w-full grid-cols-1 gap-3 sm:grid-cols-2">
                     <div className="space-y-1"><Label className="text-xs">{t('ai.vision_model')}</Label>{modelSelect(vision.model_id, (v) => setVision((p) => ({ ...p, model_id: v })))}</div>
                     <div className="space-y-1"><Label className="text-xs">{t('ai.vision_max_images')}</Label>
                       <Input type="number" className="h-8 text-sm" value={vision.max_images} onChange={(e) => setVision((p) => ({ ...p, max_images: num(e.target.value) }))} /></div>

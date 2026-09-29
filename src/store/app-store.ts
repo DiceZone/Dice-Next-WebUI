@@ -16,6 +16,7 @@ interface AppState {
   initialized: boolean;
   sidebarCollapsed: boolean;
   theme: 'light' | 'dark' | 'system';
+  contentWidth: 'classic' | 'modern';
   apiKey: string | null;
 
   // ─── Actions ──────────────────────────────────────────────
@@ -23,6 +24,7 @@ interface AppState {
   toggleSidebar: () => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
   setTheme: (theme: 'light' | 'dark' | 'system') => void;
+  setContentWidth: (width: 'classic' | 'modern') => void;
   setApiKey: (key: string | null) => void;
 }
 
@@ -32,6 +34,7 @@ export const zustandAppStore = create<AppState>()(
       initialized: false,
       sidebarCollapsed: false,
       theme: 'system',
+      contentWidth: 'modern',
       apiKey: null,
 
       initialize: () => {
@@ -50,6 +53,7 @@ export const zustandAppStore = create<AppState>()(
         set({ sidebarCollapsed: collapsed }),
 
       setTheme: (theme) => set({ theme }),
+      setContentWidth: (contentWidth) => set({ contentWidth }),
 
       setApiKey: (key) => {
         if (key) {
@@ -66,6 +70,7 @@ export const zustandAppStore = create<AppState>()(
       partialize: (state) => ({
         sidebarCollapsed: state.sidebarCollapsed,
         theme: state.theme,
+        contentWidth: state.contentWidth,
       }),
     }
   )
