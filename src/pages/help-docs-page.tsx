@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { PaginationBar } from '@/components/ui/pagination-bar';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -14,7 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useDialogs } from '@/hooks/use-dialogs';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 import { parseHelpImport, validHelpName } from '@/lib/help-document';
-import { HelpCircle, Plus, Pencil, RotateCcw, Trash2, RefreshCw, Search, ChevronLeft, ChevronRight, Download, Upload, FileText, Lock } from 'lucide-react';
+import { HelpCircle, Plus, Pencil, RotateCcw, Trash2, RefreshCw, Search, Download, Upload, FileText, Lock } from 'lucide-react';
 
 interface HelpEntry { key: string; content: string; source: string; i18nKey?: string; editable: boolean; shadowed?: boolean; }
 interface EditState { mode: 'new' | 'file' | 'builtin'; name: string; content: string; initial: string; i18nKey?: string; }
@@ -174,7 +175,7 @@ export const HelpDocsPage: React.FC = () => {
           </button>)}
           {!entries.length && <p className="p-6 text-center text-sm text-muted-foreground">{t(loading && !tour ? 'common.loading' : 'helpdoc.empty')}</p>}
         </div>
-        {pageCount > 1 && <div className="flex items-center justify-between border-t p-3"><Button size="icon" variant="ghost" aria-label={t('ui_refresh.previous')} disabled={page <= 1 || loading} onClick={() => setPage(page - 1)}><ChevronLeft className="h-4 w-4" /></Button><span className="text-xs tabular-nums">{t('ui_refresh.page', { page, total: pageCount })}</span><Button size="icon" variant="ghost" aria-label={t('ui_refresh.next')} disabled={page >= pageCount || loading} onClick={() => setPage(page + 1)}><ChevronRight className="h-4 w-4" /></Button></div>}
+        {pageCount > 1 && <div className="border-t p-3"><PaginationBar total={total} page={page} pageSize={PAGE_SIZE} onPageChange={setPage} disabled={loading} fixedSize compact /></div>}
       </Card>
       <Card className="min-w-0 overflow-hidden">{selected ? <>
         <div className="space-y-4 border-b p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><h2 className="break-words text-xl font-semibold">{selected.key}</h2><p className="mt-2 break-words text-xs text-muted-foreground">{sourceLabel(selected.source)}</p></div><Badge variant={canEdit(selected) ? 'secondary' : 'outline'}>{t(canEdit(selected) ? 'ui_refresh.help_editable' : 'ui_refresh.help_readonly')}</Badge></div>

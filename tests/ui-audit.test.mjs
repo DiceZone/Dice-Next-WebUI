@@ -214,11 +214,109 @@ test('workspace width defaults to modern, persists, and leaves classic page widt
   assert.ok(layout.includes("contentWidth !== 'classic' && 'mx-auto w-full max-w-7xl [&>*]:max-w-none'"));
 });
 
+test('playground keeps a definite height in either width mode and scrolls only its chat', () => {
+  const layout = fs.readFileSync(new URL('../src/components/layout/layout.tsx', import.meta.url), 'utf8');
+  const page = fs.readFileSync(new URL('../src/pages/playground-page.tsx', import.meta.url), 'utf8');
+  assert.ok(layout.includes("currentPath === '/playground' && 'h-full min-h-[32rem]'"));
+  assert.ok(page.includes('ref={chatRef} data-tour="playground-chat"'));
+  assert.ok(page.includes("chat?.scrollTo({ top: chat.scrollHeight, behavior: 'smooth' })"));
+  assert.ok(!page.includes('scrollIntoView'));
+  assert.ok(!page.includes('main.style.overflow'));
+  assert.ok(page.includes('data-tour="playground-composer" className="flex shrink-0'));
+});
+
+test('toast entry points share a bounded portal independent of page width rules', () => {
+  const toaster = fs.readFileSync(new URL('../src/components/ui/toaster.tsx', import.meta.url), 'utf8');
+  const compatibility = fs.readFileSync(new URL('../src/components/ui/toast.tsx', import.meta.url), 'utf8');
+  assert.ok(toaster.includes('return createPortal('));
+  assert.ok(toaster.includes('document.body'));
+  assert.ok(toaster.includes('w-[calc(100%-2rem)] max-w-[388px]'));
+  assert.ok(toaster.includes('[overflow-wrap:anywhere]'));
+  assert.ok(compatibility.includes("export { Toaster as ToastViewport } from './toaster'"));
+});
+
 test('group mutations choose the filtered adapter instead of another primary account', () => {
   const primary = { adapterId: 'A', endpointId: 'group-A' }, filtered = { adapterId: 'B', endpointId: 'group-B' };
   const run = handler('pages/groups-page.tsx', 'accountPayload', { primaryAccount: () => primary });
   assert.equal(run({ accounts: [primary, filtered] }, 'B').endpointId, 'group-B');
   assert.equal(run({ accounts: [primary, filtered] }, 'all').adapterId, 'A');
+});
+
+test('detail hard-disable requires confirmation, unlock changes only locked', async () => {
+  for (const [locked, confirmed, expected] of [[false, false, null], [false, true, true], [true, false, false]]) {
+    const writes = []; let confirmations = 0;
+    const run = handler('pages/groups-page.tsx', 'toggleGroupLock', {
+      savingSwitch: false, group: { locked, left: false, name: 'Example' }, t: (s) => s,
+      dlg: { confirm: async () => { confirmations++; return confirmed; } },
+      setFunction: async (key, value) => writes.push([key, value]),
+    });
+    await run(); assert.equal(confirmations, locked ? 0 : 1);
+    assert.deepEqual(writes, expected === null ? [] : [['locked', expected]]);
+  }
+});
+
+test('detail switches reject archived, locked and in-flight changes', async () => {
+  for (const [savingSwitch, locked, left, key, allowed] of [
+    [true, false, false, 'enabled', false], [false, true, false, 'enabled', false],
+    [false, false, true, 'locked', false], [false, true, false, 'locked', true],
+    [false, false, false, 'enabled', true],
+  ]) {
+    const writes = [];
+    const run = handler('pages/groups-page.tsx', 'setFunction', { savingSwitch, group: { locked, left }, setSavingSwitch() {}, save: async (body) => writes.push(body) });
+    await run(key, false); assert.equal(writes.length, Number(allowed));
+    if (allowed) assert.equal(writes[0][key], false);
+  }
+});
+
+test('group detail panels fill their container and list cards use the theme surface', () => {
+  const source = fs.readFileSync(new URL('../src/pages/groups-page.tsx', import.meta.url), 'utf8');
+  for (const panel of ['function', 'ai', 'plugins']) {
+    assert.ok(source.includes(`data-group-panel="${panel}" className="min-w-0 w-full space-y-`));
+  }
+  assert.ok(source.includes('<Card key={`${g.platform}/${g.groupId}`}'));
+});
+
+test('shared tab panels and AI settings grids use the available container width', () => {
+  const tabs = fs.readFileSync(new URL('../src/components/ui/tabs.tsx', import.meta.url), 'utf8');
+  const ai = fs.readFileSync(new URL('../src/pages/ai-page.tsx', import.meta.url), 'utf8');
+  assert.ok(tabs.includes('mt-2 min-w-0 w-full ring-offset-background'));
+  assert.ok(!ai.includes('grid max-w-'));
+  assert.ok(tabs.includes('w-fit flex-nowrap')); // tab bars themselves remain compact
+});
+
+test('audit severity labels do not wrap or fragment when long messages compete for width', () => {
+  const source = fs.readFileSync(new URL('../src/pages/notice-settings-page.tsx', import.meta.url), 'utf8');
+  assert.ok(source.includes('data-label={t(\'noticeset.audit_area\')} className="p-2 whitespace-nowrap"'));
+  assert.ok(source.includes('inline-flex shrink-0 whitespace-nowrap rounded px-1.5 py-0.5 text-xs'));
+  assert.ok(source.includes('data-label={t(\'noticeset.audit_msg\')} className="p-2 text-xs break-all"'));
+});
+
+test('compact pagination bounds page buttons without enumerating all pages', () => {
+  for (const page of [1, 5, 6]) {
+    const numbers = handler('components/ui/pagination-bar.tsx', 'pageNumbers', { compact: true, page, totalPages: 6 });
+    assert.deepEqual(Array.from(numbers), [...new Set([1, page, 6])].sort((a, b) => a - b));
+  }
+  const numbers = handler('components/ui/pagination-bar.tsx', 'pageNumbers', { compact: false, page: 500000, totalPages: 1000000 });
+  assert.deepEqual(Array.from(numbers), [1, 499999, 500000, 500001, 1000000]);
+});
+
+test('pagination jump clamps boundaries, clears drafts and refuses changes during loading', () => {
+  for (const [jump, disabled, expected] of [['5', false, 5], ['0', false, 1], ['999', false, 6], ['', false, null], ['5', true, null]]) {
+    let result = null, cleared = false;
+    const run = handler('components/ui/pagination-bar.tsx', 'goJump', { jump, disabled, totalPages: 6,
+      onPageChange: (v) => { result = v; }, setJump: () => { cleared = true; } });
+    run(); assert.equal(result, expected); assert.equal(cleared, expected !== null);
+  }
+});
+
+test('split-pane pagers use the shared fixed two-row layout', () => {
+  const pager = fs.readFileSync(new URL('../src/components/ui/pagination-bar.tsx', import.meta.url), 'utf8');
+  assert.ok(pager.includes('data-pagination-layout="compact" className="grid min-w-0 gap-2 pt-2"'));
+  assert.ok(pager.includes('items-center gap-1 overflow-x-auto" data-pagination-pages'));
+  for (const file of ['help-docs', 'groups', 'players', 'decks']) {
+    const page = fs.readFileSync(new URL(`../src/pages/${file}-page.tsx`, import.meta.url), 'utf8');
+    assert.match(page, /<PaginationBar[^\n]+fixedSize compact/);
+  }
 });
 
 test('player selection waits for the detail leave guard and respects cancellation', async () => {

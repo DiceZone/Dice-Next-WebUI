@@ -5,6 +5,7 @@ import { useTourActive, useTourState } from '@/components/onboarding/tour-data';
 import { tourSamples } from '@/lib/tour-samples';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { PaginationBar } from '@/components/ui/pagination-bar';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/ui/page-header';
@@ -168,7 +169,7 @@ export const DecksPage: React.FC = () => {
               {readError ? <div role="alert" className="rounded-lg border border-destructive/20 p-4 text-sm"><p>{t('ui_refresh.read_error')}</p><p className="mt-2 break-words text-xs text-muted-foreground">{readError}</p><Button size="sm" variant="outline" className="mt-3" onClick={() => setRevision((n) => n + 1)}>{t('ui_refresh.retry')}</Button></div> : currentContent === undefined ? <Loader2 className="mx-auto my-10 h-6 w-6 animate-spin text-muted-foreground" /> : !document ? <p className="text-sm text-destructive">{t('ui_refresh.invalid_json')}</p> : <>
                 <h3 className="text-sm font-medium">{activeGroup || t('decks.no_entries')} <span className="ml-2 text-xs font-normal text-muted-foreground">{t('ui_refresh.entries', { count: entries.length })}</span></h3>
                 <ol className="divide-y rounded-lg border bg-muted/15">{entries.slice((page - 1) * 30, page * 30).map((entry, i) => <li key={i} className="flex gap-3 px-4 py-3"><span className="w-5 shrink-0 pt-0.5 font-mono text-[11px] text-muted-foreground">{(page - 1) * 30 + i + 1}</span><p className="min-w-0 whitespace-pre-wrap break-words text-sm leading-relaxed">{typeof entry === 'string' ? entry : JSON.stringify(entry)}</p></li>)}{!entries.length && <li className="p-8 text-center text-sm text-muted-foreground">{t('ui_refresh.empty_group')}</li>}</ol>
-                {pages > 1 && <div className="flex items-center justify-end gap-3"><Button size="sm" variant="outline" disabled={page === 1} onClick={() => setEntryPage(page - 1)}>{t('ui_refresh.previous')}</Button><span className="text-xs text-muted-foreground">{t('ui_refresh.page', { page, total: pages })}</span><Button size="sm" variant="outline" disabled={page === pages} onClick={() => setEntryPage(page + 1)}>{t('ui_refresh.next')}</Button></div>}
+                <PaginationBar total={entries.length} page={page} pageSize={30} onPageChange={setEntryPage} fixedSize compact />
               </>}
             </div>
           </Card>}

@@ -12,6 +12,10 @@ const previewGroups = structuredClone(tourSamples.groups);
 previewGroups[1].accounts = [{ ...previewGroups[0].accounts[0], adapterId: 'preview-onebot', adapterName: '月海 · 预览', endpointId: previewGroups[1].groupId }];
 previewGroups.push({ ...structuredClone(previewGroups[1]), platform: 'qq_official', groupId: 'demo-official', name: '官方测试群 · 示例', accounts: [{ ...previewGroups[1].accounts[0], adapterId: 'preview-qq', adapterName: '星灯 · 预览', platform: 'qq_official', endpointId: 'demo-official' }] });
 const previewPlayers = structuredClone(tourSamples.players);
+if (process.env.DICENEXT_UI_PREVIEW_PAGINATION === '1') {
+  for (let i = previewPlayers.length; i < 111; i++) previewPlayers.push({ ...previewPlayers[0], userId: `demo-player-${i + 1}`, nickname: `分页玩家 ${i + 1}`, trustLevel: 0 });
+  for (let i = previewGroups.length; i < 91; i++) previewGroups.push({ ...previewGroups[1], groupId: `demo-group-${i + 1}`, name: `分页群组 ${i + 1}`, accounts: [] });
+}
 const previewTasks = [
   ...structuredClone(tourSamples.tasks),
   { ...tourSamples.tasks[0], id: 2, name: '每小时提醒 · 示例', triggerType: 'interval', intervalMin: 60 },
@@ -30,6 +34,10 @@ const state = {
   '/statistics/overview': tourSamples.statistics,
   '/friends': { lists: {}, deletePlatforms: [], officialRealFriends: [] },
   '/platform-caps': {},
+  '/system/audit': { items: [2, 4, 8, 1].map((level) => ({
+    ts: '2026-09-29 12:34:56', level, op: 'update_available', origin: '',
+    msg: '本地预览：检测到新版本，当前版本可继续使用。'.repeat(5) + ' https://example.invalid/releases/' + 'long-version-name-'.repeat(8),
+  })) },
   '/auth/status': { required: false, need_setup: false },
   '/system/status': { version: 'local-ui-preview', buildNumber: 0 },
   '/dashboard/stats': { uptime_seconds: 3600, active_connections: 0, total_adapters: 2, total_commands: 0, total_rules: 0, active_sessions: 0, recent_logs: [] },
@@ -52,6 +60,9 @@ const helpDefaults = [
   { key: '天气', source: 'plugin:旅途助手', editable: false, content: '天气助手\n\n.weather 城市名\n\n这份说明由插件提供，请在插件配置中修改。' },
 ];
 const helpDocs = structuredClone(helpDefaults);
+if (process.env.DICENEXT_UI_PREVIEW_PAGINATION === '1') {
+  for (let i = helpDocs.length; i < 181; i++) helpDocs.push({ key: `分页帮助 ${i + 1}`, source: `file:分页帮助-${i + 1}.md`, editable: true, content: `第 ${i + 1} 条本地分页样例。` });
+}
 const commandReply = { key: 'dice.roll.result', default: '**{nick}** 掷出了 {expr} = **{result}**', override: null, format: 'markdown', defaultFormat: 'markdown', vars: [{ name: 'expr', desc: '掷骰表达式' }, { name: 'result', desc: '掷骰结果' }] };
 const commandCategories = [
   ['sc', 'COC', '理智检定'], ['br', 'BRP', 'BRP 检定'], ['dnd', 'DND', 'DND 检定'],

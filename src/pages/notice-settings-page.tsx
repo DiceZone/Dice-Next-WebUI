@@ -359,7 +359,7 @@ export const NoticeSettingsPage: React.FC = () => {
                   {audit.map((a, i) => (
                     <tr key={i} className="border-b last:border-0 align-top">
                       <td data-label={t('noticeset.audit_time')} className="p-2 font-mono text-xs text-muted-foreground whitespace-nowrap">{a.ts}</td>
-                      <td data-label={t('noticeset.audit_area')} className="p-2"><span className={`rounded px-1.5 py-0.5 text-xs ${areaBadgeCls(areaOfLevel(a.level))}`}>{areaName(areaOfLevel(a.level))}</span></td>
+                      <td data-label={t('noticeset.audit_area')} className="p-2 whitespace-nowrap"><span className={`inline-flex shrink-0 whitespace-nowrap rounded px-1.5 py-0.5 text-xs ${areaBadgeCls(areaOfLevel(a.level))}`}>{areaName(areaOfLevel(a.level))}</span></td>
                       <td data-label={t('noticeset.audit_event')} className="p-2 text-xs whitespace-nowrap">{a.op ? evName(a.op) : '—'}</td>
                       <td data-label={t('noticeset.audit_origin')} className="p-2 font-mono text-xs text-muted-foreground whitespace-nowrap">{a.origin || '—'}</td>
                       <td data-label={t('noticeset.audit_msg')} className="p-2 text-xs break-all">{a.msg}</td>

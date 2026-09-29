@@ -8,6 +8,9 @@ interface PaginationBarProps {
     label?: string;
     /** Hide the page-size selector (fixed page size). */
     fixedSize?: boolean;
+    /** Fixed two-row layout for narrow split-pane lists. */
+    compact?: boolean;
+    disabled?: boolean;
 }
 export declare const PaginationBar: React.FC<PaginationBarProps>;
 export default PaginationBar;

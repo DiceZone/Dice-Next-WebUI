@@ -572,7 +572,7 @@ export const PlayersPage: React.FC = () => {
               <span className="rounded-lg bg-primary/10 p-2 text-primary"><UserCog className="h-5 w-5" /></span><span className="min-w-0 flex-1"><span className="block break-words text-sm font-medium">{p.nickname || p.userId}</span><span className="mt-1 flex items-center gap-1 break-all text-xs text-muted-foreground"><PlatformIcon platform={p.platform} />{p.userId}</span><span className="mt-2 block text-xs text-muted-foreground">{t('players.col_count')}: {p.cmdCount} · {t('players.col_favor')}: {p.favor}</span></span>
             </button>)}
           </div>
-          <PaginationBar total={shown.length} page={curPage} pageSize={PAGE_SIZE} onPageChange={(value) => void change(() => setPage(value))} fixedSize />
+          <PaginationBar total={shown.length} page={curPage} pageSize={PAGE_SIZE} onPageChange={(value) => void change(() => setPage(value))} fixedSize compact />
         </Card>
         <Card className="min-w-0 space-y-5 p-4 shadow-none sm:p-6">
           {active && (() => { const p = active; return <>

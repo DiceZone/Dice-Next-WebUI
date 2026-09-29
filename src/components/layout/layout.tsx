@@ -107,7 +107,9 @@ export const Layout: React.FC<LayoutProps> = ({
             sidebarCollapsed ? 'lg:ml-0' : 'ml-0'
           )}
         >
-          <div className={cn('min-w-0', contentWidth !== 'classic' && 'mx-auto w-full max-w-7xl [&>*]:max-w-none')} data-content-width={contentWidth}>
+          {/* Chat pages need a definite height through the width wrapper.
+              Keep short viewports scrollable so controls cannot crowd out chat. */}
+          <div className={cn('min-w-0', currentPath === '/playground' && 'h-full min-h-[32rem]', contentWidth !== 'classic' && 'mx-auto w-full max-w-7xl [&>*]:max-w-none')} data-content-width={contentWidth}>
             {children}
           </div>
         </main>

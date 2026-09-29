@@ -4,6 +4,7 @@ import { tourSamples } from '@/lib/tour-samples';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { PaginationBar } from '@/components/ui/pagination-bar';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -17,7 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import {
   RefreshCw, Loader2, Users, Users2, Search, LogOut, ArrowLeft, X, Tag,
   Power, PowerOff, ShieldBan, Settings2, MessagesSquare, Send, Blocks, Moon,
-  LayoutGrid, Table2, Columns2, ChevronLeft, ChevronRight, ScrollText, Trash2, Download, Upload,
+  LayoutGrid, Table2, Columns2, ScrollText, Trash2, Download, Upload,
   ShieldCheck, UserPlus, Play,
   ChevronDown, Pencil, Image as ImageIcon, Smile, Plus, Sparkles, FolderOpen, FileText,
 } from 'lucide-react';
@@ -108,15 +109,6 @@ const StatusBadge: React.FC<{ g: Group; t: (k: string) => string }> = ({ g, t })
   if (!g.enabled) return <Badge variant="secondary" className="rounded h-5 px-2 py-0 text-[11px] leading-5 whitespace-nowrap shrink-0">{t('groups.status_off')}</Badge>;
   return <Badge variant="success" className="rounded h-5 px-2 py-0 text-[11px] leading-5 whitespace-nowrap shrink-0">{t('groups.status_on')}</Badge>;
 };
-
-const Pager: React.FC<{ page: number; pages: number; onPage: (p: number) => void }> = ({ page, pages, onPage }) =>
-  pages <= 1 ? null : (
-    <div className="flex items-center justify-center gap-3 pt-3">
-      <Button variant="outline" size="sm" className="h-8 w-8 p-0" disabled={page <= 1} onClick={() => onPage(page - 1)}><ChevronLeft className="h-4 w-4" /></Button>
-      <span className="text-sm text-muted-foreground">{page} / {pages}</span>
-      <Button variant="outline" size="sm" className="h-8 w-8 p-0" disabled={page >= pages} onClick={() => onPage(page + 1)}><ChevronRight className="h-4 w-4" /></Button>
-    </div>
-  );
 
 export const GroupsPage: React.FC = () => {
   const { t } = useTranslation();
@@ -301,7 +293,7 @@ export const GroupsPage: React.FC = () => {
                   <span className="min-w-0 flex-1"><span className="block break-words text-sm font-medium">{g.name}</span><span className="mt-1 block break-all font-mono text-xs text-muted-foreground">{g.groupId}</span><span className="mt-2 flex flex-wrap gap-1"><StatusBadge g={g} t={t} /><PlatformIcon platform={g.platform} /></span></span>
                 </button>)}
               </div>
-              <Pager page={curPage} pages={pages} onPage={setPage} />
+              <PaginationBar total={list.length} page={curPage} pageSize={pageSize} onPageChange={setPage} fixedSize compact />
             </Card>
             <Card className="min-w-0 p-4 shadow-none sm:p-6">
               {active ? <GroupDetail key={groupKey(active) + adapterFilter + String(showingSamples)} embedded initialAdapterId={adapterFilter} group={active} dlg={dlg} onBack={() => setSelected(null)} onChanged={fetchGroups} welcomeRef={welcomeRef} /> : <p>{t('workspace.select_group')}</p>}
@@ -312,7 +304,7 @@ export const GroupsPage: React.FC = () => {
             {/* C#105：卡片最小 400px，自动按容器宽度减列，防止挤压内部元素（min() 防窄屏溢出） */}
             <div className="grid gap-3 grid-cols-[repeat(auto-fill,minmax(min(400px,100%),1fr))]">
               {shown.map((g) => (
-                <div key={`${g.platform}/${g.groupId}`} className="rounded-lg border p-4 flex justify-between gap-3 min-h-[132px]">
+                <Card key={`${g.platform}/${g.groupId}`} className="p-4 flex justify-between gap-3 min-h-[132px] shadow-none">
                   <div className="flex flex-col justify-between min-w-0 flex-1">
                     <div>
                       <div className="flex items-start gap-2">
@@ -340,10 +332,10 @@ export const GroupsPage: React.FC = () => {
                     <div className="mt-2"><Tags g={g} /></div>
                   </div>
                   <Actions g={g} col />
-                </div>
+                </Card>
               ))}
             </div>
-            <Pager page={curPage} pages={pages} onPage={setPage} />
+            <PaginationBar total={list.length} page={curPage} pageSize={pageSize} onPageChange={setPage} fixedSize />
           </>
         ) : (
           <>
@@ -378,7 +370,7 @@ export const GroupsPage: React.FC = () => {
                 </tbody>
               </table>
             </div>
-            <Pager page={curPage} pages={pages} onPage={setPage} />
+            <PaginationBar total={list.length} page={curPage} pageSize={pageSize} onPageChange={setPage} fixedSize />
           </>
         )}
         </TabsContent>
@@ -541,7 +533,7 @@ const AiGroupTab: React.FC<any> = ({ group, base, scopedBody, onChanged, t, toas
   useEffect(() => { loadMem(); }, [loadMem]);
   const empty = summaries.length === 0 && facts.length === 0;
   return (
-    <div className="space-y-4 max-w-2xl">
+    <div data-group-panel="ai" className="min-w-0 w-full space-y-4">
       <div className="flex items-center justify-between rounded-md border p-3">
         <div className="pr-4">
           <div className="text-sm font-medium">{t('groups.ai_switch')}</div>
@@ -608,7 +600,7 @@ const PluginsTab: React.FC<any> = ({ group, adapterId, t, toast }) => {
   const offCount = plugins.filter((p) => !p.enabledInGroup).length;
 
   return (
-    <div className="space-y-3 max-w-2xl">
+    <div data-group-panel="plugins" className="min-w-0 w-full space-y-3">
       <p className="text-sm text-muted-foreground">{t('groups.plugins_hint')}</p>
       <div className="flex items-center gap-2">
         <div className="relative flex-1 max-w-xs">
@@ -742,9 +734,15 @@ const FunctionTab: React.FC<any> = ({ group, base, scopedBody, onChanged, onBack
     catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
   };
   const setFunction = async (key: string, enabled: boolean) => {
+    if (savingSwitch || group.left || (group.locked && key !== 'locked')) return;
     setSavingSwitch(true);
     try { await save({ [key]: enabled }); }
     finally { setSavingSwitch(false); }
+  };
+  const toggleGroupLock = async () => {
+    if (savingSwitch || group.left) return;
+    if (!group.locked && !await dlg.confirm({ title: t('groups.lock'), description: t('groups.lock_confirm', { name: group.name }), destructive: true, confirmText: t('groups.lock'), cancelText: t('common.close') })) return;
+    await setFunction('locked', !group.locked);
   };
   const doLeave = async (removeRecord: boolean) => {
     setLeaving(true);
@@ -757,17 +755,26 @@ const FunctionTab: React.FC<any> = ({ group, base, scopedBody, onChanged, onBack
   };
 
   return (
-    <div className="space-y-4 max-w-xl">
+    <div data-group-panel="function" className="min-w-0 w-full space-y-4">
       <section className="rounded-lg border p-4 space-y-3">
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <Label htmlFor="group-bot-switch">{t('groups.feature_overall')}</Label>
+            <p className="text-sm font-medium">{t('groups.feature_overall')}</p>
             <p className="text-xs text-muted-foreground">{t('groups.feature_scope')}</p>
           </div>
-          <Switch id="group-bot-switch" checked={group.enabled}
-            disabled={savingSwitch || group.locked || group.left}
-            onCheckedChange={(value) => { void setFunction('enabled', value); }} />
+          <div className="flex flex-wrap gap-2" data-tour="groups-power-actions">
+            <Button id="group-bot-switch" variant="outline" disabled={savingSwitch || group.locked || group.left}
+              onClick={() => { void setFunction('enabled', !group.enabled); }}>
+              {group.enabled ? <PowerOff className="mr-2 h-4 w-4" /> : <Power className="mr-2 h-4 w-4" />}
+              {t(group.enabled ? 'groups.bot_off' : 'groups.bot_on')}
+            </Button>
+            <Button variant={group.locked ? 'outline' : 'destructive'} disabled={savingSwitch || group.left}
+              onClick={() => { void toggleGroupLock(); }}>
+              <ShieldBan className="mr-2 h-4 w-4" />{t(group.locked ? 'groups.unlock' : 'groups.lock')}
+            </Button>
+          </div>
         </div>
+        <p className="text-xs text-muted-foreground">{t('groups.lock_hint')}</p>
         {!group.enabled && <p className="text-xs text-muted-foreground rounded bg-muted p-2">{t('groups.features_suspended')}</p>}
         <div className="border-t pt-3 space-y-4">
           {(['log', 'reply', 'roll', 'plugin'] as const).map((feature) => (
@@ -1034,7 +1041,7 @@ const MembersTab: React.FC<any> = ({ base, adapterId, endpointId, t, toast, dlg 
               </div>
             ))}
           </div>
-          <Pager page={curPage} pages={pages} onPage={setPage} />
+          <PaginationBar total={filtered.length} page={curPage} pageSize={pageSize} onPageChange={setPage} fixedSize compact />
         </>
       )}
     </div>

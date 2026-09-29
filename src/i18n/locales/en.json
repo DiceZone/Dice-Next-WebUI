@@ -1654,6 +1654,7 @@
     "ai_memory_note": "Memory is built up as the conversation rolls; after clearing it re-accumulates during later chat.",
     "lock": "Disable",
     "unlock": "Un-disable",
+    "lock_hint": "A group command can re-enable the bot after turning it off. A hard disable can only be lifted in this panel; lifting it preserves the previous on/off setting.",
     "lock_confirm": "Completely disable \"{{name}}\"?\nThis is a hard shutdown: nobody in the group can re-enable the bot - only this page can.",
     "bot_on": "Enable",
     "bot_off": "Turn off",
