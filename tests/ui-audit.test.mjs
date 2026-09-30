@@ -135,6 +135,29 @@ test('rule test sends the draft and selected context, refuses old server results
   }
 });
 
+test('reply dialogs scroll a normal container, keep the fieldset inside and pin the footer outside', () => {
+  const source = fs.readFileSync(new URL('../src/components/reply/reply-form.tsx', import.meta.url), 'utf8');
+  const tree = ts.createSourceFile('reply-form.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const elements = [];
+  const visit = (node) => { if (ts.isJsxElement(node)) elements.push(node); ts.forEachChild(node, visit); };
+  visit(tree);
+  const tag = (node) => node.openingElement.tagName.getText(tree);
+  const classes = (node) => node.openingElement.attributes.properties.find((p) => p.name?.getText(tree) === 'className')?.initializer?.text || '';
+  const fieldset = elements.find((node) => tag(node) === 'fieldset');
+  const scroll = fieldset.parent;
+  assert.equal(tag(scroll), 'div');
+  for (const cls of ['min-h-0', 'flex-1', 'overflow-y-auto', 'overscroll-contain']) assert.ok(classes(scroll).split(' ').includes(cls));
+  assert.doesNotMatch(classes(fieldset), /overflow-|flex-1/);
+  assert.match(fieldset.openingElement.getText(tree), /disabled=\{uploading \|\| submitting\}/);
+  const dialog = scroll.parent;
+  assert.equal(tag(dialog), 'DialogContent');
+  const header = dialog.children.find((node) => ts.isJsxElement(node) && tag(node) === 'DialogHeader');
+  const footer = dialog.children.find((node) => ts.isJsxElement(node) && tag(node) === 'DialogFooter');
+  assert.ok(classes(header).includes('shrink-0'));
+  assert.ok(classes(footer).includes('shrink-0'));
+  assert.ok(dialog.children.indexOf(footer) > dialog.children.indexOf(scroll));
+});
+
 test('image upload failures are visible and existing replies are not modified', async () => {
   let error = '', changed = false, busy = false;
   const run = handler('components/reply/reply-form.tsx', 'uploadImage', {
