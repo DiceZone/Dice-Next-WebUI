@@ -74,6 +74,7 @@ const replyRules = [
   { id: 'preview-1', conditions: [{ type: 'keyword', content: '早安' }], logic: 'or', results: ['早安，{nick}！今天也有新的冒险在等你。'], resultWeights: [1], matchType: 'keyword', matchContent: '早安', replyContent: '早安，{nick}！今天也有新的冒险在等你。', enabled: true, priority: 100, prob: 80, cooldownSec: 30 },
   { id: 'preview-2', conditions: [{ type: 'prefix', content: '讲个故事' }, { type: 'search', content: '酒馆' }], logic: 'and', results: ['酒馆老板低声说起那座旧钟楼。', '桌上的地图忽然自己翻到了北方。'], resultWeights: [2, 1], matchType: 'prefix', matchContent: '讲个故事', replyContent: '酒馆老板低声说起那座旧钟楼。', enabled: false, priority: 80, prob: 100, cooldownSec: 0 },
 ];
+let nextReplyId = replyRules.length + 1;
 const listDecks = () => [...deckFiles].map(([filename, content], index) => {
   const data = JSON.parse(content);
   const keys = Object.keys(data).filter((key) => Array.isArray(data[key]) && data[key].some((value) => typeof value === 'string'));
@@ -98,7 +99,7 @@ const server = await createServer({
         const path = url.pathname.slice(4);
         requests.push({ method: req.method, path });
         res.setHeader('Content-Type', 'application/json');
-        const reply = (data) => res.end(JSON.stringify({ code: 0, data }));
+        const reply = (data, extra = {}) => res.end(JSON.stringify({ code: 0, data, ...extra }));
         try {
           let body = {};
           if (req.method !== 'GET') {
@@ -173,13 +174,21 @@ const server = await createServer({
             if (index < 0) throw new Error('File not found'); helpDocs.splice(index, 1); return reply(null);
           }
           if (path === '/replies' && req.method === 'POST') {
-            const entry = { ...body, matchType: body.conditions?.[0]?.type || 'keyword', matchContent: body.conditions?.[0]?.content || '', replyContent: body.results?.[0] || '', id: String(replyRules.length + 1), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+            const entry = { ...body, matchType: body.conditions?.[0]?.type || 'keyword', matchContent: body.conditions?.[0]?.content || '', replyContent: body.results?.[0] || '', id: String(nextReplyId++), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
             replyRules.push(entry); return reply(entry);
           }
-          if (path === '/replies' && req.method === 'GET') return reply(replyRules);
+          if (path === '/replies' && req.method === 'GET') {
+            const scope = url.searchParams.get('scope'), target = url.searchParams.get('target') || '';
+            return reply(replyRules.filter((entry) => !scope || ((entry.channelScope || 'global') === scope && (entry.channelTarget || '') === target)),
+              scope ? { replyScope: { scope, target } } : {});
+          }
           if (path.startsWith('/replies/') && req.method === 'PUT') {
             const entry = replyRules.find((entry) => entry.id === path.split('/').at(-1));
             if (!entry) throw new Error('Rule not found'); Object.assign(entry, body); entry.matchContent = entry.conditions?.[0]?.content || ''; entry.replyContent = entry.results?.[0] || ''; return reply(entry);
+          }
+          if (path.startsWith('/replies/') && req.method === 'DELETE') {
+            const index = replyRules.findIndex((entry) => entry.id === path.split('/').at(-1));
+            if (index < 0) throw new Error('Rule not found'); replyRules.splice(index, 1); return reply(null);
           }
           if (path === '/decks' && req.method === 'GET') return reply(listDecks());
           if (path === '/decks/file' && req.method === 'GET') {

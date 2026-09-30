@@ -1,11 +1,13 @@
 import type { ReplyRule, ReplyFormData } from '@/types/reply';
+import { type ReplySettingsScope } from '@/lib/reply-scope';
 interface ReplyState {
     replies: ReplyRule[];
     loading: boolean;
     error: string | null;
-    fetchReplies: () => Promise<void>;
+    scope: ReplySettingsScope;
+    fetchReplies: (scope?: ReplySettingsScope) => Promise<void>;
     createReply: (data: ReplyFormData) => Promise<ReplyRule>;
-    updateReply: (id: string, data: Partial<ReplyFormData>) => Promise<void>;
+    updateReply: (id: string, data: Partial<ReplyFormData>) => Promise<ReplyRule>;
     deleteReply: (id: string) => Promise<void>;
     toggleReply: (id: string) => Promise<void>;
     clearError: () => void;

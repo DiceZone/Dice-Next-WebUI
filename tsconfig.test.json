@@ -18,6 +18,7 @@
     "src/lib/help-document.ts",
     "src/lib/deck-document.ts",
     "src/lib/reply-results.ts",
+    "src/lib/reply-scope.ts",
     "src/lib/poke-reply.ts",
     "src/lib/cloud-settings.ts",
     "src/lib/settings-search.ts",

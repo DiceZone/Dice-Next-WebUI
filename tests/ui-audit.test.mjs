@@ -3,13 +3,117 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
+import { create } from 'zustand';
 import { createRequestGate } from '../.test-dist/lib/request-gate.js';
 import { confirmPageLeave, registerNavigationGuard } from '../.test-dist/lib/navigation-guard.js';
 import { nextScheduleRun, scheduleToday, timezoneLabel } from '../.test-dist/lib/schedule-time.js';
 import { runBatch } from '../.test-dist/lib/batch-operation.js';
 import { canCopyDeckGroup, deckCopyFilename, deckFileKey } from '../.test-dist/lib/deck-document.js';
+import { resolveReplyScope, globalReplyScope, replyScopeKey, replyScopeQuery } from '../.test-dist/lib/reply-scope.js';
 
 const deferred = () => { let resolve, reject; const promise = new Promise((a, b) => { resolve = a; reject = b; }); return { promise, resolve, reject }; };
+
+function replyStore(apiClient) {
+  const source = fs.readFileSync(new URL('../src/store/reply-store.ts', import.meta.url), 'utf8');
+  const js = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
+  const exports = {};
+  vm.runInNewContext(js, { exports, Error, require: (path) => {
+    if (path === 'zustand') return { create };
+    if (path === 'i18next') return { default: { t: (key) => key } };
+    if (path === '@/lib/api-client') return { default: apiClient };
+    if (path === '@/lib/reply-scope') return { globalReplyScope, replyScopeKey, replyScopeQuery };
+    throw new Error('Unexpected store dependency: ' + path);
+  } });
+  return exports.zustandReplyStore;
+}
+
+test('reply collection switches clear old rows and reject late responses, including switch-back races', async () => {
+  const requests = [];
+  const store = replyStore({ get: (path) => { const response = deferred(); requests.push({ path, ...response }); return response.promise; } });
+  const account = resolveReplyScope('account:bot:A:1', [{ id: 'bot:A:1', type: 'onebot_v11' }]);
+  const a = store.getState().fetchReplies(account);
+  const b = store.getState().fetchReplies(globalReplyScope);
+  requests[1].resolve({ data: [{ id: 'global', channelScope: 'global' }] }); await b;
+  assert.equal(store.getState().replies[0].id, 'global');
+  const back = store.getState().fetchReplies(account);
+  assert.equal(store.getState().replies.length, 0);
+  requests[2].resolve({ data: [{ id: 'fresh-account', channelScope: 'account', channelTarget: 'bot:A:1' }], replyScope: account }); await back;
+  requests[0].resolve({ data: [{ id: 'old-account' }] }); await a;
+  assert.equal(store.getState().replies[0].id, 'fresh-account');
+  assert.equal(store.getState().loading, false);
+  assert.equal(requests[0].path, '/replies?scope=account&target=bot%3AA%3A1');
+});
+
+test('reply create owns its selected scope and a late save cannot insert rows into another collection', async () => {
+  const pending = deferred(); let payload;
+  const account = resolveReplyScope('account:bot:A:1', [{ id: 'bot:A:1', type: 'onebot_v11' }]);
+  const store = replyStore({ get: async () => ({ data: [], replyScope: account }), post: async (_path, body) => { payload = body; return pending.promise; } });
+  await store.getState().fetchReplies(account);
+  const save = store.getState().createReply({ results: ['hello'], channelScope: 'global', channelTarget: '' });
+  assert.equal(payload.channelScope, 'account'); assert.equal(payload.channelTarget, 'bot:A:1');
+  await store.getState().fetchReplies(globalReplyScope);
+  pending.resolve({ data: { id: 'account-row' } }); await save;
+  assert.equal(store.getState().replies.length, 0);
+  assert.equal(store.getState().scope.scope, 'global');
+});
+
+test('reply deduplication refresh and partial toggle stay in the selected platform collection', async () => {
+  const requests = [], writes = [];
+  const rule = { id: 'p1', enabled: true, channelScope: 'adapter', channelTarget: 'qq_official', results: ['hi'] };
+  const store = replyStore({
+    get: async (path) => { requests.push(path); return { data: [rule], replyScope: { scope: 'adapter', target: 'qq_official' } }; },
+    put: async (path, body) => { writes.push({ path, body }); return { data: { ...rule, ...body, deduplicated: true } }; },
+  });
+  await store.getState().fetchReplies(resolveReplyScope('adapter:qq_official', []));
+  await store.getState().toggleReply('p1');
+  assert.deepEqual(JSON.parse(JSON.stringify(writes)), [{ path: '/replies/p1', body: { enabled: false } }]);
+  assert.deepEqual(requests, ['/replies?scope=adapter&target=qq_official', '/replies?scope=adapter&target=qq_official']);
+});
+
+test('legacy backends cannot silently save scoped replies into the global collection', async () => {
+  let writes = 0;
+  const store = replyStore({ get: async () => ({ data: [] }), post: async () => { writes++; return { data: {} }; } });
+  await store.getState().fetchReplies(resolveReplyScope('adapter:qq_official', []));
+  assert.ok(store.getState().error.includes('scope_backend_required'));
+  await assert.rejects(store.getState().createReply({ results: ['do not save globally'] }));
+  assert.equal(writes, 0);
+  await store.getState().fetchReplies(globalReplyScope);
+  assert.equal(store.getState().error, null);
+});
+
+test('reply preview sends its account context and discards results after a scope switch', async () => {
+  const file = 'reply-match-preview.tsx';
+  const source = fs.readFileSync(new URL('../src/components/reply/' + file, import.meta.url), 'utf8');
+  const tree = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  let effect;
+  const visit = (node) => {
+    if (ts.isCallExpression(node) && node.expression.getText(tree) === 'useEffect') effect = node.arguments[0];
+    ts.forEachChild(node, visit);
+  };
+  visit(tree); assert.ok(effect);
+  const js = ts.transpileModule('globalThis.effect = ' + effect.getText(tree), { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
+  const a = deferred(), b = deferred(), writes = [];
+  let shown, scheduled;
+  const context = { timer: { current: null }, showingSamples: false, testText: ' hello ', groupId: ' 123 ',
+    scope: resolveReplyScope('account:bot:A:1', [{ id: 'bot:A:1', type: 'qq_official' }]),
+    setResult: (value) => { shown = value; }, setLoading() {}, AbortController,
+    setTimeout: (callback) => { scheduled = callback; return 1; }, clearTimeout() {},
+    fetch: async (_path, options) => { writes.push(options); return writes.length === 1 ? a.promise : b.promise; },
+  };
+  vm.runInNewContext(js, context);
+  const cleanup = context.effect(); const first = scheduled();
+  const payload = JSON.parse(writes[0].body);
+  assert.deepEqual(payload, { text: 'hello', groupId: '123', scope: 'account', platform: 'qq_official', adapterId: 'bot:A:1' });
+  cleanup(); assert.equal(writes[0].signal.aborted, true);
+  context.scope = globalReplyScope;
+  const cleanupB = context.effect(); const second = scheduled();
+  const response = (value) => ({ json: async () => ({ code: 0, data: value }) });
+  b.resolve(response({ reply: 'global' })); await second;
+  a.resolve(response({ reply: 'wrong-account' })); await first;
+  assert.equal(shown.reply, 'global');
+  assert.deepEqual(JSON.parse(writes[1].body), { text: 'hello', groupId: '123', scope: 'global' });
+  cleanupB();
+});
 
 function deckCopyContext(overrides = {}) {
   return {
@@ -167,6 +271,37 @@ test('image upload failures are visible and existing replies are not modified', 
     fetch: async () => ({ json: async () => ({ code: 1, message: 'upload refused' }) }),
   });
   await run({ name: 'a.png' }); assert.match(error, /upload refused/); assert.equal(changed, false); assert.equal(busy, false);
+});
+
+test('reply scope keeps platforms and individual accounts distinct, including IDs containing colons', () => {
+  const accounts = [{ id: 'onebot:bot-a', type: 'onebot_v11' }, { id: 'onebot:bot-b', type: 'onebot_v11' }];
+  assert.deepEqual(resolveReplyScope('global', accounts), { scope: 'global', target: '', platform: '' });
+  assert.deepEqual(resolveReplyScope('adapter:onebot_v11', accounts), { scope: 'adapter', target: 'onebot_v11', platform: 'onebot_v11' });
+  assert.deepEqual(resolveReplyScope('account:onebot:bot-b', accounts), { scope: 'account', target: 'onebot:bot-b', platform: 'onebot_v11' });
+  assert.throws(() => resolveReplyScope('adapter:', accounts));
+});
+
+test('poke loads and saves the page-selected scope without defaulting back to global', async () => {
+  const scope = { scope: 'account', target: 'bot-b', platform: 'onebot_v11' };
+  let endpoint, payload, opened = false, loading = false;
+  const settings = { poke_enabled: true, poke: 'hello' };
+  const context = {
+    scope, samples: false, loading: false, i18n: { language: 'zh-Hans' }, URLSearchParams,
+    setLoading: (value) => { loading = value; }, setSettings() {}, setRule() {},
+    setOpen: (value) => { opened = value; }, pokeReplyRule: (value) => value,
+    toast() {}, t: (key) => key,
+    apiClient: { get: async (path) => { endpoint = path; return { data: settings }; },
+      put: async (_path, body) => { payload = body; } },
+  };
+  await handler('components/reply/poke-reply-button.tsx', 'start', context)();
+  const query = new URLSearchParams(endpoint.split('?')[1]);
+  assert.equal(query.get('scope'), 'account'); assert.equal(query.get('target'), 'bot-b');
+  assert.equal(query.get('platform'), 'onebot_v11'); assert.equal(query.get('lang'), 'zh-Hans');
+  assert.equal(opened, true); assert.equal(loading, false);
+  const data = { results: ['hello'], enabled: false };
+  await handler('components/reply/poke-reply-button.tsx', 'save', context)(data);
+  assert.equal(payload.scope, 'account'); assert.equal(payload.target, 'bot-b');
+  assert.equal(payload.values.poke_enabled, false); assert.equal(payload.values.poke_reply, data);
 });
 
 test('navigation guards wait for confirmation and can keep or discard a draft', async () => {

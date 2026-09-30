@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useTourState, useTourValue } from '@/components/onboarding/tour-data';
 import { tourSamples } from '@/lib/tour-samples';
 import { useTranslation } from 'react-i18next';
@@ -23,6 +23,9 @@ import type { ReplyRule, ReplyFormData, MatchType } from '@/types/reply';
 import type { CausalRule } from '@/types/causal';
 import { emptyCausalRule } from '@/types/causal';
 import { PageHeader } from '@/components/ui/page-header';
+import { zustandAdapterStore } from '@/store/adapter-store';
+import { platformLabel } from '@/components/platform-icon';
+import { resolveReplyScope, replyScopeKey } from '@/lib/reply-scope';
 
 type Tab = 'replies' | 'causal' | 'counters';
 type MatchTypeFilter = 'all' | MatchType;
@@ -30,11 +33,9 @@ type StatusFilter = 'all' | 'enabled' | 'disabled';
 
 export const RepliesPage: React.FC = () => {
   const { t } = useTranslation();
-  const { replies: liveReplies, loading: liveLoading, error: liveError, fetchReplies, createReply, updateReply, deleteReply, toggleReply } = zustandReplyStore();
+  const { replies: liveReplies, scope: loadedScope, loading: liveLoading, error: liveError, fetchReplies, createReply, updateReply, deleteReply, toggleReply } = zustandReplyStore();
   const error = useTourValue(liveError, null);
   const dlg = useDialogs(t);
-  const replies = useTourValue(liveReplies, tourSamples.replies);
-  const loading = useTourValue(liveLoading, false);
   const toast = useToast();
   const [formOpen, setFormOpen] = useState(false);
   const [editingReply, setEditingReply] = useState<ReplyRule | null>(null);
@@ -42,6 +43,18 @@ export const RepliesPage: React.FC = () => {
   const [matchTypeFilter, setMatchTypeFilter] = useState<MatchTypeFilter>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [tab, setTab] = useTourState<Tab>('replies', 'replies');
+  const { adapters: liveAdapters, fetchAdapters, error: adaptersError } = zustandAdapterStore();
+  const accounts = useTourValue(liveAdapters, tourSamples.adapters);
+  const [scopeSelection, setScopeSelection] = useTourState('global', 'global');
+  const [pokeEditing, setPokeEditing] = useState(false);
+  const scope = useMemo(() => resolveReplyScope(scopeSelection, accounts), [scopeSelection, accounts]);
+  const scopeReady = replyScopeKey(scope) === replyScopeKey(loadedScope);
+  const replies = useTourValue(scopeReady ? liveReplies : [], tourSamples.replies);
+  const loading = useTourValue(liveLoading || !scopeReady, false);
+  const selectedAccount = accounts.find((account) => account.id === scope.target);
+  const scopeLabel = scope.scope === 'global' ? t('settings.scope_global')
+    : scope.scope === 'adapter' ? `${t('settings.scope_adapter')} · ${platformLabel(scope.platform)}`
+    : `${t('settings.scope_account')} · ${selectedAccount?.name || scope.target} ${selectedAccount?.loginId || ''}`;
 
   // Causal rule state
   const [causalRules, setCausalRules] = useState<CausalRule[]>([]);
@@ -50,7 +63,8 @@ export const RepliesPage: React.FC = () => {
   const [causalEditorOpen, setCausalEditorOpen] = useState(false);
   const [editingCausalRule, setEditingCausalRule] = useState<CausalRule>(emptyCausalRule);
 
-  useEffect(() => { void fetchReplies(); }, [fetchReplies]);
+  useEffect(() => { void fetchReplies(scope); }, [fetchReplies, scope]);
+  useEffect(() => { void fetchAdapters(); }, [fetchAdapters]);
 
   const fetchCausalRules = useCallback(async () => {
     setCausalLoading(true);
@@ -135,6 +149,27 @@ export const RepliesPage: React.FC = () => {
       {dlg.node}
       <PageHeader icon={MessageSquareReply} title={t('replies.title')} description={t('replies.subtitle')} />
 
+      {tab === 'replies' && <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-card p-4">
+        <label htmlFor="replies-scope" className="text-sm font-medium">{t('settings.scope_title')}</label>
+        <Select value={scopeSelection} onValueChange={setScopeSelection} disabled={formOpen || pokeEditing}>
+          <SelectTrigger id="replies-scope" className="w-full sm:w-80"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="global">{t('settings.scope_global')}</SelectItem>
+            {[...new Set(accounts.map((account) => account.type))].map((platform) => <SelectItem key={platform} value={`adapter:${platform}`}>
+              {t('settings.scope_adapter')} · {platformLabel(platform)}
+            </SelectItem>)}
+            {accounts.map((account) => <SelectItem key={account.id} value={`account:${account.id}`}>
+              {t('settings.scope_account')} · {account.name} {account.loginId || ''}
+            </SelectItem>)}
+          </SelectContent>
+        </Select>
+        <p className="w-full text-xs text-muted-foreground">{t('replies.page_scope_hint')}</p>
+        {adaptersError && <div role="alert" className="flex flex-wrap items-center gap-2 text-sm text-destructive">
+          {t('common.load_fail')}：{adaptersError}
+          <Button variant="outline" size="sm" onClick={() => void fetchAdapters()}>{t('ui_refresh.retry')}</Button>
+        </div>}
+      </div>}
+
       {/* Tab switcher */}
       <Tabs value={tab} onValueChange={(value) => setTab(value as Tab)} className="space-y-5">
       <TabsList variant="page" data-tour="replies-tabs" aria-label={t('replies.title')}>
@@ -177,8 +212,8 @@ export const RepliesPage: React.FC = () => {
                 <SelectItem value="disabled">{t('replies.filter_disabled')}</SelectItem>
               </SelectContent>
             </Select>
-            <Button className="shrink-0" onClick={() => { setEditingReply(null); setFormOpen(true); }}><Plus className="mr-2 h-4 w-4" />{t('replies.add')}</Button>
-            <PokeReplyButton />
+            <Button className="shrink-0" disabled={loading || !!error} onClick={() => { setEditingReply(null); setFormOpen(true); }}><Plus className="mr-2 h-4 w-4" />{t('replies.add')}</Button>
+            <PokeReplyButton scope={scope} scopeLabel={scopeLabel} onEditingChange={setPokeEditing} />
             <BroadcastBar render="button" />
           </div>
           <div data-tour="replies-list">{error ? (
@@ -191,8 +226,9 @@ export const RepliesPage: React.FC = () => {
           ) : (
             <ReplyTable replies={replies} onEdit={(r) => { setEditingReply(r); setFormOpen(true); }} onDelete={handleDelete} onToggle={handleToggle} filterText={filterText} matchTypeFilter={matchTypeFilter} statusFilter={statusFilter} />
           )}</div>
-          <div data-tour="replies-preview"><ReplyMatchPreview replies={replies} /></div>
-          <ReplyForm open={formOpen} onOpenChange={setFormOpen} onSubmit={editingReply ? handleUpdate : handleCreate} reply={editingReply} />
+          <div data-tour="replies-preview"><ReplyMatchPreview replies={replies} scope={scope} /></div>
+          <ReplyForm open={formOpen} onOpenChange={setFormOpen} onSubmit={editingReply ? handleUpdate : handleCreate} reply={editingReply}
+            headerSlot={<p className="text-sm font-medium">{scopeLabel}</p>} />
         </>
       )}
 

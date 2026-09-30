@@ -11,8 +11,11 @@ export interface ReplyCondition {
 }
 /** 生效范围：'' 不限 | allow 仅指定群 | deny 排除指定群 */
 export type ReplyScopeMode = '' | 'allow' | 'deny';
+export type ReplyChannelScope = 'global' | 'adapter' | 'account';
 export interface ReplyRule {
     id: string;
+    channelScope?: ReplyChannelScope;
+    channelTarget?: string;
     matchType: MatchType;
     matchContent: string;
     replyContent: string;
@@ -34,8 +37,12 @@ export interface ReplyRule {
     scopeUsers?: string;
     createdAt: string;
     updatedAt: string;
+    /** API-only hint: this save reused or merged an identical rule. */
+    deduplicated?: boolean;
 }
 export interface ReplyFormData {
+    channelScope?: ReplyChannelScope;
+    channelTarget?: string;
     conditions: ReplyCondition[];
     logic: ReplyLogic;
     results: string[];

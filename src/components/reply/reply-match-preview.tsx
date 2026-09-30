@@ -7,9 +7,11 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Loader2 } from 'lucide-react';
 import type { ReplyRule } from '@/types/reply';
+import type { ReplySettingsScope } from '@/lib/reply-scope';
 
 interface ReplyMatchPreviewProps {
   replies: ReplyRule[];
+  scope: ReplySettingsScope;
 }
 
 // 真引擎测试结果（POST /api/replies/test）。
@@ -26,7 +28,7 @@ interface TestResult {
   skipped: { id: number; reason: string }[];
 }
 
-export const ReplyMatchPreview: React.FC<ReplyMatchPreviewProps> = ({ replies }) => {
+export const ReplyMatchPreview: React.FC<ReplyMatchPreviewProps> = ({ replies, scope }) => {
   const { t } = useTranslation();
   const showingSamples = useTourActive();
   const [testText, setTestText] = useTourState('', tourSamples.replies[0].matchContent);
@@ -40,6 +42,9 @@ export const ReplyMatchPreview: React.FC<ReplyMatchPreviewProps> = ({ replies })
     // This preview normally POSTs automatically; never send sample text to
     // the real reply engine, even when replaying with an existing live draft.
     if (showingSamples) return;
+    let active = true;
+    const controller = new AbortController();
+    setResult(null);
     const text = testText.trim();
     if (!text) { setResult(null); setLoading(false); return; }
     setLoading(true);
@@ -47,15 +52,19 @@ export const ReplyMatchPreview: React.FC<ReplyMatchPreviewProps> = ({ replies })
       try {
         const r = await fetch('/api/replies/test', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text, groupId: groupId.trim() || undefined }),
+          signal: controller.signal,
+          body: JSON.stringify({ text, groupId: groupId.trim() || undefined,
+            scope: scope.scope,
+            platform: scope.platform || undefined,
+            adapterId: scope.scope === 'account' ? scope.target : undefined }),
         });
         const j = await r.json();
-        setResult(j.code === 0 ? (j.data as TestResult) : null);
-      } catch { setResult(null); }
-      finally { setLoading(false); }
+        if (active) setResult(j.code === 0 ? (j.data as TestResult) : null);
+      } catch { if (active) setResult(null); }
+      finally { if (active) setLoading(false); }
     }, 350);
-    return () => { if (timer.current) clearTimeout(timer.current); };
-  }, [testText, groupId, replies, showingSamples]);
+    return () => { active = false; controller.abort(); if (timer.current) clearTimeout(timer.current); };
+  }, [testText, groupId, replies, showingSamples, scope]);
 
   const skipReason = (reason: string) =>
     reason === 'scope' ? t('replies.skip_scope')
