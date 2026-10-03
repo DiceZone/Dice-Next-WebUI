@@ -11,6 +11,107 @@ import { runBatch } from '../.test-dist/lib/batch-operation.js';
 import { canCopyDeckGroup, deckCopyFilename, deckFileKey } from '../.test-dist/lib/deck-document.js';
 import { resolveReplyScope, globalReplyScope, replyScopeKey, replyScopeQuery } from '../.test-dist/lib/reply-scope.js';
 import { readWorkspaceView, resolveWorkspaceView, WORKSPACE_WIDE_QUERY } from '../.test-dist/lib/workspace-view.js';
+import { readPersonaPolicy, samePersonaPolicy } from '../.test-dist/lib/persona-policy.js';
+import { uiRefresh } from '../.test-dist/i18n/ui-refresh.js';
+
+test('persona access belongs to Commands; connection forms never resend stale policies', () => {
+  const commands = fs.readFileSync(new URL('../src/pages/commands-page.tsx', import.meta.url), 'utf8');
+  assert.match(commands, /setAccessOpen\(true\)/);
+  assert.match(commands, /<PersonaAccessDialog /);
+  const form = fs.readFileSync(new URL('../src/components/adapter/adapter-form.tsx', import.meta.url), 'utf8');
+  for (const field of ['personaSelection', 'selectablePersonaIds', 'defaultPersonaId']) assert.ok(!form.includes(field), field);
+  const policy = readPersonaPolicy({ name: 'connection', accessToken: 'secret', personaSelection: 'selected', selectablePersonaIds: [3, 1, 3], defaultPersonaId: 2 });
+  assert.deepEqual(policy, { personaSelection: 'selected', selectablePersonaIds: [1, 3], defaultPersonaId: 2 });
+  assert.equal(samePersonaPolicy(policy, { ...policy, selectablePersonaIds: [3, 1] }), true);
+  assert.equal(samePersonaPolicy(policy, { ...policy, personaSelection: 'none' }), false);
+  assert.deepEqual(readPersonaPolicy({}), { personaSelection: 'all', selectablePersonaIds: [], defaultPersonaId: 0 });
+});
+
+test('persona access saves only the chosen account policy, locks duplicate saves and preserves failed drafts', async () => {
+  for (const fails of [false, true]) {
+    const request = deferred(); const calls = []; const errors = []; const notices = [];
+    let bots = [{ id: 'a', name: 'A' }, { id: 'b', name: 'B', personaSelection: 'none' }];
+    let draft = { personaSelection: 'selected', selectablePersonaIds: [2], defaultPersonaId: 1 };
+    const ctx = { tourActive: false, loading: false, adapter: bots[0], dirty: true, busy: { current: false },
+      draft, readPersonaPolicy, gate: createRequestGate(), Error,
+      setSaving() {}, setError: (v) => errors.push(v), setDraft: (v) => { draft = v; },
+      setAdapters: (update) => { bots = update(bots); }, toast: (v) => notices.push(v), t: (key) => key,
+      zustandAdapterStore: { getState: () => ({ updateAdapter: (id, policy) => { calls.push([id, policy]); return request.promise; } }) } };
+    const save = handler('components/persona/persona-access-dialog.tsx', 'save', ctx);
+    const pending = save(); await save();
+    assert.equal(calls.length, 1); assert.equal(calls[0][0], 'a'); assert.deepEqual(calls[0][1], draft);
+    if (fails) request.reject(new Error('offline')); else request.resolve();
+    await pending;
+    assert.equal(ctx.busy.current, false); assert.equal(notices.length, fails ? 0 : 1);
+    assert.equal(bots[0].personaSelection, fails ? undefined : 'selected');
+    assert.equal(bots[1].personaSelection, 'none');
+    assert.deepEqual(draft.selectablePersonaIds, [2]);
+    if (fails) assert.equal(errors.at(-1), 'offline');
+    ctx.tourActive = true; await save(); assert.equal(calls.length, 1);
+  }
+});
+
+test('persona access confirms scope changes and retains drafts when leaving is cancelled', async () => {
+  let selected = 'a', draft = { personaSelection: 'selected', selectablePersonaIds: [1], defaultPersonaId: 0 };
+  const ctx = { adapterId: 'a', adapters: [{ id: 'b', personaSelection: 'none' }], readPersonaPolicy,
+    confirmLeave: async () => false, setAdapterId: (v) => { selected = v; }, setDraft: (v) => { draft = v; }, setError() {} };
+  const select = handler('components/persona/persona-access-dialog.tsx', 'selectAdapter', ctx);
+  await select('b'); assert.equal(selected, 'a'); assert.equal(draft.personaSelection, 'selected');
+  ctx.confirmLeave = async () => true;
+  await select('b'); assert.equal(selected, 'b'); assert.equal(draft.personaSelection, 'none');
+});
+
+test('persona access load failures are retryable and older responses cannot reset the current account', async () => {
+  let bots = [], personas = [], selected = '', draft, loading, error;
+  const requests = [];
+  const ctx = { tourActive: false, gate: createRequestGate(), readPersonaPolicy, Error,
+    setLoading: (v) => { loading = v; }, setError: (v) => { error = v; },
+    setAdapters: (v) => { bots = v; }, setPersonas: (v) => { personas = v; },
+    setAdapterId: (v) => { selected = v; }, setDraft: (v) => { draft = v; },
+    apiClient: { get: (url) => { const request = deferred(); requests.push({ url, ...request }); return request.promise; } } };
+  const load = handler('components/persona/persona-access-dialog.tsx', 'load', ctx);
+  const failed = load(); requests[0].reject(new Error('offline')); requests[1].resolve({ data: [] });
+  await failed; assert.equal(error, 'offline'); assert.equal(loading, false); assert.equal(selected, '');
+  const old = load(), fresh = load();
+  requests[4].resolve({ data: [{ id: 'b', personaSelection: 'none' }] });
+  requests[5].resolve({ data: [{ id: 2, name: 'B' }] });
+  await fresh;
+  requests[2].resolve({ data: [{ id: 'a', personaSelection: 'all' }] });
+  requests[3].resolve({ data: [{ id: 1, name: 'A' }] });
+  await old;
+  assert.equal(bots[0].id, 'b'); assert.equal(personas[0].id, 2); assert.equal(selected, 'b');
+  assert.equal(draft.personaSelection, 'none'); assert.equal(loading, false); assert.equal(error, '');
+  ctx.tourActive = true; await load(); assert.equal(requests.length, 6);
+});
+
+test('persona access leave confirmation is single-flight and does not allow leaving during save', async () => {
+  const confirmation = deferred(); let prompts = 0;
+  const ctx = { busy: { current: true }, dirty: true, t: (key) => key,
+    dlg: { confirm: () => { prompts++; return confirmation.promise; } } };
+  const leave = handler('components/persona/persona-access-dialog.tsx', 'confirmLeave', ctx);
+  assert.equal(await leave(), false); assert.equal(prompts, 0);
+  ctx.busy.current = false;
+  const first = leave(); assert.equal(ctx.busy.current, true);
+  assert.equal(await leave(), false); assert.equal(prompts, 1);
+  confirmation.resolve(false); assert.equal(await first, false); assert.equal(ctx.busy.current, false);
+  ctx.dirty = false; assert.equal(await leave(), true); assert.equal(prompts, 1);
+});
+
+test('persona access has a scrollable body and fixed action footer with localized labels', () => {
+  const source = fs.readFileSync(new URL('../src/components/persona/persona-access-dialog.tsx', import.meta.url), 'utf8');
+  assert.match(source, /min-h-0 flex-1 overflow-y-auto overscroll-contain/);
+  assert.match(source, /DialogFooter className="shrink-0"/);
+  assert.match(source, /useUnsavedChanges\(dirty \|\| saving, confirmLeave\)/);
+  const keys = [...source.matchAll(/t\('([^']+)'\)/g)].map((match) => match[1]);
+  for (const locale of ['zh-Hans', 'zh-Hant', 'en', 'ja']) {
+    const labels = { ...JSON.parse(fs.readFileSync(new URL('../src/i18n/locales/' + locale + '.json', import.meta.url), 'utf8')), ui_refresh: uiRefresh[locale] };
+    for (const key of keys) {
+      const value = key.split('.').reduce((object, part) => object?.[part], labels);
+      assert.ok(typeof value === 'string' && value.length > 0, locale + ': ' + key);
+    }
+    assert.equal(labels.adapters.persona_scope_title, undefined);
+  }
+});
 
 test('automatic workspace follows the split breakpoint; explicit views override it', () => {
   assert.equal(WORKSPACE_WIDE_QUERY, '(min-width: 1024px)');

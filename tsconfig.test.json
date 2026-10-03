@@ -11,6 +11,8 @@
     "tsBuildInfoFile": ".test-dist/tsconfig.test.tsbuildinfo"
   },
   "include": [
+    "src/i18n/ui-refresh.ts",
+    "src/lib/persona-policy.ts",
     "src/lib/workspace-view.ts",
     "src/lib/template-variable-style.ts",
     "src/lib/reply-preview.ts",

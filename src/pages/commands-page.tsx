@@ -1,4 +1,4 @@
-import { useTourState } from '@/components/onboarding/tour-data';
+import { useTourActive, useTourState } from '@/components/onboarding/tour-data';
 import { tourSamples } from '@/lib/tour-samples';
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -14,9 +14,10 @@ import { useToast } from '@/hooks/use-toast';
 import { useDialogs } from '@/hooks/use-dialogs';
 import { useRequestGate } from '@/hooks/use-request-gate';
 import { PersonaManagerCard } from '@/components/persona/persona-manager';
+import { PersonaAccessDialog } from '@/components/persona/persona-access-dialog';
 import {
   Loader2, RefreshCw, RotateCcw, Save, ChevronRight, ChevronDown, Pencil, Trash2, Download, Upload,
-  Image as ImageIcon, Globe, HelpCircle, Users, BookText,
+  Image as ImageIcon, Globe, HelpCircle, Users, BookText, UserCheck,
 } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { VARIABLE_STYLES, variableStyleOf, restyleVariable, type VariableStyle } from '@/lib/template-variable-style';
@@ -85,6 +86,8 @@ export const CommandsPage: React.FC = () => {
   const [personaId, setPersonaId] = useTourState(0, 0);            // 0 = 默认人格 (global overrides)
   const [personaMap, setPersonaMap] = useTourState<Record<string, { value: string; format: ReplyFormat }>>({}, {});
   const [mgrOpen, setMgrOpen] = useState(false);
+  const [accessOpen, setAccessOpen] = useState(false);
+  const tourActive = useTourActive();
   const editScrollY = useRef(0);
   const personaKey = `${personaId}:${lang}`;
   const personaGate = useRequestGate(personaKey);
@@ -264,6 +267,7 @@ export const CommandsPage: React.FC = () => {
             </SelectContent>
           </Select>
           <Button variant="outline" onClick={() => setMgrOpen(true)}><Users className="mr-2 h-4 w-4" />{t('commands.persona_manage')}</Button>
+          <Button variant="outline" disabled={tourActive} onClick={() => setAccessOpen(true)}><UserCheck className="mr-2 h-4 w-4" />{t('commands.persona_access')}</Button>
           <Select value={lang} disabled={!!editing} onValueChange={(v) => setLang(v)}>
             <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -465,6 +469,7 @@ export const CommandsPage: React.FC = () => {
           onClose={closeEditor} onSaved={savedEditor} />
       )}
 
+      {accessOpen && <PersonaAccessDialog onClose={() => setAccessOpen(false)} />}
       {/* C#40: persona management dialog (create / copy / edit / delete / set default) */}
       <Dialog open={mgrOpen} onOpenChange={(o) => { setMgrOpen(o); if (!o) { void fetchPersonas(); void loadPersonaMap(); } }}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
