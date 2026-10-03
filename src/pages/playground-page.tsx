@@ -121,7 +121,7 @@ export const PlaygroundPage: React.FC = () => {
       </div>
 
       {/* Chat area */}
-      <div ref={chatRef} data-tour="playground-chat" className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
+      <div ref={chatRef} data-tour="playground-chat" className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4 mx-4 mt-4 rounded-lg border bg-card text-card-foreground shadow-sm">
         {items.map((item, i) => (
           <div key={i} className={cn('flex', item.role === 'user' ? 'justify-end' : 'justify-start')}>
             <div

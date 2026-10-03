@@ -1253,7 +1253,7 @@
     "cov_plugin": "Plugin results",
     "master": "Enable AI",
     "master_desc": "Master switch. When off, all AI features are inactive.",
-    "warn": "⚠️ When on, AI features may incur significant cost (billed per your configured models), and AI-processed replies will have latency (depends on network + model speed). Set a cost/token limit per model.",
+    "warn": "When on, AI features may incur significant cost (billed per your configured models), and AI-processed replies will have latency (depends on network + model speed). Set a cost/token limit per model.",
     "models": "Models",
     "add_model": "Add model",
     "no_models": "No models yet — click \"Add model\" to start.",
