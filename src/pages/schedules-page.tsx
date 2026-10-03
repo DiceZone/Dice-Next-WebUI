@@ -339,12 +339,12 @@ export const SchedulesPage: React.FC = () => {
       </DialogContent>
       </Dialog>
 
-      <Card data-tour="schedules-list">
-        <CardHeader className="flex flex-row items-center justify-between">
+      <Card className="rt-section" data-tour="schedules-list">
+        <CardHeader className="rt-section-header flex flex-row items-center justify-between">
           <CardTitle className="text-base">{t('schedules.list')} ({tasks.length})</CardTitle>
           <Button variant="outline" size="sm" onClick={load} disabled={loading || busy}><RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />{t('common.refresh')}</Button>
         </CardHeader>
-        <CardContent>
+        <CardContent className="rt-section-content">
           <div className="mb-4 flex flex-wrap items-center gap-3">
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" disabled={busy || !filtered.length} checked={filtered.length > 0 && filtered.every((task) => selectedIds.has(task.id))} ref={(el) => { if (el) el.indeterminate = filtered.some((task) => selectedIds.has(task.id)) && !filtered.every((task) => selectedIds.has(task.id)); }} onChange={(e) => setSelectedIds(e.target.checked ? new Set(filtered.map((task) => task.id)) : new Set())} />{t('workspace.select_all')}</label>
             {selectedIds.size > 0 && <><span className="text-sm text-muted-foreground">{t('workspace.selected', { count: selectedIds.size })}</span>
@@ -356,8 +356,8 @@ export const SchedulesPage: React.FC = () => {
           {loading ? <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
             : filtered.length === 0 ? <p className="text-sm text-muted-foreground py-6 text-center">{t('schedules.empty')}</p>
             : (
-            <div className="rounded-lg border overflow-x-auto">
-              <table className="rt w-full text-sm">
+            <div className="rt-frame rounded-lg border overflow-x-auto">
+              <table className="rt rt-record rt-selectable w-full text-sm">
                 <thead className="bg-muted/50 text-muted-foreground">
                   <tr>
                     <th className="w-10 p-2.5"><span className="sr-only">{t('workspace.select')}</span></th>
@@ -375,8 +375,8 @@ export const SchedulesPage: React.FC = () => {
                 <tbody>
                   {filtered.map((tk) => (
                     <tr key={tk.id} className="border-t align-top hover:bg-muted/30">
-                      <td data-label={t('workspace.select')} className="p-2.5"><input type="checkbox" aria-label={t('workspace.select') + ' ' + (tk.name || tk.id)} disabled={busy} checked={selectedIds.has(tk.id)} onChange={(e) => setSelectedIds((ids) => { const next = new Set(ids); e.target.checked ? next.add(tk.id) : next.delete(tk.id); return next; })} /></td>
-                      <td data-label={t('schedules.name')} className="p-2.5 font-medium whitespace-nowrap">{tk.name}</td>
+                      <td data-label={t('workspace.select')} className="rt-check p-2.5"><input type="checkbox" aria-label={t('workspace.select') + ' ' + (tk.name || tk.id)} disabled={busy} checked={selectedIds.has(tk.id)} onChange={(e) => setSelectedIds((ids) => { const next = new Set(ids); e.target.checked ? next.add(tk.id) : next.delete(tk.id); return next; })} /></td>
+                      <td data-label={t('schedules.name')} className="rt-title p-2.5 font-medium whitespace-nowrap">{tk.name}</td>
                       <td data-label={t('schedules.target')} className="p-2.5 whitespace-nowrap text-muted-foreground">{tk.action === 'lua' ? t('schedules.lua_internal_target') : <>{(tk.targetType === 'private' ? t('schedules.private') : t('schedules.group'))} {tk.targetId === '*' ? t('schedules.all_groups') : tk.targetId}</>}</td>
                       <td data-label={t('schedules.time')} className="p-2.5 font-mono whitespace-nowrap">
                         {(tk.triggerType || 'daily') === 'interval' ? t('schedules.every_n_min', { n: tk.intervalMin })
@@ -391,17 +391,17 @@ export const SchedulesPage: React.FC = () => {
                           : tk.action === 'command' ? t('schedules.action_command') : t('schedules.action_send')}
                         {tk.condition && <span className="block font-mono text-[11px] text-muted-foreground">{tk.condition}</span>}
                       </td>
-                      <td data-label={t('schedules.content')} className="p-2.5 text-muted-foreground whitespace-pre-wrap break-words max-w-[14rem]">{tk.content}</td>
+                      <td data-label={t('schedules.content')} className="rt-body p-2.5 text-muted-foreground whitespace-pre-wrap break-words max-w-[14rem]">{tk.content}</td>
                       <td data-label={t('schedules.last_run')} className="p-2.5 whitespace-nowrap text-xs">
                         {tk.lastRun === today
                           ? <span className="inline-block rounded bg-primary/10 px-1.5 py-0.5 text-primary">{t('schedules.ran_today')}</span>
                           : <span className="text-muted-foreground font-mono">{tk.lastRun || '—'}</span>}
                       </td>
                       <td data-label={t('ui_audit.next_run_estimate')} className="p-2.5 whitespace-nowrap text-xs text-muted-foreground font-mono">{nextScheduleRun(tk, timezone, now)}</td>
-                      <td data-label={t('common.actions')} className="p-2.5">
+                      <td data-label={t('common.actions')} className="rt-footer p-2.5">
                         <div className="flex flex-wrap items-center gap-1.5">
-                          <Switch disabled={busy} aria-label={tk.name} checked={tk.enabled} onCheckedChange={() => toggle(tk)} />
-                          <Button disabled={busy} size="icon" variant="ghost" className="h-7 w-7" title={t('schedules.run_now')} onClick={() => runNow(tk)}><Play className="h-4 w-4" /></Button>
+                          <span className="rt-enable inline-flex items-center gap-2"><Switch disabled={busy} aria-label={t('common.enabled') + ' ' + tk.name} checked={tk.enabled} onCheckedChange={() => toggle(tk)} /><span className="text-xs text-muted-foreground sm:hidden">{t(tk.enabled ? 'common.enabled' : 'common.disabled')}</span></span>
+                          <Button disabled={busy} size="icon" variant="ghost" className="h-7 w-7" aria-label={t('schedules.run_now')} title={t('schedules.run_now')} onClick={() => runNow(tk)}><Play className="h-4 w-4" /></Button>
                           {tk.action !== 'lua' && <Button aria-label={t('common.edit')} title={t('common.edit')} disabled={busy} size="icon" variant="ghost" className="h-7 w-7" onClick={() => startEdit(tk)}><Pencil className="h-4 w-4" /></Button>}
                           <Button aria-label={t('common.delete')} title={t('common.delete')} disabled={busy} size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => remove(tk.id)}><Trash2 className="h-4 w-4" /></Button>
                         </div>

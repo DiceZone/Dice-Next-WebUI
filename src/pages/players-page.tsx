@@ -1,5 +1,7 @@
 import { useTourActive, useTourState } from '@/components/onboarding/tour-data';
 import { tourSamples } from '@/lib/tour-samples';
+import { useWorkspaceView } from '@/hooks/use-workspace-view';
+import { useDetailScroll } from '@/hooks/use-detail-scroll';
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/card';
@@ -10,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { useDialogs } from '@/hooks/use-dialogs';
-import { Loader2, RefreshCw, Check, X, Pencil, ArrowLeft, ChevronRight, ChevronDown, Copy, Save, UserCog } from 'lucide-react';
+import { Loader2, RefreshCw, Check, X, Pencil, ArrowLeft, ChevronRight, ChevronDown, Copy, Save, UserCog, Columns2, LayoutGrid } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PaginationBar } from '@/components/ui/pagination-bar';
 import { ChatTab } from '@/pages/groups-page';
@@ -194,10 +196,10 @@ const PlayerDetailView: React.FC<{
           )}
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-lg font-semibold">{player.nickname || player.userId}</span>
+              <span className="break-words text-lg font-semibold">{player.nickname || player.userId}</span>
               {isMaster && <Badge variant="outline" className="border-red-300 text-red-600 dark:border-red-700 dark:text-red-400">{t('banlist.perm_master')}</Badge>}
             </div>
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-mono"><PlatformIcon platform={player.platform} className="h-3.5 w-3.5" />{player.userId}</div>
+            <div className="flex min-w-0 items-start gap-1.5 break-all text-xs text-muted-foreground font-mono"><PlatformIcon platform={player.platform} className="h-3.5 w-3.5" />{player.userId}</div>
             {player.virtualId && <div className="text-xs text-amber-600 dark:text-amber-400">虚拟 QQ 号（尚未绑定真实 QQ）</div>}
             <div className="text-xs text-muted-foreground">{t('players.col_count')}: {player.cmdCount} · {t('players.col_favor')}: {player.favor}</div>
           </div>
@@ -282,7 +284,7 @@ const PlayerDetailView: React.FC<{
                 </div>
                 {open && (
                   <div className="border-t px-2.5 pb-2.5">
-                    <div className="overflow-x-auto"><table className="rt w-full text-xs">
+                    <div className="overflow-x-auto"><table className="rt rt-flat w-full text-xs">
                       <tbody>
                         {Object.entries(c.attrs).map(([k, v]) => (
                           <tr key={k} className="border-t first:border-0">
@@ -328,7 +330,7 @@ const PlayerDetailView: React.FC<{
           {tab === 'settings' && <>
           {sectionTitle(t('players.detail_settings'), detail.settings.length)}
           {detail.settings.length === 0 ? <p className="text-xs text-muted-foreground">{t('players.detail_none')}</p> : (
-            <div className="overflow-x-auto"><table className="rt w-full text-xs">
+            <div className="overflow-x-auto"><table className="rt rt-flat w-full text-xs">
               <thead className="bg-muted/50 text-muted-foreground">
                 <tr><th className="text-left py-1 w-28">{t('players.col_group')}</th><th className="text-left py-1 w-32">{t('players.col_key')}</th><th className="text-left py-1">{t('players.col_value')}</th></tr>
               </thead>
@@ -355,7 +357,7 @@ const PlayerDetailView: React.FC<{
           {tab === 'plugins' && <>
           {sectionTitle(t('players.detail_luavars'), detail.luaVars.length)}
           {detail.luaVars.length === 0 ? <p className="text-xs text-muted-foreground">{t('players.detail_none')}</p> : (
-            <div className="overflow-x-auto"><table className="rt w-full text-xs">
+            <div className="overflow-x-auto"><table className="rt rt-flat w-full text-xs">
               <thead className="bg-muted/50 text-muted-foreground">
                 <tr><th className="text-left py-1 w-40">{t('players.col_key')}</th><th className="text-left py-1">{t('players.col_value')}</th></tr>
               </thead>
@@ -437,9 +439,16 @@ export const PlayersPage: React.FC = () => {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [page, setPage] = useTourState(1, 1);
   const PAGE_SIZE = 20;
+  const { preference, view: responsiveView, setViewPreference } = useWorkspaceView('players');
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailEpoch, setDetailEpoch] = useState(0);
   const [selected, setSelected] = useState<Player | null>(null);   // C#96：详情二级页面
   const showingSamples = useTourActive();
+  const view = showingSamples ? 'split' : responsiveView;
+  const previousView = React.useRef(view);
   const leaveGuard = React.useRef<() => Promise<boolean>>(async () => true);
+  const workspaceRef = React.useRef<HTMLDivElement>(null);
+  const detailScroll = useDetailScroll(workspaceRef);
   const change = async (action: () => void) => { if (await leaveGuard.current()) action(); };
 
   const load = useCallback(async () => {
@@ -552,12 +561,17 @@ export const PlayersPage: React.FC = () => {
   useEffect(() => { setPage(1); }, [q, platFilter, sortCol, sortDir]);
 
   const active = paged.find((p) => selected && key(p) === key(selected)) ?? paged[0];
-  useEffect(() => { if (active && (!selected || key(active) !== key(selected))) setSelected(active); }, [active, selected]);
+  useEffect(() => {
+    if (previousView.current === 'split' && view === 'card' && active) {
+      setSelected(active); setDetailOpen(true);
+    }
+    previousView.current = view;
+  }, [view, active]);
   const platforms = [...new Set(rows.map((p) => p.platform))];
 
-  return <div className="space-y-5">
+  return <div ref={workspaceRef} className="space-y-5">
     {dlg.node}
-    <PageHeader icon={UserCog} title={t('players.title')} description={t('players.subtitle')} actions={<Button variant="outline" onClick={load} disabled={loading}><RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />{t('common.refresh')}</Button>} />
+    <PageHeader icon={UserCog} title={t('players.title')} description={t('players.subtitle')} actions={<div className="flex flex-wrap items-center gap-2"><Select value={preference} onValueChange={setViewPreference}><SelectTrigger aria-label={t('workspace.view')} className="w-36"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="auto">{t('workspace.auto_view')}</SelectItem><SelectItem value="split"><span className="flex items-center gap-2"><Columns2 className="h-4 w-4" />{t('workspace.split')}</span></SelectItem><SelectItem value="card"><span className="flex items-center gap-2"><LayoutGrid className="h-4 w-4" />{t('groups.view_card')}</span></SelectItem></SelectContent></Select><Button variant="outline" onClick={load} disabled={loading}><RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />{t('common.refresh')}</Button></div>} />
     <div data-tour="players-filters" className="flex flex-wrap gap-3">
       <Input className="min-w-0 flex-1 bg-card" aria-label={t('players.search')} placeholder={t('players.search')} value={q} onChange={(e) => { const value = e.target.value; void change(() => setQ(value)); }} />
       <Select value={platFilter} onValueChange={(v) => void change(() => setPlatFilter(v))}><SelectTrigger aria-label={t('players.all_platforms')} className="w-40"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">{t('players.all_platforms')}</SelectItem>{platforms.map((p) => <SelectItem key={p} value={p}>{platformLabel(p)}</SelectItem>)}</SelectContent></Select>
@@ -565,16 +579,29 @@ export const PlayersPage: React.FC = () => {
       <Button variant="outline" onClick={() => void change(() => setSortDir(sortDir === 'asc' ? 'desc' : 'asc'))}>{t(sortDir === 'asc' ? 'workspace.ascending' : 'workspace.descending')}</Button>
     </div>
     {loading && !rows.length ? <Loader2 className="mx-auto my-16 h-8 w-8 animate-spin" /> : !shown.length ? <Card className="p-16 text-center text-sm text-muted-foreground">{t('players.empty')}</Card> :
-      <div data-tour="players-list" className="grid items-start gap-4 lg:grid-cols-[300px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)]">
-        <Card className="min-w-0 p-2 shadow-none">
-          <div className="max-h-[260px] space-y-1 overflow-y-auto lg:max-h-[65vh]">
-            {paged.map((p) => <button type="button" key={key(p)} aria-pressed={active && key(active) === key(p)} onClick={() => void change(() => { setSelected(p); setEditFav(null); })} className={`flex w-full items-start gap-3 rounded-lg border p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${active && key(active) === key(p) ? 'border-primary/20 bg-primary/[0.07]' : 'border-transparent hover:bg-muted/60'}`}>
+      <div data-tour="players-list" className={`grid items-start gap-4 ${view === 'split' ? 'lg:grid-cols-[300px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)]' : ''}`}>
+        <div hidden={view === 'card' && detailOpen} className={view === 'split' ? 'min-w-0 rounded-lg border bg-card p-2' : 'min-w-0'}>
+          <div className={view === 'split' ? 'max-h-[260px] space-y-1 overflow-y-auto lg:max-h-[65vh]' : 'grid gap-3 sm:grid-cols-2 xl:grid-cols-3'}>
+            {paged.map((p) => view === 'card' ? <Card key={key(p)} className="flex min-w-0 flex-col p-4 shadow-none">
+              <div className="flex items-start gap-3">
+                <span className="rounded-lg bg-primary/10 p-2 text-primary"><UserCog className="h-5 w-5" /></span>
+                <div className="min-w-0 flex-1"><button type="button" onClick={() => void change(() => detailScroll.open(() => { setSelected(p); setDetailOpen(true); setEditFav(null); }))} className="break-words text-left font-semibold hover:text-primary">{p.nickname || p.userId}</button><div className="mt-1 flex items-start gap-1 text-xs text-muted-foreground"><PlatformIcon platform={p.platform} /><span className="break-all font-mono">{p.userId}</span></div></div>
+              </div>
+              <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                <div><dt className="text-xs text-muted-foreground">{t('players.col_trust')}</dt><dd className="mt-1 font-medium">{masterSet.has(p.userId) ? t('banlist.perm_master') : p.trustLevel <= 4 ? t('banlist.perm_lv' + p.trustLevel) : t('banlist.perm_trust_n', { n: p.trustLevel })}</dd></div>
+                <div><dt className="text-xs text-muted-foreground">{t('players.col_favor')}</dt><dd className="mt-1 tabular-nums">{p.favor}</dd></div>
+                <div><dt className="text-xs text-muted-foreground">{t('players.col_count')}</dt><dd className="mt-1 tabular-nums">{p.cmdCount}</dd></div>
+                <div><dt className="text-xs text-muted-foreground">{t('players.col_last')}</dt><dd className="mt-1 break-words text-xs">{fmtTime(p.lastCmdAt)}</dd></div>
+              </dl>
+              <div className="mt-4 flex justify-end border-t pt-3"><Button variant="outline" size="sm" onClick={() => void change(() => detailScroll.open(() => { setSelected(p); setDetailOpen(true); setEditFav(null); }))}>{t('groups.manage')}<ChevronRight className="ml-1 h-4 w-4" /></Button></div>
+            </Card> : <button type="button" key={key(p)} aria-pressed={active && key(active) === key(p)} onClick={() => void change(() => { setSelected(p); setEditFav(null); })} className={`flex w-full items-start gap-3 rounded-lg border p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${active && key(active) === key(p) ? 'border-primary/20 bg-primary/[0.07]' : 'border-transparent hover:bg-muted/60'}`}>
               <span className="rounded-lg bg-primary/10 p-2 text-primary"><UserCog className="h-5 w-5" /></span><span className="min-w-0 flex-1"><span className="block break-words text-sm font-medium">{p.nickname || p.userId}</span><span className="mt-1 flex items-center gap-1 break-all text-xs text-muted-foreground"><PlatformIcon platform={p.platform} />{p.userId}</span><span className="mt-2 block text-xs text-muted-foreground">{t('players.col_count')}: {p.cmdCount} · {t('players.col_favor')}: {p.favor}</span></span>
             </button>)}
           </div>
-          <PaginationBar total={shown.length} page={curPage} pageSize={PAGE_SIZE} onPageChange={(value) => void change(() => setPage(value))} fixedSize compact />
-        </Card>
-        <Card className="min-w-0 space-y-5 p-4 shadow-none sm:p-6">
+          <PaginationBar total={shown.length} page={curPage} pageSize={PAGE_SIZE} onPageChange={(value) => void change(() => setPage(value))} fixedSize compact={view === 'split'} />
+        </div>
+        <Card hidden={view === 'card' && !detailOpen} className="min-w-0 space-y-5 p-4 shadow-none sm:p-6">
+          {view === 'card' && <Button variant="outline" size="sm" onClick={() => void change(() => detailScroll.close(() => { setDetailOpen(false); setDetailEpoch((value) => value + 1); setEditFav(null); }))}><ArrowLeft className="mr-1 h-4 w-4" />{t('common.back')}</Button>}
           {active && (() => { const p = active; return <>
             <div className="flex flex-wrap items-end gap-4 border-b pb-4">
               <div className="space-y-2"><p className="text-xs text-muted-foreground">{t('players.col_trust')}</p>{/* C#92：骰主(256)是可选等级——选中即写入 dice.masters，切走即移出。 */}
@@ -617,7 +644,7 @@ export const PlayersPage: React.FC = () => {
                       )}
                       <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground hover:text-destructive" onClick={() => del(p)}>{t('players.del_record')}</Button></div>
             </div>
-            <PlayerDetailView key={key(p) + String(showingSamples)} player={p} isMaster={masterSet.has(p.userId)} embedded leaveGuard={leaveGuard} onBack={() => setSelected(null)} />
+            <PlayerDetailView key={key(p) + String(showingSamples) + detailEpoch} player={p} isMaster={masterSet.has(p.userId)} embedded leaveGuard={leaveGuard} onBack={() => setSelected(null)} />
           </>; })()}
         </Card>
       </div>}

@@ -11,6 +11,7 @@
     "tsBuildInfoFile": ".test-dist/tsconfig.test.tsbuildinfo"
   },
   "include": [
+    "src/lib/workspace-view.ts",
     "src/lib/template-variable-style.ts",
     "src/lib/reply-preview.ts",
     "src/lib/batch-operation.ts",

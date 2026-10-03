@@ -190,11 +190,11 @@ const PermTab: React.FC<{ entries: BanEntry[]; reload: () => Promise<void>; del:
 
     <div className="space-y-4">
       {/* 用户信任等级 */}
-      <Card data-tour="permissions-trust">
-        <CardHeader>
+      <Card className="rt-section" data-tour="permissions-trust">
+        <CardHeader className="rt-section-header">
           <CardTitle className="text-base flex items-center gap-2"><Users className="h-4 w-4" />{t('banlist.perm_users')}</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="rt-section-content space-y-3">
           <p className="text-xs text-muted-foreground">{t('banlist.perm_users_desc')}</p>
           <div className="flex items-center gap-2">
             {/* C#94：添加按钮在搜索框左边 */}
@@ -211,7 +211,7 @@ const PermTab: React.FC<{ entries: BanEntry[]; reload: () => Promise<void>; del:
             <p className="py-6 text-center text-sm text-muted-foreground">{t('banlist.perm_empty')}</p>
           ) : (
             <>
-              <div className="overflow-x-auto"><table className="rt w-full text-sm">
+              <div className="overflow-x-auto"><table className="rt rt-record rt-with-avatar w-full text-sm">
                 <thead className="bg-muted/50 border-b text-xs text-muted-foreground">
                   <tr>
                     <th className="p-2 text-left w-12"></th>
@@ -223,16 +223,16 @@ const PermTab: React.FC<{ entries: BanEntry[]; reload: () => Promise<void>; del:
                 <tbody>
                   {pageItems.map((p) => (
                     <tr key={p.platform + p.userId} className="border-b last:border-0">
-                      <td data-label={t('groups.col_avatar')} className="p-2">
+                      <td data-label={t('groups.col_avatar')} className="rt-avatar p-2">
                         {p.userId.startsWith('demo-') ? <Users className="h-8 w-8 rounded-full bg-muted p-1.5" /> : <img src={`https://q1.qlogo.cn/g?b=qq&nk=${p.userId}&s=100`} alt=""
                           className="h-8 w-8 rounded-full object-cover"
                           onError={(ev) => { (ev.target as HTMLImageElement).style.display = 'none'; }} />}
                       </td>
-                      <td data-label={t('banlist.perm_col_user')} className="p-2">
+                      <td data-label={t('banlist.perm_col_user')} className="rt-title p-2">
                         <span className="inline-flex items-center gap-1.5 font-mono"><PlatformIcon platform={p.platform} className="h-3.5 w-3.5" />{p.userId}</span>
                         {p.nickname && <span className="ml-2 text-muted-foreground">{p.nickname}</span>}
                       </td>
-                      <td data-label={t('banlist.perm_col_trust')} className="p-2">
+                      <td data-label={t('banlist.perm_col_trust')} className="rt-body p-2">
                         <Select value={masterSet.has(p.userId) ? '256' : String(p.trustLevel)} onValueChange={(v) => void setTrust(p, Number(v))}>
                           <SelectTrigger className="h-8 w-40 text-xs"><SelectValue /></SelectTrigger>
                           <SelectContent>
@@ -260,9 +260,9 @@ const PermTab: React.FC<{ entries: BanEntry[]; reload: () => Promise<void>; del:
       </Card>
 
       {/* C#94：白名单群（用户白名单=信任等级，只有群需要单独设置） */}
-      <Card data-tour="permissions-whitelist">
-        <CardHeader><CardTitle className="text-base flex items-center gap-2"><ShieldCheck className="h-4 w-4" />{t('banlist.perm_white_group')}</CardTitle></CardHeader>
-        <CardContent className="space-y-3">
+      <Card className="rt-section" data-tour="permissions-whitelist">
+        <CardHeader className="rt-section-header"><CardTitle className="text-base flex items-center gap-2"><ShieldCheck className="h-4 w-4" />{t('banlist.perm_white_group')}</CardTitle></CardHeader>
+        <CardContent className="rt-section-content space-y-3">
           <p className="text-xs text-muted-foreground">{t('banlist.perm_white_group_desc')}</p>
           <div className="flex items-center justify-between rounded-md border p-3">
             <div>
@@ -285,7 +285,7 @@ const PermTab: React.FC<{ entries: BanEntry[]; reload: () => Promise<void>; del:
           {whites.length === 0 ? (
             <p className="py-4 text-center text-sm text-muted-foreground">{t('banlist.empty')}</p>
           ) : (
-            <div className="overflow-x-auto"><table className="rt w-full text-sm">
+            <div className="overflow-x-auto"><table className="rt rt-record rt-with-avatar w-full text-sm">
               <thead className="bg-muted/50 border-b text-xs text-muted-foreground">
                 <tr>
                   <th className="p-2 text-left w-12"></th>
@@ -298,7 +298,7 @@ const PermTab: React.FC<{ entries: BanEntry[]; reload: () => Promise<void>; del:
               <tbody>
                 {whites.map((e) => (
                   <tr key={e.id} className="border-b last:border-0">
-                    <td data-label={t('groups.col_avatar')} className="p-2">
+                    <td data-label={t('groups.col_avatar')} className="rt-avatar p-2">
                       {e.targetId.startsWith('demo-') ? <Users className="h-8 w-8 rounded-full bg-muted p-1.5" /> : e.targetType === 1 ? (
                         <img src={`https://p.qlogo.cn/gh/${e.targetId}/${e.targetId}/100`} alt=""
                           className="h-8 w-8 rounded-full object-cover"
@@ -307,11 +307,11 @@ const PermTab: React.FC<{ entries: BanEntry[]; reload: () => Promise<void>; del:
                         <Badge variant="secondary" className="text-[10px]">{t('banlist.user')}</Badge>
                       )}
                     </td>
-                    <td data-label={t('banlist.id')} className="p-2 font-mono">{e.targetId}</td>
-                    <td data-label={t('banlist.reason')} className="p-2 text-muted-foreground">{e.reason || '—'}</td>
+                    <td data-label={t('banlist.id')} className="rt-title p-2 font-mono">{e.targetId}</td>
+                    <td data-label={t('banlist.reason')} className="rt-body p-2 text-muted-foreground">{e.reason || '—'}</td>
                     <td data-label={t('banlist.time')} className="p-2 text-xs text-muted-foreground">{fmtTs(e.createdAt)}</td>
-                    <td data-label={t('common.actions')} className="p-2 text-right">
-                      <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => del(e.id)}>
+                    <td data-label={t('common.actions')} className="rt-footer p-2 text-right">
+                      <Button size="icon" variant="ghost" aria-label={t('common.delete') + ' ' + e.targetId} className="h-8 w-8 text-destructive" onClick={() => del(e.id)}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </td>
@@ -444,8 +444,8 @@ const BlackTab: React.FC<{ entries: BanEntry[]; reload: () => Promise<void>; del
         </DialogContent>
       </Dialog>
 
-      <Card>
-        <CardContent className="space-y-3 pt-6">
+      <Card className="rt-section">
+        <CardContent className="rt-section-content space-y-3 pt-6">
           <div className="flex items-center gap-2">
             <Button size="sm" onClick={() => setAddOpen(true)}>
               <Plus className="mr-1 h-3 w-3" />{t('banlist.add_black')}
@@ -460,7 +460,7 @@ const BlackTab: React.FC<{ entries: BanEntry[]; reload: () => Promise<void>; del
             <p className="py-6 text-center text-sm text-muted-foreground">{t('banlist.empty')}</p>
           ) : (
             <>
-              <div className="overflow-x-auto"><table className="rt w-full text-sm">
+              <div className="overflow-x-auto"><table className="rt rt-record rt-with-avatar w-full text-sm">
                 <thead className="bg-muted/50 border-b text-xs text-muted-foreground">
                   <tr>
                     <th className="p-2 text-left w-12"></th>
@@ -474,7 +474,7 @@ const BlackTab: React.FC<{ entries: BanEntry[]; reload: () => Promise<void>; del
                 <tbody>
                   {pageItems.map((e) => (
                     <tr key={e.id} className="border-b last:border-0">
-                      <td data-label={t('groups.col_avatar')} className="p-2">
+                      <td data-label={t('groups.col_avatar')} className="rt-avatar p-2">
                         <img
                           src={e.targetType === 1
                             ? `https://p.qlogo.cn/gh/${e.targetId}/${e.targetId}/100`
@@ -482,7 +482,7 @@ const BlackTab: React.FC<{ entries: BanEntry[]; reload: () => Promise<void>; del
                           alt="" className="h-8 w-8 rounded-full object-cover"
                           onError={(ev) => { (ev.target as HTMLImageElement).style.display = 'none'; }} />
                       </td>
-                      <td data-label={t('banlist.perm_col_user')} className="p-2">
+                      <td data-label={t('banlist.perm_col_user')} className="rt-title p-2">
                         <span className="font-mono">{e.targetId}</span>
                         {nameOf(e) && <span className="ml-2 text-muted-foreground">{nameOf(e)}</span>}
                       </td>
@@ -491,15 +491,15 @@ const BlackTab: React.FC<{ entries: BanEntry[]; reload: () => Promise<void>; del
                           {e.targetType === 1 ? t('banlist.group') : t('banlist.user')}
                         </Badge>
                       </td>
-                      <td data-label={t('banlist.reason')} className="p-2 text-muted-foreground">
+                      <td data-label={t('banlist.reason')} className="rt-body p-2 text-muted-foreground">
                         {(e.reason || '').startsWith('[云黑#') && (
                           <Badge variant="secondary" className="mr-1.5 text-[10px]">{t('banlist.cloudban_badge')}</Badge>
                         )}
                         {e.reason || '—'}
                       </td>
                       <td data-label={t('banlist.time')} className="p-2 text-xs text-muted-foreground">{fmtTs(e.createdAt)}</td>
-                      <td data-label={t('common.actions')} className="p-2 text-right">
-                        <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => del(e.id)}>
+                      <td data-label={t('common.actions')} className="rt-footer p-2 text-right">
+                        <Button size="icon" variant="ghost" aria-label={t('common.delete') + ' ' + e.targetId} className="h-8 w-8 text-destructive" onClick={() => del(e.id)}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </td>
@@ -591,12 +591,12 @@ export const BanlistPage: React.FC = () => {
               </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="p-0">
+          <Card className="rt-section">
+            <CardContent className="rt-section-content p-0">
               {entries.filter((e) => e.listType === 2).length === 0 ? (
                 <p className="py-8 text-center text-sm text-muted-foreground">{t('banlist.dicebot_empty')}</p>
               ) : (
-                <div className="overflow-x-auto"><table className="rt w-full text-sm">
+                <div className="overflow-x-auto"><table className="rt rt-record rt-with-avatar w-full text-sm">
                   <thead className="bg-muted/50 border-b text-xs text-muted-foreground">
                     <tr>
                       <th className="p-2 text-left w-12"></th>
@@ -609,16 +609,16 @@ export const BanlistPage: React.FC = () => {
                   <tbody>
                     {entries.filter((e) => e.listType === 2).map((e) => (
                       <tr key={e.id} className="border-b last:border-0">
-                        <td data-label={t('groups.col_avatar')} className="p-2">
+                        <td data-label={t('groups.col_avatar')} className="rt-avatar p-2">
                           <img src={`https://q1.qlogo.cn/g?b=qq&nk=${e.targetId}&s=100`} alt=""
                             className="h-8 w-8 rounded-full object-cover"
                             onError={(ev) => { (ev.target as HTMLImageElement).style.display = 'none'; }} />
                         </td>
-                        <td data-label={t('banlist.id')} className="p-2 font-mono">{e.targetId}</td>
+                        <td data-label={t('banlist.id')} className="rt-title p-2 font-mono">{e.targetId}</td>
                         <td data-label={t('banlist.dicebot_kind')} className="p-2"><Badge variant="secondary">{e.reason || '?'}</Badge></td>
                         <td data-label={t('banlist.dicebot_seen')} className="p-2 text-xs text-muted-foreground">{fmtTs(e.createdAt)}</td>
-                        <td data-label={t('common.actions')} className="p-2 text-right">
-                          <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => del(e.id)}>
+                        <td data-label={t('common.actions')} className="rt-footer p-2 text-right">
+                          <Button size="icon" variant="ghost" aria-label={t('common.delete') + ' ' + e.targetId} className="h-8 w-8 text-destructive" onClick={() => del(e.id)}>
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </td>

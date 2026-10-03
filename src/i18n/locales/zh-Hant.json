@@ -1,5 +1,6 @@
 {
   "workspace": {
+    "auto_view": "自動（寬螢幕分欄 / 窄螢幕卡片）",
     "width": "內容區域寬度",
     "width_hint": "立即生效，僅儲存在目前瀏覽器。",
     "classic": "經典",

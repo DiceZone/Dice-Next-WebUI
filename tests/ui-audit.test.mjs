@@ -10,6 +10,154 @@ import { nextScheduleRun, scheduleToday, timezoneLabel } from '../.test-dist/lib
 import { runBatch } from '../.test-dist/lib/batch-operation.js';
 import { canCopyDeckGroup, deckCopyFilename, deckFileKey } from '../.test-dist/lib/deck-document.js';
 import { resolveReplyScope, globalReplyScope, replyScopeKey, replyScopeQuery } from '../.test-dist/lib/reply-scope.js';
+import { readWorkspaceView, resolveWorkspaceView, WORKSPACE_WIDE_QUERY } from '../.test-dist/lib/workspace-view.js';
+
+test('automatic workspace follows the split breakpoint; explicit views override it', () => {
+  assert.equal(WORKSPACE_WIDE_QUERY, '(min-width: 1024px)');
+  assert.equal(resolveWorkspaceView('auto', false), 'card');
+  assert.equal(resolveWorkspaceView('auto', true), 'split');
+  for (const view of ['split', 'card', 'table'])
+    for (const wide of [false, true]) assert.equal(resolveWorkspaceView(view, wide), view);
+  assert.equal(readWorkspaceView(null, false), 'auto');
+  assert.equal(readWorkspaceView('invalid', true), 'auto');
+  assert.equal(readWorkspaceView('table', false), 'auto');
+  assert.equal(readWorkspaceView('table', true), 'table');
+});
+
+test('record cards have a deliberate identity hierarchy instead of stacked columns', () => {
+  const files = ['commands', 'groups', 'schedules', 'logs', 'backup', 'banlist', 'statistics', 'notice-settings', 'roadmap'];
+  let records = 0;
+  for (const file of files) {
+    const source = fs.readFileSync(new URL('../src/pages/' + file + '-page.tsx', import.meta.url), 'utf8');
+    const tree = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+    const visit = (node) => {
+      if (ts.isJsxElement(node) && node.openingElement.tagName.getText(tree) === 'table') {
+        const classes = node.openingElement.attributes.properties.find(p => p.name?.getText(tree) === 'className')?.initializer?.text || '';
+        if (classes.split(' ').includes('rt-record')) {
+          records++;
+          assert.match(node.getText(tree), /rt-title/, file + ' needs a primary title');
+          if (node.getText(tree).includes("t('common.actions')") || node.getText(tree).includes('data-label="操作"'))
+            assert.match(node.getText(tree), /rt-footer/, file + ' needs an action footer');
+        }
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(tree);
+  }
+  assert.equal(records, 14); // Explicit group table view stays a horizontally scrollable table.
+  const css = fs.readFileSync(new URL('../src/index.css', import.meta.url), 'utf8');
+  assert.match(css, /table\.rt\.rt-record tr\s*\{[^}]*display: grid;/);
+  assert.match(css, /\.rt-footer\s*\{[^}]*grid-column: 1 \/ -1;[^}]*border-top:/);
+  assert.match(css, /\.rt-check input\s*\{[^}]*width: 1\.125rem;/);
+});
+
+test('workspace layout changes reuse details and keep list pagination stable', () => {
+  const groups = fs.readFileSync(new URL('../src/pages/groups-page.tsx', import.meta.url), 'utf8');
+  const players = fs.readFileSync(new URL('../src/pages/players-page.tsx', import.meta.url), 'utf8');
+  assert.equal((groups.match(/<GroupDetail /g) || []).length, 1);
+  assert.equal((players.match(/<PlayerDetailView /g) || []).length, 1);
+  for (const source of [groups, players]) {
+    assert.match(source, /useWorkspaceView\('/);
+    assert.match(source, /value="auto"/);
+    assert.match(source, /useDetailScroll\(workspaceRef\)/);
+    assert.match(source, /previousView\.current/);
+  }
+  assert.match(groups, /const pageSize = 15;/);
+  assert.match(groups, /<table className="w-full min-w-\[720px\] text-sm">/);
+  assert.match(players, /const PAGE_SIZE = 20;/);
+  assert.match(players, /detailScroll\.close/);
+  assert.match(players, /void change\(\(\) => detailScroll\.open/);
+  const hook = fs.readFileSync(new URL('../src/hooks/use-workspace-view.ts', import.meta.url), 'utf8');
+  assert.match(hook, /useSyncExternalStore/);
+  assert.match(hook, /query\.removeEventListener\('change'/);
+  assert.match(hook, /readWorkspaceView\(localStorage\.getItem/);
+  const scroll = fs.readFileSync(new URL('../src/hooks/use-detail-scroll.ts', import.meta.url), 'utf8');
+  assert.match(scroll, /saved\.current\.panel\.scrollTop = saved\.current\.top/);
+  assert.match(scroll, /cancelAnimationFrame/);
+});
+
+test('bordered responsive table frames opt in without stripping section cards', () => {
+  for (const file of ['pages/commands-page.tsx', 'pages/groups-page.tsx', 'pages/logs-page.tsx',
+    'pages/schedules-page.tsx', 'pages/modules-page.tsx', 'components/import/import-result-card.tsx']) {
+    const source = fs.readFileSync(new URL('../src/' + file, import.meta.url), 'utf8');
+    const tree = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+    let frames = 0;
+    const visit = (node) => {
+      if (ts.isJsxElement(node) && node.openingElement.tagName.getText(tree) === 'table') {
+        const attr = node.openingElement.attributes.properties.find(p => p.name?.getText(tree) === 'className');
+        if (attr?.initializer?.text?.split(' ').includes('rt') && ts.isJsxElement(node.parent)) {
+          const parentClass = node.parent.openingElement.attributes.properties.find(p => p.name?.getText(tree) === 'className')?.initializer?.text || '';
+          if (parentClass.split(' ').includes('border')) {
+            assert.ok(parentClass.split(' ').includes('rt-frame'), file);
+            frames++;
+          }
+        }
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(tree); assert.ok(frames > 0, file);
+  }
+});
+
+test('mobile table chrome and command hierarchy are scoped to the narrow breakpoint', () => {
+  const css = fs.readFileSync(new URL('../src/index.css', import.meta.url), 'utf8');
+  const mobile = css.slice(css.indexOf('@media (max-width: 639.9px)'), css.indexOf('/* ── Global settings search'));
+  assert.match(mobile, /\.rt-frame, \.rt-section\s*\{[^}]*border-width: 0;[^}]*background: transparent;/);
+  assert.doesNotMatch(mobile, /\.rt-frame, \.rt-section\s*\{[^}]*(max-height|overflow-y):/);
+  assert.match(mobile, /table\.rt td > \.truncate\s*\{[^}]*white-space: normal;/);
+  assert.match(mobile, /table\.rt tr\.command-row\s*\{[^}]*display: grid;/);
+  assert.match(mobile, /\.command-description\s*\{[^}]*grid-area: 2/);
+  assert.match(mobile, /\.command-actions\s*\{[^}]*grid-area: 4/);
+  assert.match(mobile, /tr:last-child\s*\{[^}]*border-width: 1px;/);
+  assert.match(mobile, /\.command-actions\[data-empty="true"\]\s*\{ display: none;/);
+  const commands = fs.readFileSync(new URL('../src/pages/commands-page.tsx', import.meta.url), 'utf8');
+  for (const marker of ['command-title', 'command-name', 'command-description', 'command-example', 'command-actions', 'command-reply-row'])
+    assert.ok(commands.includes(marker), marker);
+  assert.match(commands, /aria-expanded=\{isOpen\}/);
+});
+
+test('every responsive table has an explicit mobile frame, section or compact-list treatment', () => {
+  const walkFiles = (directory) => fs.readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
+    const url = new URL(entry.name + (entry.isDirectory() ? '/' : ''), directory);
+    return entry.isDirectory() ? walkFiles(url) : entry.name.endsWith('.tsx') ? [url] : [];
+  });
+  const files = [...walkFiles(new URL('../src/pages/', import.meta.url)), ...walkFiles(new URL('../src/components/', import.meta.url))];
+  let count = 0;
+  for (const file of files) {
+    const tree = ts.createSourceFile(file.pathname, fs.readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+    const classes = (node) => ts.isJsxElement(node)
+      ? (node.openingElement.attributes.properties.find(p => p.name?.getText(tree) === 'className')?.initializer?.text || '').split(' ') : [];
+    const visit = (node) => {
+      if (ts.isJsxElement(node) && node.openingElement.tagName.getText(tree) === 'table' && classes(node).includes('rt')) {
+        count++;
+        let marked = classes(node).includes('rt-flat');
+        for (let ancestor = node.parent; ancestor && !marked; ancestor = ancestor.parent)
+          marked = classes(ancestor).some(cls => cls === 'rt-frame' || cls === 'rt-section');
+        assert.ok(marked, 'Missing mobile container treatment: ' + file.pathname);
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(tree);
+  }
+  assert.ok(count >= 20, 'audit must include every existing table');
+});
+
+test('nested key-value editors keep one entity panel and preserve scrolling', () => {
+  const css = fs.readFileSync(new URL('../src/index.css', import.meta.url), 'utf8');
+  assert.match(css, /table\.rt\.rt-flat tr\s*\{[^}]*border-width: 0;[^}]*border-radius: 0;[^}]*background: transparent;/);
+  assert.match(css, /\.rt-section-header\s*\{[^}]*padding: 0 0 0\.75rem;/);
+  assert.match(css, /\.rt-section-content\s*\{[^}]*padding: 0;/);
+  const player = fs.readFileSync(new URL('../src/pages/players-page.tsx', import.meta.url), 'utf8');
+  assert.equal((player.match(/className="rt rt-flat /g) || []).length, 3);
+  for (const file of ['pages/modules-page.tsx', 'components/import/import-result-card.tsx']) {
+    const source = fs.readFileSync(new URL('../src/' + file, import.meta.url), 'utf8');
+    assert.match(source, /rt-frame max-h-48 overflow/);
+    assert.match(source, /className="rt rt-flat /);
+  }
+  const replies = fs.readFileSync(new URL('../src/components/reply/reply-table.tsx', import.meta.url), 'utf8');
+  assert.match(replies, /<div className="space-y-3 sm:hidden">/);
+  assert.match(replies, /<article[^>]+bg-card/);
+});
 
 const deferred = () => { let resolve, reject; const promise = new Promise((a, b) => { resolve = a; reject = b; }); return { promise, resolve, reject }; };
 
@@ -500,9 +648,9 @@ test('shared tab panels and AI settings grids use the available container width'
 
 test('audit severity labels do not wrap or fragment when long messages compete for width', () => {
   const source = fs.readFileSync(new URL('../src/pages/notice-settings-page.tsx', import.meta.url), 'utf8');
-  assert.ok(source.includes('data-label={t(\'noticeset.audit_area\')} className="p-2 whitespace-nowrap"'));
+  assert.ok(source.includes('data-label={t(\'noticeset.audit_area\')} className="rt-status p-2 whitespace-nowrap"'));
   assert.ok(source.includes('inline-flex shrink-0 whitespace-nowrap rounded px-1.5 py-0.5 text-xs'));
-  assert.ok(source.includes('data-label={t(\'noticeset.audit_msg\')} className="p-2 text-xs break-all"'));
+  assert.ok(source.includes('data-label={t(\'noticeset.audit_msg\')} className="rt-body p-2 text-xs break-all"'));
 });
 
 test('compact pagination bounds page buttons without enumerating all pages', () => {

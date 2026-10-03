@@ -332,9 +332,9 @@ export const NoticeSettingsPage: React.FC = () => {
 
       {/* ══ 审计日志 ══ */}
       {tab === 'audit' && (
-        <Card data-setting-anchor="notice-audit">
-          <CardContent className="p-0">
-            <div className="flex items-center justify-between p-3 border-b">
+        <Card className="rt-section" data-setting-anchor="notice-audit">
+          <CardContent className="rt-section-content p-0">
+            <div className="rt-section-header flex items-center justify-between gap-3 p-3 border-b">
               <p className="text-xs text-muted-foreground">{t('noticeset.audit_hint')}</p>
               <Button size="sm" variant="outline" onClick={loadAudit} disabled={auditLoading}>
                 <RefreshCw className={`mr-2 h-4 w-4 ${auditLoading ? 'animate-spin' : ''}`} />{t('common.refresh')}
@@ -345,7 +345,7 @@ export const NoticeSettingsPage: React.FC = () => {
                 <ScrollText className="h-4 w-4" />{t('noticeset.audit_empty')}
               </p>
             ) : (
-              <div className="overflow-x-auto"><table className="rt w-full text-sm">
+              <div className="rt-frame overflow-x-auto"><table className="rt rt-record rt-with-status w-full text-sm">
                 <thead className="border-b text-xs text-muted-foreground">
                   <tr>
                     <th className="p-2 text-left whitespace-nowrap">{t('noticeset.audit_time')}</th>
@@ -359,10 +359,10 @@ export const NoticeSettingsPage: React.FC = () => {
                   {audit.map((a, i) => (
                     <tr key={i} className="border-b last:border-0 align-top">
                       <td data-label={t('noticeset.audit_time')} className="p-2 font-mono text-xs text-muted-foreground whitespace-nowrap">{a.ts}</td>
-                      <td data-label={t('noticeset.audit_area')} className="p-2 whitespace-nowrap"><span className={`inline-flex shrink-0 whitespace-nowrap rounded px-1.5 py-0.5 text-xs ${areaBadgeCls(areaOfLevel(a.level))}`}>{areaName(areaOfLevel(a.level))}</span></td>
-                      <td data-label={t('noticeset.audit_event')} className="p-2 text-xs whitespace-nowrap">{a.op ? evName(a.op) : '—'}</td>
+                      <td data-label={t('noticeset.audit_area')} className="rt-status p-2 whitespace-nowrap"><span className={`inline-flex shrink-0 whitespace-nowrap rounded px-1.5 py-0.5 text-xs ${areaBadgeCls(areaOfLevel(a.level))}`}>{areaName(areaOfLevel(a.level))}</span></td>
+                      <td data-label={t('noticeset.audit_event')} className="rt-title p-2 text-xs whitespace-nowrap">{a.op ? evName(a.op) : '—'}</td>
                       <td data-label={t('noticeset.audit_origin')} className="p-2 font-mono text-xs text-muted-foreground whitespace-nowrap">{a.origin || '—'}</td>
-                      <td data-label={t('noticeset.audit_msg')} className="p-2 text-xs break-all">{a.msg}</td>
+                      <td data-label={t('noticeset.audit_msg')} className="rt-body p-2 text-xs break-all">{a.msg}</td>
                     </tr>
                   ))}
                 </tbody>

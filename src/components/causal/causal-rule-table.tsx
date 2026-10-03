@@ -78,7 +78,7 @@ export const CausalRuleTable: React.FC<Props> = ({
               <CardContent className="flex flex-col gap-3 py-3 sm:flex-row sm:items-start">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-medium">{rule.name || t('causal.unnamed')}</span>
+                    <span className="w-full break-words font-semibold sm:w-auto">{rule.name || t('causal.unnamed')}</span>
                     <Badge variant="secondary" className="text-xs">{scopeLabel(rule.scope, t)}</Badge>
                     <Badge variant="outline" className="text-xs">{t('causal.priority')} {rule.priority}</Badge>
                     <Badge variant="outline" className="text-xs">{rule.logic.toUpperCase()}</Badge>
@@ -88,7 +88,7 @@ export const CausalRuleTable: React.FC<Props> = ({
                   </div>
                   <div className="mt-1 flex flex-wrap gap-1">
                     {rule.conditions.map((c, i) => (
-                      <Badge key={i} variant="outline" className="text-[10px] font-mono px-1 py-0 font-normal">
+                      <Badge key={i} variant="outline" className="max-w-full whitespace-normal break-all px-1.5 py-0.5 text-xs font-mono font-normal">
                         {condTypeLabel(c.type, t)}: {c.content.substring(0, 30)}
                       </Badge>
                     ))}
@@ -96,10 +96,10 @@ export const CausalRuleTable: React.FC<Props> = ({
                 </div>
                 <div className="flex w-full items-center justify-end gap-1 border-t pt-2 sm:w-auto sm:shrink-0 sm:border-0 sm:pt-0">
                   <Switch className="mr-auto sm:mr-0" checked={rule.enabled} aria-label={`${t('common.enabled')} · ${rule.name || t('causal.unnamed')}`} onCheckedChange={() => onToggle(rule.id)} />
-                  <Button variant="ghost" size="icon" className="h-8 w-8" title={t('common.edit')} onClick={() => onEdit(rule)}>
+                  <Button variant="ghost" size="icon" className="h-9 w-9" aria-label={t('common.edit')} title={t('common.edit')} onClick={() => onEdit(rule)}>
                     <Edit3 className="h-4 w-4" />
                   </Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" title={t('common.delete')} onClick={() => onDelete(rule.id)}>
+                  <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-destructive" aria-label={t('common.delete')} title={t('common.delete')} onClick={() => onDelete(rule.id)}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>

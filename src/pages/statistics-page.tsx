@@ -470,10 +470,10 @@ function RankingCard({ title, kind, rows }: {
   rows: StatisticsData['top_groups'] | StatisticsData['top_users'];
 }) {
   const { t } = useTranslation();
-  return <Card>
-    <CardHeader className="pb-2"><CardTitle className="text-base">{title}</CardTitle></CardHeader>
-    <CardContent>
-      {!rows.length ? <Empty /> : <table className="rt w-full text-sm">
+  return <Card className="rt-section">
+    <CardHeader className="rt-section-header pb-2"><CardTitle className="text-base">{title}</CardTitle></CardHeader>
+    <CardContent className="rt-section-content">
+      {!rows.length ? <Empty /> : <table className="rt rt-record rt-with-avatar w-full text-sm">
         <thead><tr className="border-b text-xs text-muted-foreground">
           <th className="px-2 py-2 text-left">#</th>
           <th className="px-2 py-2 text-left">{kind === 'group' ? t('statistics.group') : t('statistics.user')}</th>
@@ -487,12 +487,12 @@ function RankingCard({ title, kind, rows }: {
           const name = kind === 'group' ? row.name : (row.nickname || row.user_id);
           const key = kind === 'group' ? row.platform + ':' + row.group_id : row.platform + ':' + row.user_id;
           return <tr key={key} className="border-b last:border-0">
-            <td data-label="#" className="px-2 py-2 text-muted-foreground">{index + 1}</td>
-            <td data-label={kind === 'group' ? t('statistics.group') : t('statistics.user')} className="max-w-48 truncate px-2 py-2 font-medium" title={name}>{name}</td>
+            <td data-label="#" className="rt-avatar rt-rank px-2 py-2 text-muted-foreground">{index + 1}</td>
+            <td data-label={kind === 'group' ? t('statistics.group') : t('statistics.user')} className="rt-title max-w-48 truncate px-2 py-2 font-medium" title={name}>{name}</td>
             <td data-label={t('statistics.platform')} className="px-2 py-2 text-muted-foreground">{platformLabel(row.platform)}</td>
             {kind === 'group' && <td data-label={t('statistics.players')} className="px-2 py-2 text-right tabular-nums">{number(row.active_users)}</td>}
             <td data-label={t('statistics.commands')} className="px-2 py-2 text-right tabular-nums">{number(row.command_count)}</td>
-            <td data-label={t('statistics.last_used')} className="px-2 py-2 text-right text-xs text-muted-foreground">{lastUsed(row.last_command_at)}</td>
+            <td data-label={t('statistics.last_used')} className="rt-body px-2 py-2 text-right text-xs text-muted-foreground">{lastUsed(row.last_command_at)}</td>
           </tr>;
         })}</tbody>
       </table>}

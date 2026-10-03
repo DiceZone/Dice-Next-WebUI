@@ -317,8 +317,8 @@ export const CommandsPage: React.FC = () => {
           {allLoading ? (
             <div className="flex items-center justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
           ) : (
-            <div className="rounded-lg border overflow-x-auto">
-              <table className="rt w-full text-sm">
+            <div className="rt-frame rounded-lg border overflow-x-auto">
+              <table className="rt rt-record w-full text-sm">
                 <thead className="bg-muted/50 text-muted-foreground">
                   <tr>
                     <th className="text-left font-medium p-2.5 whitespace-nowrap"><V2Head label={t('commands.col_key')} /></th>
@@ -335,12 +335,12 @@ export const CommandsPage: React.FC = () => {
                     .filter((name) => { const q = allQ.toLowerCase(); return !q || name.includes(q) || t(`commands.gvar_${name}`).toLowerCase().includes(q); })
                     .map((name) => (
                     <tr key={`gvar-${name}`} className="border-t align-top bg-primary/5">
-                      <td data-label={t('commands.col_key')} className="p-2.5 font-mono text-xs whitespace-nowrap">
+                      <td data-label={t('commands.col_key')} className="rt-title p-2.5 font-mono text-xs whitespace-nowrap">
                         {name}
                         <div className="text-[11px] text-muted-foreground/70">{t('commands.gvar_badge')}</div>
                       </td>
-                      <td data-label={t('commands.col_var')} className="p-2.5 font-mono text-xs text-primary">{`{${name}}`}</td>
-                      <td data-label={t('commands.col_text')} className="p-2.5 text-muted-foreground w-full max-w-0">
+                      <td data-label={t('commands.col_var')} className="rt-body p-2.5 font-mono text-xs text-primary">{`{${name}}`}</td>
+                      <td data-label={t('commands.col_text')} className="rt-body p-2.5 text-muted-foreground w-full max-w-0">
                         <div className="truncate" title={t(`commands.gvar_${name}`)}>{t(`commands.gvar_${name}`)}</div>
                       </td>
                       <td className="p-2.5"></td>
@@ -352,16 +352,16 @@ export const CommandsPage: React.FC = () => {
                     : (k.group !== 'tplvar' && k.group !== 'legacy')      // ALL_TAB
                   ).map((k) => (
                     <tr key={k.key} className="border-t align-top hover:bg-muted/30">
-                      <td data-label={t('commands.col_key')} className="p-2.5 font-mono text-xs whitespace-nowrap">
+                      <td data-label={t('commands.col_key')} className="rt-title p-2.5 font-mono text-xs whitespace-nowrap">
                         {cat === ORPHAN_TAB ? k.key.replace(/^legacy\./, '') : k.key}
                         {k.override != null && <span className="ml-1 text-amber-600" title={t('commands.modified')}>●</span>}
                         {cat !== ORPHAN_TAB && <V2Sub v2={k.v2key} />}
                       </td>
-                      {cat === VAR_TAB && <td data-label={t('commands.col_var')} className="p-2.5 font-mono text-xs text-primary">{`{${k.key.replace(/^tplvar\./, '')}}`}</td>}
-                      <td data-label={t('commands.col_text')} className="p-2.5 text-muted-foreground w-full max-w-0">
+                      {cat === VAR_TAB && <td data-label={t('commands.col_var')} className="rt-body p-2.5 font-mono text-xs text-primary">{`{${k.key.replace(/^tplvar\./, '')}}`}</td>}
+                      <td data-label={t('commands.col_text')} className="rt-body p-2.5 text-muted-foreground w-full max-w-0">
                         <div className="truncate" title={k.override ?? k.default}>{k.override ?? k.default}</div>
                       </td>
-                      <td data-label={t('common.actions')} className="p-2.5">
+                      <td data-label={t('common.actions')} className="rt-footer p-2.5">
                         <div className="flex items-center gap-1">
                           <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => editKey(k)}>
                             <Pencil className="mr-1 h-3.5 w-3.5" />{t('commands.edit')}
@@ -383,7 +383,7 @@ export const CommandsPage: React.FC = () => {
       ) : loading ? (
         <div className="flex items-center justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
       ) : (
-        <div className="rounded-lg border overflow-x-auto">
+        <div className="rt-frame rounded-lg border overflow-x-auto">
           <table className="rt w-full text-sm">
             <thead className="bg-muted/50 text-muted-foreground">
               <tr>
@@ -402,37 +402,37 @@ export const CommandsPage: React.FC = () => {
                 const hasOverride = c.replies.some((r) => r.override != null);
                 return (
                   <React.Fragment key={c.cmd}>
-                    <tr className="border-t align-top hover:bg-muted/30">
-                      <td data-label={t('common.actions')} className="p-2.5">
+                    <tr className="command-row border-t align-top hover:bg-muted/30">
+                      <td data-label={t('common.actions')} className="command-expand p-2.5">
                         {multi && (
-                          <button onClick={() => toggle(c.cmd)} className="text-muted-foreground hover:text-foreground">
+                          <button onClick={() => toggle(c.cmd)} aria-expanded={isOpen} aria-label={`${t('commands.col_reply')} · ${c.title}`} className="text-muted-foreground hover:text-foreground">
                             {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                           </button>
                         )}
                       </td>
-                      <td data-label={t('commands.col_title')} className="p-2.5 font-medium whitespace-nowrap">{c.title}</td>
-                      <td data-label={t('commands.col_cmd')} className="p-2.5 font-mono whitespace-nowrap">
+                      <td data-label={t('commands.col_title')} className="command-title p-2.5 font-medium whitespace-nowrap">{c.title}</td>
+                      <td data-label={t('commands.col_cmd')} className="command-name p-2.5 font-mono whitespace-nowrap">
                         {c.cmd}{hasOverride && <span className="ml-1 text-[11px] text-amber-600">●</span>}
                       </td>
-                      <td data-label={t('commands.col_example')} className="p-2.5">
+                      <td data-label={t('commands.col_example')} className="command-example p-2.5">
                         <div className="flex flex-wrap gap-1">
                           {c.example.split(' / ').map((ex, i) => (
                             <code key={i} className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono text-foreground/80 whitespace-nowrap">{ex}</code>
                           ))}
                         </div>
                       </td>
-                      <td data-label={t('commands.col_desc')} className="p-2.5 text-muted-foreground w-full max-w-0">
+                      <td data-label={t('commands.col_desc')} className="command-description p-2.5 text-muted-foreground w-full max-w-0">
                         <div className="truncate" title={c.desc}>{c.desc}</div>
                       </td>
-                      <td data-label={t('commands.col_reply')} className="p-2.5">
+                      <td data-label={t('commands.col_reply')} data-empty={c.replies.length === 0} className="command-actions p-2.5">
                         {c.replies.length === 0 ? <span className="text-xs text-muted-foreground">—</span>
                           : multi
-                            ? <button onClick={() => toggle(c.cmd)} className="text-xs text-primary hover:underline">{t('commands.edit')} ({c.replies.length})</button>
+                            ? <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => toggle(c.cmd)} aria-expanded={isOpen}><Pencil className="mr-1 h-3.5 w-3.5" />{t('commands.edit')} ({c.replies.length}){isOpen ? <ChevronDown className="ml-1 h-3.5 w-3.5" /> : <ChevronRight className="ml-1 h-3.5 w-3.5" />}</Button>
                             : <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => beginEdit({ cmd: c.cmd, reply: c.replies[0] })}><Pencil className="mr-1 h-3.5 w-3.5" />{t('commands.edit')}</Button>}
                       </td>
                     </tr>
                     {isOpen && multi && c.replies.map((rep) => (
-                      <tr key={rep.key} className="border-t bg-muted/20">
+                      <tr key={rep.key} className="command-reply-row border-t bg-muted/20">
                         <td></td>
                         <td data-label={t('commands.col_title')} className="p-2 pl-4 text-xs text-muted-foreground" colSpan={2}>
                           <span className="font-medium">{replyLabel(rep.key)}</span>

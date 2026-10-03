@@ -1,5 +1,7 @@
-import { useTourActive, useTourState, TourDataContext } from '@/components/onboarding/tour-data';
+import { useTourActive, useTourState } from '@/components/onboarding/tour-data';
 import { tourSamples } from '@/lib/tour-samples';
+import { useWorkspaceView } from '@/hooks/use-workspace-view';
+import { useDetailScroll } from '@/hooks/use-detail-scroll';
 ﻿import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
@@ -118,8 +120,12 @@ export const GroupsPage: React.FC = () => {
   const [loading, setLoading] = useTourState(true, false);
   const [search, setSearch] = useTourState('', '');
   const [selected, setSelected] = useState<Group | null>(null);
+  const workspaceRef = useRef<HTMLDivElement>(null);
+  const detailScroll = useDetailScroll(workspaceRef);
   const showingSamples = useTourActive();
-  const [view, setView] = useTourState<'split' | 'card' | 'table'>('split', 'split');
+  const { preference, view: responsiveView, setViewPreference } = useWorkspaceView('groups');
+  // Tutorials need the split workspace regardless of the viewport.
+  const view = showingSamples ? 'split' : responsiveView;
   const [page, setPage] = useTourState(1, 1);
   const welcomeRef = useRef<HTMLTextAreaElement>(null);
   const [tab, setTab] = useTourState<'active' | 'archived'>('active', 'active');
@@ -129,7 +135,7 @@ export const GroupsPage: React.FC = () => {
   const adapterOptions = [...new Map(groups.flatMap((g) => g.accounts?.length
     ? g.accounts.map((a) => [a.adapterId, a.adapterName || a.loginName || a.adapterId] as const).filter(([id]) => id)
     : [[`platform:${g.platform}`, platformLabel(g.platform)] as const])).entries()];
-  const pageSize = view === 'card' ? 12 : 15;
+  const pageSize = 15; // Keep pagination/selection stable while the viewport changes.
 
   const fetchGroups = useCallback(async () => {
     setLoading(true);
@@ -183,6 +189,13 @@ export const GroupsPage: React.FC = () => {
   const shown = list.slice((curPage - 1) * pageSize, curPage * pageSize);
 
   const active = shown.find((g) => selected && groupKey(g) === groupKey(selected)) ?? shown[0];
+  const openGroup = (g: Group) => view === 'split' ? setSelected(g) : detailScroll.open(() => setSelected(g));
+  const closeGroup = () => detailScroll.close(() => setSelected(null));
+  const previousView = useRef(view);
+  useEffect(() => {
+    if (previousView.current === 'split' && view !== 'split' && active) setSelected(active);
+    previousView.current = view;
+  }, [view, active]);
 
   // ── tag chips + add button (shared by card & table) ──
   const Tags: React.FC<{ g: Group; compact?: boolean }> = ({ g, compact }) => (
@@ -202,7 +215,7 @@ export const GroupsPage: React.FC = () => {
 
   // ── per-group action buttons (compact) ──
   const Actions: React.FC<{ g: Group; col?: boolean }> = ({ g, col }) => (
-    <div className={col ? 'flex flex-col gap-1.5 shrink-0' : 'flex items-center gap-1.5'}>
+    <div className={col ? 'flex flex-col gap-1.5 shrink-0' : 'flex flex-wrap items-center gap-1.5'}>
       {!g.left && (g.locked ? (
         <Button size="sm" variant="outline" className="h-7 px-2 text-xs text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100 dark:hover:bg-emerald-900/50" onClick={() => toggleLock(g)}>
           <Power className="mr-1 h-3.5 w-3.5" />{t('groups.unlock')}
@@ -219,7 +232,7 @@ export const GroupsPage: React.FC = () => {
         </Button>
       )}
 
-      <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setSelected(g)}>
+      <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => openGroup(g)}>
         <Settings2 className="mr-1 h-3.5 w-3.5" />{t('groups.manage')}
       </Button>
     </div>
@@ -228,17 +241,13 @@ export const GroupsPage: React.FC = () => {
   return (
     <>
       {dlg.node}
-      <div hidden={showingSamples || view === 'split'}>
-        <TourDataContext.Provider value={false}>
-          {view !== 'split' && selected && <GroupDetail key={groupKey(selected) + adapterFilter} initialAdapterId={adapterFilter} group={selected} dlg={dlg} onBack={() => setSelected(null)} onChanged={fetchGroups} welcomeRef={welcomeRef} />}
-        </TourDataContext.Provider>
-      </div>
-      <div hidden={Boolean(selected) && !showingSamples && view !== 'split'} className="space-y-6">
+      <div ref={workspaceRef} className="space-y-6">
         <PageHeader icon={Users} title={t('groups.title')} description={t('groups.subtitle')}
           actions={<div data-tour="groups-view-actions" className="flex items-center gap-2">
-            <Select value={view} onValueChange={(value) => { setView(value as typeof view); setSelected(null); setPage(1); }}>
+            <Select value={preference} onValueChange={setViewPreference}>
               <SelectTrigger aria-label={t('workspace.view')} className="w-36"><SelectValue /></SelectTrigger>
               <SelectContent>
+                <SelectItem value="auto">{t('workspace.auto_view')}</SelectItem>
                 <SelectItem value="split"><span className="flex items-center gap-2"><Columns2 className="h-4 w-4" />{t('workspace.split')}</span></SelectItem>
                 <SelectItem value="card"><span className="flex items-center gap-2"><LayoutGrid className="h-4 w-4" />{t('groups.view_card')}</span></SelectItem>
                 <SelectItem value="table"><span className="flex items-center gap-2"><Table2 className="h-4 w-4" />{t('groups.view_table')}</span></SelectItem>
@@ -249,12 +258,12 @@ export const GroupsPage: React.FC = () => {
             </Button>
           </div>} />
 
-        <Tabs value={tab} onValueChange={(value) => { setTab(value === 'archived' ? 'archived' : 'active'); setPage(1); }} className="space-y-5">
+        <Tabs value={tab} onValueChange={(value) => { setTab(value === 'archived' ? 'archived' : 'active'); setSelected(null); setPage(1); }} className="space-y-5">
         <div data-tour="groups-toolbar" className="flex flex-wrap items-center gap-3">
           <div className="relative max-w-xs flex-1 min-w-[12rem]">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input className="pl-8" placeholder={t('groups.search_placeholder')} value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
+              onChange={(e) => { setSearch(e.target.value); setSelected(null); setPage(1); }} />
           </div>
           <Select value={adapterFilter} onValueChange={(v) => { setAdapterFilter(v); setSelected(null); setPage(1); }}>
             <SelectTrigger aria-label={t('workspace.adapter')} className="w-full sm:w-56"><SelectValue /></SelectTrigger>
@@ -271,6 +280,8 @@ export const GroupsPage: React.FC = () => {
         </div>
 
         <TabsContent value={tab} data-tour="groups-list" className="mt-0">
+        <div className={cn('grid items-start gap-4', view === 'split' && 'lg:grid-cols-[300px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)]')}>
+        <div hidden={view !== 'split' && Boolean(selected) && !showingSamples} className="min-w-0">
         {loading && !groups.length ? (
           <div className="flex items-center justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
         ) : groups.length === 0 ? (
@@ -285,34 +296,30 @@ export const GroupsPage: React.FC = () => {
             <p className="text-lg mb-1">{tab === 'archived' ? t('groups.archived_empty') : t('groups.no_match')}</p>
           </div>
         ) : view === 'split' ? (
-          <div className="grid items-start gap-4 lg:grid-cols-[300px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)]">
             <Card className="overflow-hidden p-2 shadow-none">
               <div className="max-h-[260px] space-y-1 overflow-y-auto lg:max-h-[65vh]" aria-label={t('groups.title')}>
-                {shown.map((g) => <button key={groupKey(g)} type="button" aria-pressed={active && groupKey(active) === groupKey(g)} onClick={() => setSelected(g)} className={cn('flex w-full items-start gap-3 rounded-lg border p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', active && groupKey(active) === groupKey(g) ? 'border-primary/20 bg-primary/[0.07]' : 'border-transparent hover:bg-muted/60')}>
+                {shown.map((g) => <button key={groupKey(g)} type="button" aria-pressed={active && groupKey(active) === groupKey(g)} onClick={() => openGroup(g)} className={cn('flex w-full items-start gap-3 rounded-lg border p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', active && groupKey(active) === groupKey(g) ? 'border-primary/20 bg-primary/[0.07]' : 'border-transparent hover:bg-muted/60')}>
                   <GroupAvatar groupId={g.groupId} platform={g.platform} />
                   <span className="min-w-0 flex-1"><span className="block break-words text-sm font-medium">{g.name}</span><span className="mt-1 block break-all font-mono text-xs text-muted-foreground">{g.groupId}</span><span className="mt-2 flex flex-wrap gap-1"><StatusBadge g={g} t={t} /><PlatformIcon platform={g.platform} /></span></span>
                 </button>)}
               </div>
               <PaginationBar total={list.length} page={curPage} pageSize={pageSize} onPageChange={setPage} fixedSize compact />
             </Card>
-            <Card className="min-w-0 p-4 shadow-none sm:p-6">
-              {active ? <GroupDetail key={groupKey(active) + adapterFilter + String(showingSamples)} embedded initialAdapterId={adapterFilter} group={active} dlg={dlg} onBack={() => setSelected(null)} onChanged={fetchGroups} welcomeRef={welcomeRef} /> : <p>{t('workspace.select_group')}</p>}
-            </Card>
-          </div>
+
         ) : view === 'card' ? (
           <>
             {/* C#105：卡片最小 400px，自动按容器宽度减列，防止挤压内部元素（min() 防窄屏溢出） */}
             <div className="grid gap-3 grid-cols-[repeat(auto-fill,minmax(min(400px,100%),1fr))]">
               {shown.map((g) => (
-                <Card key={`${g.platform}/${g.groupId}`} className="p-4 flex justify-between gap-3 min-h-[132px] shadow-none">
-                  <div className="flex flex-col justify-between min-w-0 flex-1">
+                <Card key={`${g.platform}/${g.groupId}`} className="flex min-w-0 flex-col p-4 shadow-none">
+                  <div className="flex min-w-0 flex-1 flex-col gap-3">
                     <div>
                       <div className="flex items-start gap-2">
                         <GroupAvatar groupId={g.groupId} platform={g.platform} />
                         {/* C#105：flex-1+min-w-0 给出确定宽度，超长群名 truncate 成省略号 */}
                         <div className="min-w-0 flex-1">
-                          <button onClick={() => setSelected(g)} className="font-medium text-left hover:text-primary transition-colors truncate block max-w-full">{g.name}</button>
-                          <div className="flex items-center gap-1.5 mt-0.5">
+                          <button onClick={() => openGroup(g)} className="block max-w-full break-words text-left font-semibold leading-6 hover:text-primary transition-colors">{g.name}</button>
+                          <div className="mt-1 flex flex-wrap items-center gap-1.5">
                             <StatusBadge g={g} t={t} />
                             <span className="inline-flex min-w-0 items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-xs">
                               <PlatformIcon platform={g.platform} />
@@ -331,7 +338,7 @@ export const GroupsPage: React.FC = () => {
                     </div>
                     <div className="mt-2"><Tags g={g} /></div>
                   </div>
-                  <Actions g={g} col />
+                  <div className="mt-3 flex flex-wrap justify-end border-t pt-3 [&_button]:min-h-9"><Actions g={g} /></div>
                 </Card>
               ))}
             </div>
@@ -340,7 +347,7 @@ export const GroupsPage: React.FC = () => {
         ) : (
           <>
             <div className="rounded-lg border overflow-x-auto">
-              <table className="rt w-full text-sm">
+              <table className="w-full min-w-[720px] text-sm">
                 <thead className="bg-muted/50 text-muted-foreground">
                   <tr>
                     <th className="text-left font-medium p-2.5 w-24">{t('groups.col_status')}</th>
@@ -354,17 +361,17 @@ export const GroupsPage: React.FC = () => {
                 <tbody>
                   {shown.map((g) => (
                     <tr key={`${g.platform}/${g.groupId}`} className="border-t hover:bg-muted/30">
-                      <td data-label={t('groups.col_status')} className="p-2.5"><StatusBadge g={g} t={t} /></td>
-                      <td data-label={t('groups.col_avatar')} className="p-2.5"><div className="h-8 w-8 rounded-md overflow-hidden bg-muted shrink-0">
+                      <td data-label={t('groups.col_status')} className="rt-status p-2.5"><StatusBadge g={g} t={t} /></td>
+                      <td data-label={t('groups.col_avatar')} className="rt-avatar p-2.5"><div className="h-8 w-8 rounded-md overflow-hidden bg-muted shrink-0">
                         {g.platform === 'onebot_v11' ? <img src={`https://p.qlogo.cn/gh/${g.groupId}/${g.groupId}/100`} alt="" className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} /> : <Users2 className="h-5 w-5 m-1.5 text-muted-foreground" />}
                       </div></td>
-                      <td data-label={t('groups.col_group')} className="p-2.5">
-                        <button onClick={() => setSelected(g)} className="font-medium hover:text-primary transition-colors">{g.name}</button>
+                      <td data-label={t('groups.col_group')} className="rt-title p-2.5">
+                        <button onClick={() => openGroup(g)} className="font-medium hover:text-primary transition-colors">{g.name}</button>
                         <div className="mt-1"><Tags g={g} compact /></div>
                       </td>
                       <td data-label={t('groups.members_label')} className="p-2.5">{g.memberCount || '—'}</td>
                       <td data-label={t('groups.perm_label')} className="p-2.5">{roleLabel(t, g.botRole)}</td>
-                      <td data-label={t('common.actions')} className="p-2.5"><div className="flex flex-wrap justify-end"><Actions g={g} /></div></td>
+                      <td data-label={t('common.actions')} className="rt-footer p-2.5"><div className="flex flex-wrap justify-end"><Actions g={g} /></div></td>
                     </tr>
                   ))}
                 </tbody>
@@ -373,6 +380,11 @@ export const GroupsPage: React.FC = () => {
             <PaginationBar total={list.length} page={curPage} pageSize={pageSize} onPageChange={setPage} fixedSize />
           </>
         )}
+        </div>
+        <Card hidden={view !== 'split' && (!selected || showingSamples)} className="min-w-0 p-4 shadow-none sm:p-6">
+          {active ? <GroupDetail key={groupKey(active) + adapterFilter + String(showingSamples)} embedded={view === 'split'} initialAdapterId={adapterFilter} group={active} dlg={dlg} onBack={closeGroup} onChanged={fetchGroups} welcomeRef={welcomeRef} /> : <p>{t('workspace.select_group')}</p>}
+        </Card>
+        </div>
         </TabsContent>
         </Tabs>
       </div>
@@ -417,7 +429,7 @@ const GroupDetail: React.FC<{ group: Group; embedded?: boolean; initialAdapterId
   return (
     <div className="space-y-5">
       <div className="flex min-w-0 flex-wrap items-center gap-3">
-        {!embedded && <Button variant="ghost" size="icon" onClick={onBack}><ArrowLeft className="h-4 w-4" /></Button>}
+        {!embedded && <Button aria-label={t('common.back')} variant="ghost" size="icon" onClick={onBack}><ArrowLeft className="h-4 w-4" /></Button>}
         <GroupAvatar groupId={group.groupId} platform={activeGroup.platform} />
         <div>
           <h1 className="break-words text-xl font-bold tracking-tight leading-tight">{group.name}</h1>
@@ -1182,8 +1194,8 @@ const QQOfficialAdminTab: React.FC<any> = ({ base, adapterId, endpointId, toast,
           </div>
           <div className="rounded-lg border p-3 text-sm">全员禁言模式：<b>{muteData.global_rule?.mode || 'none'}</b></div>
           {(muteData.members as QQMuteMember[]).length === 0 ? <div className="rounded-lg border py-10 text-center text-sm text-muted-foreground">当前没有处于禁言中的成员</div> : (
-            <div className="rounded-lg border overflow-x-auto"><table className="rt w-full text-sm"><thead className="bg-muted/50"><tr><th className="p-2.5 text-left">成员</th><th className="p-2.5 text-left">OpenID</th><th className="p-2.5 text-left">到期时间</th><th className="p-2.5 text-right">操作</th></tr></thead><tbody>
-              {(muteData.members as QQMuteMember[]).map((m) => <tr key={m.member_openid} className="border-t"><td data-label="成员" className="p-2.5">{m.username || '—'}</td><td data-label="OpenID" className="p-2.5 font-mono text-xs">{m.member_openid}</td><td data-label="到期时间" className="p-2.5">{m.mute_expire_at ? new Date(m.mute_expire_at).toLocaleString() : '—'}</td><td data-label="操作" className="p-2.5 text-right"><Button size="sm" variant="outline" onClick={() => void unmute(m.member_openid)}>解除</Button></td></tr>)}
+            <div className="rt-frame rounded-lg border overflow-x-auto"><table className="rt rt-record w-full text-sm"><thead className="bg-muted/50"><tr><th className="p-2.5 text-left">成员</th><th className="p-2.5 text-left">OpenID</th><th className="p-2.5 text-left">到期时间</th><th className="p-2.5 text-right">操作</th></tr></thead><tbody>
+              {(muteData.members as QQMuteMember[]).map((m) => <tr key={m.member_openid} className="border-t"><td data-label="成员" className="rt-title p-2.5">{m.username || '—'}</td><td data-label="OpenID" className="p-2.5 font-mono text-xs">{m.member_openid}</td><td data-label="到期时间" className="p-2.5">{m.mute_expire_at ? new Date(m.mute_expire_at).toLocaleString() : '—'}</td><td data-label="操作" className="rt-footer p-2.5 text-right"><Button size="sm" variant="outline" onClick={() => void unmute(m.member_openid)}>解除</Button></td></tr>)}
             </tbody></table></div>
           )}
         </div>
@@ -1270,8 +1282,8 @@ const LogsTab: React.FC<any> = ({ group, t, toast, dlg }) => {
   if (rows.length === 0) return <div className="rounded-lg border py-12 text-center text-sm text-muted-foreground">{t('groups.log_empty')}</div>;
 
   return (
-    <div className="rounded-lg border overflow-x-auto">
-      <table className="rt w-full text-sm md:min-w-[800px] md:table-fixed">
+    <div className="rt-frame rounded-lg border overflow-x-auto">
+      <table className="rt rt-record w-full text-sm md:min-w-[800px] md:table-fixed">
         <thead className="bg-muted/50 text-muted-foreground">
           <tr>
             <th className="text-left font-medium p-2.5">{t('groups.log_name')}</th>
@@ -1285,12 +1297,12 @@ const LogsTab: React.FC<any> = ({ group, t, toast, dlg }) => {
         <tbody>
           {rows.map((r) => (
             <tr key={r.id} className="border-t hover:bg-muted/30">
-              <td data-label={t('groups.log_name')} className="p-2.5 font-medium break-words">{r.name}</td>
+              <td data-label={t('groups.log_name')} className="rt-title p-2.5 font-medium break-words">{r.name}</td>
               <td data-label={t('groups.log_creator')} className="p-2.5 font-mono text-xs break-all">{r.gmId}</td>
               <td data-label={t('groups.log_start')} className="px-1.5 py-2.5 text-muted-foreground text-[11px] whitespace-nowrap">{fmt(r.createdAt)}</td>
               <td data-label={t('groups.log_last')} className="px-1.5 py-2.5 text-muted-foreground text-[11px] whitespace-nowrap">{fmt(r.lastAt)}</td>
               <td data-label={t('groups.log_count')} className="p-2.5">{r.count}</td>
-              <td data-label={t('common.actions')} className="p-2.5 md:w-56">
+              <td data-label={t('common.actions')} className="rt-footer p-2.5 md:w-56">
                 <LogActionButtons
                   onDownload={(format) => exportLog(r.id, format)}
                   onUpload={() => void upload(r)}
@@ -1505,8 +1517,8 @@ const FilesTab: React.FC<any> = ({ base, t, toast }) => {
       ) : folders.length === 0 && files.length === 0 ? (
         <div className="rounded-lg border py-10 text-center text-sm text-muted-foreground">{t('groups.files_empty')}</div>
       ) : (
-        <div className="rounded-lg border overflow-x-auto">
-          <table className="rt w-full text-sm">
+        <div className="rt-frame rounded-lg border overflow-x-auto">
+          <table className="rt rt-record w-full text-sm">
             <thead className="bg-muted/50 text-muted-foreground">
               <tr>
                 <th className="text-left font-medium p-2.5">{t('groups.files_name')}</th>
@@ -1519,20 +1531,20 @@ const FilesTab: React.FC<any> = ({ base, t, toast }) => {
             <tbody>
               {folders.map((f) => (
                 <tr key={'d' + f.folderId} className="border-t hover:bg-muted/30 cursor-pointer" onClick={() => enter(f)}>
-                  <td data-label={t('groups.files_name')} className="p-2.5"><span className="flex items-center gap-2"><FolderOpen className="h-4 w-4 text-amber-500" />{f.name}<span className="text-xs text-muted-foreground">({f.count})</span></span></td>
+                  <td data-label={t('groups.files_name')} className="rt-title p-2.5"><span className="flex items-center gap-2"><FolderOpen className="h-4 w-4 text-amber-500" />{f.name}<span className="text-xs text-muted-foreground">({f.count})</span></span></td>
                   <td data-label={t('groups.files_size')} className="p-2.5 text-muted-foreground">—</td>
                   <td data-label={t('groups.files_uploader')} className="p-2.5"></td>
-                  <td data-label={t('groups.files_time')} className="p-2.5"></td>
-                  <td className="p-2.5"></td>
+                  <td data-label={t('groups.files_time')} className="rt-body p-2.5"></td>
+                  <td className="rt-footer p-2.5"></td>
                 </tr>
               ))}
               {files.map((f) => (
                 <tr key={f.fileId} className="border-t hover:bg-muted/30">
-                  <td data-label={t('groups.files_name')} className="p-2.5"><span className="flex items-center gap-2"><FileText className="h-4 w-4 opacity-60" /><span className="break-all">{f.name}</span></span></td>
+                  <td data-label={t('groups.files_name')} className="rt-title p-2.5"><span className="flex items-center gap-2"><FileText className="h-4 w-4 opacity-60" /><span className="break-all">{f.name}</span></span></td>
                   <td data-label={t('groups.files_size')} className="p-2.5 text-xs text-muted-foreground whitespace-nowrap">{fmtSize(f.size)}</td>
                   <td data-label={t('groups.files_uploader')} className="p-2.5 text-xs text-muted-foreground">{f.uploaderName || f.uploader}</td>
-                  <td data-label={t('groups.files_time')} className="p-2.5 text-xs text-muted-foreground whitespace-nowrap">{f.uploadTime ? new Date(f.uploadTime * 1000).toLocaleString() : '—'}</td>
-                  <td data-label={t('common.actions')} className="p-2.5">
+                  <td data-label={t('groups.files_time')} className="rt-body p-2.5 text-xs text-muted-foreground whitespace-nowrap">{f.uploadTime ? new Date(f.uploadTime * 1000).toLocaleString() : '—'}</td>
+                  <td data-label={t('common.actions')} className="rt-footer p-2.5">
                     <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => download(f)} disabled={dling.has(f.fileId)}>
                       {dling.has(f.fileId) ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Download className="mr-1 h-3 w-3" />}{t('common.download')}
                     </Button>

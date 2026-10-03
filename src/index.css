@@ -84,6 +84,16 @@
    below 640px the table renders as stacked cards (one card per row,
    each cell a "label · value" line). No JS, no second render path. */
 @media (max-width: 639.9px) {
+  /* Only the table frame loses its desktop chrome; section cards and dialogs
+     keep their own headers, boundaries and vertical scroll limits. */
+  .rt-frame, .rt-section {
+    border-width: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+  .rt-section-header { padding: 0 0 0.75rem; border-width: 0; }
+  .rt-section-content { padding: 0; }
   table.rt { display: block; }
   table.rt thead { display: none; }
   table.rt tbody { display: block; }
@@ -93,11 +103,12 @@
     border-radius: calc(var(--radius) - 2px);
     background: hsl(var(--card));
     padding: 0.25rem 0;
-    margin: 0.5rem 0.125rem;
+    margin: 0 0 0.75rem;
   }
+  table.rt tr:last-child { margin-bottom: 0; border-width: 1px; }
   table.rt td {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: flex-start;   /* 标签+内容都靠左，别左右两端拉扯 */
     gap: 0.5rem;
     width: 100%;
@@ -107,13 +118,22 @@
     white-space: normal;
     min-width: 0;
     overflow: hidden;
+    overflow-wrap: anywhere;
   }
   table.rt td > * { min-width: 0; }
+  table.rt td > .truncate {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
+  table.rt code { white-space: pre-wrap; overflow-wrap: anywhere; max-width: 100%; }
   table.rt td[data-label]::before {
     content: attr(data-label);
     flex-shrink: 0;
     font-weight: 500;
     color: hsl(var(--muted-foreground));
+    max-width: 40%;
+    overflow-wrap: anywhere;
   }
   /* 无标签单元格＝操作按钮区，靠右 */
   table.rt td:not([data-label]) { justify-content: flex-end; }
@@ -121,6 +141,119 @@
   table.rt td:last-child > .flex,
   table.rt td:last-child > .inline-flex { flex-wrap: wrap; }
   table.rt td:empty { display: none; }
+
+  /* Record cards: identity first, compact metadata, full-width content, then
+     actions. Reuse the real table cells/handlers instead of duplicating data. */
+  table.rt.rt-record tr {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 0.75rem;
+    padding: 0.875rem;
+    border-radius: var(--radius);
+  }
+  table.rt.rt-record td {
+    grid-column: span 6;
+    width: auto;
+    padding: 0;
+    flex-direction: column;
+    gap: 0.25rem;
+    line-height: 1.5;
+  }
+  table.rt.rt-record td::before { max-width: 100%; font-size: 0.6875rem; font-weight: 400; }
+  table.rt.rt-record .rt-title {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    align-self: center;
+  }
+  table.rt.rt-record .rt-title::before,
+  table.rt.rt-record .rt-avatar::before,
+  table.rt.rt-record .rt-status::before,
+  table.rt.rt-record .rt-check::before,
+  table.rt.rt-record .rt-footer::before { display: none; }
+  table.rt.rt-record .rt-title > .flex { flex-wrap: wrap; }
+  table.rt.rt-record.rt-with-avatar .rt-title { grid-column: 3 / -1; }
+  table.rt.rt-record.rt-with-status .rt-title { grid-column-end: 9; }
+  table.rt.rt-record.rt-selectable .rt-title { grid-column-end: 11; }
+  table.rt.rt-record .rt-avatar { grid-column: 1 / 3; grid-row: 1; align-self: center; }
+  table.rt.rt-record .rt-status { grid-column: 9 / -1; grid-row: 1; justify-self: end; align-self: start; }
+  table.rt.rt-record .rt-status > span { max-width: 100%; text-align: center; }
+  table.rt.rt-record .rt-rank { font-size: 1.125rem; font-weight: 600; color: hsl(var(--primary)); }
+  table.rt.rt-record .rt-check { grid-column: 11 / -1; grid-row: 1; justify-self: end; }
+  table.rt.rt-record .rt-check input { width: 1.125rem; height: 1.125rem; margin: 0.25rem; }
+  table.rt.rt-record .rt-body { grid-column: 1 / -1; white-space: pre-wrap; }
+  table.rt.rt-record .rt-footer {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    align-items: center;
+    border-top: 1px solid hsl(var(--border));
+    padding-top: 0.625rem;
+    gap: 0.375rem;
+  }
+  table.rt.rt-record .rt-footer > .flex { width: 100%; flex-wrap: wrap; justify-content: flex-end; }
+  table.rt.rt-record .rt-footer button { min-width: 2.25rem; min-height: 2.25rem; }
+  table.rt.rt-record .rt-footer .rt-enable { margin-right: auto; }
+  table.rt.rt-record td:empty { display: none; }
+  table.rt.rt-record td[colspan] { grid-column: 1 / -1; align-items: center; }
+
+  /* Command cards retain the desktop cells and event handlers, but give the
+     narrow layout a title, a command badge, body copy and a dedicated footer. */
+  table.rt tr.command-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) fit-content(40%);
+    gap: 0.625rem 0.75rem;
+    padding: 0.875rem;
+  }
+  table.rt .command-row > td { width: auto; padding: 0; }
+  table.rt .command-row > td::before { display: none; }
+  table.rt .command-row > .command-expand { display: none; }
+  table.rt .command-title { grid-area: 1 / 1; font-size: 0.9375rem; }
+  table.rt .command-name {
+    grid-area: 1 / 2;
+    justify-self: end;
+    align-self: start;
+    border-radius: 0.375rem;
+    background: hsl(var(--muted));
+    padding: 0.125rem 0.5rem !important;
+    font-size: 0.75rem;
+  }
+  table.rt .command-description { grid-area: 2 / 1 / auto / -1; line-height: 1.6; }
+  table.rt .command-example { grid-area: 3 / 1 / auto / -1; }
+  table.rt .command-actions {
+    grid-area: 4 / 1 / auto / -1;
+    justify-content: flex-end;
+    border-top: 1px solid hsl(var(--border));
+    padding-top: 0.625rem !important;
+  }
+  table.rt .command-actions button { min-height: 2.25rem; }
+  table.rt .command-row > .command-actions[data-empty="true"] { display: none; }
+  table.rt tr.command-reply-row {
+    width: calc(100% - 0.75rem);
+    margin-left: 0.75rem;
+    border-left: 2px solid hsl(var(--primary) / 0.3);
+  }
+  /* Key/value editors and import details belong to one enclosing entity.
+     Preserve that entity's panel; do not draw another card for every field. */
+  table.rt.rt-flat tr {
+    border-width: 0;
+    border-top: 1px solid hsl(var(--border));
+    border-radius: 0;
+    background: transparent;
+    padding: 0.5rem 0;
+    margin: 0;
+  }
+  table.rt.rt-flat tr:first-child { border-top-width: 0; }
+  table.rt.rt-flat td { padding: 0.25rem 0; }
+  table.rt.rt-flat td > .flex { flex: 1; flex-wrap: wrap; }
+  table.rt.rt-flat td:first-child { font-weight: 500; }
+  table.rt.rt-flat td:first-child::before { display: none; }
+  table.rt.rt-flat td:not(:first-child) { flex-direction: column; gap: 0.25rem; }
+  table.rt.rt-flat td:not(:first-child)::before { font-size: 0.6875rem; font-weight: 400; }
+  table.rt.rt-flat td > .flex { width: 100%; }
+  table.rt.rt-flat button { min-height: 2rem; }
 }
 
 /* ── Global settings search target feedback ──────────────────── */

@@ -311,8 +311,8 @@ export const LogsPage: React.FC = () => {
 
         <TabsContent data-tour="logs-content" value="logs" className="mt-0">
           {visibleLogs.length === 0 ? <div className="rounded-lg border border-dashed py-14 text-center text-muted-foreground">{t('logs.no_logs')}</div> :
-            <div className="overflow-x-auto rounded-lg border">
-              <table className="rt w-full sm:min-w-[1220px] text-sm">
+            <div className="rt-frame overflow-x-auto rounded-lg border">
+              <table className="rt rt-record rt-with-status w-full sm:min-w-[1220px] text-sm">
                 <thead className="bg-muted/50 text-muted-foreground"><tr className="border-b">
                   <th className="p-3 text-center"><SortHeader column="name">{t('logs.col_name')}</SortHeader></th>
                   <th className="p-3 text-center"><SortHeader column="group">{t('logs.col_group')}</SortHeader></th>
@@ -326,16 +326,16 @@ export const LogsPage: React.FC = () => {
                   <th className="p-3 text-center">{t('logs.col_actions')}</th>
                 </tr></thead>
                 <tbody>{visibleLogs.map((log) => <tr key={log.id} className="border-b last:border-0 hover:bg-muted/30">
-                  <td data-label={t('logs.col_name')} className="p-3 text-center font-medium">#{log.id} · {log.name}</td>
-                  <td data-label={t('logs.col_group')} className="p-3 text-center"><div>{groupName(log.groupId)}</div><div className="font-mono text-xs text-muted-foreground">{log.groupId}</div></td>
-                  <td data-label={t('logs.col_status')} className="p-3 whitespace-nowrap text-center">{status(log.status)}</td>
+                  <td data-label={t('logs.col_name')} className="rt-title p-3 text-center font-medium">#{log.id} · {log.name}</td>
+                  <td data-label={t('logs.col_group')} className="rt-body p-3 text-center"><div>{groupName(log.groupId)}</div><div className="font-mono text-xs text-muted-foreground">{log.groupId}</div></td>
+                  <td data-label={t('logs.col_status')} className="rt-status p-3 whitespace-nowrap text-center">{status(log.status)}</td>
                   <td data-label={t('logs.col_count')} className="p-3 text-center tabular-nums">{log.count}</td>
                   <td data-label={t('logs.col_storage')} className="p-3 whitespace-nowrap text-center tabular-nums"><div>{formatBytes(log.storageBytes)}</div>{log.imageBytes > 0 && <div className="text-xs text-muted-foreground">{t('logs.storage_images', { size: formatBytes(log.imageBytes) })}</div>}</td>
                   <td data-label={t('logs.col_game')} className="p-3 text-center">{log.gameCode ? <><div>{log.gameName || t('logs.unnamed_session')}</div><div className="font-mono text-xs text-muted-foreground">{log.gameCode}</div></> : <span className="text-muted-foreground">—</span>}</td>
                   <td data-label={t('logs.col_creator')} className="p-3 text-center font-mono text-xs">{log.gmId || '—'}</td>
                   <td data-label={t('logs.col_created')} className="p-3 whitespace-nowrap text-center text-xs">{log.createdAt || '—'}</td>
                   <td data-label={t('logs.col_last')} className="p-3 whitespace-nowrap text-center text-xs">{log.lastAt || '—'}</td>
-                  <td data-label={t('common.actions')} className="p-3 text-center"><LogActions log={log} /></td>
+                  <td data-label={t('common.actions')} className="rt-footer p-3 text-center"><LogActions log={log} /></td>
                 </tr>)}</tbody>
               </table>
             </div>}

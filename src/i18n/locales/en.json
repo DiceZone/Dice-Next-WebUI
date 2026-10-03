@@ -1,5 +1,6 @@
 {
   "workspace": {
+    "auto_view": "Auto (split / cards)",
     "width": "Content width",
     "width_hint": "Applies immediately and is saved in this browser only.",
     "classic": "Classic",

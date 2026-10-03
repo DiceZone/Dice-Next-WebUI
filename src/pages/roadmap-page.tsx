@@ -139,9 +139,9 @@ export const RoadmapPage: React.FC = () => {
             const isCompleted = table.title.includes('已完成功能摘要');
             const open = !isCompleted || completedOpen;
             return (
-              <div key={`${table.title}-${ti}`} data-tour={ti === 0 ? 'roadmap-content' : undefined} className="rounded-lg border">
-                <div className="flex items-center justify-between gap-3 p-4">
-                  <div className="flex items-baseline gap-2">
+              <div key={`${table.title}-${ti}`} data-tour={ti === 0 ? 'roadmap-content' : undefined} className="rt-section rounded-lg border">
+                <div className="rt-section-header flex items-center justify-between gap-3 p-4">
+                  <div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-2">
                     <h2 className="text-base font-semibold">{table.title}</h2>
                     <span className="text-xs text-muted-foreground">{table.rows.length}</span>
                   </div>
@@ -153,15 +153,15 @@ export const RoadmapPage: React.FC = () => {
                   )}
                 </div>
                 {open && (
-                  <div className="overflow-x-auto border-t">
-                    <table className="rt w-full text-sm">
+                  <div className="rt-frame overflow-x-auto border-t">
+                    <table className="rt rt-record w-full text-sm">
                       <thead className="bg-muted/50 text-left text-muted-foreground">
                         <tr>{table.headers.map((header, hi) => <th key={hi} className="px-3 py-2 font-medium">{header}</th>)}</tr>
                       </thead>
                       <tbody>
                         {table.rows.map((row, ri) => (
                           <tr key={ri} className="border-t align-top hover:bg-muted/30">
-                            {row.map((cell, ci) => <td key={ci} data-label={table.headers[ci] || ''} className="px-3 py-2 leading-5">{cell}</td>)}
+                            {row.map((cell, ci) => <td key={ci} data-label={table.headers[ci] || ''} className={`${ci === (/状态|狀態|status/i.test(table.headers[0] || '') ? 1 : 0) ? 'rt-title' : 'rt-body'} px-3 py-2 leading-5`}>{cell}</td>)}
                           </tr>
                         ))}
                       </tbody>

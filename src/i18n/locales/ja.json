@@ -1,5 +1,6 @@
 {
   "workspace": {
+    "auto_view": "自動（分割 / カード）",
     "width": "コンテンツの幅",
     "width_hint": "即時適用され、このブラウザーにのみ保存されます。",
     "classic": "従来",
