@@ -31,6 +31,10 @@ npm run dev
 
 ## 检查与构建
 
+独立 GitHub Actions 在 push / PR 中运行测试、类型检查、生产构建和 PWA 产物检查，仅检查前端，不编译后端、不发布或部署。
+
+隔离预览 `npm run dev:preview` 不连接真实机器人。若要查看实际文案序列化结果，可编译主仓的 `tools/reply-preview.cpp`（链接 `markdown.cpp`、`markdown_md4c.cpp`、MD4C 与 nlohmann JSON），并将可执行文件绝对路径放入 `DICENEXT_UI_PREVIEW_RENDERER`。未配置时明确显示预览不可用，不用简易正则伪造平台输出。
+
 ```powershell
 npm run lint
 npm run build

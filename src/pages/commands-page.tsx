@@ -19,42 +19,12 @@ import {
   Image as ImageIcon, Globe, HelpCircle, Users, BookText,
 } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
+import { VARIABLE_STYLES, variableStyleOf, restyleVariable, type VariableStyle } from '@/lib/template-variable-style';
+import { PREVIEW_PLATFORMS, readReplyPreview, type PreviewPlatform, type ReplyPreview } from '@/lib/reply-preview';
+import { Switch } from '@/components/ui/switch';
 
 interface Var { name: string; desc: string; }
 type ReplyFormat = 'plain' | 'markdown';
-type VariableStyle = 'plain' | 'bold' | 'italic' | 'code' | 'strike';
-const VARIABLE_STYLES: VariableStyle[] = ['plain', 'bold', 'italic', 'code', 'strike'];
-
-const wrapVariable = (name: string, style: VariableStyle): string => {
-  const token = '{' + name + '}';
-  if (style === 'bold') return '**' + token + '**';
-  if (style === 'italic') return '*' + token + '*';
-  if (style === 'code') return String.fromCharCode(96) + token + String.fromCharCode(96);
-  if (style === 'strike') return '~~' + token + '~~';
-  return token;
-};
-
-const variableStyleOf = (text: string, name: string): VariableStyle => {
-  const token = '{' + name + '}';
-  if (text.includes('**' + token + '**') || text.includes('__' + token + '__')) return 'bold';
-  if (text.includes(String.fromCharCode(96) + token + String.fromCharCode(96))) return 'code';
-  if (text.includes('~~' + token + '~~')) return 'strike';
-  if (text.includes('*' + token + '*') || text.includes('_' + token + '_')) return 'italic';
-  return 'plain';
-};
-
-const escapeRegExp = (value: string): string => value.replace(/[.*+?^$(){}|[\]\\]/g, '\\$&');
-
-const restyleVariable = (text: string, name: string, style: VariableStyle): string => {
-  const token = escapeRegExp('{' + name + '}');
-  const pattern = new RegExp(
-    '\\*\\*' + token + '\\*\\*|__' + token + '__|~~' + token + '~~|' +
-    String.fromCharCode(96) + token + String.fromCharCode(96) +
-    '|\\*' + token + '\\*|_' + token + '_|' + token,
-    'g',
-  );
-  return text.replace(pattern, wrapVariable(name, style));
-};
 interface Reply { key: string; default: string; override: string | null; format: ReplyFormat; defaultFormat: ReplyFormat; v2key?: string; example?: string; vars: Var[]; }
 interface Cmd { cmd: string; title: string; category: string; sources: string[]; example: string; desc: string; replies: Reply[]; }
 interface AllKey { key: string; group: string; default: string; override: string | null; format: ReplyFormat; defaultFormat: ReplyFormat; v2key?: string; }
@@ -514,7 +484,7 @@ const PREVIEW_VALUES: Record<string, string> = {
   nick: '测试玩家', name: '测试玩家', qqnick: '测试玩家', card: '调查员', pcname: '调查员',
   qqnickw: '<测试玩家>', cardw: '<调查员>', pcnamew: '<调查员>', self: 'Dice!Next',
   user: '10001', group: '100000', date: '2026-08-21', time: '20:00:00',
-  res: '1D100=42', expr: '1D100=42', reason: '示例检定', turn: '3', attr: '侦查',
+  res: '1D100=42', expr: '1D100', result: '42', reason: '示例检定', turn: '3', attr: '侦查',
   roll: '42', rate: '60', level: '成功', outcome: '成功', total: '18', mod: '+3', detail: '1D20=15+3=18',
 };
 
@@ -569,23 +539,34 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; reply: Reply; person
   const toast = useToast();
   const [text, setText] = useState(reply.override ?? reply.default);
   const [format, setFormat] = useState<ReplyFormat>(reply.override == null ? reply.defaultFormat : reply.format);
-  const [preview, setPreview] = useState({ markdown: sampleReply(reply.override ?? reply.default), onebot: sampleReply(reply.override ?? reply.default) });
+  const [preview, setPreview] = useState<ReplyPreview | null>(null);
+  const [previewPlatform, setPreviewPlatform] = useState<PreviewPlatform>('qq_group');
+  const [previewStyle, setPreviewStyle] = useState('visual');
+  const [previewPlain, setPreviewPlain] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(true);
+  const [previewFailed, setPreviewFailed] = useState(false);
   const [showGlobals, setShowGlobals] = useState(false);
   const taRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     const controller = new AbortController();
+    setPreviewLoading(true); setPreviewFailed(false);
     const timer = window.setTimeout(async () => {
       const sample = sampleReply(text);
       try {
         const r = await fetch('/api/templates/preview', { method: 'POST', signal: controller.signal,
-          headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: sample, format }) });
+          headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: sample, format,
+            platform: previewPlatform, style: previewStyle, forcePlain: previewPlain }) });
         const j = await r.json();
-        if (j.code === 0) setPreview({ markdown: j.data.markdown ?? sample, onebot: j.data.onebot ?? sample });
-      } catch (e) { if ((e as Error).name !== 'AbortError') setPreview({ markdown: sample, onebot: sample }); }
+        if (controller.signal.aborted) return;
+        const next = j.code === 0 ? readReplyPreview(j.data) : null;
+        if (!r.ok || !next) throw new Error('Preview unavailable');
+        setPreview(next);
+      } catch (e) { if ((e as Error).name !== 'AbortError' && !controller.signal.aborted) { setPreview(null); setPreviewFailed(true); } }
+      finally { if (!controller.signal.aborted) setPreviewLoading(false); }
     }, 160);
     return () => { window.clearTimeout(timer); controller.abort(); };
-  }, [text, format]);
+  }, [text, format, previewPlatform, previewStyle, previewPlain]);
 
   // Command-specific vars (chips) vs global vars (behind the button).
   const exclusiveVars = reply.vars.filter((v) => !GLOBAL_SET.has(v.name));
@@ -660,17 +641,35 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; reply: Reply; person
           <Textarea ref={taRef} aria-label={t('commands.edit')} rows={8} className="min-h-48 font-mono text-sm" value={text} onChange={(e) => setText(e.target.value)} />
           {unknown.length > 0 && <p role="alert" className="text-xs text-destructive">{t('commands.err_unknown', { vars: unknown.map((u) => `{${u}}`).join(' ') })}</p>}
           {missing.length > 0 && unknown.length === 0 && <p className="text-xs text-amber-600">{t('commands.warn_missing', { vars: missing.map((m) => `{${m}}`).join(' ') })}</p>}
-          <Tabs defaultValue="markdown" className="rounded-lg border bg-muted/20 p-3">
+          <Tabs defaultValue="display" className="rounded-lg border bg-muted/20 p-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <span className="text-sm font-medium">{t('commands.preview_title')}</span>
               <TabsList aria-label={t('commands.preview_title')}>
-                <TabsTrigger value="markdown" className="px-2.5 text-xs">{t('commands.preview_markdown')}</TabsTrigger>
-                <TabsTrigger value="onebot" className="px-2.5 text-xs">{t('commands.preview_onebot')}</TabsTrigger>
+                <TabsTrigger value="display" className="px-2.5 text-xs">{t('commands.preview_display')}</TabsTrigger>
+                <TabsTrigger value="payload" className="px-2.5 text-xs">{t('commands.preview_payload')}</TabsTrigger>
               </TabsList>
             </div>
+            <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <Select value={previewPlatform} onValueChange={value => setPreviewPlatform(value as PreviewPlatform)}>
+                <SelectTrigger aria-label={t('commands.preview_platform')}><SelectValue /></SelectTrigger>
+                <SelectContent>{PREVIEW_PLATFORMS.map(platform => <SelectItem key={platform} value={platform}>{t(`commands.preview_platform_${platform}`)}</SelectItem>)}</SelectContent>
+              </Select>
+              <Select value={previewStyle} onValueChange={setPreviewStyle}>
+                <SelectTrigger aria-label={t('settings.message_style_label')}><SelectValue /></SelectTrigger>
+                <SelectContent>{['traditional', 'standard', 'visual'].map(style => <SelectItem key={style} value={style}>{t(`settings.message_style_${style}`)}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <label className="mt-2 flex items-center gap-2 text-xs"><Switch checked={previewPlain} onCheckedChange={setPreviewPlain} />{t('commands.preview_force_plain')}</label>
             <p className="mt-2 text-[11px] text-muted-foreground">{t('commands.preview_hint')}</p>
-            <TabsContent value="markdown" className="min-h-24 rounded-md bg-background p-3 text-sm"><MarkdownExample text={preview.markdown} enabled={format === 'markdown'} /></TabsContent>
-            <TabsContent value="onebot" className="min-h-24 whitespace-pre-wrap break-words rounded-md bg-background p-3 text-sm">{preview.onebot}</TabsContent>
+            {previewLoading ? <p role="status" className="mt-3 text-xs text-muted-foreground">{t('common.loading')}</p>
+              : previewFailed ? <p role="alert" className="mt-3 text-xs text-destructive">{t('commands.preview_unavailable')}</p>
+              : preview && <>
+                <TabsContent value="display" className="min-h-24 break-words rounded-md bg-background p-3 text-sm">
+                  <MarkdownExample text={preview.text} enabled={preview.markdown} />
+                  {preview.actions.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{preview.actions.map((action, i) => <span key={i} title={action.text} className="rounded border bg-muted px-2 py-1 text-xs">{action.label} · {action.text}</span>)}</div>}
+                </TabsContent>
+                <TabsContent value="payload"><pre className="max-h-64 overflow-auto whitespace-pre-wrap break-all rounded-md bg-background p-3 text-xs">{preview.payload === null ? preview.plain : JSON.stringify(preview.payload, null, 2)}</pre></TabsContent>
+              </>}
           </Tabs>
         </div>
         <AdvancedOptions title={t('ui_refresh.advanced_options')} description={t('ui_refresh.template_advanced_hint')}>

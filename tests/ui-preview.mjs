@@ -5,6 +5,7 @@ import react from '@vitejs/plugin-react';
 import { fileURLToPath } from 'node:url';
 import { readFile } from 'node:fs/promises';
 import { transform } from 'esbuild';
+import { spawnSync } from 'node:child_process';
 
 const sampleModule = await transform(await readFile(new URL('../src/lib/tour-samples.ts', import.meta.url), 'utf8'), { loader: 'ts', format: 'esm' });
 const { tourSamples } = await import('data:text/javascript;base64,' + Buffer.from(sampleModule.code).toString('base64'));
@@ -152,7 +153,15 @@ const server = await createServer({
             Object.assign(account || group, body); if (account === group.accounts?.[0]) Object.assign(group, body);
             return reply({});
           }
-          if (path === '/templates/preview') return reply({ markdown: body.text, onebot: body.text.replace(/\*\*/g, '') });
+          if (path === '/templates/preview') {
+            const renderer = process.env.DICENEXT_UI_PREVIEW_RENDERER;
+            if (!renderer) throw new Error('This isolated preview needs DICENEXT_UI_PREVIEW_RENDERER for production serialization');
+            const output = spawnSync(renderer, [], { input: JSON.stringify(body), encoding: 'utf8', timeout: 3000, maxBuffer: 1024 * 1024 });
+            if (output.error || output.status !== 0) throw new Error('The isolated text renderer failed');
+            const result = JSON.parse(output.stdout);
+            if (result.code !== 0) throw new Error('The isolated text renderer rejected this request');
+            return reply(result.data);
+          }
           if (path === '/templates' && req.method === 'PUT') {
             const help = helpDocs.find((entry) => entry.i18nKey === body.key);
             if (help) help.content = body.value;

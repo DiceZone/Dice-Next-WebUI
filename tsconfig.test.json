@@ -11,6 +11,8 @@
     "tsBuildInfoFile": ".test-dist/tsconfig.test.tsbuildinfo"
   },
   "include": [
+    "src/lib/template-variable-style.ts",
+    "src/lib/reply-preview.ts",
     "src/lib/batch-operation.ts",
     "src/lib/request-gate.ts",
     "src/lib/navigation-guard.ts",

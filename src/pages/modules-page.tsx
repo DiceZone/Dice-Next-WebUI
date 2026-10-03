@@ -38,6 +38,7 @@ interface Plugin {
   ruleCompat?: boolean; inMod?: boolean;
   ownerBundle?: string; ownerBundleFolder?: string;
   replies?: number; scripts?: number; singleFile?: boolean;
+  compatibilityWarnings?: string[];
   // Lua mod：真实指令触发词（{trigger,kind}）与帮助词条分开展示。
   luaCommands?: { trigger: string; kind: string }[]; helpTopics?: string[];
 }
@@ -165,6 +166,10 @@ const DetailDialog: React.FC<{ plugin: Plugin; update?: UpdateState; onClose: ()
           {row(t('modules.detail_homepage'), plugin.homepage ? <a href={plugin.homepage} target="_blank" rel="noreferrer" className="text-primary inline-flex items-center gap-1 hover:underline">{plugin.homepage}<ExternalLink className="h-3 w-3" /></a> : null)}
           {row(t('modules.detail_update_url'), plugin.updateUrl ? <span className="font-mono text-xs break-all">{plugin.updateUrl}</span> : null)}
           {plugin.description && (<div className="pt-1"><p className="mb-1 text-sm text-muted-foreground">{t('modules.detail_desc')}</p><p className="whitespace-pre-wrap rounded-md bg-muted/50 p-2 text-xs leading-relaxed">{plugin.description}</p></div>)}
+          {!!plugin.compatibilityWarnings?.length && <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3">
+            <p className="text-sm font-medium">{t('modules.detail_compatibility')}</p>
+            <ul className="mt-2 max-h-48 list-disc space-y-1 overflow-y-auto pl-4 text-xs">{plugin.compatibilityWarnings.map((warning, i) => <li key={i} className="break-words">{warning}</li>)}</ul>
+          </div>}
           <div className="pt-1"><p className="mb-1 text-sm text-muted-foreground">{t('modules.detail_commands')}（{plugin.commandList?.length || 0}）{plugin.kind === 'lua' && plugin.luaCommands && plugin.luaCommands.length > 0 && <span className="ml-1 text-[10px] text-muted-foreground">{t('luamod.cmd_hint')}</span>}</p>
             {plugin.kind === 'lua' && plugin.luaCommands ? (
               plugin.luaCommands.length > 0 ? (
