@@ -431,6 +431,12 @@ test('playground keeps a definite height in either width mode and scrolls only i
   assert.ok(!page.includes('scrollIntoView'));
   assert.ok(!page.includes('main.style.overflow'));
   assert.ok(page.includes('data-tour="playground-composer" className="flex shrink-0'));
+  for (const section of ['playground-context', 'playground-shortcuts']) {
+    const classes = page.match(new RegExp(`data-tour="${section}" className="([^"]+)"`))?.[1];
+    assert.ok(classes);
+    assert.ok(!/\bborder-[bt]\b/.test(classes));
+  }
+  assert.ok(page.includes('rounded-lg border bg-card text-card-foreground'));
 });
 
 test('toast entry points share a bounded portal independent of page width rules', () => {

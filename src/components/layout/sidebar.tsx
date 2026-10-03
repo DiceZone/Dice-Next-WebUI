@@ -133,9 +133,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPath, onNavigate }) => 
           </nav>
         </ScrollArea>
 
-        {!sidebarCollapsed && (
-          <div className="border-t p-3"><p className="text-xs text-muted-foreground text-center">v3.0.0 — Dice!Next</p></div>
-        )}
       </aside>
     </>
   );

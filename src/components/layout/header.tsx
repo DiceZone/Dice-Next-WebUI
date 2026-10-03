@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { LanguageSwitcher } from '@/components/layout/language-switcher';
 import { GlobalSettingsSearch } from '@/components/layout/global-settings-search';
 import { zustandAppStore } from '@/store/app-store';
+import { useSystemUpdateStore } from '@/store/system-update-store';
+import { formatVersion, isUpdateBusy } from '@/lib/system-update';
 import { CircleHelp, Menu, Sun, Moon } from 'lucide-react';
 
 interface HeaderProps {
@@ -17,18 +18,22 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ wsConnected: _ws, onNavigate, tourAvailable = false, onReplayTour }) => {
   const { sidebarCollapsed, setSidebarCollapsed, theme, setTheme } = zustandAppStore();
   const { t } = useTranslation();
-  const [apiOnline, setApiOnline] = useState(false);
+  const version = useSystemUpdateStore((state) => state.version);
+  const updateStatus = useSystemUpdateStore((state) => state.status);
 
   useEffect(() => {
-    const check = () => {
-      fetch('/api/system/status')
-        .then((r) => r.json())
-        .then((d) => setApiOnline(d.code === 0))
-        .catch(() => setApiOnline(false));
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout>;
+    void useSystemUpdateStore.getState().loadVersion();
+    const poll = async () => {
+      try { await useSystemUpdateStore.getState().refresh(); } catch { /* Try on the next poll. */ }
+      if (!stopped) {
+        const phase = useSystemUpdateStore.getState().status?.phase ?? 'idle';
+        timer = setTimeout(() => void poll(), isUpdateBusy(phase) ? 3000 : 30000);
+      }
     };
-    check();
-    const interval = setInterval(check, 10000);
-    return () => clearInterval(interval);
+    void poll();
+    return () => { stopped = true; clearTimeout(timer); };
   }, []);
 
   const toggleTheme = () => {
@@ -54,20 +59,20 @@ export const Header: React.FC<HeaderProps> = ({ wsConnected: _ws, onNavigate, to
   }, [theme]);
 
   return (
-    <header className="flex h-14 items-center border-b bg-background px-3 md:px-4">
+    <header className="flex h-14 items-center border-b bg-background px-2 sm:px-3 md:px-4">
       <div className="flex shrink-0 items-center gap-3">
         {/* Mobile menu button */}
         <Button
           variant="ghost"
           size="icon"
-          className="lg:hidden"
+          className="h-8 w-8 sm:h-10 sm:w-10 lg:hidden"
           onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
         >
           <Menu className="h-5 w-5" />
         </Button>
 
         {/* Brand (mobile-only) */}
-        <div className="flex items-center gap-2 lg:hidden">
+        <div className="hidden items-center gap-2 sm:flex lg:hidden">
           <span className="text-base font-bold text-brand-600">Dice!Next</span>
         </div>
 
@@ -77,25 +82,21 @@ export const Header: React.FC<HeaderProps> = ({ wsConnected: _ws, onNavigate, to
         </span>
       </div>
 
-      <div className="flex min-w-0 flex-1 justify-center px-1 sm:px-3 md:px-4">
+      <div className="flex min-w-0 flex-1 justify-center sm:px-3 md:px-4">
         <GlobalSettingsSearch onNavigate={onNavigate} />
       </div>
 
       <div className="flex shrink-0 items-center gap-1 sm:gap-2">
-        {/* Connection status indicator */}
-        <div className="hidden items-center gap-1.5 rounded-full border px-3 py-1 text-xs sm:flex">
-          <span
-            className={cn(
-              'inline-block h-2 w-2 rounded-full',
-              apiOnline
-                ? 'bg-green-500 animate-pulse'
-                : 'bg-gray-400'
-            )}
-          />
-          <span className="text-muted-foreground">
-            {apiOnline ? t('header.connected') : t('header.disconnected')}
-          </span>
-        </div>
+        <button
+          type="button"
+          className="inline-flex h-8 max-w-[132px] items-center gap-1 rounded-sm px-1 text-[10px] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:max-w-none sm:gap-1.5 sm:px-2 sm:text-xs"
+          onClick={() => onNavigate('/about?focus=about-update')}
+          title={`${formatVersion(version)} · ${t(updateStatus?.updateAvailable ? 'about.version_new_available' : 'about.version_open')}`}
+          aria-label={`${formatVersion(version)} · ${t(updateStatus?.updateAvailable ? 'about.version_new_available' : 'about.version_open')}`}
+        >
+          <span className="min-w-0 truncate font-mono">{formatVersion(version)}</span>
+          {updateStatus?.updateAvailable && <img src="/new.svg" alt="" className="h-3 w-6 shrink-0 sm:h-3.5 sm:w-8" />}
+        </button>
 
         {/* Language switcher */}
         <LanguageSwitcher />
@@ -106,6 +107,7 @@ export const Header: React.FC<HeaderProps> = ({ wsConnected: _ws, onNavigate, to
             data-tour="replay"
             variant="ghost"
             size="icon"
+            className="h-8 w-8 sm:h-10 sm:w-10"
             onClick={onReplayTour}
             title={t('onboarding.replay')}
             aria-label={t('onboarding.replay')}
@@ -115,7 +117,7 @@ export const Header: React.FC<HeaderProps> = ({ wsConnected: _ws, onNavigate, to
         )}
 
         {/* Theme toggle */}
-        <Button variant="ghost" size="icon" onClick={toggleTheme} title={t('header.toggle_theme')}>
+        <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-10 sm:w-10" onClick={toggleTheme} title={t('header.toggle_theme')}>
           {theme === 'dark' ? (
             <Sun className="h-5 w-5" />
           ) : (

@@ -78,7 +78,7 @@ export const PlaygroundPage: React.FC = () => {
   return (
     <div className="flex h-full flex-col overflow-hidden">
       {/* Controls */}
-      <div data-tour="playground-context" className="shrink-0 flex flex-wrap items-end gap-3 border-b p-4">
+      <div data-tour="playground-context" className="shrink-0 flex flex-wrap items-end gap-3 p-4">
         <div className="flex flex-col gap-1">
           <label className="text-xs text-muted-foreground">{t('playground.scene')}</label>
           <Select value={scene} onValueChange={(v) => setScene(v as 'group' | 'private')}>
@@ -140,7 +140,7 @@ export const PlaygroundPage: React.FC = () => {
       </div>
 
       {/* Quick commands */}
-      <div data-tour="playground-shortcuts" className="shrink-0 flex flex-wrap gap-2 border-t px-4 pt-3">
+      <div data-tour="playground-shortcuts" className="shrink-0 flex flex-wrap gap-2 px-4 pt-3">
         {QUICK_COMMANDS.map((q) => (
           <button key={q} onClick={() => send(q)}
             className="rounded-md border bg-background px-2 py-1 text-xs text-muted-foreground hover:bg-accent">

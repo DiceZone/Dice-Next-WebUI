@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useReducer, useState } from 'react';
+import React, { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Check, Copy, Download, Info, RefreshCw, Save, ShieldCheck, X } from 'lucide-react';
@@ -9,7 +9,9 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { apiClient } from '@/lib/api-client';
+import { apiClient, ApiTimeoutError } from '@/lib/api-client';
+import { formatVersion, isUpdateBusy, type UpdateAction, type UpdateSource, type UpdateSettings, type UpdateStatus } from '@/lib/system-update';
+import { useSystemUpdateStore } from '@/store/system-update-store';
 import { formatBuildTimeUtc8 } from '@/lib/build-time';
 import { useDialogs } from '@/hooks/use-dialogs';
 import { PageHeader } from '@/components/ui/page-header';
@@ -18,48 +20,6 @@ import {
   INITIAL_UPDATE_ERROR_NOTICE,
   updateErrorNoticeReducer,
 } from '@/lib/update-error-notice';
-
-type UpdateAction = 'notify' | 'download' | 'install';
-type UpdateSource = 'auto' | 'direct' | 'mirror' | 'custom';
-
-interface UpdateSettings {
-  autoCheck: boolean;
-  intervalHours: number;
-  autoAction: UpdateAction;
-  source: UpdateSource;
-  customMirror: string;
-}
-
-interface UpdateStatus {
-  current: { version: string; build: number; tag: string };
-  platform: { os: string; arch: string };
-  latest: null | {
-    tag: string;
-    version: string;
-    build: number;
-    prerelease: boolean;
-    publishedAt: string;
-    releaseUrl: string;
-    asset?: { name: string; size: number; sha256: string };
-  };
-  updateAvailable: boolean;
-  phase: string;
-  error: string;
-  source: string;
-  downloadedBytes: number;
-  totalBytes: number;
-  checkedAt: number;
-  downloadSupported?: boolean;
-  installSupported: boolean;
-  selfUpdateBlockedReason?: string;
-  runtime?: {
-    container: boolean;
-    containerType: string;
-    containerDetection: string;
-  };
-  pending: boolean;
-  settings: UpdateSettings;
-}
 
 const formatBytes = (bytes: number) => {
   if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
@@ -72,13 +32,18 @@ const formatBytes = (bytes: number) => {
 export const AboutPage: React.FC = () => {
   const { t } = useTranslation();
   const dialogs = useDialogs(t);
-  const [version, setVersion] = useState('...');
-  const [buildNumber, setBuildNumber] = useState('');
+  const version = useSystemUpdateStore((state) => state.version);
+  const updateStatus = useSystemUpdateStore((state) => state.status);
+  const setUpdateStatus = useSystemUpdateStore((state) => state.accept);
   const [buildTime, setBuildTime] = useState('');
-  const [updateStatus, setUpdateStatus] = useState<UpdateStatus | null>(null);
   const [updateDraft, setUpdateDraft] = useState<UpdateSettings | null>(null);
   const [settingsDirty, setSettingsDirty] = useState(false);
+  const settingsDirtyRef = useRef(settingsDirty);
+  settingsDirtyRef.current = settingsDirty;
+  const [statusUncertain, setStatusUncertain] = useState(false);
   const [working, setWorking] = useState('');
+  const operationRef = useRef(false);
+  const actionEpochRef = useRef(0);
   const [errorNotice, dispatchErrorNotice] = useReducer(
     updateErrorNoticeReducer,
     INITIAL_UPDATE_ERROR_NOTICE,
@@ -92,31 +57,27 @@ export const AboutPage: React.FC = () => {
   }, [visibleUpdateError]);
 
   useEffect(() => {
-    fetch('/api/system/status')
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.code === 0) {
-          setVersion(d.data.version);
-          setBuildNumber(d.data.buildNumber || 0);
-          setBuildTime(d.data.buildTime || '');
-        }
-      })
-      .catch(() => setVersion(t('about.unknown') || 'Unknown'));
-  }, [t]);
+    void apiClient.get<{ buildTime?: string }>('/system/status', { timeoutMs: 10000 })
+      .then((response) => setBuildTime(response.data.buildTime || ''))
+      .catch(() => {});
+  }, []);
 
   const loadUpdateStatus = useCallback(async () => {
+    const startedAt = actionEpochRef.current;
     try {
-      const response = await apiClient.get<UpdateStatus>('/system/update');
-      setUpdateStatus(response.data);
-      setUpdateDraft((current) => (settingsDirty && current ? current : response.data.settings));
-      dispatchErrorNotice({ type: 'poll-succeeded', error: response.data.error });
+      const status = await useSystemUpdateStore.getState().refresh();
+      if (startedAt !== actionEpochRef.current) return;
+      setStatusUncertain(false);
+      setUpdateDraft((current) => (settingsDirtyRef.current && current ? current : status.settings));
+      dispatchErrorNotice({ type: 'poll-succeeded', error: status.error });
     } catch (error) {
+      if (startedAt !== actionEpochRef.current) return;
       dispatchErrorNotice({
         type: 'poll-failed',
         error: error instanceof Error ? error.message : String(error),
       });
     }
-  }, [settingsDirty]);
+  }, []);
 
   useEffect(() => {
     void loadUpdateStatus();
@@ -124,26 +85,42 @@ export const AboutPage: React.FC = () => {
     return () => window.clearInterval(timer);
   }, [loadUpdateStatus]);
 
-  const runAction = async (action: 'check' | 'download') => {
+  const operationError = (error: unknown) => error instanceof ApiTimeoutError
+    ? t('about.update_request_timeout') : error instanceof Error ? error.message : String(error);
+
+  const invalidateStatus = () => {
+    actionEpochRef.current++;
+    useSystemUpdateStore.getState().invalidate();
+  };
+
+  const runAction = async (action: 'check' | 'download' | 'cancel') => {
+    if (operationRef.current) return;
+    operationRef.current = true;
+    invalidateStatus();
     setWorking(action);
     dispatchErrorNotice({ type: 'operation-started' });
     setSaved(false);
     try {
-      const response = await apiClient.post<UpdateStatus>('/system/update/' + action);
+      const response = await apiClient.post<UpdateStatus>('/system/update/' + action, undefined, { timeoutMs: 15000 });
       setUpdateStatus(response.data);
-      setUpdateDraft((current) => (settingsDirty && current ? current : response.data.settings));
+      setUpdateDraft((current) => (settingsDirtyRef.current && current ? current : response.data.settings));
       dispatchErrorNotice({ type: 'operation-finished', error: response.data.error });
     } catch (error) {
       dispatchErrorNotice({
         type: 'operation-finished',
-        error: error instanceof Error ? error.message : String(error),
+        error: operationError(error),
       });
+      setStatusUncertain(true);
+      invalidateStatus();
+      await loadUpdateStatus();
     } finally {
+      operationRef.current = false;
       setWorking('');
     }
   };
 
   const installUpdate = async () => {
+    if (operationRef.current) return;
     const confirmed = await dialogs.confirm({
       title: t('about.update_install_confirm_title'),
       description: t('about.update_install_confirm_desc'),
@@ -152,30 +129,39 @@ export const AboutPage: React.FC = () => {
     });
     if (!confirmed) return;
 
+    if (operationRef.current) return;
+    operationRef.current = true;
+    invalidateStatus();
     setWorking('install');
     dispatchErrorNotice({ type: 'operation-started' });
     setSaved(false);
     try {
-      const response = await apiClient.post<UpdateStatus>('/system/update/install');
+      const response = await apiClient.post<UpdateStatus>('/system/update/install', undefined, { timeoutMs: 15000 });
       setUpdateStatus(response.data);
       dispatchErrorNotice({ type: 'operation-finished', error: response.data.error });
     } catch (error) {
       dispatchErrorNotice({
         type: 'operation-finished',
-        error: error instanceof Error ? error.message : String(error),
+        error: operationError(error),
       });
+      setStatusUncertain(true);
+      invalidateStatus();
+      await loadUpdateStatus();
     } finally {
+      operationRef.current = false;
       setWorking('');
     }
   };
 
   const saveUpdateSettings = async () => {
-    if (!updateDraft) return;
+    if (!updateDraft || operationRef.current) return;
+    operationRef.current = true;
+    invalidateStatus();
     setWorking('save');
     dispatchErrorNotice({ type: 'operation-started' });
     setSaved(false);
     try {
-      const response = await apiClient.put<UpdateStatus>('/system/update', updateDraft);
+      const response = await apiClient.put<UpdateStatus>('/system/update', updateDraft, { timeoutMs: 15000 });
       setUpdateStatus(response.data);
       setUpdateDraft(response.data.settings);
       setSettingsDirty(false);
@@ -184,9 +170,10 @@ export const AboutPage: React.FC = () => {
     } catch (error) {
       dispatchErrorNotice({
         type: 'operation-finished',
-        error: error instanceof Error ? error.message : String(error),
+        error: operationError(error),
       });
     } finally {
+      operationRef.current = false;
       setWorking('');
     }
   };
@@ -228,7 +215,7 @@ export const AboutPage: React.FC = () => {
   };
 
   const phase = updateStatus?.phase ?? 'idle';
-  const updateBusy = ['checking', 'downloading', 'installing'].includes(phase);
+  const updateBusy = isUpdateBusy(phase);
   const phaseVariant = phase === 'error'
     ? 'danger'
     : phase === 'up_to_date'
@@ -261,8 +248,7 @@ export const AboutPage: React.FC = () => {
           <div className="flex justify-between items-center">
             <span className="text-muted-foreground">{t('about.current_version')}</span>
             <div className="flex items-center gap-2">
-              <span className="inline-flex items-center rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 border border-amber-200">{t('about.preview_label')}</span>
-              <span className="font-mono font-medium">v{version}({buildNumber || '?'})</span>
+              <span className="font-mono font-medium">{formatVersion(version)}</span>
             </div>
           </div>
           {buildTime && (
@@ -299,7 +285,7 @@ export const AboutPage: React.FC = () => {
           <div className="grid gap-2 text-sm">
             <div className="flex items-center justify-between gap-3">
               <span className="text-muted-foreground">{t('about.current_version')}</span>
-              <span className="font-mono">{updateStatus?.current.tag ?? '—'}</span>
+              <span className="font-mono">{formatVersion(updateStatus?.current ?? version)}</span>
             </div>
             <div className="flex items-center justify-between gap-3">
               <span className="text-muted-foreground">{t('about.latest_version')}</span>
@@ -339,10 +325,10 @@ export const AboutPage: React.FC = () => {
                 </div>
               </>
             )}
-            {phase === 'downloading' && updateStatus && (
+            {['connecting', 'downloading', 'verifying', 'preparing', 'cancelling'].includes(phase) && updateStatus && (
               <div className="space-y-1 pt-1">
                 <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>{t('about.phase_downloading')}</span>
+                  <span>{t('about.phase_' + phase)}</span>
                   <span>{formatBytes(updateStatus.downloadedBytes)} / {formatBytes(updateStatus.totalBytes)}</span>
                 </div>
                 <div className="h-2 overflow-hidden rounded-full bg-muted">
@@ -408,7 +394,7 @@ export const AboutPage: React.FC = () => {
             <Button
               variant="outline"
               onClick={() => void runAction('check')}
-              disabled={updateBusy || !!working}
+              disabled={updateBusy || !!working || statusUncertain}
             >
               <RefreshCw className={'mr-2 h-4 w-4 ' + (phase === 'checking' ? 'animate-spin' : '')} />
               {t('about.update_check')}
@@ -416,19 +402,32 @@ export const AboutPage: React.FC = () => {
             <Button
               variant="outline"
               onClick={() => void runAction('download')}
-              disabled={updateStatus?.downloadSupported === false || !updateStatus?.updateAvailable || !updateStatus.latest?.asset || updateBusy || !!working}
+              disabled={updateStatus?.downloadSupported === false || !updateStatus?.updateAvailable || !updateStatus.latest?.asset || updateBusy || !!working || statusUncertain}
             >
               <Download className="mr-2 h-4 w-4" />
               {t('about.update_download')}
             </Button>
             <Button
               onClick={() => void installUpdate()}
-              disabled={!updateStatus?.installSupported || !updateStatus.pending || updateBusy || !!working}
+              disabled={!updateStatus?.installSupported || !updateStatus.pending || updateBusy || !!working || statusUncertain}
             >
               <ShieldCheck className="mr-2 h-4 w-4" />
               {t('about.update_install')}
             </Button>
+            {updateStatus?.cancelSupported && (updateStatus.canCancel || phase === 'cancelling') && (
+              <Button variant="outline" onClick={() => void runAction('cancel')}
+                disabled={!updateStatus.canCancel || !!working}>
+                <X className="mr-2 h-4 w-4" />
+                {t(phase === 'cancelling' ? 'about.phase_cancelling' : 'about.update_cancel')}
+              </Button>
+            )}
+            {statusUncertain && (
+              <Button variant="outline" onClick={() => void loadUpdateStatus()} disabled={!!working}>
+                <RefreshCw className="mr-2 h-4 w-4" />{t('about.update_refresh_status')}
+              </Button>
+            )}
           </div>
+          {statusUncertain && <p className="text-sm text-muted-foreground">{t('about.update_status_uncertain')}</p>}
 
           <Separator />
 

@@ -30,6 +30,13 @@ export class ApiError extends Error {
   }
 }
 
+export class ApiTimeoutError extends ApiError {
+  constructor() {
+    super(408, 'Request timed out; the server operation may still be running.');
+    this.name = 'ApiTimeoutError';
+  }
+}
+
 /** HTTP methods supported by the API client. */
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
@@ -40,6 +47,8 @@ interface RequestOptions {
   headers?: Record<string, string>;
   /** Skip attaching the API key (for public endpoints). */
   noAuth?: boolean;
+  /** Optional timeout, including response-body parsing. Does not cancel server jobs. */
+  timeoutMs?: number;
 }
 
 // ─── Internal helpers ────────────────────────────────────────
@@ -89,51 +98,50 @@ async function request<T>(
 
   const url = `${BASE_URL}${endpoint}`;
 
-  let response: Response;
+  const controller = options.timeoutMs ? new AbortController() : undefined;
+  const timeout = options.timeoutMs
+    ? setTimeout(() => controller!.abort(), options.timeoutMs) : undefined;
   try {
-    response = await fetch(url, {
+    const response = await fetch(url, {
       method,
       headers: requestHeaders,
       body: body ? JSON.stringify(body) : undefined,
+      signal: controller?.signal,
     });
+
+    // Parse the response body
+    const rawBody = await parseBody(response);
+
+    // Check HTTP-level errors
+    if (!response.ok) {
+      const message =
+        typeof rawBody === 'object' && rawBody !== null && 'message' in rawBody
+          ? String((rawBody as Record<string, unknown>).message)
+          : response.statusText;
+      throw new ApiError(response.status, message);
+    }
+
+    // Ensure the body is an ApiResponse envelope
+    if (
+      typeof rawBody !== 'object' ||
+      rawBody === null ||
+      !('code' in rawBody)
+    ) {
+      return { code: 0, message: 'success', data: rawBody as T };
+    }
+
+    const envelope = rawBody as ApiResponse<T>;
+    if (envelope.code !== 0) {
+      throw new ApiError(envelope.code, envelope.message);
+    }
+    return envelope;
   } catch (err) {
+    if (controller?.signal.aborted) throw new ApiTimeoutError();
+    if (err instanceof ApiError) throw err;
     throw new ApiError(0, `Network error: ${(err as Error).message}`);
+  } finally {
+    if (timeout !== undefined) clearTimeout(timeout);
   }
-
-  // Parse the response body
-  const rawBody = await parseBody(response);
-
-  // Check HTTP-level errors
-  if (!response.ok) {
-    const message =
-      typeof rawBody === 'object' && rawBody !== null && 'message' in rawBody
-        ? String((rawBody as Record<string, unknown>).message)
-        : response.statusText;
-    throw new ApiError(response.status, message);
-  }
-
-  // Ensure the body is an ApiResponse envelope
-  if (
-    typeof rawBody !== 'object' ||
-    rawBody === null ||
-    !('code' in rawBody)
-  ) {
-    // If the response isn't in the standard envelope, wrap it
-    return {
-      code: 0,
-      message: 'success',
-      data: rawBody as T,
-    };
-  }
-
-  const envelope = rawBody as ApiResponse<T>;
-
-  // Check application-level error codes
-  if (envelope.code !== 0) {
-    throw new ApiError(envelope.code, envelope.message);
-  }
-
-  return envelope;
 }
 
 // ─── Convenience methods ─────────────────────────────────────

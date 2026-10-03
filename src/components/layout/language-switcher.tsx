@@ -24,7 +24,7 @@ export const LanguageSwitcher: React.FC = () => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" title={t('language.label')}>
+        <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-10 sm:w-10" title={t('language.label')}>
           <Languages className="h-5 w-5" />
         </Button>
       </DropdownMenuTrigger>

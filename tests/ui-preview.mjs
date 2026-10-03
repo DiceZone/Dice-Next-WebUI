@@ -39,7 +39,16 @@ const state = {
     msg: '本地预览：检测到新版本，当前版本可继续使用。'.repeat(5) + ' https://example.invalid/releases/' + 'long-version-name-'.repeat(8),
   })) },
   '/auth/status': { required: false, need_setup: false },
-  '/system/status': { version: 'local-ui-preview', buildNumber: 0 },
+  '/system/status': { version: '3.0.0', buildNumber: 123, prerelease: true, buildTime: '2026-10-03 00:00:00' },
+  '/system/update': {
+    current: { version: '3.0.0', build: 123, tag: 'v3.0.0-beta.123', prerelease: true },
+    latest: { version: '3.0.0', build: 124, tag: 'v3.0.0-beta.124', prerelease: true, publishedAt: '', releaseUrl: '',
+      asset: { name: '本地预览安装包（不会实际下载）', size: 10 * 1024 * 1024, sha256: '0'.repeat(64) } },
+    platform: { os: 'windows', arch: 'amd64' }, updateAvailable: true,
+    phase: 'available', source: '本地预览（不访问网络）', error: '', downloadedBytes: 0, totalBytes: 10 * 1024 * 1024,
+    checkedAt: 0, downloadSupported: true, installSupported: false, cancelSupported: true, canCancel: false, pending: false,
+    settings: { autoCheck: true, intervalHours: 6, autoAction: 'notify', source: 'auto', customMirror: '' },
+  },
   '/dashboard/stats': { uptime_seconds: 3600, active_connections: 0, total_adapters: 2, total_commands: 0, total_rules: 0, active_sessions: 0, recent_logs: [] },
   '/adapters': [{ id: 'preview-qq', name: '星灯 · 预览', type: 'qq_official', appId: 'preview', enabled: false }, { id: 'preview-onebot', name: '月海 · 预览', type: 'onebot_v11', loginId: '10000', enabled: false }],
   '/masters': { items: [{ platform: 'onebot_v11', id: '10001', nickname: '示例骰主' }], master_inherit: true },
@@ -105,6 +114,22 @@ const server = await createServer({
           if (req.method !== 'GET') {
             const chunks = []; for await (const chunk of req) chunks.push(chunk);
             const text = Buffer.concat(chunks).toString(); body = text ? JSON.parse(text) : {};
+          }
+          if (path === '/system/update' && req.method === 'PUT') {
+            Object.assign(state[path].settings, body);
+            return reply(state[path]);
+          }
+          if (/^\/system\/update\/(check|download|cancel)$/.test(path) && req.method === 'POST') {
+            const status = state['/system/update'];
+            if (path.endsWith('/download')) {
+              if (status.canCancel) throw new Error('预览下载已在进行');
+              Object.assign(status, { phase: 'downloading', canCancel: true, downloadedBytes: status.totalBytes * 0.36 });
+            } else if (path.endsWith('/cancel')) {
+              Object.assign(status, { phase: 'cancelled', canCancel: false });
+            } else {
+              Object.assign(status, { phase: 'available', error: '', checkedAt: Math.floor(Date.now() / 1000) });
+            }
+            return reply(status);
           }
           if (path === '/commands') return reply([{ cmd: 'r', title: '掷骰', category: '掷骰', sources: ['core'], example: '.r 1d100', desc: '投掷骰子，支持表达式与原因。', replies: [commandReply] }, ...commandCategories]);
           if (path === '/schedules' && req.method === 'POST') { const task = { ...body, id: nextTaskId++, lastRun: '' }; previewTasks.push(task); return reply(task); }

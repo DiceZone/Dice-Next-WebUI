@@ -21,6 +21,9 @@ export declare class ApiError extends Error {
     readonly responseMessage: string;
     constructor(code: number, message: string);
 }
+export declare class ApiTimeoutError extends ApiError {
+    constructor();
+}
 /** HTTP methods supported by the API client. */
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 /** Options for individual API requests. */
@@ -30,6 +33,8 @@ interface RequestOptions {
     headers?: Record<string, string>;
     /** Skip attaching the API key (for public endpoints). */
     noAuth?: boolean;
+    /** Optional timeout, including response-body parsing. Does not cancel server jobs. */
+    timeoutMs?: number;
 }
 declare function getApiKey(): string | null;
 declare function setApiKey(key: string): void;

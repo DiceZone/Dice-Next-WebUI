@@ -140,7 +140,7 @@ export const GlobalSettingsSearch: React.FC<GlobalSettingsSearchProps> = ({ onNa
         </button>
       </DialogTrigger>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="icon" className="md:hidden" aria-label={t('global_search.open')}>
+        <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-10 sm:w-10 md:hidden" aria-label={t('global_search.open')}>
           <Search className="h-5 w-5" />
         </Button>
       </DialogTrigger>
