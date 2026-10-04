@@ -14,6 +14,127 @@ import { readWorkspaceView, resolveWorkspaceView, WORKSPACE_WIDE_QUERY } from '.
 import { readPersonaPolicy, samePersonaPolicy } from '../.test-dist/lib/persona-policy.js';
 import { uiRefresh } from '../.test-dist/i18n/ui-refresh.js';
 import { COMMAND_CATEGORIES, commandCategory, buildTextMetadata, filterAndSortTexts } from '../.test-dist/lib/command-text-catalog.js';
+import { readTraySettings, trayTextError, trayTextLength, trayTooltip } from '../.test-dist/lib/tray-settings.js';
+
+test('tray names count Unicode characters, default correctly and cannot override the actual port', () => {
+  assert.equal(trayTextLength('  一二三四五六七八九十　'), 10);
+  assert.equal(trayTextError('一二三四五六七八九十一'), 'limit');
+  assert.equal(trayTextError('🎲'.repeat(10)), null);
+  assert.equal(trayTextError('🎲'.repeat(11)), 'limit');
+  assert.equal(trayTooltip('  希亚骰  ', 18089), '希亚骰(18089)');
+  assert.equal(trayTooltip(' \t　', 18088), 'Dice!Next(18088)');
+  for (const value of ['a\nb', 'a\u0000b', 'a\u007fb', '\ud800', '\udfff', 'a\u2028b'])
+    assert.equal(trayTextError(value), 'invalid');
+  const status = { text: '', port: 18089, tooltip: 'Dice!Next(18089)', supported: false };
+  assert.deepEqual(readTraySettings(status), status);
+  for (const value of [null, {}, { ...status, port: 0 }, { ...status, port: 65536 }, { ...status, supported: 'true' }, { ...status, text: 'x'.repeat(11) }])
+    assert.throws(() => readTraySettings(value));
+});
+
+function trayAction(name, context) {
+  const source = fs.readFileSync(new URL('../src/components/tray-settings.tsx', import.meta.url), 'utf8');
+  const tree = ts.createSourceFile('tray-settings.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  let action;
+  const visit = (node) => {
+    if (ts.isVariableDeclaration(node) && node.name.getText(tree) === name) {
+      action = ts.isCallExpression(node.initializer) ? node.initializer.arguments[0] : node.initializer;
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(tree);
+  assert.ok(action, name);
+  const code = ts.transpileModule('(' + action.getText(tree) + ')', { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
+  return vm.runInNewContext(code, context);
+}
+
+function trayContext(overrides = {}) {
+  const events = [];
+  return { events, tour: false, loading: false, error: null, settings: { supported: true }, text: '  希亚骰  ',
+    saveLock: { current: false }, gate: createRequestGate(), readTraySettings,
+    tourRef: { current: false }, mountedRef: { current: true }, load: async () => events.push(['reload']),
+    setSaving: value => events.push(['saving', value]), setLoading: value => events.push(['loading', value]),
+    setLoadError: value => events.push(['loadError', value]),
+    setSettings: value => events.push(['settings', value]), setText: value => events.push(['text', value]),
+    t: key => key, toast: value => events.push(['toast', value]), ...overrides };
+}
+
+test('tray saves only a trimmed name, guards duplicate writes and preserves drafts on failure', async () => {
+  let finish;
+  const calls = [];
+  const context = trayContext({ apiClient: { put: async (...args) => {
+    calls.push(args); return new Promise(resolve => { finish = resolve; });
+  } } });
+  const save = trayAction('save', context);
+  const pending = save();
+  await save();
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0][0], '/system/tray');
+  assert.deepEqual(JSON.parse(JSON.stringify(calls[0][1])), { text: '希亚骰' });
+  finish({ data: { text: '希亚骰', port: 18089, tooltip: '希亚骰(18089)', supported: true } });
+  await pending;
+  assert.ok(context.events.some(([event, value]) => event === 'text' && value === '希亚骰'));
+  assert.equal(context.saveLock.current, false);
+
+  const failure = trayContext({ apiClient: { put: async () => { throw new Error('disk full'); } } });
+  await trayAction('save', failure)();
+  assert.ok(!failure.events.some(([event]) => ['settings', 'text'].includes(event)));
+  assert.ok(failure.events.some(([event, value]) => event === 'toast' && value.variant === 'destructive'));
+  assert.equal(failure.saveLock.current, false);
+});
+
+test('tray settings never write in tutorials, unsupported servers, loading or invalid input', async () => {
+  for (const override of [{ tour: true }, { settings: null }, { settings: { supported: false } }, { loading: true }, { error: 'limit' }]) {
+    const context = trayContext({ ...override, apiClient: { put: () => { assert.fail('unexpected write'); } } });
+    await trayAction('save', context)();
+    assert.equal(context.events.length, 0);
+  }
+});
+
+test('entering a tutorial during a tray save cannot leave the live form locked or reload an unmounted page', async () => {
+  for (const state of [{ tour: false, mounted: true, reload: true }, { tour: true, mounted: true, reload: false }, { tour: false, mounted: false, reload: false }]) {
+    let finish;
+    const context = trayContext({ apiClient: { put: () => new Promise(resolve => { finish = resolve; }) } });
+    const pending = trayAction('save', context)();
+    context.gate.invalidate();
+    context.tourRef.current = state.tour;
+    context.mountedRef.current = state.mounted;
+    finish({ data: { text: '希亚骰', port: 18088, tooltip: '希亚骰(18088)', supported: true } });
+    await pending;
+    assert.equal(context.saveLock.current, false);
+    assert.ok(context.events.some(([event, value]) => event === 'saving' && value === false));
+    assert.ok(!context.events.some(([event]) => ['settings', 'text'].includes(event)));
+    assert.equal(context.events.some(([event]) => event === 'reload'), state.reload);
+  }
+});
+
+test('tray load errors disable editing and stale results cannot replace live state', async () => {
+  const failure = trayContext({ apiClient: { get: async () => ({ data: {} }) } });
+  await trayAction('load', failure)();
+  assert.ok(failure.events.some(([event, value]) => event === 'settings' && value === null));
+  assert.ok(failure.events.some(([event, value]) => event === 'loadError' && value.includes('Invalid tray')));
+  let finish;
+  const context = trayContext({ apiClient: { get: () => new Promise(resolve => { finish = resolve; }) } });
+  const pending = trayAction('load', context)();
+  context.gate.invalidate();
+  finish({ data: { text: '', port: 18088, tooltip: 'Dice!Next(18088)', supported: true } });
+  await pending;
+  assert.ok(!context.events.some(([event]) => ['settings', 'text'].includes(event)));
+});
+
+test('tray settings have a global settings anchor and complete translations', () => {
+  const source = fs.readFileSync(new URL('../src/components/tray-settings.tsx', import.meta.url), 'utf8');
+  assert.match(source, /data-setting-anchor="settings-tray"/);
+  assert.match(source, /aria-describedby="tray-text-hint tray-text-count"/);
+  assert.match(source, /if \(tour \|\| loading/);
+  assert.match(fs.readFileSync(new URL('../src/pages/settings-page.tsx', import.meta.url), 'utf8'), /<TraySettingsCard \/>/);
+  const entry = fs.readFileSync(new URL('../src/lib/settings-search.ts', import.meta.url), 'utf8');
+  assert.match(entry, /e\('settings-tray', '\/settings'/);
+  const keys = [...source.matchAll(/t\('(settings\.[^']+)'/g)].map(match => match[1]).concat(['settings.tray_limit', 'settings.tray_invalid']);
+  for (const locale of ['zh-Hans', 'zh-Hant', 'en', 'ja']) {
+    const labels = JSON.parse(fs.readFileSync(new URL('../src/i18n/locales/' + locale + '.json', import.meta.url), 'utf8'));
+    for (const key of keys) assert.ok(key.split('.').reduce((object, part) => object?.[part], labels), `${locale}: ${key}`);
+  }
+});
 
 test('command categories merge BRP into COC and preserve unfamiliar extension categories', () => {
   assert.deepEqual(COMMAND_CATEGORIES, ['掷骰', 'COC', 'DND', '团务', '互动', '工具', '管理', '权限', '系统']);

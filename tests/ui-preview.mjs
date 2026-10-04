@@ -6,6 +6,8 @@ import { fileURLToPath } from 'node:url';
 import { readFile } from 'node:fs/promises';
 import { transform } from 'esbuild';
 import { spawnSync } from 'node:child_process';
+const trayModule = await transform(await readFile(new URL('../src/lib/tray-settings.ts', import.meta.url), 'utf8'), { loader: 'ts', format: 'esm' });
+const { trayTextError, trayTooltip } = await import('data:text/javascript;base64,' + Buffer.from(trayModule.code).toString('base64'));
 
 const sampleModule = await transform(await readFile(new URL('../src/lib/tour-samples.ts', import.meta.url), 'utf8'), { loader: 'ts', format: 'esm' });
 const { tourSamples } = await import('data:text/javascript;base64,' + Buffer.from(sampleModule.code).toString('base64'));
@@ -41,6 +43,7 @@ const state = {
   })) },
   '/auth/status': { required: false, need_setup: false },
   '/system/status': { version: '3.0.0', buildNumber: 123, prerelease: true, buildTime: '2026-10-03 00:00:00' },
+  '/system/tray': { text: '', port: 18088, tooltip: 'Dice!Next(18088)', supported: true },
   '/system/update': {
     current: { version: '3.0.0', build: 123, tag: 'v3.0.0-beta.123', prerelease: true },
     latest: { version: '3.0.0', build: 124, tag: 'v3.0.0-beta.124', prerelease: true, publishedAt: '', releaseUrl: '',
@@ -169,6 +172,11 @@ const server = await createServer({
           }
           if (path === '/system/update' && req.method === 'PUT') {
             Object.assign(state[path].settings, body);
+            return reply(state[path]);
+          }
+          if (path === '/system/tray' && req.method === 'PUT') {
+            if (typeof body.text !== 'string' || trayTextError(body.text)) throw new Error('托盘文字最多 10 个字符，不能包含换行或控制字符');
+            Object.assign(state[path], { text: body.text.trim(), tooltip: trayTooltip(body.text, state[path].port) });
             return reply(state[path]);
           }
           if (/^\/system\/update\/(check|download|cancel)$/.test(path) && req.method === 'POST') {
