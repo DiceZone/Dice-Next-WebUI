@@ -13,6 +13,80 @@ import { resolveReplyScope, globalReplyScope, replyScopeKey, replyScopeQuery } f
 import { readWorkspaceView, resolveWorkspaceView, WORKSPACE_WIDE_QUERY } from '../.test-dist/lib/workspace-view.js';
 import { readPersonaPolicy, samePersonaPolicy } from '../.test-dist/lib/persona-policy.js';
 import { uiRefresh } from '../.test-dist/i18n/ui-refresh.js';
+import { COMMAND_CATEGORIES, commandCategory, buildTextMetadata, filterAndSortTexts } from '../.test-dist/lib/command-text-catalog.js';
+
+test('command categories merge BRP into COC and preserve unfamiliar extension categories', () => {
+  assert.deepEqual(COMMAND_CATEGORIES, ['掷骰', 'COC', 'DND', '团务', '互动', '工具', '管理', '权限', '系统']);
+  for (const [original, expected] of [['BRP', 'COC'], ['跑团', '团务'], ['牌堆', '互动'], ['娱乐', '互动'], ['AI', '互动'], ['人物卡', '工具'], ['DND', 'DND'], ['插件扩展', '插件扩展']])
+    assert.equal(commandCategory(original), expected);
+});
+
+test('all-text metadata uses actual usage examples, shares categories and preserves automatic notices', () => {
+  const commands = [
+    { cmd: '.r', title: '掷骰', category: '掷骰', example: '.r 1d100 / .r 2d6', replies: [{ key: 'dice.roll', example: '.r 3d6' }, { key: 'common.failure' }] },
+    { cmd: '.ba', title: 'BRP 检定', category: 'BRP', example: '.ba 侦查', replies: [{ key: 'common.failure' }] },
+    { cmd: '', title: '自动事件', category: '管理', example: '', replies: [{ key: 'event.poke' }] },
+  ];
+  const before = structuredClone(commands);
+  const metadata = buildTextMetadata(commands, key => key === 'common.failure' ? '失败' : '');
+  assert.equal(metadata.get('dice.roll').example, '.r 3d6');
+  assert.equal(metadata.get('common.failure').description, '掷骰 · 失败');
+  assert.deepEqual(metadata.get('common.failure').categories, ['掷骰', 'COC']);
+  assert.equal(metadata.get('event.poke').example, '');
+  assert.equal(metadata.get('event.poke').description, '自动事件');
+  assert.equal(metadata.size, 3);
+  assert.deepEqual(commands, before);
+});
+
+test('all-text search covers descriptions, commands, legacy keys and selected persona text', () => {
+  const rows = [
+    { key: 'bot.off', group: 'bot', default: '关闭', override: '本骰先休息了', v2key: 'strBotOff', description: '骰娘开关 · 关闭提示', example: '.bot off', categories: ['管理'] },
+    { key: 'dice.failure', group: 'dice', default: '失败', override: null, description: '检定 · 失败', example: '.ra 60', categories: ['COC'] },
+  ];
+  const order = { field: 'key', direction: 'asc' };
+  for (const query of [' .bot   关闭提示 ', 'strBotOff', '休息']) assert.equal(filterAndSortTexts(rows, query, '', order)[0]?.key, 'bot.off');
+  assert.equal(filterAndSortTexts(rows, '失败', 'COC', order).length, 1);
+  assert.equal(filterAndSortTexts(rows, '失败', '管理', order).length, 0);
+  assert.equal(filterAndSortTexts(rows, '关闭', '管理', order).length, 1); // Description still matches.
+});
+
+test('all four text columns sort in both directions without mutating rows or losing empty overrides', () => {
+  const rows = [
+    { key: 'key10', group: 'dice', default: 'zzz', override: '', description: 'B', example: '', categories: ['掷骰'] },
+    { key: 'key2', group: 'dice', default: 'bbb', override: null, description: 'C', example: '.r 2', categories: ['掷骰'] },
+    { key: 'key1', group: 'dice', default: 'aaa', override: null, description: 'A', example: '.r 1', categories: ['掷骰'] },
+  ];
+  const before = structuredClone(rows);
+  for (const field of ['example', 'description', 'key', 'text']) {
+    assert.equal(filterAndSortTexts(rows, '', '', { field, direction: 'asc' })[0].key, 'key1');
+    assert.equal(filterAndSortTexts(rows, '', '', { field, direction: 'desc' })[0].key, field === 'key' ? 'key10' : 'key2');
+  }
+  assert.deepEqual(rows, before);
+  assert.equal(filterAndSortTexts(rows, 'zzz', '', { field: 'text', direction: 'asc' }).length, 0);
+});
+
+test('all-text columns have the requested order, accessible sort buttons and localized labels', () => {
+  const source = fs.readFileSync(new URL('../src/pages/commands-page.tsx', import.meta.url), 'utf8');
+  assert.deepEqual([...source.matchAll(/<SortHead field="([^"]+)"/g)].map(match => match[1]), ['example', 'description', 'key', 'text']);
+  assert.match(source, /aria-sort=/);
+  assert.match(source, /onClick=\{\(\) => changeSort\(field\)\}/);
+  assert.match(source, /const rowId = c.cmd \|\| c.title/);
+  assert.match(source, /cat === ALL_TAB && visibleTexts.map/);
+  assert.match(source, /flex items-center gap-2 sm:hidden/);
+  assert.match(source, /cat === ALL_TAB \? \{ tableLayout: 'fixed' \}/);
+  assert.match(source, /<colgroup>/);
+  const keys = [...source.matchAll(/t\('commands\.([^']+)'(?=\s*[,\)])/g)].map(match => match[1]);
+  for (const locale of ['zh-Hans', 'zh-Hant', 'en', 'ja']) {
+    const labels = JSON.parse(fs.readFileSync(new URL('../src/i18n/locales/' + locale + '.json', import.meta.url), 'utf8')).commands;
+    for (const key of keys) {
+      const value = key.split('.').reduce((object, part) => object?.[part], labels);
+      assert.ok(typeof value === 'string' && value.length, `${locale}: commands.${key}`);
+    }
+    for (const category of COMMAND_CATEGORIES) assert.ok(labels.categories[category]);
+    for (const outcome of ['critical', 'extreme', 'hard', 'regular', 'failure', 'fumble']) assert.ok(labels.text_labels[outcome]);
+    assert.equal(labels.categories.COC, 'COC');
+  }
+});
 
 test('persona access belongs to Commands; connection forms never resend stale policies', () => {
   const commands = fs.readFileSync(new URL('../src/pages/commands-page.tsx', import.meta.url), 'utf8');

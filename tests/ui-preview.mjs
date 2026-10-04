@@ -81,6 +81,48 @@ const commandCategories = [
   ['jrrp', '娱乐', '今日人品'], ['bot', '互动', '骰娘互动'], ['ai', 'AI', 'AI 对话'],
   ['help', '工具', '帮助'], ['master', '权限', '骰主权限'], ['group', '管理', '群管理'], ['system', '系统', '系统状态'],
 ].map(([cmd, category, title]) => ({ cmd, title, category, sources: ['core'], example: `.${cmd}`, desc: `${title} · 本地预览样例`, replies: [] }));
+// In the multi-repository workspace, preview the complete real catalog and
+// default text. Only read source JSON; changes remain in these in-memory maps.
+const previewLocales = new Map();
+let previewCatalog;
+try {
+  previewCatalog = JSON.parse(await readFile(new URL('../../Dice-Next-Doc/commands.json', import.meta.url), 'utf8'));
+  for (const lang of ['zh-Hans', 'zh-Hant', 'en', 'ja']) {
+    const json = JSON.parse(await readFile(new URL(`../../Dice-Next/server/i18n/${lang}.json`, import.meta.url), 'utf8'));
+    const texts = {};
+    const flatten = (value, prefix = '') => {
+      for (const [name, child] of Object.entries(value)) {
+        if (name === '_meta') continue;
+        const key = prefix ? `${prefix}.${name}` : name;
+        if (typeof child === 'string') texts[key] = child;
+        else if (child && typeof child === 'object' && !Array.isArray(child)) flatten(child, key);
+      }
+    };
+    flatten(json);
+    previewLocales.set(lang, texts);
+  }
+} catch (error) {
+  if (error.code !== 'ENOENT') throw error;
+  previewCatalog = null; // The WebUI repository can still be previewed alone.
+}
+const previewTextOverrides = new Map();
+const previewPersonaEntries = new Map();
+const previewTexts = (lang) => Object.entries(previewLocales.get(lang) || { [commandReply.key]: commandReply.default }).map(([key, value]) => {
+  const override = previewTextOverrides.get(`${lang}:${key}`);
+  return { key, group: key.split('.')[0], default: value, override: override?.value ?? null, format: override?.format || 'plain', defaultFormat: 'plain',
+    vars: [...new Set([...value.matchAll(/\{([^{}]+)\}/g)].map(match => match[1]))].map(name => ({ name, desc: '' })) };
+});
+const previewCommands = (lang) => {
+  if (!previewCatalog) return [{ cmd: 'r', title: '掷骰', category: '掷骰', sources: ['core'], example: '.r 1d100', desc: '投掷骰子，支持表达式与原因。', replies: [commandReply] }, ...commandCategories];
+  const texts = new Map(previewTexts(lang).map(text => [text.key, text]));
+  const localized = (value) => typeof value === 'string' ? value : value?.[lang] || value?.['zh-Hans'] || '';
+  return previewCatalog.map(command => {
+    const keys = new Set(command.replyKeys || []);
+    for (const prefix of command.replyPrefixes || []) for (const key of texts.keys()) if (key.startsWith(prefix)) keys.add(key);
+    return { ...command, title: localized(command.title), desc: localized(command.desc) || texts.get(command.descKey)?.default || '',
+      replies: [...keys].map(key => ({ ...texts.get(key), example: command.replyKeys?.includes(key) ? command.replyExamples?.[key] || '' : '' })) };
+  });
+};
 const replyRules = [
   { id: 'preview-1', conditions: [{ type: 'keyword', content: '早安' }], logic: 'or', results: ['早安，{nick}！今天也有新的冒险在等你。'], resultWeights: [1], matchType: 'keyword', matchContent: '早安', replyContent: '早安，{nick}！今天也有新的冒险在等你。', enabled: true, priority: 100, prob: 80, cooldownSec: 30 },
   { id: 'preview-2', conditions: [{ type: 'prefix', content: '讲个故事' }, { type: 'search', content: '酒馆' }], logic: 'and', results: ['酒馆老板低声说起那座旧钟楼。', '桌上的地图忽然自己翻到了北方。'], resultWeights: [2, 1], matchType: 'prefix', matchContent: '讲个故事', replyContent: '酒馆老板低声说起那座旧钟楼。', enabled: false, priority: 80, prob: 100, cooldownSec: 0 },
@@ -141,7 +183,19 @@ const server = await createServer({
             }
             return reply(status);
           }
-          if (path === '/commands') return reply([{ cmd: 'r', title: '掷骰', category: '掷骰', sources: ['core'], example: '.r 1d100', desc: '投掷骰子，支持表达式与原因。', replies: [commandReply] }, ...commandCategories]);
+          const textLocale = ['zh-Hans', 'zh-Hant', 'en', 'ja'].includes(url.searchParams.get('lang')) ? url.searchParams.get('lang') : 'zh-Hans';
+          if (path === '/commands') return reply(previewCommands(textLocale));
+          if (path === '/i18n/all') return reply(previewTexts(textLocale));
+          if (/^\/personas\/\d+\/entries$/.test(path)) {
+            const id = Number(path.split('/')[2]);
+            if (!state['/personas'].some(persona => persona.id === id)) throw new Error('Preview persona not found');
+            if (!previewPersonaEntries.has(id)) previewPersonaEntries.set(id, new Map());
+            const entries = previewPersonaEntries.get(id);
+            if (req.method === 'GET') return reply([...entries.values()]);
+            if (req.method === 'PUT') { entries.set(`${body.locale}:${body.key}`, { ...body }); return reply(null); }
+            if (req.method === 'DELETE') { entries.delete(`${body.locale}:${body.key}`); return reply(null); }
+            throw new Error('Unsupported preview operation');
+          }
           if (path === '/schedules' && req.method === 'POST') { const task = { ...body, id: nextTaskId++, lastRun: '' }; previewTasks.push(task); return reply(task); }
           if (/^\/schedules\/\d+$/.test(path)) {
             const index = previewTasks.findIndex((task) => task.id === Number(path.split('/').at(-1)));
@@ -172,6 +226,7 @@ const server = await createServer({
             return reply(result.data);
           }
           if (path === '/templates' && req.method === 'PUT') {
+            previewTextOverrides.set(`${body.locale}:${body.key}`, { value: body.value, format: body.format });
             const help = helpDocs.find((entry) => entry.i18nKey === body.key);
             if (help) help.content = body.value;
             else if (body.key === commandReply.key) { commandReply.override = body.value; commandReply.format = body.format; }
@@ -179,6 +234,8 @@ const server = await createServer({
           }
           if (path.startsWith('/templates/') && req.method === 'DELETE') {
             const key = decodeURIComponent(path.split('/').at(-1));
+            const locale = decodeURIComponent(path.split('/').at(-2));
+            previewTextOverrides.delete(`${locale}:${key}`);
             const help = helpDocs.find((entry) => entry.i18nKey === key);
             if (help) help.content = helpDefaults.find((entry) => entry.i18nKey === key).content;
             else if (key === commandReply.key) { commandReply.override = null; commandReply.format = commandReply.defaultFormat; }

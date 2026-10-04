@@ -17,12 +17,13 @@ import { PersonaManagerCard } from '@/components/persona/persona-manager';
 import { PersonaAccessDialog } from '@/components/persona/persona-access-dialog';
 import {
   Loader2, RefreshCw, RotateCcw, Save, ChevronRight, ChevronDown, Pencil, Trash2, Download, Upload,
-  Image as ImageIcon, Globe, HelpCircle, Users, BookText, UserCheck,
+  Image as ImageIcon, Globe, HelpCircle, Users, BookText, UserCheck, ArrowUpDown, ArrowUp, ArrowDown,
 } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { VARIABLE_STYLES, variableStyleOf, restyleVariable, type VariableStyle } from '@/lib/template-variable-style';
 import { PREVIEW_PLATFORMS, readReplyPreview, type PreviewPlatform, type ReplyPreview } from '@/lib/reply-preview';
 import { Switch } from '@/components/ui/switch';
+import { buildTextMetadata, commandCategory, COMMAND_CATEGORIES, filterAndSortTexts, type TextSort, type TextSortField } from '@/lib/command-text-catalog';
 
 interface Var { name: string; desc: string; }
 type ReplyFormat = 'plain' | 'markdown';
@@ -39,32 +40,14 @@ const LANGS = [
   { code: 'en', label: 'English' },
   { code: 'ja', label: '日本語' },
 ];
-const CAT_ORDER = ['掷骰', 'COC', 'BRP', 'DND', '人物卡', '牌堆', '跑团', '娱乐', '互动', 'AI', '工具', '权限', '管理', '系统'];
 
 // Globally-available variables (filled at send time for ANY text). Shown behind
 // the「插入全局变量」button; command-specific vars stay as first-level chips.
 const GLOBAL_VARS = ['self', 'nick', 'name', 'qqnick', 'card', 'pcname', 'qqnickw', 'cardw', 'pcnamew', 'user', 'group', 'date', 'time'];
 const GLOBAL_SET = new Set(GLOBAL_VARS);
 
-const replyLabel = (key: string): string => {
-  const seg = key.split('.').pop() || key;
-  const map: Record<string, string> = {
-    result: '默认', result_reason: '带原因', multi: '多轮', multi_reason: '多轮·带原因',
-    result_noloss: '无损失', success: '成功', fail: '失败', build: '生成',
-    temp: '临时', long: '总结', on: '开启', off: '关闭', set: '设置', clear: '清除',
-    jrrp: '人品', sleep: '休息', done: '完成', already_on: '已开启提示', already_off: '已关闭提示',
-  };
-  return map[seg] || seg;
-};
-
 const extractVars = (s: string): string[] =>
   [...s.matchAll(/\{([^{}]+)\}/g)].map((m) => m[1]);
-
-const fineGroupFor = (key: string): string => {
-  const parts = key.split('.');
-  return ['dice', 'card', 'fun', 'dnd', 'help'].includes(parts[0]) && parts[1]
-    ? `${parts[0]}.${parts[1]}` : parts[0];
-};
 
 export const CommandsPage: React.FC = () => {
   const { t } = useTranslation();
@@ -81,6 +64,7 @@ export const CommandsPage: React.FC = () => {
   const [allLoading, setAllLoading] = useState(false);
   const [allQ, setAllQ] = useState('');
   const [allGroup, setAllGroup] = useState('__all_groups__');
+  const [allSort, setAllSort] = useState<TextSort>({ field: 'example', direction: 'asc' });
   // C#40: persona editing — pick a persona and edit ITS reply text directly.
   const [personas, setPersonas] = useTourState<{ id: number; name: string }[]>([], tourSamples.personas);
   const [personaId, setPersonaId] = useTourState(0, 0);            // 0 = 默认人格 (global overrides)
@@ -152,15 +136,28 @@ export const CommandsPage: React.FC = () => {
   }, [lang]);
   useEffect(() => { if (SPECIAL_TABS.includes(cat)) void loadAll(); }, [cat, loadAll]);
 
-  const cats = [...CAT_ORDER.filter((c) => rows.some((r) => r.category === c))
-    .concat([...new Set(rows.map((r) => r.category))].filter((c) => !CAT_ORDER.includes(c))),
+  const categoryRows = rows.map((row) => ({ ...row, category: commandCategory(row.category) }));
+  const cats = [...COMMAND_CATEGORIES.filter((c) => categoryRows.some((r) => r.category === c)),
+    ...[...new Set(categoryRows.map((r) => r.category))].filter((c) => !COMMAND_CATEGORIES.some((known) => known === c)),
     ...SPECIAL_TABS];
+  const categoryLabel = (category: string) => t(`commands.categories.${category}`, { defaultValue: category });
   const tabLabel = (c: string) => c === ALL_TAB ? t('commands.tab_all') : c === VAR_TAB ? t('commands.tab_vars')
-    : c === ORPHAN_TAB ? t('commands.tab_orphans') : c;
+    : c === ORPHAN_TAB ? t('commands.tab_orphans') : categoryLabel(c);
+  const replyLabel = (key: string) => {
+    const parts = key.split('.');
+    if (parts[0] === 'help' && parts[1] === 'topic') {
+      const related = categoryRows.find((row) => row.cmd.split('/').some((cmd) => cmd.replace(/^\./, '') === parts[2]));
+      return related ? `${related.title} · ${t('commands.text_labels.usage')}` : t('commands.text_labels.usage');
+    }
+    const exact = t(`commands.text_labels.${parts.join('_')}`, { defaultValue: '' });
+    const full = exact || t(`commands.text_labels.${parts.slice(1).join('_')}`, { defaultValue: '' });
+    return full || t(`commands.text_labels.${parts[parts.length - 1]}`, { defaultValue: '' });
+  };
+  const textMetadata = buildTextMetadata(tourActive || rowsLocale === lang ? categoryRows : [], replyLabel);
   // When a persona is selected, swap each key's `override` for that persona's entry
   // (or null if it hasn't overridden the key) so the whole page shows / edits THAT persona.
-  const dispRows = personaId === 0 ? rows
-    : rows.map((c) => ({ ...c, replies: c.replies.map((r) => ({ ...r,
+  const dispRows = personaId === 0 ? categoryRows
+    : categoryRows.map((c) => ({ ...c, replies: c.replies.map((r) => ({ ...r,
       override: personaMap[r.key]?.value ?? null,
       format: personaMap[r.key]?.format ?? 'plain',
     })) }));
@@ -244,13 +241,25 @@ export const CommandsPage: React.FC = () => {
 
   const filterRows = (pred: (k: AllKey) => boolean) => dispAll.filter((k) => {
     if (!pred(k)) return false;
-    if (cat === ALL_TAB && allGroup !== '__all_groups__' && fineGroupFor(k.key) !== allGroup) return false;
     const q = allQ.toLowerCase();
     return !q || k.key.toLowerCase().includes(q) || (k.override ?? k.default).toLowerCase().includes(q);
   });
-  const allGroups = [...new Set(dispAll
-    .filter((k) => k.group !== 'tplvar' && k.group !== 'legacy')
-    .map((k) => fineGroupFor(k.key)))].sort((a, b) => a.localeCompare(b));
+  const describedTexts = dispAll.filter((row) => row.group !== 'tplvar' && row.group !== 'legacy').map((row) => ({
+    ...row, ...(textMetadata.get(row.key) ?? { description: t('commands.unclassified_description'), example: '', categories: ['__unclassified__'] }),
+  }));
+  const allGroups = [...COMMAND_CATEGORIES.filter((category) => describedTexts.some((row) => row.categories.includes(category))),
+    ...new Set(describedTexts.flatMap((row) => row.categories).filter((category) => !COMMAND_CATEGORIES.some((known) => known === category)))];
+  const visibleTexts = filterAndSortTexts(describedTexts, allQ, allGroup === '__all_groups__' ? '' : allGroup, allSort, lang);
+  const changeSort = (field: TextSortField) => setAllSort((previous) => ({ field,
+    direction: previous.field === field && previous.direction === 'asc' ? 'desc' : 'asc' }));
+  const SortHead = ({ field, label, children }: { field: TextSortField; label: string; children?: React.ReactNode }) => (
+    <th className="p-2.5 text-left font-medium" aria-sort={allSort.field !== field ? 'none' : allSort.direction === 'asc' ? 'ascending' : 'descending'}>
+      <button className="inline-flex items-center gap-1.5 whitespace-nowrap hover:text-foreground" onClick={() => changeSort(field)}
+        aria-label={t('commands.sort_column', { column: label })}>
+        {children ?? label}{allSort.field === field ? allSort.direction === 'asc' ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" /> : <ArrowUpDown className="h-3.5 w-3.5" />}
+      </button>
+    </th>
+  );
 
   return (
     <div className="space-y-5">
@@ -313,25 +322,74 @@ export const CommandsPage: React.FC = () => {
                 <SelectTrigger className="h-9 w-48"><SelectValue placeholder={t('commands.all_group')} /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__all_groups__">{t('commands.all_group_all')}</SelectItem>
-                  {allGroups.map((group) => <SelectItem key={group} value={group}>{group}</SelectItem>)}
+                  {allGroups.map((group) => <SelectItem key={group} value={group}>{categoryLabel(group)}</SelectItem>)}
                 </SelectContent>
               </Select>
             )}
+            {cat === ALL_TAB && <div className="flex items-center gap-2 sm:hidden">
+              <Select value={allSort.field} onValueChange={(field) => setAllSort((previous) => ({ ...previous, field: field as TextSortField }))}>
+                <SelectTrigger className="w-36" aria-label={t('commands.sort_by')}><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {(['example', 'description', 'key', 'text'] as const).map((field) => <SelectItem key={field} value={field}>
+                    {t(`commands.${field === 'example' ? 'col_command_example' : field === 'description' ? 'col_description' : field === 'key' ? 'col_key' : 'col_text'}`)}
+                  </SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Button variant="outline" size="icon" onClick={() => changeSort(allSort.field)}
+                aria-label={t(allSort.direction === 'asc' ? 'commands.sort_desc' : 'commands.sort_asc')}>
+                {allSort.direction === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />}
+              </Button>
+            </div>}
           </div>
+          {cat === ALL_TAB && !loading && !tourActive && rowsLocale !== lang && <p role="alert" className="text-sm text-destructive">{t('commands.metadata_unavailable')}</p>}
           {allLoading ? (
             <div className="flex items-center justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
           ) : (
             <div className="rt-frame rounded-lg border overflow-x-auto">
-              <table className="rt rt-record w-full text-sm">
+              <table className="rt rt-record w-full text-sm" style={cat === ALL_TAB ? { tableLayout: 'fixed' } : undefined}>
+                {cat === ALL_TAB && <colgroup>
+                  <col style={{ width: '16%' }} />
+                  <col style={{ width: '22%' }} />
+                  <col style={{ width: '24%' }} />
+                  <col />
+                  <col style={{ width: '5rem' }} />
+                </colgroup>}
                 <thead className="bg-muted/50 text-muted-foreground">
-                  <tr>
+                  {cat === ALL_TAB ? <tr>
+                    <SortHead field="example" label={t('commands.col_command_example')} />
+                    <SortHead field="description" label={t('commands.col_description')} />
+                    <SortHead field="key" label={t('commands.col_key')}><V2Head label={t('commands.col_key')} /></SortHead>
+                    <SortHead field="text" label={t('commands.col_text')} />
+                    <th className="p-2.5 text-left font-medium w-20">{t('common.actions')}</th>
+                  </tr> : <tr>
                     <th className="text-left font-medium p-2.5 whitespace-nowrap"><V2Head label={t('commands.col_key')} /></th>
                     {cat === VAR_TAB && <th className="text-left font-medium p-2.5 whitespace-nowrap">{t('commands.col_var')}</th>}
                     <th className="text-left font-medium p-2.5">{cat === ORPHAN_TAB ? t('commands.col_orphan_text') : t('commands.col_text')}</th>
                     <th className="text-left font-medium p-2.5 w-20"></th>
-                  </tr>
+                  </tr>}
                 </thead>
                 <tbody>
+                  {cat === ALL_TAB && visibleTexts.length === 0 && <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">{t('commands.no_matching_text')}</td></tr>}
+                  {cat === ALL_TAB && visibleTexts.map((text) => <tr key={text.key} className="border-t align-top hover:bg-muted/30">
+                    <td data-label={t('commands.col_command_example')} className="rt-body p-2.5">
+                      {text.example ? <code className="text-xs font-mono break-words">{text.example}</code> : <span className="text-xs text-muted-foreground">{t('commands.no_command_example')}</span>}
+                    </td>
+                    <td data-label={t('commands.col_description')} className="rt-title p-2.5 font-medium break-words">
+                      {text.description}
+                      {text.override != null && <span className="ml-1 text-amber-600" title={t('commands.modified')}>●</span>}
+                    </td>
+                    <td data-label={t('commands.col_key')} className="rt-body p-2.5 text-xs font-mono break-all">
+                      {text.key}<V2Sub v2={text.v2key} />
+                    </td>
+                    <td data-label={t('commands.col_text')} className="rt-body p-2.5 text-muted-foreground">
+                      <div className="line-clamp-3 whitespace-pre-wrap break-words" title={text.override ?? text.default}>{text.override ?? text.default}</div>
+                    </td>
+                    <td data-label={t('common.actions')} className="rt-footer p-2.5">
+                      <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => editKey(text)}>
+                        <Pencil className="mr-1 h-3.5 w-3.5" />{t('commands.edit')}
+                      </Button>
+                    </td>
+                  </tr>)}
                   {cat === ORPHAN_TAB && filterRows((k) => k.group === 'legacy').length === 0 && (
                     <tr><td colSpan={3} className="p-8 text-center text-sm text-muted-foreground">{t('commands.orphan_empty')}</td></tr>
                   )}
@@ -350,10 +408,8 @@ export const CommandsPage: React.FC = () => {
                       <td className="p-2.5"></td>
                     </tr>
                   ))}
-                  {filterRows((k) =>
-                    cat === VAR_TAB ? k.group === 'tplvar'
-                    : cat === ORPHAN_TAB ? k.group === 'legacy'
-                    : (k.group !== 'tplvar' && k.group !== 'legacy')      // ALL_TAB
+                  {cat !== ALL_TAB && filterRows((k) =>
+                    cat === VAR_TAB ? k.group === 'tplvar' : k.group === 'legacy'
                   ).map((k) => (
                     <tr key={k.key} className="border-t align-top hover:bg-muted/30">
                       <td data-label={t('commands.col_key')} className="rt-title p-2.5 font-mono text-xs whitespace-nowrap">
@@ -401,26 +457,27 @@ export const CommandsPage: React.FC = () => {
             </thead>
             <tbody>
               {shown.map((c) => {
-                const isOpen = expanded.has(c.cmd);
+                const rowId = c.cmd || c.title;
+                const isOpen = expanded.has(rowId);
                 const multi = c.replies.length > 1;
                 const hasOverride = c.replies.some((r) => r.override != null);
                 return (
-                  <React.Fragment key={c.cmd}>
+                  <React.Fragment key={rowId}>
                     <tr className="command-row border-t align-top hover:bg-muted/30">
                       <td data-label={t('common.actions')} className="command-expand p-2.5">
                         {multi && (
-                          <button onClick={() => toggle(c.cmd)} aria-expanded={isOpen} aria-label={`${t('commands.col_reply')} · ${c.title}`} className="text-muted-foreground hover:text-foreground">
+                          <button onClick={() => toggle(rowId)} aria-expanded={isOpen} aria-label={`${t('commands.col_reply')} · ${c.title}`} className="text-muted-foreground hover:text-foreground">
                             {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                           </button>
                         )}
                       </td>
                       <td data-label={t('commands.col_title')} className="command-title p-2.5 font-medium whitespace-nowrap">{c.title}</td>
                       <td data-label={t('commands.col_cmd')} className="command-name p-2.5 font-mono whitespace-nowrap">
-                        {c.cmd}{hasOverride && <span className="ml-1 text-[11px] text-amber-600">●</span>}
+                        {c.cmd || <span className="text-xs font-sans text-muted-foreground">{t('commands.automatic_event')}</span>}{hasOverride && <span className="ml-1 text-[11px] text-amber-600">●</span>}
                       </td>
                       <td data-label={t('commands.col_example')} className="command-example p-2.5">
                         <div className="flex flex-wrap gap-1">
-                          {c.example.split(' / ').map((ex, i) => (
+                          {c.example && c.example.split(' / ').map((ex, i) => (
                             <code key={i} className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono text-foreground/80 whitespace-nowrap">{ex}</code>
                           ))}
                         </div>
@@ -431,7 +488,7 @@ export const CommandsPage: React.FC = () => {
                       <td data-label={t('commands.col_reply')} data-empty={c.replies.length === 0} className="command-actions p-2.5">
                         {c.replies.length === 0 ? <span className="text-xs text-muted-foreground">—</span>
                           : multi
-                            ? <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => toggle(c.cmd)} aria-expanded={isOpen}><Pencil className="mr-1 h-3.5 w-3.5" />{t('commands.edit')} ({c.replies.length}){isOpen ? <ChevronDown className="ml-1 h-3.5 w-3.5" /> : <ChevronRight className="ml-1 h-3.5 w-3.5" />}</Button>
+                            ? <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => toggle(rowId)} aria-expanded={isOpen}><Pencil className="mr-1 h-3.5 w-3.5" />{t('commands.edit')} ({c.replies.length}){isOpen ? <ChevronDown className="ml-1 h-3.5 w-3.5" /> : <ChevronRight className="ml-1 h-3.5 w-3.5" />}</Button>
                             : <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => beginEdit({ cmd: c.cmd, reply: c.replies[0] })}><Pencil className="mr-1 h-3.5 w-3.5" />{t('commands.edit')}</Button>}
                       </td>
                     </tr>
@@ -439,7 +496,7 @@ export const CommandsPage: React.FC = () => {
                       <tr key={rep.key} className="command-reply-row border-t bg-muted/20">
                         <td></td>
                         <td data-label={t('commands.col_title')} className="p-2 pl-4 text-xs text-muted-foreground" colSpan={2}>
-                          <span className="font-medium">{replyLabel(rep.key)}</span>
+                          <span className="font-medium">{replyLabel(rep.key) || c.title}</span>
                           <span className="ml-2 font-mono opacity-60">{rep.key}</span>
                           {rep.override != null && <span className="ml-2 text-amber-600">{t('commands.modified')}</span>}
                           {rep.v2key && <div className="text-[11px] text-muted-foreground/70 font-mono">{t('commands.v2_label')}: {rep.v2key}</div>}
@@ -466,6 +523,7 @@ export const CommandsPage: React.FC = () => {
       </Tabs>
       {editing && (
         <EditReplyModal lang={lang} cmd={editing.cmd} reply={editing.reply} personaId={personaId}
+          description={textMetadata.get(editing.reply.key)?.description ?? replyLabel(editing.reply.key)}
           onClose={closeEditor} onSaved={savedEditor} />
       )}
 
@@ -538,8 +596,8 @@ const MarkdownExample: React.FC<{ text: string; enabled: boolean }> = ({ text, e
   })}</div>;
 };
 
-const EditReplyModal: React.FC<{ lang: string; cmd: string; reply: Reply; personaId: number; onClose: () => void; onSaved: (key: string, value: string | null, format: ReplyFormat) => void }>
-  = ({ lang, cmd, reply, personaId, onClose, onSaved }) => {
+const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string; reply: Reply; personaId: number; onClose: () => void; onSaved: (key: string, value: string | null, format: ReplyFormat) => void }>
+  = ({ lang, cmd, description, reply, personaId, onClose, onSaved }) => {
   const { t } = useTranslation();
   const toast = useToast();
   const [text, setText] = useState(reply.override ?? reply.default);
@@ -637,7 +695,7 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; reply: Reply; person
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="flex max-h-[90dvh] max-w-2xl flex-col overflow-hidden lg:max-w-6xl">
         <DialogHeader>
-          <DialogTitle>{cmd} · {replyLabel(reply.key)}</DialogTitle>
+          <DialogTitle>{description || cmd || reply.key}</DialogTitle>
           <DialogDescription>{t('commands.var_insert_hint')}{reply.v2key ? `　${t('commands.v2_label')}: ${reply.v2key}` : ''}</DialogDescription>
         </DialogHeader>
         <div className="grid min-h-0 flex-1 items-start gap-5 overflow-y-auto pr-1 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">

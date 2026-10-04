@@ -113,6 +113,6 @@ export const tourSamples = {
   archives: [{ name: 'demo-backup-20260901.zip', size: 2516582, createdAt: Date.parse(date) / 1000, automatic: true }],
   chat: [{ role: 'user' as const, text: '.ra 侦查 60' }, { role: 'bot' as const, text: '小夏的侦查检定：1D100=32 / 60，成功！' }],
   commands: [{ cmd: 'r', title: '掷骰 · 示例', category: '掷骰', sources: ['builtin'], example: '.r 3d6+2', desc: '按表达式掷骰并显示结果。',
-    replies: [{ key: 'demo.roll', default: '{nick}掷骰：{expr}={result}', override: null, format: 'plain' as const, defaultFormat: 'plain' as const, example: '小夏掷骰：3D6+2=14', vars: [{ name: 'nick', desc: '玩家昵称' }, { name: 'expr', desc: '掷骰表达式' }, { name: 'result', desc: '结果' }] }] }],
+    replies: [{ key: 'demo.roll', default: '{nick}掷骰：{expr}={result}', override: null, format: 'plain' as const, defaultFormat: 'plain' as const, example: '.r 3d6+2', vars: [{ name: 'nick', desc: '玩家昵称' }, { name: 'expr', desc: '掷骰表达式' }, { name: 'result', desc: '结果' }] }] }],
   personas: [{ id: 1, name: '星灯 · 示例人格' }],
 };
