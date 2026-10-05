@@ -56,6 +56,7 @@ const state = {
   '/dashboard/stats': { uptime_seconds: 3600, active_connections: 0, total_adapters: 2, total_commands: 0, total_rules: 0, active_sessions: 0, recent_logs: [] },
   '/adapters': [{ id: 'preview-qq', name: '星灯 · 预览', type: 'qq_official', appId: 'preview', enabled: false }, { id: 'preview-onebot', name: '月海 · 预览', type: 'onebot_v11', loginId: '10000', enabled: false }],
   '/personas': [{ id: 1, name: '星灯', description: '本地预览人格', isBuiltin: false }, { id: 2, name: '月海', description: '本地预览人格', isBuiltin: false }],
+  '/personas/active': { activeId: 0, globalId: 0, pool: [] },
   '/masters': { items: [{ platform: 'onebot_v11', id: '10001', nickname: '示例骰主' }], master_inherit: true },
   '/system/prefixes': { prefixes: ['.', '。'] }, '/system/timezone': { offset_minutes: 480, effective_offset_minutes: 480 },
   '/system/global': { values: { message_format: 'standard', respond_group: true, respond_private: true, save_log_images: false, chat_retention_days: 7 }, overrides: {}, sources: {} },
@@ -193,6 +194,22 @@ const server = await createServer({
           }
           const textLocale = ['zh-Hans', 'zh-Hant', 'en', 'ja'].includes(url.searchParams.get('lang')) ? url.searchParams.get('lang') : 'zh-Hans';
           if (path === '/commands') return reply(previewCommands(textLocale));
+          if (path === '/personas/pool') {
+            if (req.method === 'PUT') {
+              const pool = body.pool;
+              if (!Array.isArray(pool) || (pool.length && !pool.some(item => item.weight > 0))
+                || pool.some(item => !Number.isInteger(item.weight) || item.weight < 0 || item.weight > 999999
+                  || (item.id !== 0 && !state['/personas'].some(persona => persona.id === item.id))))
+                throw new Error('Invalid persona pool');
+              state['/personas/active'].pool = structuredClone(pool);
+            }
+            return reply(state['/personas/active'].pool);
+          }
+          if (/^\/personas\/\d+\/activate$/.test(path) && req.method === 'POST') {
+            const id = Number(path.split('/')[2]);
+            state['/personas/active'] = { activeId: id, globalId: id, pool: [] };
+            return reply(null);
+          }
           if (path === '/i18n/all') return reply(previewTexts(textLocale));
           if (/^\/personas\/\d+\/entries$/.test(path)) {
             const id = Number(path.split('/')[2]);

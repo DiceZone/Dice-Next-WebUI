@@ -6,6 +6,8 @@ import { useTranslation } from 'react-i18next';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
+import { probabilities, validWeights, type PersonaWeight } from '@/lib/weighted-templates';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -33,6 +35,9 @@ export const PersonaManagerCard: React.FC<{ onChanged?: () => void }> = ({ onCha
   const [editingPersona, setEditingPersona] = useState<PersonaTemplate | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [importText, setImportText] = useState('');
+  const [randomMode, setRandomMode] = useState(false);
+  const [pool, setPool] = useState<PersonaWeight[]>([]);
+  const [poolSaving, setPoolSaving] = useState(false);
 
   const fetchPersonas = useCallback(async () => {
     setLoading(true);
@@ -43,6 +48,8 @@ export const PersonaManagerCard: React.FC<{ onChanged?: () => void }> = ({ onCha
       // group keeps this request distinct from a per-group lookup.
       const activeRes = await apiClient.get<ActivePersonaInfo>('/personas/active?groupId=&platform=onebot_v11');
       setActiveInfo(activeRes.data);
+      setPool(activeRes.data.pool ?? []);
+      setRandomMode((activeRes.data.pool ?? []).length > 0);
     } catch {
       toast({ title: t('common.load_fail'), variant: 'destructive' });
     } finally {
@@ -67,7 +74,8 @@ export const PersonaManagerCard: React.FC<{ onChanged?: () => void }> = ({ onCha
   const handleActivate = async (p: PersonaTemplate) => {
     try {
       await apiClient.post(`/personas/${p.id}/activate`, GLOBAL_PERSONA_SCOPE);
-      setActiveInfo((current) => ({ ...current, activeId: p.id, globalId: p.id, name: p.name, description: p.description }));
+      setActiveInfo((current) => ({ ...current, activeId: p.id, globalId: p.id, name: p.name, description: p.description, pool: [] }));
+      setPool([]); setRandomMode(false); onChanged?.();
       toast({ title: t('persona.activated', { name: p.name }) });
     } catch (e) {
       toast({ title: (e as Error).message, variant: 'destructive' });
@@ -126,7 +134,25 @@ export const PersonaManagerCard: React.FC<{ onChanged?: () => void }> = ({ onCha
     }
   };
 
+  const savePool = async () => {
+    if (poolSaving) return;
+    if (randomMode && !validWeights(pool)) {
+      toast({ title: t('weighted.pool_empty'), variant: 'destructive' }); return;
+    }
+    setPoolSaving(true);
+    try {
+      const next = randomMode ? pool : [];
+      await apiClient.put('/personas/pool', { pool: next });
+      setActiveInfo(current => ({ ...current, pool: next }));
+      setPool(next);
+      toast({ title: t('common.save_success') }); onChanged?.();
+    } catch (e) { toast({ title: (e as Error).message, variant: 'destructive' }); }
+    finally { setPoolSaving(false); }
+  };
+  const chances = probabilities(pool);
+  const poolCandidates = [{ id: 0, name: t('persona.global_base_name') }, ...personas];
   const globalId = activeInfo.globalId ?? activeInfo.activeId ?? 0;
+  const poolActive = (activeInfo.pool ?? []).some(item => item.weight > 0);
   const globalPersona = personas.find((p) => p.id === globalId);
   const globalPersonaName = globalId > 0
     ? (globalPersona?.name || activeInfo.name || t('persona.global_unknown_name'))
@@ -148,13 +174,40 @@ export const PersonaManagerCard: React.FC<{ onChanged?: () => void }> = ({ onCha
           <div className="flex items-center gap-2 text-sm font-medium">
             <Globe2 className="h-4 w-4 text-primary" />
             <span>{t('persona.global_scope_title')}</span>
-            <Badge variant="outline" className="ml-auto max-w-[55%] truncate">{globalPersonaName}</Badge>
+            <Badge variant="outline" className="ml-auto max-w-[55%] truncate">{poolActive ? t('weighted.pool_name') : globalPersonaName}</Badge>
           </div>
           <p className="text-xs leading-relaxed text-muted-foreground">{t('persona.global_scope_desc')}</p>
           <div className="flex items-start gap-2 rounded-md bg-background/70 px-2.5 py-2 text-xs leading-relaxed text-muted-foreground">
             <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
             <span>{t('persona.group_scope_hint')}</span>
           </div>
+        </div>
+
+        <div className="rounded-lg border p-3 space-y-3">
+          <label className="flex items-center gap-2 text-sm font-medium">
+            <Switch checked={randomMode} disabled={poolSaving || loading || !Array.isArray(activeInfo.pool)} onCheckedChange={setRandomMode} />{t('weighted.pool_title')}
+          </label>
+          <p className="text-xs leading-relaxed text-muted-foreground">{t('weighted.pool_hint')}</p>
+          {randomMode && <div className="grid gap-2 sm:grid-cols-2">{poolCandidates.map(candidate => {
+            const index = pool.findIndex(item => item.id === candidate.id);
+            const selected = index >= 0;
+            return <div key={candidate.id} className="flex items-center gap-2 rounded-md bg-muted/30 p-2">
+              <Switch checked={selected} disabled={poolSaving} aria-label={t('weighted.pool_select', { name: candidate.name })}
+                onCheckedChange={checked => setPool(current => checked ? [...current, { id: candidate.id, weight: 1 }] : current.filter(item => item.id !== candidate.id))} />
+              <span className="min-w-0 flex-1 truncate text-sm" title={candidate.name}>{candidate.name}</span>
+              {selected && <>
+                <Input type="number" inputMode="numeric" min={0} max={999999} step={1} disabled={poolSaving}
+                  className="h-8 w-20" aria-label={t('weighted.pool_weight', { name: candidate.name })} value={pool[index].weight}
+                  onChange={event => setPool(current => current.map(item => item.id === candidate.id ? { ...item, weight: Number(event.target.value) } : item))} />
+                <span className="w-16 text-right text-xs tabular-nums">{chances[index].toFixed(2)}%</span>
+              </>}
+            </div>;
+          })}</div>}
+          {randomMode && !validWeights(pool) && <p role="alert" className="text-xs text-destructive">{t('weighted.invalid_weights')}</p>}
+          {!loading && !Array.isArray(activeInfo.pool) && <p role="alert" className="text-xs text-destructive">{t('weighted.backend_required')}</p>}
+          <Button size="sm" disabled={loading || poolSaving || !Array.isArray(activeInfo.pool) || (randomMode && !validWeights(pool))} onClick={savePool}>
+            {randomMode ? t('weighted.pool_save') : t('weighted.pool_clear')}
+          </Button>
         </div>
 
         <div className="flex items-center gap-2">
@@ -178,13 +231,13 @@ export const PersonaManagerCard: React.FC<{ onChanged?: () => void }> = ({ onCha
                   <div className="flex items-center gap-2">
                     <span className="font-medium">{p.name}</span>
                     {p.isBuiltin && <Badge variant="secondary" className="text-xs">{t('persona.builtin')}</Badge>}
-                    {globalId === p.id && <Badge variant="success" className="text-xs">{t('persona.current_badge')}</Badge>}
+                    {(poolActive ? activeInfo.pool?.some(item => item.id === p.id && item.weight > 0) : globalId === p.id) && <Badge variant="success" className="text-xs">{t('persona.current_badge')}</Badge>}
                   </div>
                   {p.description && <p className="text-xs text-muted-foreground mt-0.5 truncate">{p.description}</p>}
                   <p className="text-xs text-muted-foreground">{t('persona.entry_count', { count: p.entryCount })}</p>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
-                  {globalId !== p.id && (
+                  {(poolActive || globalId !== p.id) && (
                     <Button variant="ghost" size="icon" className="h-8 w-8" title={t('persona.activate')} onClick={() => handleActivate(p)}>
                       <Check className="h-4 w-4" />
                     </Button>
@@ -209,11 +262,12 @@ export const PersonaManagerCard: React.FC<{ onChanged?: () => void }> = ({ onCha
           </div>
         )}
 
-        {globalId > 0 && (
+        {(poolActive || globalId > 0) && (
           <Button variant="outline" size="sm" onClick={async () => {
             try {
               await apiClient.post(`/personas/0/activate`, GLOBAL_PERSONA_SCOPE);
-              setActiveInfo((current) => ({ ...current, activeId: 0, globalId: 0, name: undefined, description: undefined }));
+              setActiveInfo((current) => ({ ...current, activeId: 0, globalId: 0, name: undefined, description: undefined, pool: [] }));
+              setPool([]); setRandomMode(false); onChanged?.();
               toast({ title: t('persona.switched_default') });
             } catch (e) { toast({ title: (e as Error).message, variant: 'destructive' }); }
           }}>{t('persona.switch_default')}</Button>

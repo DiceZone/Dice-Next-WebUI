@@ -17,6 +17,8 @@
     "src/lib/command-text-catalog.ts",
     "src/lib/workspace-view.ts",
     "src/lib/template-variable-style.ts",
+    "src/lib/weighted-templates.ts",
+    "src/i18n/weighted-templates.ts",
     "src/lib/reply-preview.ts",
     "src/lib/batch-operation.ts",
     "src/lib/request-gate.ts",

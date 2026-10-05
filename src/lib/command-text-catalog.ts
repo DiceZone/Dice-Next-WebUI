@@ -1,3 +1,4 @@
+import { templateSummary } from './weighted-templates.js';
 export const COMMAND_CATEGORIES = ['掷骰', 'COC', 'DND', '团务', '互动', '工具', '管理', '权限', '系统'] as const;
 
 /** Read both the updated catalog and an older backend without losing rows. */
@@ -59,10 +60,10 @@ export function filterAndSortTexts<T extends EditableText>(
 ): DescribedText<T>[] {
   const queryWords = query.trim().toLocaleLowerCase(locale).split(/\s+/).filter(Boolean);
   const collator = new Intl.Collator(locale, { numeric: true, sensitivity: 'base' });
-  const value = (text: DescribedText<T>) => sort.field === 'text' ? text.override ?? text.default : text[sort.field];
+  const value = (text: DescribedText<T>) => sort.field === 'text' ? templateSummary(text.override ?? text.default) : text[sort.field];
   return texts.filter((text) => {
     if (category && !text.categories.includes(category)) return false;
-    const content = [text.key, text.v2key, text.description, text.example, text.override ?? text.default, ...text.categories]
+    const content = [text.key, text.v2key, text.description, text.example, templateSummary(text.override ?? text.default), ...text.categories]
       .filter(Boolean).join(' ').toLocaleLowerCase(locale);
     return queryWords.every((word) => content.includes(word));
   }).sort((a, b) => {

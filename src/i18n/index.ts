@@ -7,6 +7,7 @@ import en from './locales/en.json';
 import ja from './locales/ja.json';
 import { uiRefresh } from './ui-refresh';
 import { uiAudit } from './ui-audit';
+import { weightedTemplates } from './weighted-templates';
 
 /**
  * Front-end i18n setup (繁體中文 / 简体中文 / English).
@@ -45,10 +46,10 @@ const initialLanguage = detectInitialLanguage();
 
 i18n.use(initReactI18next).init({
   resources: {
-    'zh-Hant': { translation: { ...zhHant, ui_refresh: uiRefresh['zh-Hant'], ui_audit: uiAudit['zh-Hant'] } },
-    'zh-Hans': { translation: { ...zhHans, ui_refresh: uiRefresh['zh-Hans'], ui_audit: uiAudit['zh-Hans'] } },
-    en: { translation: { ...en, ui_refresh: uiRefresh.en, ui_audit: uiAudit.en } },
-    ja: { translation: { ...ja, ui_refresh: uiRefresh.ja, ui_audit: uiAudit.ja } },
+    'zh-Hant': { translation: { ...zhHant, ui_refresh: uiRefresh['zh-Hant'], ui_audit: uiAudit['zh-Hant'], weighted: weightedTemplates['zh-Hant'] } },
+    'zh-Hans': { translation: { ...zhHans, ui_refresh: uiRefresh['zh-Hans'], ui_audit: uiAudit['zh-Hans'], weighted: weightedTemplates['zh-Hans'] } },
+    en: { translation: { ...en, ui_refresh: uiRefresh.en, ui_audit: uiAudit.en, weighted: weightedTemplates.en } },
+    ja: { translation: { ...ja, ui_refresh: uiRefresh.ja, ui_audit: uiAudit.ja, weighted: weightedTemplates.ja } },
   },
   lng: initialLanguage,
   fallbackLng: 'zh-Hans',

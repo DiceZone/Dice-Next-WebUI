@@ -13,6 +13,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Search, Plus, Trash2, Save, X } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import type { PersonaTemplate, PersonaEntry } from '@/types/persona';
+import { WeightedTemplateEditor } from './weighted-template-editor';
+import { readTemplateVariants, writeTemplateVariants, validWeights } from '@/lib/weighted-templates';
 
 interface Props {
   persona: PersonaTemplate;
@@ -30,11 +32,16 @@ export const PersonaEditor: React.FC<Props> = ({ persona, onClose, onChanged }) 
   const [newValue, setNewValue] = useState('');
   const [editingValues, setEditingValues] = useState<Record<number, string>>({});
   const [saving, setSaving] = useState(false);
+  const [supportsWeighted, setSupportsWeighted] = useState(false);
 
   const fetchEntries = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await apiClient.get<PersonaEntry[]>(`/personas/${persona.id}/entries`);
+      const [res, capability] = await Promise.all([
+        apiClient.get<PersonaEntry[]>(`/personas/${persona.id}/entries`),
+        apiClient.post<{ templateVersion?: number }>('/templates/preview', { text: '', format: 'plain' }),
+      ]);
+      setSupportsWeighted(capability.data.templateVersion === 1);
       setEntries(res.data || []);
       setEditingValues({});
     } catch {
@@ -63,10 +70,14 @@ export const PersonaEditor: React.FC<Props> = ({ persona, onClose, onChanged }) 
   const handleSave = async (entry: PersonaEntry) => {
     const newValue = editingValues[entry.id];
     if (newValue === undefined) return;
+    if (!supportsWeighted) { toast({ title: t('weighted.backend_required'), variant: 'destructive' }); return; }
+    if (!validWeights(readTemplateVariants(newValue))) {
+      toast({ title: t('weighted.invalid_weights'), variant: 'destructive' }); return;
+    }
     setSaving(true);
     try {
       await apiClient.put(`/personas/${persona.id}/entries`, {
-        locale: entry.locale, key: entry.key, value: newValue,
+        locale: entry.locale, key: entry.key, value: newValue, format: entry.format ?? 'plain',
       });
       toast({ title: t('common.save_success') });
       setEditingValues((prev) => { const n = { ...prev }; delete n[entry.id]; return n; });
@@ -121,6 +132,7 @@ export const PersonaEditor: React.FC<Props> = ({ persona, onClose, onChanged }) 
         </div>
 
         {/* Entry list */}
+        {!loading && !supportsWeighted && <p role="alert" className="text-xs text-destructive">{t('weighted.backend_required')}</p>}
         <div className="flex-1 overflow-y-auto space-y-1 min-h-[200px]">
           {loading ? (
             <div className="h-32 animate-pulse rounded-lg bg-muted" />
@@ -133,21 +145,15 @@ export const PersonaEditor: React.FC<Props> = ({ persona, onClose, onChanged }) 
               const isEditing = editingValues[entry.id] !== undefined;
               const currentValue = isEditing ? editingValues[entry.id] : entry.value;
               return (
-                <div key={entry.id} className="flex items-start gap-2 rounded-md border p-2">
-                  <div className="w-1/3 shrink-0">
+                <div key={entry.id} className="rounded-md border p-3 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
                     <code className="text-xs font-mono text-muted-foreground break-all">{entry.key}</code>
                     <span className="text-[10px] text-muted-foreground ml-1">({entry.locale})</span>
                   </div>
-                  <div className="flex-1">
-                    <Input
-                      value={currentValue}
-                      onChange={(e) => setEditingValues((prev) => ({ ...prev, [entry.id]: e.target.value }))}
-                      className="h-7 text-sm"
-                    />
-                  </div>
                   <div className="flex items-center gap-1 shrink-0">
                     {isEditing && (
-                      <Button variant="ghost" size="icon" className="h-7 w-7" title={t('common.save')} onClick={() => handleSave(entry)} disabled={saving}>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" title={t('common.save')} onClick={() => handleSave(entry)} disabled={saving || !supportsWeighted}>
                         <Save className="h-3.5 w-3.5" />
                       </Button>
                     )}
@@ -160,6 +166,9 @@ export const PersonaEditor: React.FC<Props> = ({ persona, onClose, onChanged }) 
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
+                  </div>
+                  <WeightedTemplateEditor items={readTemplateVariants(currentValue)}
+                    onChange={items => setEditingValues(prev => ({ ...prev, [entry.id]: writeTemplateVariants(items) }))} />
                 </div>
               );
             })

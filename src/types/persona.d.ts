@@ -16,6 +16,7 @@ export interface PersonaEntry {
     locale: string;
     key: string;
     value: string;
+    format?: 'plain' | 'markdown';
 }
 export interface PersonaExport {
     name: string;
@@ -28,6 +29,10 @@ export interface ActivePersonaInfo {
     name?: string;
     description?: string;
     globalId: number;
+    pool?: {
+        id: number;
+        weight: number;
+    }[];
     adapterDefaultId?: number | null;
     hasGroupOverride?: boolean;
     inheritsGlobal?: boolean;

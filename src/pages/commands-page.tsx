@@ -3,7 +3,8 @@ import { tourSamples } from '@/lib/tour-samples';
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
+import { WeightedTemplateEditor } from '@/components/persona/weighted-template-editor';
+import { readTemplateVariants, writeTemplateVariants, templateSummary, validWeights } from '@/lib/weighted-templates';
 import { AdvancedOptions } from '@/components/ui/advanced-options';
 import {
   Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription,
@@ -382,7 +383,7 @@ export const CommandsPage: React.FC = () => {
                       {text.key}<V2Sub v2={text.v2key} />
                     </td>
                     <td data-label={t('commands.col_text')} className="rt-body p-2.5 text-muted-foreground">
-                      <div className="line-clamp-3 whitespace-pre-wrap break-words" title={text.override ?? text.default}>{text.override ?? text.default}</div>
+                      <div className="line-clamp-3 whitespace-pre-wrap break-words" title={templateSummary(text.override ?? text.default)}>{templateSummary(text.override ?? text.default)}</div>
                     </td>
                     <td data-label={t('common.actions')} className="rt-footer p-2.5">
                       <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => editKey(text)}>
@@ -419,7 +420,7 @@ export const CommandsPage: React.FC = () => {
                       </td>
                       {cat === VAR_TAB && <td data-label={t('commands.col_var')} className="rt-body p-2.5 font-mono text-xs text-primary">{`{${k.key.replace(/^tplvar\./, '')}}`}</td>}
                       <td data-label={t('commands.col_text')} className="rt-body p-2.5 text-muted-foreground w-full max-w-0">
-                        <div className="truncate" title={k.override ?? k.default}>{k.override ?? k.default}</div>
+                        <div className="truncate" title={templateSummary(k.override ?? k.default)}>{templateSummary(k.override ?? k.default)}</div>
                       </td>
                       <td data-label={t('common.actions')} className="rt-footer p-2.5">
                         <div className="flex items-center gap-1">
@@ -505,7 +506,7 @@ export const CommandsPage: React.FC = () => {
                           {rep.example && <code className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono text-foreground/80 whitespace-nowrap">{rep.example}</code>}
                         </td>
                         <td data-label={t('commands.col_reply')} className="p-2 text-xs text-muted-foreground" colSpan={1}>
-                          <span className="font-mono whitespace-pre-wrap break-words">{rep.override ?? rep.default}</span>
+                          <span className="font-mono whitespace-pre-wrap break-words">{templateSummary(rep.override ?? rep.default)}</span>
                         </td>
                         <td data-label={t('common.actions')} className="p-2">
                           <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => beginEdit({ cmd: c.cmd, reply: rep })}><Pencil className="mr-1 h-3.5 w-3.5" />{t('commands.edit')}</Button>
@@ -551,14 +552,6 @@ const PREVIEW_VALUES: Record<string, string> = {
   roll: '42', rate: '60', level: '成功', outcome: '成功', total: '18', mod: '+3', detail: '1D20=15+3=18',
 };
 
-const sampleReply = (text: string): string => text.replace(/\{([^{}]+)\}/g, (all, raw: string) => {
-  if (PREVIEW_VALUES[raw] != null) return PREVIEW_VALUES[raw];
-  if (raw.includes('|')) return raw.split('|')[0] || all;
-  if (raw.startsWith('roll:')) return '42';
-  if (raw.startsWith('draw:')) return '示例牌面';
-  return all;
-});
-
 const inlineMarkdown = (text: string, prefix: string): React.ReactNode[] => {
   const pattern = /(\*\*[^*\n]+\*\*|__[^_\n]+__|~~[^~\n]+~~|\*[^*\n]+\*|_[^_\n]+_|`[^`\n]+`|\[[^\]\n]+\]\([^)\n]+\))/g;
   const out: React.ReactNode[] = [];
@@ -600,7 +593,17 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
   = ({ lang, cmd, description, reply, personaId, onClose, onSaved }) => {
   const { t } = useTranslation();
   const toast = useToast();
-  const [text, setText] = useState(reply.override ?? reply.default);
+  const [variants, setVariants] = useState(() => readTemplateVariants(reply.override ?? reply.default));
+  const [activeIndex, setActiveIndex] = useState(0);
+  const text = variants[activeIndex]?.text ?? '';
+  const setText = (next: string | ((current: string) => string)) =>
+    setVariants(current => current.map((item, i) => i === activeIndex
+      ? { ...item, text: typeof next === 'function' ? next(item.text) : next } : item));
+  const storedValue = writeTemplateVariants(variants);
+  const [resample, setResample] = useState(0);
+  const [saving, setSaving] = useState(false);
+  const [supportsWeighted, setSupportsWeighted] = useState(false);
+  const [backendTooOld, setBackendTooOld] = useState(false);
   const [format, setFormat] = useState<ReplyFormat>(reply.override == null ? reply.defaultFormat : reply.format);
   const [preview, setPreview] = useState<ReplyPreview | null>(null);
   const [previewPlatform, setPreviewPlatform] = useState<PreviewPlatform>('qq_group');
@@ -615,26 +618,29 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
     const controller = new AbortController();
     setPreviewLoading(true); setPreviewFailed(false);
     const timer = window.setTimeout(async () => {
-      const sample = sampleReply(text);
       try {
         const r = await fetch('/api/templates/preview', { method: 'POST', signal: controller.signal,
-          headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: sample, format,
+          headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ variants, args: PREVIEW_VALUES, format,
             platform: previewPlatform, style: previewStyle, forcePlain: previewPlain }) });
         const j = await r.json();
         if (controller.signal.aborted) return;
+        if (j.code === 0 && j.data?.templateVersion !== 1) {
+          setBackendTooOld(true); throw new Error('Weighted template backend required');
+        }
         const next = j.code === 0 ? readReplyPreview(j.data) : null;
         if (!r.ok || !next) throw new Error('Preview unavailable');
+        setSupportsWeighted(true); setBackendTooOld(false);
         setPreview(next);
       } catch (e) { if ((e as Error).name !== 'AbortError' && !controller.signal.aborted) { setPreview(null); setPreviewFailed(true); } }
       finally { if (!controller.signal.aborted) setPreviewLoading(false); }
     }, 160);
     return () => { window.clearTimeout(timer); controller.abort(); };
-  }, [text, format, previewPlatform, previewStyle, previewPlain]);
+  }, [storedValue, format, previewPlatform, previewStyle, previewPlain, resample]);
 
   // Command-specific vars (chips) vs global vars (behind the button).
   const exclusiveVars = reply.vars.filter((v) => !GLOBAL_SET.has(v.name));
   const allowed = new Set([...reply.vars.map((v) => v.name), ...GLOBAL_VARS]);
-  const used = extractVars(text);
+  const used = extractVars(variants.map(item => item.text).join('\n'));
   const unknown = [...new Set(used.filter((u) => !allowed.has(u) && !u.includes('|') && !u.includes(':')))];
   const missing = exclusiveVars.map((v) => v.name).filter((n) => !used.includes(n));
   const styledVars = [...new Set(used.filter((name) => allowed.has(name)))];
@@ -666,20 +672,30 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
   };
 
   const save = async () => {
+    if (saving) return;
+    if (!supportsWeighted) { toast({ title: t('weighted.backend_required'), variant: 'destructive' }); return; }
+    if (!validWeights(variants)) { toast({ title: t('weighted.invalid_weights'), variant: 'destructive' }); return; }
+    if (variants.reduce((bytes, item) => bytes + new TextEncoder().encode(item.text).length, 0) > 65536) {
+      toast({ title: t('weighted.text_limit'), variant: 'destructive' }); return;
+    }
     if (unknown.length) { toast({ title: t('commands.err_unknown', { vars: unknown.map((u) => `{${u}}`).join(' ') }), variant: 'destructive' }); return; }
+    setSaving(true);
     try {
       const r = personaId > 0
         ? await fetch(`/api/personas/${personaId}/entries`, { method: 'PUT', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ locale: lang, key: reply.key, value: text, format }) })
+            body: JSON.stringify({ locale: lang, key: reply.key, value: storedValue,
+              ...(variants.length > 1 ? { variants } : {}), format }) })
         : await fetch('/api/templates', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ locale: lang, key: reply.key, value: text, format }) });
+            body: JSON.stringify({ locale: lang, key: reply.key, value: storedValue,
+              ...(variants.length > 1 ? { variants } : {}), format }) });
       const j = await r.json();
       if (j.code !== 0) throw new Error(j.message);
-      toast({ title: t('common.save_success') }); onSaved(reply.key, text, format);
+      toast({ title: t('common.save_success') }); onSaved(reply.key, storedValue, format);
     } catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
+    finally { setSaving(false); }
   };
   const reset = async () => {
-    if (reply.override == null) { setText(reply.default); setFormat(reply.defaultFormat); return; }
+    if (reply.override == null) { setVariants(readTemplateVariants(reply.default)); setActiveIndex(0); setFormat(reply.defaultFormat); return; }
     try {
       const r = personaId > 0
         ? await fetch(`/api/personas/${personaId}/entries`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' },
@@ -701,12 +717,15 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
         <div className="grid min-h-0 flex-1 items-start gap-5 overflow-y-auto pr-1 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
         <div className="min-w-0 space-y-4">
           <div className="flex items-center justify-between gap-2"><span className="text-sm font-medium">{t('commands.edit')}</span><span className="text-xs text-muted-foreground">{t('commands.format_' + format)}</span></div>
-          <Textarea ref={taRef} aria-label={t('commands.edit')} rows={8} className="min-h-48 font-mono text-sm" value={text} onChange={(e) => setText(e.target.value)} />
+          <WeightedTemplateEditor items={variants} onChange={setVariants} activeIndex={activeIndex}
+            onActiveIndex={setActiveIndex} textareaRef={taRef} />
           {unknown.length > 0 && <p role="alert" className="text-xs text-destructive">{t('commands.err_unknown', { vars: unknown.map((u) => `{${u}}`).join(' ') })}</p>}
           {missing.length > 0 && unknown.length === 0 && <p className="text-xs text-amber-600">{t('commands.warn_missing', { vars: missing.map((m) => `{${m}}`).join(' ') })}</p>}
           <Tabs defaultValue="display" className="rounded-lg border bg-muted/20 p-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <span className="text-sm font-medium">{t('commands.preview_title')}</span>
+              <Button type="button" size="sm" variant="outline" disabled={!validWeights(variants)}
+                onClick={() => setResample(current => current + 1)}><RefreshCw className="mr-1 h-3.5 w-3.5" />{t('weighted.resample')}</Button>
               <TabsList aria-label={t('commands.preview_title')}>
                 <TabsTrigger value="display" className="px-2.5 text-xs">{t('commands.preview_display')}</TabsTrigger>
                 <TabsTrigger value="payload" className="px-2.5 text-xs">{t('commands.preview_payload')}</TabsTrigger>
@@ -725,7 +744,7 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
             <label className="mt-2 flex items-center gap-2 text-xs"><Switch checked={previewPlain} onCheckedChange={setPreviewPlain} />{t('commands.preview_force_plain')}</label>
             <p className="mt-2 text-[11px] text-muted-foreground">{t('commands.preview_hint')}</p>
             {previewLoading ? <p role="status" className="mt-3 text-xs text-muted-foreground">{t('common.loading')}</p>
-              : previewFailed ? <p role="alert" className="mt-3 text-xs text-destructive">{t('commands.preview_unavailable')}</p>
+              : previewFailed ? <p role="alert" className="mt-3 text-xs text-destructive">{t(backendTooOld ? 'weighted.backend_required' : 'commands.preview_unavailable')}</p>
               : preview && <>
                 <TabsContent value="display" className="min-h-24 break-words rounded-md bg-background p-3 text-sm">
                   <MarkdownExample text={preview.text} enabled={preview.markdown} />
@@ -809,9 +828,9 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
         </AdvancedOptions>
         </div>
         <DialogFooter className="shrink-0 gap-2 border-t pt-4 sm:gap-2">
-          <Button variant="outline" disabled={text === reply.default && reply.override == null} onClick={reset}><RotateCcw className="mr-2 h-4 w-4" />{t('commands.reset')}</Button>
+          <Button variant="outline" disabled={saving || (storedValue === reply.default && reply.override == null)} onClick={reset}><RotateCcw className="mr-2 h-4 w-4" />{t('commands.reset')}</Button>
           <Button variant="ghost" onClick={onClose}>{t('common.cancel')}</Button>
-          <Button disabled={unknown.length > 0} onClick={save}><Save className="mr-2 h-4 w-4" />{t('common.save')}</Button>
+          <Button disabled={saving || !supportsWeighted || unknown.length > 0 || !validWeights(variants)} onClick={save}><Save className="mr-2 h-4 w-4" />{t('common.save')}</Button>
         </DialogFooter>
       </DialogContent>
 

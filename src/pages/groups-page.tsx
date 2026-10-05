@@ -716,11 +716,13 @@ const FunctionTab: React.FC<any> = ({ group, base, scopedBody, onChanged, onBack
   const personaSelection = !hasPersonaOverride
     ? '__inherit__'
     : personaInfo && personaInfo.activeId > 0 ? String(personaInfo.activeId) : '__off__';
-  const effectivePersona = personaInfo && personaInfo.activeId > 0
+  const usesGlobalPool = !hasPersonaOverride && personaInfo?.adapterDefaultId == null && personaInfo?.pool?.some(item => item.weight > 0);
+  const effectivePersona = usesGlobalPool ? t('weighted.pool_name') : personaInfo && personaInfo.activeId > 0
     ? (personas.find((p) => p.id === personaInfo.activeId)?.name || personaInfo.name || t('persona.global_unknown_name'))
     : t('persona.global_base_name');
   const inheritedPersonaId = personaInfo?.adapterDefaultId ?? personaInfo?.globalId ?? 0;
-  const globalPersona = inheritedPersonaId > 0
+  const inheritedPool = personaInfo?.adapterDefaultId == null && personaInfo?.pool?.some(item => item.weight > 0);
+  const globalPersona = inheritedPool ? t('weighted.pool_name') : inheritedPersonaId > 0
     ? (personas.find((p) => p.id === inheritedPersonaId)?.name || t('persona.global_unknown_name'))
     : t('persona.global_base_name');
 
