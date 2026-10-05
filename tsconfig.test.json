@@ -11,6 +11,7 @@
     "tsBuildInfoFile": ".test-dist/tsconfig.test.tsbuildinfo"
   },
   "include": [
+    "src/lib/tray-settings.ts",
     "src/i18n/ui-refresh.ts",
     "src/lib/persona-policy.ts",
     "src/lib/command-text-catalog.ts",

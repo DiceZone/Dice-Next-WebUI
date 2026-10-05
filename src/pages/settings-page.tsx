@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import { IdentityEmailSettings } from '@/components/identity-email-settings';
+import { TraySettingsCard } from '@/components/tray-settings';
 import { PlatformIcon, platformLabel } from '@/components/platform-icon';
 import { SettingsWorkspace, SettingsPanel } from '@/components/settings-workspace';
 
@@ -1495,6 +1496,7 @@ export const SettingsPage: React.FC = () => {
 
       <SectionHeading>{t('settings.sec_maintenance')}</SectionHeading>
 
+      <TraySettingsCard />
       <SettingGroup searchId="settings-maintenance">
         <SettingSwitch searchId="settings-autostart" title={t('settings.autostart')} desc={t('settings.autostart_desc')} checked={autostart} onToggle={toggleAutostart} />
       </SettingGroup>

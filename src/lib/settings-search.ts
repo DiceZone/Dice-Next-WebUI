@@ -316,6 +316,7 @@ export const SETTINGS_SEARCH_ENTRIES: SettingsSearchEntry[] = [
   e('settings-cloudban', '/cloud-services', 'cloud.title', 'banlist.cloudban_title', '云黑名单 雲黑名單 cloudban 同步 sync 危险 危險 等级 等級 周期 上报 上報 token', 'banlist.cloudban_desc', false),
   e('settings-cloud-cards', '/cloud-services', 'cloud.title', 'cloud.cards_title', '云人物卡 雲人物卡 云卡 雲卡 cloud character card bdc 授权 授權 同步 sync 拉取 pull 上传 上傳 push', 'cloud.cards_desc', false),
   e('settings-autostart', '/settings', 'nav.settings', 'settings.autostart', '开机启动 開機啟動 auto start startup boot windows', 'settings.autostart_desc'),
+  e('settings-tray', '/settings', 'nav.settings', 'settings.tray_title', '托盘 托盤 悬停 气泡 文字 端口 tray tooltip windows port', 'settings.tray_desc'),
   e('settings-censor', '/settings', 'nav.settings', 'settings.censor_title', '敏感词 敏感詞 违禁词 違禁詞 censor filter keyword block 拦截 攔截', 'settings.censor_desc', true),
 
   e('webui-api-key', '/webui-settings', 'nav.webui', 'settings.api_key_title', 'api key token access secret 接口 密钥 密鑰', 'settings.api_key_desc'),
