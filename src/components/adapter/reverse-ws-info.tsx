@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { FeatureHelp } from '@/components/ui/feature-help';
 import { Button } from '@/components/ui/button';
 import { X, Copy, Check } from 'lucide-react';
 
@@ -53,10 +54,11 @@ export const ReverseWsInfo: React.FC<ReverseWsInfoProps> = ({ open, onClose, por
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
       <div className="bg-background rounded-lg shadow-xl w-[90vw] max-w-lg p-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="font-semibold text-lg">{t('adapters.reverse_title')}</h2>
+          <h2 className="flex items-center gap-1.5 font-semibold text-lg">{t('adapters.reverse_title')}
+            <FeatureHelp title={t('adapters.reverse_title')} description={<><p>{t('adapters.reverse_desc')}</p><p>{t('adapters.reverse_firewall_note')}</p></>} />
+          </h2>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="h-4 w-4" /></Button>
         </div>
-        <p className="text-sm text-muted-foreground mb-4">{t('adapters.reverse_desc')}</p>
         <div className="space-y-3">
           {[
             { label: t('adapters.reverse_local'), addr: local },

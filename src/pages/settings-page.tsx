@@ -7,6 +7,8 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { FeatureHelp } from '@/components/ui/feature-help';
+import { HelpLabel } from '@/components/ui/help-label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -177,8 +179,10 @@ const ImageSendCard: React.FC<ScopedCardProps> = (scopeProps) => {
   return (
     <Card data-setting-anchor="settings-image-send">
       <CardHeader>
-        <CardTitle className="text-base flex items-center gap-2"><Image className="h-4 w-4" />{t('settings.imgsend_title')}</CardTitle>
-        <CardDescription>{t('settings.imgsend_desc')}</CardDescription>
+        <CardTitle className="text-base flex items-center gap-2">
+          <Image className="h-4 w-4" />{t('settings.imgsend_title')}
+          <FeatureHelp title={t('settings.imgsend_title')} description={<p>{t('settings.imgsend_desc')}</p>} />
+        </CardTitle>
       </CardHeader>
       {status}
       <fieldset disabled={!ready || saving} className="min-w-0">
@@ -256,7 +260,21 @@ const MessageFormatCard: React.FC<ScopedCardProps> = (scopeProps) => {
   return (
     <Card data-setting-anchor="settings-message-format">
       <CardHeader>
-        <CardTitle className="text-base flex items-center gap-2"><Type className="h-4 w-4" />{t('settings.message_format_title')}</CardTitle>
+        <CardTitle className="text-base flex items-center gap-2">
+          <Type className="h-4 w-4" />{t('settings.message_format_title')}
+          <FeatureHelp title={t('settings.message_format_title')} description={<>
+            <p>{t(scopeProps.scope === 'global' ? 'settings.message_format_desc_global' : 'settings.message_format_desc_scoped')}</p>
+            <dl className="space-y-2">
+              {(['traditional', 'standard', 'visual'] as const).map((style) => (
+                <div key={style}>
+                  <dt className="font-medium">{t(`settings.message_style_${style}`)}</dt>
+                  <dd>{t(`settings.message_style_${style}_desc`)}</dd>
+                </div>
+              ))}
+            </dl>
+            <p>{t('settings.message_style_fallback')}</p>
+          </>} />
+        </CardTitle>
         <CardDescription>
           {t(scopeProps.scope === 'global' ? 'settings.message_format_desc_global' : 'settings.message_format_desc_scoped')}
         </CardDescription>
@@ -330,8 +348,14 @@ const ImageHostCard: React.FC<ScopedCardProps> = (scopeProps) => {
   return (
     <Card data-setting-anchor="settings-image-host">
       <CardHeader>
-        <CardTitle className="text-base flex items-center gap-2"><Image className="h-4 w-4" />{t('settings.imghost_title')}</CardTitle>
-        <CardDescription>{t('settings.imghost_desc')}</CardDescription>
+        <CardTitle className="text-base flex items-center gap-2">
+          <Image className="h-4 w-4" />{t('settings.imghost_title')}
+          <FeatureHelp title={t('settings.imghost_title')} description={<>
+            <p>{t('settings.imghost_desc')}</p>
+            <p>{t('settings.imghost_generic_hint')}</p>
+            <p>{t('settings.imghost_local_hint')}</p>
+          </>} />
+        </CardTitle>
       </CardHeader>
       {status}
       <fieldset disabled={!ready || saving} className="min-w-0">
@@ -356,7 +380,6 @@ const ImageHostCard: React.FC<ScopedCardProps> = (scopeProps) => {
             </div>
             <div><Label className="text-xs">{t('settings.imghost_headers')}</Label>
               <Textarea className="text-xs font-mono h-20" value={headersText} onChange={(e) => setHeadersText(e.target.value)} placeholder="Authorization: Bearer xxxx" /></div>
-            <p className="text-[11px] text-muted-foreground">{t('settings.imghost_generic_hint')}</p>
           </div>
         )}
         {mode === 'local' && (
@@ -395,22 +418,26 @@ const SettingGroup: React.FC<{ title?: string; icon?: LucideIcon; children: Reac
 );
 
 // A switch row that lives inside a SettingGroup.
-const SettingSwitch: React.FC<{ title: string; desc: string; checked: boolean; onToggle: (v: boolean) => void; searchId?: string }> = ({ title, desc, checked, onToggle, searchId }) => (
+const SettingSwitch: React.FC<{ title: string; desc: string; checked: boolean; onToggle: (v: boolean) => void; searchId?: string; help?: boolean; note?: string }> = ({ title, desc, checked, onToggle, searchId, help = true, note }) => (
   <div className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0" data-setting-anchor={searchId}>
     <div className="min-w-0 flex-1 pr-2">
-      <Label className="text-sm font-medium">{title}</Label>
-      <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
+      <div className="flex items-center gap-1.5">
+        <Label className="text-sm font-medium">{title}</Label>
+        {help && <FeatureHelp title={title} description={<p>{desc}</p>} />}
+      </div>
+      {!help && <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>}
+      {note && <p className="text-xs text-muted-foreground mt-0.5">{note}</p>}
     </div>
     <Switch aria-label={title} className="shrink-0" checked={checked} onCheckedChange={onToggle} />
   </div>
 );
 
 // A row with arbitrary controls (input + save button) inside a SettingGroup.
-const SettingRow: React.FC<{ title: string; desc: string; children: React.ReactNode; extra?: React.ReactNode; searchId?: string }> = ({ title, desc, children, extra, searchId }) => (
+const SettingRow: React.FC<{ title: string; desc: string; children: React.ReactNode; extra?: React.ReactNode; searchId?: string; note?: string }> = ({ title, desc, children, extra, searchId, note }) => (
   <div className="flex flex-col items-start justify-between gap-3 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:gap-6" data-setting-anchor={searchId}>
     <div className="min-w-0 flex-1 pr-2">
-      <Label className="text-sm font-medium">{title}</Label>
-      <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
+      <HelpLabel title={title} description={<p>{desc}</p>} labelClassName="text-sm font-medium" />
+      {note && <p className="text-xs text-muted-foreground mt-0.5">{note}</p>}
       {extra}
     </div>
     <div className="flex shrink-0 flex-wrap items-center gap-2">{children}</div>
@@ -474,8 +501,9 @@ const SensitiveWordCard: React.FC = () => {
       <CardHeader>
         <div className="flex items-center justify-between gap-4">
           <div>
-            <CardTitle className="text-base flex items-center gap-2"><ShieldCheck className="h-4 w-4" />{t('settings.censor_title')}</CardTitle>
-            <CardDescription>{t('settings.censor_desc')}</CardDescription>
+            <CardTitle className="text-base flex items-center gap-2"><ShieldCheck className="h-4 w-4" />{t('settings.censor_title')}
+              <FeatureHelp title={t('settings.censor_title')} description={<><p>{t('settings.censor_desc')}</p><p>{t('settings.censor_behavior')}</p></>} />
+            </CardTitle>
           </div>
           <Switch checked={config.enabled} disabled={!loaded || saving}
             onCheckedChange={(enabled) => setConfig((current) => ({ ...current, enabled }))} />
@@ -1030,8 +1058,9 @@ export const SettingsPage: React.FC = () => {
           {group.opts.map((option) => (
             <div key={option.key} className="flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <Label htmlFor={`g-${option.key}`} className="font-normal">{option.label}</Label>
-                {option.hint && <p className="text-[11px] text-muted-foreground">{option.hint}</p>}
+                {option.hint ? <HelpLabel htmlFor={`g-${option.key}`} title={option.label} description={<p>{option.hint}</p>} labelClassName="font-normal" />
+                  : <Label htmlFor={`g-${option.key}`} className="font-normal">{option.label}</Label>}
+                {option.hint && option.key !== 'deck_hide_underscore' && <p className="text-[11px] text-muted-foreground">{option.hint}</p>}
               </div>
               {option.type === 'bool' ? (
                 <Switch id={`g-${option.key}`} checked={!!globals[option.key]} onCheckedChange={(value) => void saveGlobal(option.key, value)} />
@@ -1051,7 +1080,9 @@ export const SettingsPage: React.FC = () => {
   const scopeSelector = (
       <Card className="border-primary/15 bg-primary/[0.025] shadow-none" data-setting-anchor="settings-scope">
         <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2"><Layers3 className="h-4 w-4" />{t('settings.scope_title')}</CardTitle>
+          <CardTitle className="text-base flex items-center gap-2"><Layers3 className="h-4 w-4" />{t('settings.scope_title')}
+            <FeatureHelp title={t('settings.scope_title')} description={<p>{t('settings.scope_desc')}</p>} />
+          </CardTitle>
           <CardDescription>{t('settings.scope_desc')}</CardDescription>
         </CardHeader>
         <CardContent className="grid items-center gap-3 sm:grid-cols-2">
@@ -1105,7 +1136,7 @@ export const SettingsPage: React.FC = () => {
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 pb-6">
-      <PageHeader icon={SlidersHorizontal} title={t('settings.title')} description={t('settings.subtitle')} />
+      <PageHeader icon={SlidersHorizontal} title={t('settings.title')} description={t('settings.subtitle')} help={t('page_help.settings')} />
       <SettingsWorkspace scope={scopeSelector}>
       {!scopedReady && <div role="status" className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
         {scopeError || t('ui_audit.wait_for_data')}
@@ -1117,7 +1148,9 @@ export const SettingsPage: React.FC = () => {
       {/* ── Master ── */}
       <Card data-setting-anchor="settings-master">
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2"><Crown className="h-4 w-4" />{t('settings.master_title')}</CardTitle>
+          <CardTitle className="text-base flex items-center gap-2"><Crown className="h-4 w-4" />{t('settings.master_title')}
+            <FeatureHelp title={t('settings.master_title')} description={<><p>{t('settings.master_desc')}</p><p>{t('settings.master_openid_hint')}</p></>} />
+          </CardTitle>
           <CardDescription>{t('settings.master_desc')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -1163,12 +1196,9 @@ export const SettingsPage: React.FC = () => {
             <Input className="col-span-2 min-w-0 xl:col-span-1" placeholder={mPlatform === 'qq_official' ? t('settings.master_id_placeholder_qq') : t('settings.master_id_placeholder')} value={mId} onChange={(e) => setMId(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') void addMaster(); }} />
             <Button className="col-span-2 xl:col-span-1" onClick={addMaster}><Plus className="mr-2 h-4 w-4" />{t('settings.master_add')}</Button>
           </div>
-          {mPlatform === 'qq_official' && (
-            <p className="text-xs text-muted-foreground">{t('settings.master_openid_hint')}</p>
-          )}
           <div className="flex items-center justify-between rounded border p-2.5">
             <div className="space-y-0.5">
-              <Label className="text-sm font-medium">{t('settings.master_inherit_title')}</Label>
+              <HelpLabel title={t('settings.master_inherit_title')} description={<p>{t('settings.master_inherit_desc')}</p>} labelClassName="text-sm font-medium" />
               <p className="text-xs text-muted-foreground">{t('settings.master_inherit_desc')}</p>
             </div>
             <Switch checked={masterInherit} onCheckedChange={(v) => void saveMasterInherit(v)} />
@@ -1179,8 +1209,9 @@ export const SettingsPage: React.FC = () => {
       {/* ── 指令前缀 ── */}
       <Card data-setting-anchor="settings-prefix">
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2"><Type className="h-4 w-4" />{t('settings.prefix_title')}</CardTitle>
-          <CardDescription>{t('settings.prefix_desc')}</CardDescription>
+          <CardTitle className="text-base flex items-center gap-2"><Type className="h-4 w-4" />{t('settings.prefix_title')}
+            <FeatureHelp title={t('settings.prefix_title')} description={<><p>{t('settings.prefix_desc')}</p><p>{t('settings.prefix_hint')}</p></>} />
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex flex-wrap gap-2">
@@ -1202,8 +1233,9 @@ export const SettingsPage: React.FC = () => {
       {/* ── 时区 ── */}
       <Card data-setting-anchor="settings-timezone">
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2"><Clock className="h-4 w-4" />{t('settings.timezone_title')}</CardTitle>
-          <CardDescription>{t('settings.timezone_desc')}</CardDescription>
+          <CardTitle className="text-base flex items-center gap-2"><Clock className="h-4 w-4" />{t('settings.timezone_title')}
+            <FeatureHelp title={t('settings.timezone_title')} description={<><p>{t('settings.timezone_desc')}</p><p>{t('settings.timezone_hint')}</p></>} />
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex items-center gap-2">
@@ -1220,15 +1252,20 @@ export const SettingsPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      <fieldset disabled={!scopedReady} className="min-w-0 disabled:opacity-60">
       <Card data-setting-anchor="settings-expression">
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <CardTitle className="text-base flex items-center gap-2"><Layers3 className="h-4 w-4" />{t('settings.expression_title')}</CardTitle>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Layers3 className="h-4 w-4" />{t('settings.expression_title')}
+              <FeatureHelp title={t('settings.expression_title')} description={<>
+                <p>{t('settings.expression_desc')}</p>
+                <p>{t('settings.expression_order_hint')}</p>
+              </>} />
+            </CardTitle>
             <Badge variant={hasExpressionOverride ? 'default' : 'secondary'}>{expressionSourceLabel()}</Badge>
           </div>
-          <CardDescription>{t('settings.expression_desc')}</CardDescription>
         </CardHeader>
+        <fieldset disabled={!scopedReady} className="min-w-0 disabled:opacity-60">
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label>{t('settings.expression_mode')}</Label>
@@ -1257,10 +1294,9 @@ export const SettingsPage: React.FC = () => {
                       onCheckedChange={(checked) => toggleExpressionEngine(id, checked)} />
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-sm font-medium">{t(`settings.expression_engine_${id}`)}</span>
+                        <HelpLabel title={t(`settings.expression_engine_${id}`)} description={<p>{t(`settings.expression_engine_${id}_desc`)}</p>} labelClassName="text-sm font-medium" />
                         {!available && <Badge variant="secondary">{t('settings.expression_unavailable')}</Badge>}
                       </div>
-                      <p className="text-xs text-muted-foreground">{t(`settings.expression_engine_${id}_desc`)}</p>
                     </div>
                     {enabled && (
                       <div className="flex items-center gap-1">
@@ -1278,7 +1314,6 @@ export const SettingsPage: React.FC = () => {
                   </div>
                 );
               })}
-              <p className="text-xs text-muted-foreground">{t('settings.expression_order_hint')}</p>
             </div>
           ) : (
             <div className="flex flex-wrap items-center gap-2 rounded-lg bg-muted/60 px-3 py-2 text-sm">
@@ -1302,8 +1337,8 @@ export const SettingsPage: React.FC = () => {
               disabled={savingExpression || (settingsScope !== 'global' && !settingsTarget)}>{t('common.save')}</Button>
           </div>
         </CardContent>
+        </fieldset>
       </Card>
-      </fieldset>
 
       </SettingsPanel>
       <SettingsPanel value="groups">
@@ -1311,8 +1346,9 @@ export const SettingsPage: React.FC = () => {
       <fieldset disabled={!scopedReady} className="min-w-0 disabled:opacity-60">
       <Card data-setting-anchor="settings-approval">
         <CardHeader>
-          <div className="flex flex-wrap items-center justify-between gap-2"><CardTitle className="text-base flex items-center gap-2"><ShieldCheck className="h-4 w-4" />{t('settings.approval_title')}</CardTitle><Badge variant={hasScopeOverride(APPROVAL_SCOPE_KEYS) ? 'default' : 'secondary'}>{scopeSourceLabel(APPROVAL_SCOPE_KEYS)}</Badge></div>
-          <CardDescription>{t('settings.approval_desc')}</CardDescription>
+          <div className="flex flex-wrap items-center justify-between gap-2"><CardTitle className="text-base flex items-center gap-2"><ShieldCheck className="h-4 w-4" />{t('settings.approval_title')}
+            <FeatureHelp title={t('settings.approval_title')} description={<p>{t('settings.approval_desc')}</p>} />
+          </CardTitle><Badge variant={hasScopeOverride(APPROVAL_SCOPE_KEYS) ? 'default' : 'secondary'}>{scopeSourceLabel(APPROVAL_SCOPE_KEYS)}</Badge></div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
@@ -1349,11 +1385,11 @@ export const SettingsPage: React.FC = () => {
             </div>
             <div className="flex items-center gap-2 pt-1">
               <Switch id="grn" checked={groupRejectNonfriend} onCheckedChange={setGroupRejectNonfriend} />
-              <Label htmlFor="grn" className="text-sm font-normal">{t('settings.approval_group_reject_nonfriend')}</Label>
+              <HelpLabel htmlFor="grn" title={t('settings.approval_group_reject_nonfriend')} description={<p>{t('settings.approval_group_reject_nonfriend_hint')}</p>} labelClassName="text-sm font-normal" />
             </div>
             {groupRejectNonfriend && <p className="text-xs text-muted-foreground">{t('settings.approval_group_reject_nonfriend_hint')}</p>}
             <div className="space-y-1 pt-1">
-              <Label className="text-sm font-normal">{t('settings.approval_group_name_keyword')}</Label>
+              <HelpLabel title={t('settings.approval_group_name_keyword')} description={<p>{t('settings.approval_group_name_keyword_hint')}</p>} labelClassName="text-sm font-normal" />
               <Input value={groupNameKeywordLeave} onChange={(e) => setGroupNameKeywordLeave(e.target.value)}
                 placeholder={t('settings.approval_group_name_keyword_ph')} />
               <p className="text-xs text-muted-foreground">{t('settings.approval_group_name_keyword_hint')}</p>
@@ -1379,8 +1415,9 @@ export const SettingsPage: React.FC = () => {
       <fieldset disabled={!scopedReady} className="min-w-0 disabled:opacity-60">
       <Card data-setting-anchor="settings-welcome">
         <CardHeader>
-          <div className="flex flex-wrap items-center justify-between gap-2"><CardTitle className="text-base flex items-center gap-2"><Clock className="h-4 w-4" />{t('settings.welcome_min_title')}</CardTitle><Badge variant={hasScopeOverride(['welcome_min_delay', 'welcome_min_cooldown']) ? 'default' : 'secondary'}>{scopeSourceLabel(['welcome_min_delay', 'welcome_min_cooldown'])}</Badge></div>
-          <CardDescription>{t('settings.welcome_min_desc')}</CardDescription>
+          <div className="flex flex-wrap items-center justify-between gap-2"><CardTitle className="text-base flex items-center gap-2"><Clock className="h-4 w-4" />{t('settings.welcome_min_title')}
+            <FeatureHelp title={t('settings.welcome_min_title')} description={<p>{t('settings.welcome_min_desc')}</p>} />
+          </CardTitle><Badge variant={hasScopeOverride(['welcome_min_delay', 'welcome_min_cooldown']) ? 'default' : 'secondary'}>{scopeSourceLabel(['welcome_min_delay', 'welcome_min_cooldown'])}</Badge></div>
         </CardHeader>
         <CardContent className="space-y-3">
           <div>
@@ -1413,10 +1450,10 @@ export const SettingsPage: React.FC = () => {
       <SectionHeading>{t('settings.sec_reply')}</SectionHeading>
 
       <SettingGroup searchId="settings-reply">
-        <SettingSwitch searchId="settings-quote-reply" title={t('settings.quote_reply')} desc={t('settings.quote_reply_desc')} checked={quoteReply} onToggle={toggleQuoteReply} />
-        <SettingSwitch searchId="settings-auto-card" title={t('settings.auto_card')} desc={t('settings.auto_card_desc')} checked={autoCard} onToggle={toggleAutoCard} />
-        <SettingSwitch searchId="settings-respond-self" title={t('settings.respond_self')} desc={t('settings.respond_self_desc')} checked={respondSelf} onToggle={toggleRespondSelf} />
-        <SettingSwitch searchId="settings-forward-long" title={t('settings.forward_long')} desc={t('settings.forward_long_desc')} checked={forwardLong} onToggle={toggleForwardLong} />
+        <SettingSwitch help searchId="settings-quote-reply" title={t('settings.quote_reply')} desc={t('settings.quote_reply_desc')} checked={quoteReply} onToggle={toggleQuoteReply} />
+        <SettingSwitch searchId="settings-auto-card" title={t('settings.auto_card')} desc={t('settings.auto_card_desc')} note={t('feature_help.auto_card_scope')} checked={autoCard} onToggle={toggleAutoCard} />
+        <SettingSwitch help searchId="settings-respond-self" title={t('settings.respond_self')} desc={t('settings.respond_self_desc')} checked={respondSelf} onToggle={toggleRespondSelf} />
+        <SettingSwitch searchId="settings-forward-long" title={t('settings.forward_long')} desc={t('settings.forward_long_desc')} note={t('feature_help.forward_scope')} checked={forwardLong} onToggle={toggleForwardLong} />
         <SettingRow searchId="settings-forward-threshold" title={t('settings.forward_threshold')} desc={t('settings.forward_threshold_desc')}>
           <Input type="number" min={1} max={100000} disabled={!forwardLong} className="h-9 w-28 text-sm"
             value={forwardThreshold} onChange={(e) => setForwardThreshold(Number(e.target.value))} />
@@ -1426,6 +1463,7 @@ export const SettingsPage: React.FC = () => {
           searchId="settings-segment"
           title={t('settings.seg_enabled')}
           desc={t('settings.seg_enabled_desc')}
+          note={t('settings.seg_enabled_desc')}
           checked={segEnabled}
           onToggle={async (v) => {
             setSegEnabled(v);
@@ -1433,7 +1471,7 @@ export const SettingsPage: React.FC = () => {
             catch (e) { setSegEnabled(!v); toast({ title: (e as Error).message, variant: 'destructive' }); }
           }}
         />
-        <SettingRow searchId="settings-segment-length" title={t('settings.seg_len')} desc={t('settings.seg_len_desc')}>
+        <SettingRow searchId="settings-segment-length" title={t('settings.seg_len')} desc={t('settings.seg_len_desc')} note={t('feature_help.segment_limits')}>
           <Input type="number" min={100} max={1000} disabled={!segEnabled} className="h-9 w-24 text-sm" value={segLen} onChange={(e) => setSegLen(Number(e.target.value))} />
           <Button size="sm" onClick={saveSegLen} disabled={segSaving || !segEnabled}>{t('common.save')}</Button>
         </SettingRow>
@@ -1455,7 +1493,7 @@ export const SettingsPage: React.FC = () => {
       <SectionHeading>{t('settings.sec_data')}</SectionHeading>
 
       <SettingGroup searchId="settings-data">
-        <SettingSwitch searchId="settings-save-images" title={t('settings.save_images')} desc={t('settings.save_images_desc')} checked={!!globals.save_log_images} onToggle={(value) => void saveGlobal('save_log_images', value)} />
+        <SettingSwitch help searchId="settings-save-images" title={t('settings.save_images')} desc={t('settings.save_images_desc')} checked={!!globals.save_log_images} onToggle={(value) => void saveGlobal('save_log_images', value)} />
         {settingsScope !== 'global' && Object.prototype.hasOwnProperty.call(globalOverrides, 'save_log_images') && <div className="flex justify-end py-3"><Button size="sm" variant="outline" onClick={() => void resetGlobalScope(['save_log_images'])}><RotateCcw className="mr-1.5 h-3.5 w-3.5" />{t('settings.scope_reset')}</Button></div>}
       </SettingGroup>
 
@@ -1479,13 +1517,15 @@ export const SettingsPage: React.FC = () => {
       {/* ── JS 插件网络访问（T8，默认放行对齐海豹）── */}
       <Card data-setting-anchor="settings-js-fetch">
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2"><Globe className="h-4 w-4" />{t('settings.js_fetch_title')}</CardTitle>
+          <CardTitle className="text-base flex items-center gap-2"><Globe className="h-4 w-4" />{t('settings.js_fetch_title')}
+            <FeatureHelp title={t('settings.js_fetch_title')} description={<><p>{t('settings.js_fetch_desc')}</p><p>{t('settings.js_fetch_strict_desc')}</p></>} />
+          </CardTitle>
           <CardDescription>{t('settings.js_fetch_desc')}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-between rounded border p-2.5">
             <div className="space-y-0.5">
-              <Label className="text-sm font-medium">{t('settings.js_fetch_strict_title')}</Label>
+              <HelpLabel title={t('settings.js_fetch_strict_title')} description={<p>{t('settings.js_fetch_strict_desc')}</p>} labelClassName="text-sm font-medium" />
               <p className="text-xs text-muted-foreground">{t('settings.js_fetch_strict_desc')}</p>
             </div>
             <Switch checked={jsFetchStrict} onCheckedChange={(value) => void toggleJsFetchStrict(value)} />
@@ -1498,19 +1538,20 @@ export const SettingsPage: React.FC = () => {
 
       <TraySettingsCard />
       <SettingGroup searchId="settings-maintenance">
-        <SettingSwitch searchId="settings-autostart" title={t('settings.autostart')} desc={t('settings.autostart_desc')} checked={autostart} onToggle={toggleAutostart} />
+        <SettingSwitch searchId="settings-autostart" title={t('settings.autostart')} desc={t('settings.autostart_desc')} note={t('settings.autostart_desc')} checked={autostart} onToggle={toggleAutostart} />
       </SettingGroup>
       </SettingsPanel>
       <SettingsPanel value="security">
       <SectionHeading>{t('settings.sec_security')}</SectionHeading>
       <Card data-setting-anchor="settings-plugin-verify">
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2"><ShieldCheck className="h-4 w-4" />{t('settings.plugin_verify_title')}</CardTitle>
+          <CardTitle className="text-base flex items-center gap-2"><ShieldCheck className="h-4 w-4" />{t('settings.plugin_verify_title')}
+            <FeatureHelp title={t('settings.plugin_verify_title')} description={<><p>{t('settings.plugin_verify_desc')}</p><p>{t('settings.plugin_verify_hint')}</p></>} />
+          </CardTitle>
           <CardDescription>{t('settings.plugin_verify_desc')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <Textarea value={pluginKey} onChange={(e) => setPluginKey(e.target.value)} rows={4} placeholder={t('settings.plugin_verify_placeholder')} />
-          <p className="text-xs text-muted-foreground">{t('settings.plugin_verify_hint')}</p>
           <div className="flex justify-end"><Button size="sm" onClick={() => void savePluginVerify()}>{t('common.save')}</Button></div>
         </CardContent>
       </Card>
@@ -1550,8 +1591,10 @@ const ChatRetentionCard: React.FC<ScopedCardProps> = (scopeProps) => {
   return (
     <Card data-setting-anchor="settings-chat-retention">
       <CardHeader>
-        <CardTitle className="text-base">{t('chatcfg.title')}</CardTitle>
-        <CardDescription>{t('chatcfg.desc')}</CardDescription>
+        <CardTitle className="text-base flex items-center gap-1.5">{t('chatcfg.title')}
+          <FeatureHelp title={t('chatcfg.title')} description={<><p>{t('chatcfg.desc')}</p><p>{t('chatcfg.hint')}</p></>} />
+        </CardTitle>
+        <CardDescription>{t('feature_help.chat_retention_note')}</CardDescription>
       </CardHeader>
       {status}
       <fieldset disabled={!ready || saving} className="min-w-0">
@@ -1563,7 +1606,6 @@ const ChatRetentionCard: React.FC<ScopedCardProps> = (scopeProps) => {
         </div>
         {scopeProps.overridden && <Button size="sm" variant="outline" onClick={scopeProps.onReset}><RotateCcw className="mr-1.5 h-3.5 w-3.5" />{t('settings.scope_reset')}</Button>}
         <Button size="sm" onClick={save} disabled={saving || scopeUnavailable(scopeProps)}>{t('common.save')}</Button>
-        <p className="text-xs text-muted-foreground pb-2">{t('chatcfg.hint')}</p>
       </CardContent>
       </fieldset>
     </Card>
@@ -1602,7 +1644,9 @@ const FriendCleanCard: React.FC = () => {
   return (
     <Card data-setting-anchor="settings-friend-clean">
       <CardHeader>
-        <CardTitle className="text-base">{t('friendclean.title')}</CardTitle>
+        <CardTitle className="text-base flex items-center gap-1.5">{t('friendclean.title')}
+          <FeatureHelp title={t('friendclean.title')} description={<><p>{t('friendclean.desc')}</p><p>{t('friendclean.hint')}</p></>} />
+        </CardTitle>
         <CardDescription>{t('friendclean.desc')}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -1660,7 +1704,9 @@ const UserGroupCard: React.FC<ScopedCardProps> = (scopeProps) => {
   return (
     <Card data-setting-anchor="settings-user-group">
       <CardHeader>
-        <CardTitle className="text-base">{t('usergroup.title')}</CardTitle>
+        <CardTitle className="text-base flex items-center gap-1.5">{t('usergroup.title')}
+          <FeatureHelp title={t('usergroup.title')} description={<><p>{t('usergroup.desc')}</p><p>{t('usergroup.hint')}</p></>} />
+        </CardTitle>
         <CardDescription>{t('usergroup.desc')}</CardDescription>
       </CardHeader>
       {status}

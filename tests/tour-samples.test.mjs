@@ -34,6 +34,8 @@ test('samples form one consistent fictional bot, group and player scenario', () 
   assert.equal(samples.statistics.daily_usage.reduce((n, d) => n + d.rolls, 0), samples.statistics.summary.total_rolls);
   assert.equal(samples.statistics.usage_by_hour.reduce((n, d) => n + d.commands, 0), samples.statistics.summary.total_commands);
   assert.equal(samples.statistics.usage_by_hour.reduce((n, d) => n + d.rolls, 0), samples.statistics.summary.total_rolls);
+  assert.equal(samples.statistics.filters.days, 7);
+  assert.equal(samples.statistics.daily_usage.length, 7);
 });
 
 test('tutorial samples contain no working credentials or real messaging IDs', () => {

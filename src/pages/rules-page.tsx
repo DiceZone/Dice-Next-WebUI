@@ -14,6 +14,8 @@ import { Scroll, Upload, Trash2, Pencil, Download, RefreshCw, Dices, Plus, Packa
 import { RuleEditor } from './rule-editor';
 import { PaginationBar } from '@/components/ui/pagination-bar';
 import { PageHeader } from '@/components/ui/page-header';
+import { FeatureHelp } from '@/components/ui/feature-help';
+import { ResponsiveActions } from '@/components/ui/responsive-actions';
 
 // C#27：规则包 bundle（data/rulepacks/<包>/，含 pack.json + rules/helpdoc/lua/js）。
 interface RuleBundle {
@@ -131,12 +133,14 @@ export const RulesPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <PageHeader icon={Scroll} title={t('rules.title')} description={t('rules.desc')}
+      <PageHeader icon={Scroll} title={t('rules.title')} description={t('rules.desc')} help={t('page_help.rules')}
         actions={<div data-tour="rules-actions" className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={loadAll} disabled={loading}><RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />{t('common.refresh')}</Button>
-          <Button variant="outline" onClick={() => zipRef.current?.click()}><Package className="mr-2 h-4 w-4" />{t('rules.import_bundle')}</Button>
+          <ResponsiveActions actions={[
+            { id: 'refresh', label: t('common.refresh'), icon: RefreshCw, iconClassName: loading ? 'animate-spin' : '', disabled: loading, onAction: loadAll },
+            { id: 'bundle', label: t('rules.import_bundle'), icon: Package, onAction: () => zipRef.current?.click() },
+            { id: 'import', label: t('rules.import'), icon: Upload, onAction: () => fileRef.current?.click() },
+          ]} />
           <input ref={zipRef} type="file" accept=".zip" className="hidden" onChange={onUploadZip} />
-          <Button variant="outline" onClick={() => fileRef.current?.click()}><Upload className="mr-2 h-4 w-4" />{t('rules.import')}</Button>
           <input ref={fileRef} type="file" accept=".json,application/json" className="hidden" onChange={onUpload} />
           <Button onClick={() => setEditorFile('')}><Plus className="mr-2 h-4 w-4" />{t('ruleed.new')}</Button>
         </div>} />
@@ -147,7 +151,7 @@ export const RulesPage: React.FC = () => {
           <div className="flex items-center gap-2">
             <Package className="h-4 w-4 text-primary" />
             <h2 className="text-sm font-semibold">{t('rules.bundles_title')}</h2>
-            <span className="text-xs text-muted-foreground">{t('rules.bundles_hint')}</span>
+            <FeatureHelp title={t('rules.bundles_title')} description={<p>{t('rules.bundles_hint')}</p>} />
           </div>
           {bundles.map((b) => (
             <Card key={b.folder} className={b.enabled ? 'overflow-hidden border-primary/30' : 'opacity-60 overflow-hidden'}>

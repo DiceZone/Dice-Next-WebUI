@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { FeatureHelp } from '@/components/ui/feature-help';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PlatformIcon } from '@/components/platform-icon';
 import { cn } from '@/lib/utils';
@@ -117,6 +118,9 @@ export const PlaygroundPage: React.FC = () => {
         <div className="flex flex-col gap-1">
           <label className="text-xs text-muted-foreground">{t('playground.nickname')}</label>
           <Input value={nickname} onChange={(e) => setNickname(e.target.value)} className="h-9 w-32" />
+        </div>
+        <div className="ml-auto self-center">
+          <FeatureHelp title={t('nav.playground')} description={<p className="whitespace-pre-line">{t('page_help.playground')}</p>} />
         </div>
       </div>
 

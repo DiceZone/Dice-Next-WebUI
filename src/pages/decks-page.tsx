@@ -9,6 +9,7 @@ import { PaginationBar } from '@/components/ui/pagination-bar';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/ui/page-header';
+import { FeatureHelp } from '@/components/ui/feature-help';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DeckEditor } from '@/components/deck-editor';
 import { useToast } from '@/hooks/use-toast';
@@ -165,7 +166,7 @@ export const DecksPage: React.FC = () => {
   };
 
   return <div className="mx-auto max-w-7xl space-y-6 pb-6">
-    <PageHeader icon={FolderKanban} title={t('decks.title')} description={t('ui_refresh.library_hint')} actions={<div data-tour="decks-actions" className="flex gap-2">
+    <PageHeader icon={FolderKanban} title={t('decks.title')} description={t('ui_refresh.library_hint')} help={t('page_help.decks')} actions={<div data-tour="decks-actions" className="flex gap-2">
       <Button variant="outline" onClick={() => void reload()} disabled={loading || busy}><RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />{t('common.refresh')}</Button>
       <Button onClick={() => setTab('transfer')}><Upload className="mr-2 h-4 w-4" />{t('decks.upload')}</Button>
     </div>} />
@@ -209,7 +210,7 @@ export const DecksPage: React.FC = () => {
       </TabsContent>
       <TabsContent value="transfer" className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
         <Card className="space-y-5 p-5 sm:p-8">
-          <div><h2 className="text-lg font-semibold">{t('ui_refresh.import_title')}</h2><p className="mt-2 text-sm leading-relaxed text-muted-foreground">{t('ui_refresh.import_note')}</p></div>
+          <h2 className="flex items-center gap-1.5 text-lg font-semibold">{t('ui_refresh.import_title')}<FeatureHelp title={t('ui_refresh.import_title')} description={<p>{t('ui_refresh.import_note')}</p>} /></h2>
           <div className={`flex flex-col items-center gap-4 rounded-xl border-2 border-dashed px-5 py-12 text-center transition-colors ${dragging ? 'border-primary bg-primary/10' : 'border-border bg-muted/20'}`}
             onDragOver={(event) => { event.preventDefault(); if (!busy) setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={(event) => { event.preventDefault(); setDragging(false); if (!busy) void prepareImport(event.dataTransfer.files); }}>
             <span className="rounded-2xl border bg-card p-4 text-primary shadow-sm"><Upload className="h-7 w-7" /></span><p className="max-w-sm text-sm leading-relaxed text-muted-foreground">{t('ui_refresh.import_hint')}</p><Button variant="outline" disabled={busy} onClick={() => fileInput.current?.click()}>{t('ui_refresh.choose_file')}</Button>
@@ -217,7 +218,7 @@ export const DecksPage: React.FC = () => {
           </div>
           {pending && <div className="flex flex-wrap items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 p-4"><FileJson className="h-5 w-5 text-primary" /><div className="min-w-0 flex-1"><p className="break-all text-sm font-medium">{pending.filename}</p><p className="text-xs text-muted-foreground">{t('ui_refresh.import_ready')} · {(new Blob([pending.content]).size / 1024).toFixed(1)} KB</p></div><Button onClick={() => void importFile()} disabled={busy}>{busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{t('ui_refresh.import_confirm')}</Button><Button size="icon" variant="ghost" aria-label={t('common.cancel')} disabled={busy} onClick={() => setPending(null)}><X className="h-4 w-4" /></Button></div>}
         </Card>
-        <Card className="space-y-3 p-6 shadow-none"><Download className="h-5 w-5 text-primary" /><h3 className="font-medium">{t('ui_refresh.export_title')}</h3><p className="text-sm leading-relaxed text-muted-foreground">{t('ui_refresh.export_hint')}</p><Button variant="outline" size="sm" onClick={() => setTab('library')}>{t('ui_refresh.library')}<ArrowUpRight className="ml-2 h-4 w-4" /></Button></Card>
+        <Card className="space-y-3 p-6 shadow-none"><Download className="h-5 w-5 text-primary" /><h3 className="flex items-center gap-1.5 font-medium">{t('ui_refresh.export_title')}<FeatureHelp title={t('ui_refresh.export_title')} description={<p>{t('ui_refresh.export_hint')}</p>} /></h3><Button variant="outline" size="sm" onClick={() => setTab('library')}>{t('ui_refresh.library')}<ArrowUpRight className="ml-2 h-4 w-4" /></Button></Card>
       </TabsContent>
     </Tabs>
     {editing && !isReadonlyDeck(editing) && content && !isReadonlyDeck(content) && deckFileKey(content) === deckFileKey(editing) && <DeckEditor filename={editing.filename} title={editing.title} initialContent={content.content} initialGroup={activeGroup} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); setRevision((n) => n + 1); void fetchDecks(); }} />}

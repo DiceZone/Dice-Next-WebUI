@@ -64,7 +64,7 @@ const daily = [8, 14, 10, 22, 16, 26, 32].map((commands, i) => ({
 const statistics = {
   summary: { total_commands: 128, total_rolls: 95, total_players: 2, active_groups: 2,
     adapter_online: 1, adapter_total: 1, availability_rate: 100, uptime_seconds: 93600 },
-  filters: { days: 30, platform: '', adapter: '', platforms: [platform],
+  filters: { days: 7, platform: '', adapter: '', platforms: [platform],
     adapters: [{ id: adapterId, name: botName, platform, connected: true }], granularity: '1h' as const },
   daily_usage: daily,
   usage_by_hour: Array.from({ length: 24 }, (_, hour) => ({ hour,

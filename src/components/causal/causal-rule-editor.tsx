@@ -12,6 +12,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { FeatureHelp } from '@/components/ui/feature-help';
+import { HelpLabel } from '@/components/ui/help-label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
@@ -185,7 +187,9 @@ export const CausalRuleEditor: React.FC<Props> = ({ rule, open, onOpenChange, on
     <Dialog open={open} onOpenChange={(next) => { if (!savingRef.current) onOpenChange(next); }}>
       <DialogContent className="max-w-2xl max-h-[88vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isNew ? t('causal.ed.new_title') : t('causal.ed.edit_title')}</DialogTitle>
+          <DialogTitle className="flex items-center gap-1.5 pr-6">{isNew ? t('causal.ed.new_title') : t('causal.ed.edit_title')}
+            <FeatureHelp title={isNew ? t('causal.ed.new_title') : t('causal.ed.edit_title')} description={<><p>{t('causal.v2.tpl_desc')}</p><p>{t('causal.v2.reply_hint')}</p><p>{t('causal.v2.counter_hint')}</p><p>{t('causal.v2.cooldown_hint')}</p></>} />
+          </DialogTitle>
         </DialogHeader>
 
         <fieldset disabled={saving} className="min-w-0 space-y-4 py-2">
@@ -193,9 +197,8 @@ export const CausalRuleEditor: React.FC<Props> = ({ rule, open, onOpenChange, on
           {isNew && isBlank && (
             <div className="rounded-lg border border-dashed p-3 space-y-2">
               <div className="flex items-center gap-2 text-sm font-medium">
-                <Sparkles className="h-4 w-4 text-primary" />{t('causal.v2.tpl_title')}
+                <Sparkles className="h-4 w-4 text-primary" /><HelpLabel title={t('causal.v2.tpl_title')} description={<p>{t('causal.v2.tpl_desc')}</p>} labelClassName="text-sm font-medium" />
               </div>
-              <p className="text-xs text-muted-foreground">{t('causal.v2.tpl_desc')}</p>
               <div className="flex flex-wrap gap-2">
                 {templates().map((tp) => (
                   <button key={tp.key} type="button" onClick={() => applyTemplate(tp.rule)}
@@ -257,6 +260,7 @@ export const CausalRuleEditor: React.FC<Props> = ({ rule, open, onOpenChange, on
                         {COND_OPS.map((o) => <SelectItem key={o.id} value={o.id}>{t('causal.v2.op_' + o.id)}</SelectItem>)}
                       </SelectContent>
                     </Select>
+                    <FeatureHelp title={t('causal.v2.op_' + opId)} description={<p>{t('causal.v2.hint_' + opId)}</p>} />
                     {opId !== 'counter' ? (
                       <Input className="flex-1 h-8 text-sm" value={valueOf(cond)}
                         onChange={(e) => patchCond(i, setValue(cond, opId, e.target.value))}
@@ -277,7 +281,6 @@ export const CausalRuleEditor: React.FC<Props> = ({ rule, open, onOpenChange, on
                       <Trash2 className="h-3.5 w-3.5 text-destructive" />
                     </Button>
                   </div>
-                  <p className="pl-12 text-[11px] text-muted-foreground">{t('causal.v2.hint_' + opId)}</p>
                 </div>
               );
             })}
@@ -303,6 +306,7 @@ export const CausalRuleEditor: React.FC<Props> = ({ rule, open, onOpenChange, on
                         {ACT_OPS.map((o) => <SelectItem key={o.id} value={o.id}>{t('causal.v2.act_' + o.id)}</SelectItem>)}
                       </SelectContent>
                     </Select>
+                    <FeatureHelp title={t('causal.v2.act_' + aid)} description={<p>{t(action.type === 'reply' ? 'causal.v2.reply_hint' : action.type === 'api_call' ? 'causal.v2.api_hint' : 'causal.v2.counter_hint')}</p>} />
                     <Button variant="ghost" size="icon" className="h-8 w-8 ml-auto" onClick={() => delAct(i)}>
                       <Trash2 className="h-3.5 w-3.5 text-destructive" />
                     </Button>
@@ -322,7 +326,6 @@ export const CausalRuleEditor: React.FC<Props> = ({ rule, open, onOpenChange, on
                             className="rounded border bg-muted/50 px-1.5 py-0.5 text-[10px] font-mono hover:bg-muted">{v}</button>
                         ))}
                       </div>
-                      <p className="text-[11px] text-muted-foreground">{t('causal.v2.reply_hint')}</p>
                     </div>
                   )}
                   {(action.type === 'counter_add' || action.type === 'counter_set' || action.type === 'counter_reset') && (
@@ -341,7 +344,6 @@ export const CausalRuleEditor: React.FC<Props> = ({ rule, open, onOpenChange, on
                           <Input className="w-20 h-8 text-xs" type="number" value={action.counterDelta || 0} onChange={(e) => patchAct(i, { counterDelta: Number(e.target.value) })} placeholder={t('causal.ed.value')} />
                         )}
                       </div>
-                      <p className="text-[11px] text-muted-foreground">{t('causal.v2.counter_hint')}</p>
                     </>
                   )}
                   {action.type === 'api_call' && (
@@ -370,7 +372,7 @@ export const CausalRuleEditor: React.FC<Props> = ({ rule, open, onOpenChange, on
                 <Input type="number" className="h-8 text-sm" value={editing.priority} onChange={(e) => setEditing((p) => ({ ...p, priority: Number(e.target.value) }))} />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">{t('causal.v2.cooldown_sec')}</Label>
+                <HelpLabel title={t('causal.v2.cooldown_sec')} description={<p>{t('causal.v2.cooldown_hint')}</p>} labelClassName="text-xs" />
                 <Input type="number" className="h-8 text-sm" value={Math.round((editing.cooldownMs || 0) / 1000)} onChange={(e) => setEditing((p) => ({ ...p, cooldownMs: Math.max(0, Number(e.target.value)) * 1000 }))} />
               </div>
               <div className="space-y-1">
@@ -385,7 +387,6 @@ export const CausalRuleEditor: React.FC<Props> = ({ rule, open, onOpenChange, on
                 </Select>
               </div>
             </div>
-            <p className="pt-1 text-[11px] text-muted-foreground">{t('causal.v2.cooldown_hint')}</p>
           </details>
 
           {/* ── 试一试 ── */}

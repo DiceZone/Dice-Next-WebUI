@@ -4,6 +4,7 @@ import { KeyRound, ContactRound, RefreshCw, ExternalLink } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { FeatureHelp } from '@/components/ui/feature-help';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { PlatformIcon, platformLabel } from '@/components/platform-icon';
@@ -68,7 +69,13 @@ export const CloudKeysCard: React.FC = () => {
     <Card data-setting-anchor="settings-cloud-keys">
       <CardHeader>
         <div className="flex items-center justify-between gap-3">
-          <CardTitle className="flex items-center gap-2 text-base"><KeyRound className="h-4 w-4" />{t('cloud.keys_title')}</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <KeyRound className="h-4 w-4" />{t('cloud.keys_title')}
+            <FeatureHelp title={t('cloud.keys_title')} description={<>
+              <p>{t('cloud.keys_desc')}</p>
+              <p>{t('cloud.key_warning')}</p>
+            </>} />
+          </CardTitle>
           <Button size="sm" variant="outline" disabled={loading} onClick={() => void fetchAdapters()}>
             <RefreshCw className={`mr-1 h-3 w-3 ${loading ? 'animate-spin' : ''}`} />{t('common.refresh')}
           </Button>
@@ -95,8 +102,14 @@ export const CloudCardsCard: React.FC = () => {
   return (
     <Card data-setting-anchor="settings-cloud-cards">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base"><ContactRound className="h-4 w-4" />{t('cloud.cards_title')}</CardTitle>
-        <CardDescription>{t('cloud.cards_desc')}</CardDescription>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <ContactRound className="h-4 w-4" />{t('cloud.cards_title')}
+          <FeatureHelp title={t('cloud.cards_title')} description={<>
+            <p>{t('cloud.cards_desc')}</p>
+            <p>{t('cloud.cards_auth')}</p>
+            <p>{t('cloud.cards_privacy')}</p>
+          </>} />
+        </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
         <p>{t('cloud.cards_auth')}</p>

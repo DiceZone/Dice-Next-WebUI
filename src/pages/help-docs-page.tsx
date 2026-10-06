@@ -3,6 +3,8 @@ import { tourSamples } from '@/lib/tour-samples';
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/ui/page-header';
+import { FeatureHelp } from '@/components/ui/feature-help';
+import { ResponsiveActions } from '@/components/ui/responsive-actions';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PaginationBar } from '@/components/ui/pagination-bar';
@@ -154,12 +156,14 @@ export const HelpDocsPage: React.FC = () => {
   };
 
   return <div className="space-y-6 min-w-0">
-    <PageHeader icon={HelpCircle} title={t('helpdoc.title')} description={t('helpdoc.desc')} />
+    <PageHeader icon={HelpCircle} title={t('helpdoc.title')} description={t('helpdoc.desc')} help={t('page_help.help_docs')} />
     <Card><CardContent data-tour="help-toolbar" className="flex flex-wrap items-center gap-2 p-4">
-      <div className="relative min-w-[180px] flex-1"><Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" /><Input className="pl-9" aria-label={t('helpdoc.search')} placeholder={t('helpdoc.search')} value={query} onChange={(e) => setQuery(e.target.value)} /></div>
-      <Button variant="outline" disabled={busy || loading || tour} onClick={refresh}><RefreshCw className="mr-2 h-4 w-4" />{t('common.refresh')}</Button>
-      <Button variant="outline" disabled={busy || tour} onClick={exportDocs}><Download className="mr-2 h-4 w-4" />{t('helpdoc.export')}</Button>
-      <Button variant="outline" disabled={busy || tour} onClick={() => importRef.current?.click()}><Upload className="mr-2 h-4 w-4" />{t('helpdoc.import')}</Button>
+      <div className="relative min-w-0 flex-[1_1_100%] md:flex-1"><Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" /><Input className="pl-9" aria-label={t('helpdoc.search')} placeholder={t('helpdoc.search')} value={query} onChange={(e) => setQuery(e.target.value)} /></div>
+      <ResponsiveActions actions={[
+        { id: 'refresh', label: t('common.refresh'), icon: RefreshCw, disabled: busy || loading || tour, onAction: refresh },
+        { id: 'export', label: t('helpdoc.export'), icon: Download, disabled: busy || tour, onAction: exportDocs },
+        { id: 'import', label: t('helpdoc.import'), icon: Upload, disabled: busy || tour, onAction: () => importRef.current?.click() },
+      ]} />
       <input ref={importRef} type="file" accept=".json,.md,.txt" className="hidden" onChange={importDocs} />
       <Button disabled={busy || tour} onClick={() => setEdit({ mode: 'new', name: '', content: '', initial: '' })}><Plus className="mr-2 h-4 w-4" />{t('helpdoc.new')}</Button>
     </CardContent></Card>
@@ -190,7 +194,9 @@ export const HelpDocsPage: React.FC = () => {
       </> : <div className="flex min-h-64 flex-col items-center justify-center gap-3 p-6 text-muted-foreground"><FileText className="h-8 w-8" /><p className="text-sm">{t('helpdoc.empty')}</p></div>}</Card>
     </div>
     <Dialog open={!!edit} onOpenChange={(open) => { if (!open) void closeEditor(); }}>
-      {edit && <DialogContent className="flex max-h-[90dvh] max-w-4xl flex-col overflow-hidden"><DialogHeader><DialogTitle>{t(edit.mode === 'new' ? 'helpdoc.new' : 'helpdoc.edit')}</DialogTitle><DialogDescription>{t(edit.mode === 'builtin' ? 'ui_refresh.help_builtin_hint' : 'ui_refresh.help_file_hint')}</DialogDescription></DialogHeader>
+      {edit && <DialogContent className="flex max-h-[90dvh] max-w-4xl flex-col overflow-hidden"><DialogHeader><DialogTitle className="flex items-center gap-1.5 pr-6">{t(edit.mode === 'new' ? 'helpdoc.new' : 'helpdoc.edit')}
+        <FeatureHelp title={t(edit.mode === 'new' ? 'helpdoc.new' : 'helpdoc.edit')} description={<p>{t(edit.mode === 'builtin' ? 'ui_refresh.help_builtin_hint' : 'ui_refresh.help_file_hint')}</p>} />
+      </DialogTitle><DialogDescription>{t(edit.mode === 'builtin' ? 'ui_refresh.help_builtin_hint' : 'ui_refresh.help_file_hint')}</DialogDescription></DialogHeader>
         <div className="min-h-0 space-y-4 overflow-y-auto"><label className="block space-y-2 text-sm"><span>{t('helpdoc.name')}</span><Input value={edit.name} disabled={edit.mode !== 'new' || busy} placeholder={t('helpdoc.name_ph')} onChange={(event) => setEdit({ ...edit, name: event.target.value })} /></label>
           <label className="block space-y-2 text-sm"><span>{t('ui_refresh.help_content')}</span><Textarea className="min-h-[35vh] font-mono text-sm leading-relaxed sm:min-h-[45vh]" spellCheck={false} value={edit.content} disabled={busy} onChange={(event) => setEdit({ ...edit, content: event.target.value })} /></label>
         </div>

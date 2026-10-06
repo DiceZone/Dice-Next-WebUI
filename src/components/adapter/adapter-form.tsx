@@ -7,8 +7,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { FeatureHelp } from '@/components/ui/feature-help';
+import { HelpLabel } from '@/components/ui/help-label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ExternalLink, HelpCircle, KeyRound, QrCode, ScanLine } from 'lucide-react';
+import { ExternalLink, KeyRound, QrCode, ScanLine } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { QRCodeSVG } from 'qrcode.react';
 import { useToast } from '@/hooks/use-toast';
@@ -267,8 +269,15 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
     <Dialog open={open} onOpenChange={(next) => { if (!isSubmitting && !qrSaving) onOpenChange(next); }}>
       <DialogContent className={official || milky ? 'max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-[760px]' : 'max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-[500px]'}>
         <DialogHeader>
-          <DialogTitle>{isEdit ? t('adapters.edit_title') : t('adapters.add_title')}</DialogTitle>
-          <DialogDescription>{isEdit ? t('adapters.edit_subtitle') : t('adapters.add_subtitle')}</DialogDescription>
+          <DialogTitle className="flex items-center gap-1.5 pr-6">{isEdit ? t('adapters.edit_title') : t('adapters.add_title')}
+            <FeatureHelp title={isEdit ? t('adapters.edit_title') : t('adapters.add_title')} description={<>
+              <p>{isEdit ? t('adapters.edit_subtitle') : t('adapters.add_subtitle')}</p>
+              {type === 'milky' && <p>{t('adapters.milky_hint')}</p>}
+              {type === 'discord' && <p>{t('adapters.discord_hint')}</p>}
+              {type === 'kook' && <p>{t('adapters.kook_hint')}</p>}
+            </>} />
+          </DialogTitle>
+          <DialogDescription className="sr-only">{isEdit ? t('adapters.edit_subtitle') : t('adapters.add_subtitle')}</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(async (data) => {
           if (qrBusy) return;
@@ -344,14 +353,13 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
               <div className="space-y-2"><Label htmlFor="qqNumber">官方机器人真实 QQ 号（可选）</Label><Input id="qqNumber" inputMode="numeric" autoComplete="off" placeholder="仅用于显示 QQ 头像，不参与官方 API 通信" {...register('qqNumber')} />{errors.qqNumber && <p className="text-xs text-destructive">{errors.qqNumber.message}</p>}</div>
               <div className="flex items-start justify-between gap-4 rounded-md border bg-muted/20 p-3">
                 <div className="space-y-1">
-                  <Label htmlFor="forceVerifyImageResource">Markdown 图片资源强校验</Label>
-                  <p className="text-xs text-muted-foreground">开启后，图片转存失败会中断整条 Markdown 消息；关闭时保持 QQ 官方默认兼容行为。</p>
+                  <HelpLabel htmlFor="forceVerifyImageResource" title={t('feature_help.verify_image_title')} description={<p>{t('feature_help.verify_image_desc')}</p>} />
+                  <p className="text-xs text-muted-foreground">{t('feature_help.verify_image_desc')}</p>
                 </div>
                 <Switch id="forceVerifyImageResource" checked={watch('forceVerifyImageResource') ?? false} onCheckedChange={(v) => setValue('forceVerifyImageResource', v)} />
               </div>
               <section className="space-y-3 rounded-md border p-3">
-                <h3 className="text-sm font-medium">{t('qq_rich.title')}</h3>
-                <p className="text-xs text-muted-foreground">{t('qq_rich.hint')}</p>
+                <HelpLabel title={t('qq_rich.title')} description={<p>{t('qq_rich.hint')}</p>} labelClassName="text-sm font-medium" />
                 <Label htmlFor="qqRichReplies">{t('qq_rich.style')}</Label>
                 <Select value={watch('qqRichReplies')} onValueChange={(v) => setValue('qqRichReplies', v as FormValues['qqRichReplies'])}>
                   <SelectTrigger id="qqRichReplies"><SelectValue /></SelectTrigger>
@@ -360,7 +368,7 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
                   </SelectContent>
                 </Select>
                 {watch('qqRichReplies') === 'math' && <p className="text-xs text-muted-foreground" role="status">{t('qq_rich.math_hint')}</p>}
-                <Label htmlFor="qqInteractions">{t('qq_rich.interactions')}</Label>
+                <HelpLabel htmlFor="qqInteractions" title={t('qq_rich.interactions')} description={<p>{t('qq_rich.interaction_hint')}</p>} />
                 <Select value={watch('qqInteractions')} disabled={watch('qqRichReplies') === 'off'} onValueChange={(v) => setValue('qqInteractions', v as FormValues['qqInteractions'])}>
                   <SelectTrigger id="qqInteractions"><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -376,10 +384,9 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
           </> : <><div className="space-y-2">
             <div className="flex items-center gap-1.5">
               <Label htmlFor="mode">{t('adapters.connection_mode')}</Label>
-              {/* C#55: 正向/反向连接细节提示（鼠标悬停） */}
-              <span title={`${t('adapters.mode_forward_hint')}\n\n${t('adapters.mode_reverse_hint')}`} className="inline-flex cursor-help text-muted-foreground">
-                <HelpCircle className="h-3.5 w-3.5" />
-              </span>
+              <FeatureHelp title={t('adapters.connection_mode')} description={<>
+                <p>{t('adapters.mode_forward_hint')}</p><p>{t('adapters.mode_reverse_hint')}</p>
+              </>} />
             </div>
             <Select value={mode ?? ''} onValueChange={(v) => setValue('connectionMode', v as FormMode)}>
               <SelectTrigger id="mode"><SelectValue placeholder={t('adapters.choose_mode')} /></SelectTrigger>
@@ -388,9 +395,6 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
                 <SelectItem value="reverse_ws">{t('adapters.mode_reverse_ws')}</SelectItem>
               </SelectContent>
             </Select>
-            {modeChosen && (
-              <p className="text-xs text-muted-foreground">{isReverse ? t('adapters.mode_reverse_hint') : t('adapters.mode_forward_hint')}</p>
-            )}
           </div>
           {/* C#54: 选完连接方式后才出现连接地址等信息，渐进式引导 */}
           {modeChosen && (
@@ -418,8 +422,7 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
             <div className="flex items-start gap-2">
               <KeyRound className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
               <div className="min-w-0">
-                <Label htmlFor="heartApiKey">{t('adapters.heart_api_key')}</Label>
-                <p className="mt-0.5 text-xs text-muted-foreground">{t('adapters.heart_api_key_desc')}</p>
+                <HelpLabel htmlFor="heartApiKey" title={t('adapters.heart_api_key')} description={<p>{t('adapters.heart_api_key_desc')}</p>} />
               </div>
             </div>
             <Input

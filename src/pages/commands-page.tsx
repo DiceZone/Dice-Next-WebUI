@@ -18,9 +18,12 @@ import { PersonaManagerCard } from '@/components/persona/persona-manager';
 import { PersonaAccessDialog } from '@/components/persona/persona-access-dialog';
 import {
   Loader2, RefreshCw, RotateCcw, Save, ChevronRight, ChevronDown, Pencil, Trash2, Download, Upload,
-  Image as ImageIcon, Globe, HelpCircle, Users, BookText, UserCheck, ArrowUpDown, ArrowUp, ArrowDown,
+  Image as ImageIcon, Globe, Users, BookText, UserCheck, ArrowUpDown, ArrowUp, ArrowDown,
 } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
+import { FeatureHelp } from '@/components/ui/feature-help';
+import { HelpLabel } from '@/components/ui/help-label';
+import { ResponsiveActions } from '@/components/ui/responsive-actions';
 import { VARIABLE_STYLES, variableStyleOf, restyleVariable, type VariableStyle } from '@/lib/template-variable-style';
 import { PREVIEW_PLATFORMS, readReplyPreview, type PreviewPlatform, type ReplyPreview } from '@/lib/reply-preview';
 import { Switch } from '@/components/ui/switch';
@@ -232,10 +235,10 @@ export const CommandsPage: React.FC = () => {
     } catch (e) { toast({ title: t('commands.import_fail'), description: String(e), variant: 'destructive' }); }
   };
 
-  // Header (?) tooltip explaining the gray V2-key subtext.
+  const V2Help = () => <FeatureHelp title={t('commands.v2_label')} description={<p>{t('commands.v2_tooltip')}</p>} />;
   const V2Head: React.FC<{ label: string }> = ({ label }) => (
     <span className="inline-flex items-center gap-1">{label}
-      <span title={t('commands.v2_tooltip')} className="inline-flex"><HelpCircle className="h-3.5 w-3.5 opacity-60" /></span></span>
+      <V2Help /></span>
   );
   const V2Sub: React.FC<{ v2?: string }> = ({ v2 }) =>
     v2 ? <div className="text-[11px] text-muted-foreground/70 font-mono">{t('commands.v2_label')}: {v2}</div> : null;
@@ -253,39 +256,44 @@ export const CommandsPage: React.FC = () => {
   const visibleTexts = filterAndSortTexts(describedTexts, allQ, allGroup === '__all_groups__' ? '' : allGroup, allSort, lang);
   const changeSort = (field: TextSortField) => setAllSort((previous) => ({ field,
     direction: previous.field === field && previous.direction === 'asc' ? 'desc' : 'asc' }));
-  const SortHead = ({ field, label, children }: { field: TextSortField; label: string; children?: React.ReactNode }) => (
+  const SortHead = ({ field, label, help }: { field: TextSortField; label: string; help?: React.ReactNode }) => (
     <th className="p-2.5 text-left font-medium" aria-sort={allSort.field !== field ? 'none' : allSort.direction === 'asc' ? 'ascending' : 'descending'}>
+      <div className="inline-flex items-center gap-1.5">
       <button className="inline-flex items-center gap-1.5 whitespace-nowrap hover:text-foreground" onClick={() => changeSort(field)}
         aria-label={t('commands.sort_column', { column: label })}>
-        {children ?? label}{allSort.field === field ? allSort.direction === 'asc' ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" /> : <ArrowUpDown className="h-3.5 w-3.5" />}
+        {label}{allSort.field === field ? allSort.direction === 'asc' ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" /> : <ArrowUpDown className="h-3.5 w-3.5" />}
       </button>
+      {help}
+      </div>
     </th>
   );
 
   return (
     <div className="space-y-5">
       {dlg.node}
-      <PageHeader icon={BookText} title={t('commands.title')}
-        description={<><span className="block">{t('commands.subtitle')}</span><span className="block">{t('commands.compat_note')}</span></>}
-        actions={<div data-tour="commands-toolbar" className="flex flex-wrap items-center gap-2">
+      <PageHeader icon={BookText} title={t('commands.title')} help={`${t('page_help.commands')}\n\n${t('commands.compat_note')}`}
+        description={t('commands.subtitle')}
+        actions={<div data-tour="commands-toolbar" className="grid grid-cols-2 items-center gap-2 md:flex md:flex-wrap">
           {/* persona being edited (default = global). Switching shows that persona's reply text. */}
           <Select value={String(personaId)} disabled={!!editing} onValueChange={(v) => setPersonaId(Number(v))}>
-            <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-full md:w-36"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="0">{t('commands.persona_default')}</SelectItem>
               {personas.map((p) => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Button variant="outline" onClick={() => setMgrOpen(true)}><Users className="mr-2 h-4 w-4" />{t('commands.persona_manage')}</Button>
-          <Button variant="outline" disabled={tourActive} onClick={() => setAccessOpen(true)}><UserCheck className="mr-2 h-4 w-4" />{t('commands.persona_access')}</Button>
           <Select value={lang} disabled={!!editing} onValueChange={(v) => setLang(v)}>
-            <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-full md:w-32"><SelectValue /></SelectTrigger>
             <SelectContent>
               {LANGS.map((l) => <SelectItem key={l.code} value={l.code}>{l.label}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Button variant="outline" onClick={doExport}><Download className="mr-2 h-4 w-4" />{t('commands.export')}</Button>
-          <Button variant="outline" onClick={() => fileRef.current?.click()}><Upload className="mr-2 h-4 w-4" />{t('commands.import')}</Button>
+          <ResponsiveActions actions={[
+            { id: 'personas', label: t('commands.persona_manage'), icon: Users, onAction: () => setMgrOpen(true) },
+            { id: 'access', label: t('commands.persona_access'), icon: UserCheck, disabled: tourActive, onAction: () => setAccessOpen(true) },
+            { id: 'export', label: t('commands.export'), icon: Download, onAction: doExport },
+            { id: 'import', label: t('commands.import'), icon: Upload, onAction: () => fileRef.current?.click() },
+          ]} />
           <input ref={fileRef} type="file" accept="application/json,.json" className="hidden"
             onChange={(e) => { const f = e.target.files?.[0]; if (f) void doImport(f); e.target.value = ''; }} />
           <Button variant="outline" onClick={() => { void load(); void loadAll(); void loadPersonaMap(); }} disabled={loading}><RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />{t('common.refresh')}</Button>
@@ -359,7 +367,7 @@ export const CommandsPage: React.FC = () => {
                   {cat === ALL_TAB ? <tr>
                     <SortHead field="example" label={t('commands.col_command_example')} />
                     <SortHead field="description" label={t('commands.col_description')} />
-                    <SortHead field="key" label={t('commands.col_key')}><V2Head label={t('commands.col_key')} /></SortHead>
+                    <SortHead field="key" label={t('commands.col_key')} help={<V2Help />} />
                     <SortHead field="text" label={t('commands.col_text')} />
                     <th className="p-2.5 text-left font-medium w-20">{t('common.actions')}</th>
                   </tr> : <tr>
@@ -533,8 +541,10 @@ export const CommandsPage: React.FC = () => {
       <Dialog open={mgrOpen} onOpenChange={(o) => { setMgrOpen(o); if (!o) { void fetchPersonas(); void loadPersonaMap(); } }}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{t('commands.persona_manage')}</DialogTitle>
-            <DialogDescription>{t('commands.persona_manage_desc')}</DialogDescription>
+            <DialogTitle className="flex items-center gap-1.5 pr-6">{t('commands.persona_manage')}
+              <FeatureHelp title={t('commands.persona_manage')} description={<p>{t('commands.persona_manage_desc')}</p>} />
+            </DialogTitle>
+            <DialogDescription className="sr-only">{t('commands.persona_manage_desc')}</DialogDescription>
           </DialogHeader>
           <PersonaManagerCard onChanged={() => { void fetchPersonas(); }} />
         </DialogContent>
@@ -711,8 +721,10 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="flex max-h-[90dvh] max-w-2xl flex-col overflow-hidden lg:max-w-6xl">
         <DialogHeader>
-          <DialogTitle>{description || cmd || reply.key}</DialogTitle>
-          <DialogDescription>{t('commands.var_insert_hint')}{reply.v2key ? `　${t('commands.v2_label')}: ${reply.v2key}` : ''}</DialogDescription>
+          <DialogTitle className="flex items-center gap-1.5 pr-6">{description || cmd || reply.key}
+            <FeatureHelp title={description || cmd || reply.key} description={<p>{t('commands.var_insert_hint')}</p>} />
+          </DialogTitle>
+          <DialogDescription className={reply.v2key ? undefined : 'sr-only'}>{t('commands.var_insert_hint')}{reply.v2key ? `　${t('commands.v2_label')}: ${reply.v2key}` : ''}</DialogDescription>
         </DialogHeader>
         <div className="grid min-h-0 flex-1 items-start gap-5 overflow-y-auto pr-1 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
         <div className="min-w-0 space-y-4">
@@ -723,7 +735,7 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
           {missing.length > 0 && unknown.length === 0 && <p className="text-xs text-amber-600">{t('commands.warn_missing', { vars: missing.map((m) => `{${m}}`).join(' ') })}</p>}
           <Tabs defaultValue="display" className="rounded-lg border bg-muted/20 p-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <span className="text-sm font-medium">{t('commands.preview_title')}</span>
+              <HelpLabel title={t('commands.preview_title')} description={<p>{t('commands.preview_hint')}</p>} labelClassName="text-sm font-medium" />
               <Button type="button" size="sm" variant="outline" disabled={!validWeights(variants)}
                 onClick={() => setResample(current => current + 1)}><RefreshCw className="mr-1 h-3.5 w-3.5" />{t('weighted.resample')}</Button>
               <TabsList aria-label={t('commands.preview_title')}>
@@ -742,7 +754,7 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
               </Select>
             </div>
             <label className="mt-2 flex items-center gap-2 text-xs"><Switch checked={previewPlain} onCheckedChange={setPreviewPlain} />{t('commands.preview_force_plain')}</label>
-            <p className="mt-2 text-[11px] text-muted-foreground">{t('commands.preview_hint')}</p>
+            <p className="mt-2 text-[11px] text-muted-foreground">{t('feature_help.preview_note')}</p>
             {previewLoading ? <p role="status" className="mt-3 text-xs text-muted-foreground">{t('common.loading')}</p>
               : previewFailed ? <p role="alert" className="mt-3 text-xs text-destructive">{t(backendTooOld ? 'weighted.backend_required' : 'commands.preview_unavailable')}</p>
               : preview && <>
@@ -787,7 +799,7 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <label className="text-sm font-medium shrink-0">{t('commands.format_label')}</label>
+          <HelpLabel title={t('commands.format_label')} description={<><p>{t('commands.format_hint')}</p><p>{t('commands.presentation_component_hint')}</p></>} labelClassName="text-sm font-medium shrink-0" />
           <Select value={format} onValueChange={(v) => setFormat(v as ReplyFormat)}>
             <SelectTrigger className="h-9 w-44"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -802,8 +814,8 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
         {styledVars.length > 0 && (
           <div className="rounded-lg border bg-muted/20 p-3 space-y-2">
             <div>
-              <p className="text-sm font-medium">{t('commands.variable_styles_title')}</p>
-              <p className="text-[11px] text-muted-foreground">{t('commands.variable_styles_desc')}</p>
+              <HelpLabel title={t('commands.variable_styles_title')} description={<p>{t('commands.variable_styles_desc')}</p>} labelClassName="text-sm font-medium" />
+              <p className="text-[11px] text-muted-foreground">{t('feature_help.variable_style_note')}</p>
             </div>
             <div className="grid gap-2">
               {styledVars.map((name) => (
@@ -838,8 +850,10 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
       <Dialog open={showGlobals} onOpenChange={setShowGlobals}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>{t('commands.global_vars_title')}</DialogTitle>
-            <DialogDescription>{t('commands.global_vars_desc')}</DialogDescription>
+            <DialogTitle className="flex items-center gap-1.5 pr-6">{t('commands.global_vars_title')}
+              <FeatureHelp title={t('commands.global_vars_title')} description={<p>{t('commands.global_vars_desc')}</p>} />
+            </DialogTitle>
+            <DialogDescription className="sr-only">{t('commands.global_vars_desc')}</DialogDescription>
           </DialogHeader>
           <div className="flex flex-wrap gap-1.5">
             {GLOBAL_VARS.map((name) => (

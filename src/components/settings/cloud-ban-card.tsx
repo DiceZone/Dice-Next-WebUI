@@ -6,6 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { FeatureHelp } from '@/components/ui/feature-help';
+import { HelpLabel } from '@/components/ui/help-label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Cloud, RefreshCw } from 'lucide-react';
@@ -72,11 +74,13 @@ export const CloudBanCard: React.FC = () => {
   return (
     <Card data-setting-anchor="settings-cloudban">
       <CardHeader>
-        <CardTitle className="text-base flex items-center gap-2"><Cloud className="h-4 w-4" />{t('banlist.cloudban_title')}</CardTitle>
+        <CardTitle className="text-base flex items-center gap-2"><Cloud className="h-4 w-4" />{t('banlist.cloudban_title')}
+          <FeatureHelp title={t('banlist.cloudban_title')} description={<><p>{t('banlist.cloudban_desc')}</p><p>{t('banlist.cloudban_token_hint')}</p></>} />
+        </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-xs text-muted-foreground">
-          {t('banlist.cloudban_desc')}
+          {t('feature_help.cloudban_note')}
         </p>
         <div className="flex items-center justify-between">
           <Label className="text-sm">{t('banlist.cloudban_enable')}</Label>
@@ -88,14 +92,13 @@ export const CloudBanCard: React.FC = () => {
             onChange={(e) => setC({ ...c, url: e.target.value })} placeholder="https://cloudban.dice.zone" />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">Access Token</Label>
+          <HelpLabel title="Access Token" description={<p>{t('banlist.cloudban_token_hint')}</p>} labelClassName="text-xs" />
           <Input className="h-8 text-sm" type="password" value={token} onChange={(e) => setToken(e.target.value)}
             placeholder={c.token_set ? t('banlist.cloudban_token_set_ph', { tail: c.token_tail }) : t('banlist.cloudban_token_unset_ph')} />
-          <p className="text-[11px] text-muted-foreground">{t('banlist.cloudban_token_hint')}</p>
         </div>
         <div className="flex items-center justify-between gap-4">
           <div>
-            <Label className="text-sm">{t('banlist.cloudban_share')}</Label>
+            <HelpLabel title={t('banlist.cloudban_share')} description={<p>{t('banlist.cloudban_share_desc')}</p>} labelClassName="text-sm" />
             <p className="text-xs text-muted-foreground">{t('banlist.cloudban_share_desc')}</p>
           </div>
           <Switch checked={c.share} onCheckedChange={(v) => setC({ ...c, share: v })} />

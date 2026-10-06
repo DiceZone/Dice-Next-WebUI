@@ -30,7 +30,7 @@ export const DashboardPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <PageHeader icon={LayoutDashboard} title={t('dashboard.title')} description={t('dashboard.subtitle')} />
+      <PageHeader icon={LayoutDashboard} title={t('dashboard.title')} description={t('dashboard.subtitle')} help={t('page_help.dashboard')} />
 
       {loading && !stats ? (
         <div data-tour="dashboard-summary" className="grid grid-cols-1 gap-4 sm:grid-cols-3">

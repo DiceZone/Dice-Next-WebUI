@@ -8,7 +8,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "tsc -p tsconfig.app.json --noEmit --emitDeclarationOnly false --composite false",
-    "test": "tsc -p tsconfig.test.json && node --test tests/cloud-settings.test.mjs tests/settings-search.test.mjs tests/update-error-notice.test.mjs tests/system-update.test.mjs tests/onboarding.test.mjs tests/tour-samples.test.mjs tests/build-time.test.mjs tests/reply-results.test.mjs tests/deck-document.test.mjs tests/help-document.test.mjs tests/ui-audit.test.mjs tests/pwa.test.mjs tests/template-variable-style.test.mjs tests/weighted-templates.test.mjs",
+    "test": "tsc -p tsconfig.test.json && node --test tests/cloud-settings.test.mjs tests/settings-search.test.mjs tests/update-error-notice.test.mjs tests/system-update.test.mjs tests/feature-help.test.mjs tests/availability-history.test.mjs tests/responsive-controls.test.mjs tests/dialog-focus.test.mjs tests/onboarding.test.mjs tests/tour-samples.test.mjs tests/build-time.test.mjs tests/reply-results.test.mjs tests/deck-document.test.mjs tests/help-document.test.mjs tests/ui-audit.test.mjs tests/pwa.test.mjs tests/template-variable-style.test.mjs tests/weighted-templates.test.mjs",
     "icons:generate": "node scripts/generate-app-icons.mjs",
     "dev:preview": "node tests/ui-preview.mjs",
     "test:tour-preview": "node tests/tour-preview.mjs",

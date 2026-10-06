@@ -3,10 +3,12 @@ import { useTourState, useTourValue } from '@/components/onboarding/tour-data';
 import { useTranslation } from 'react-i18next';
 import { Cloud, HeartPulse, ScrollText } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { FeatureHelp } from '@/components/ui/feature-help';
+import { HelpLabel } from '@/components/ui/help-label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -39,7 +41,7 @@ export const CloudSettingsPage: React.FC = () => {
   return (
     <div className="max-w-3xl space-y-6">
       <div data-setting-anchor="settings-cloud">
-        <PageHeader icon={Cloud} title={t('cloud.title')} description={t('cloud.desc')} />
+        <PageHeader icon={Cloud} title={t('cloud.title')} description={t('cloud.desc')} help={t('page_help.cloud')} />
       </div>
       <CloudKeysCard />
       <CloudCardsCard />
@@ -79,8 +81,10 @@ const LogsiteCard: React.FC = () => {
   return (
       <Card data-setting-anchor="settings-logsite">
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2"><ScrollText className="h-4 w-4" />{t('settings.logsite_title')}</CardTitle>
-          <CardDescription>{t('settings.logsite_desc')}</CardDescription>
+          <CardTitle className="text-base flex items-center gap-2">
+            <ScrollText className="h-4 w-4" />{t('settings.logsite_title')}
+            <FeatureHelp title={t('settings.logsite_title')} description={<p>{t('settings.logsite_desc')}</p>} />
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
@@ -211,8 +215,14 @@ const HeartbeatCard: React.FC<{ timezoneMinutes: number }> = ({ timezoneMinutes 
   return (
     <Card data-setting-anchor="settings-heartbeat">
       <CardHeader>
-        <CardTitle className="text-base flex items-center gap-2"><HeartPulse className="h-4 w-4" />{t('settings.heartbeat_title')}</CardTitle>
-        <CardDescription>{t('settings.heartbeat_desc')}</CardDescription>
+        <CardTitle className="text-base flex items-center gap-2">
+          <HeartPulse className="h-4 w-4" />{t('settings.heartbeat_title')}
+          <FeatureHelp title={t('settings.heartbeat_title')} description={<>
+            <p>{t('settings.heartbeat_desc')}</p>
+            <p>{t('settings.heartbeat_adapter_keys_desc')}</p>
+            <p>{t('settings.heartbeat_public_desc')}</p>
+          </>} />
+        </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex items-center justify-between">
@@ -226,8 +236,11 @@ const HeartbeatCard: React.FC<{ timezoneMinutes: number }> = ({ timezoneMinutes 
         </div>
         <div className="space-y-3 rounded-md border bg-muted/20 p-3">
           <div>
-            <Label className="text-sm">{t('settings.heartbeat_master_title')}</Label>
-            <p className="text-xs text-muted-foreground">{t('settings.heartbeat_master_desc')}</p>
+            <div className="flex items-center gap-1.5">
+              <Label className="text-sm">{t('settings.heartbeat_master_title')}</Label>
+              <FeatureHelp title={t('settings.heartbeat_master_title')}
+                description={<p>{t('settings.heartbeat_master_desc')}</p>} />
+            </div>
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1">
@@ -252,8 +265,7 @@ const HeartbeatCard: React.FC<{ timezoneMinutes: number }> = ({ timezoneMinutes 
         </div>
         <div className="flex items-center justify-between gap-4 rounded-md border bg-muted/20 p-3">
           <div>
-            <Label className="text-sm">{t('settings.heartbeat_adapter_keys')}</Label>
-            <p className="text-xs text-muted-foreground">{t('settings.heartbeat_adapter_keys_desc')}</p>
+            <HelpLabel title={t('settings.heartbeat_adapter_keys')} description={<p>{t('settings.heartbeat_adapter_keys_desc')}</p>} labelClassName="text-sm" />
           </div>
           <a href="#/cloud-services?focus=settings-cloud-keys" className="shrink-0 text-sm text-primary underline-offset-4 hover:underline">
             {t('settings.heartbeat_adapter_keys_count', { count: configuredAdapters })}
@@ -261,7 +273,7 @@ const HeartbeatCard: React.FC<{ timezoneMinutes: number }> = ({ timezoneMinutes 
         </div>
         <div className="flex items-center justify-between gap-4">
           <div>
-            <Label className="text-sm">{t('settings.heartbeat_public')}</Label>
+            <HelpLabel title={t('settings.heartbeat_public')} description={<p>{t('settings.heartbeat_public_desc')}</p>} labelClassName="text-sm" />
             <p className="text-xs text-muted-foreground">{t('settings.heartbeat_public_desc')}</p>
           </div>
           <Switch checked={c.public_show} onCheckedChange={(v) => setC({ ...c, public_show: v })} />

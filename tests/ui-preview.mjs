@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { readFile } from 'node:fs/promises';
 import { transform } from 'esbuild';
 import { spawnSync } from 'node:child_process';
+import { statisticsPreview } from './statistics-preview-data.mjs';
 const trayModule = await transform(await readFile(new URL('../src/lib/tray-settings.ts', import.meta.url), 'utf8'), { loader: 'ts', format: 'esm' });
 const { trayTextError, trayTooltip } = await import('data:text/javascript;base64,' + Buffer.from(trayModule.code).toString('base64'));
 
@@ -50,8 +51,9 @@ const state = {
       asset: { name: '本地预览安装包（不会实际下载）', size: 10 * 1024 * 1024, sha256: '0'.repeat(64) } },
     platform: { os: 'windows', arch: 'amd64' }, updateAvailable: true,
     phase: 'available', source: '本地预览（不访问网络）', error: '', downloadedBytes: 0, totalBytes: 10 * 1024 * 1024,
-    checkedAt: 0, downloadSupported: true, installSupported: false, cancelSupported: true, canCancel: false, pending: false,
-    settings: { autoCheck: true, intervalHours: 6, autoAction: 'notify', source: 'auto', customMirror: '' },
+    checkedAt: 0, downloadSupported: true, installSupported: true, scheduledInstallSupported: true,
+    scheduledInstallAt: 0, timezoneMinutes: 480, pendingTag: '', cancelSupported: true, canCancel: false, pending: false,
+    settings: { autoCheck: true, intervalHours: 6, autoAction: 'notify', scheduledInstall: false, installTime: '04:00', source: 'auto', customMirror: '' },
   },
   '/dashboard/stats': { uptime_seconds: 3600, active_connections: 0, total_adapters: 2, total_commands: 0, total_rules: 0, active_sessions: 0, recent_logs: [] },
   '/adapters': [{ id: 'preview-qq', name: '星灯 · 预览', type: 'qq_official', appId: 'preview', enabled: false }, { id: 'preview-onebot', name: '月海 · 预览', type: 'onebot_v11', loginId: '10000', enabled: false }],
@@ -163,6 +165,7 @@ const server = await createServer({
             const chunks = []; for await (const chunk of req) chunks.push(chunk);
             const text = Buffer.concat(chunks).toString(); body = text ? JSON.parse(text) : {};
           }
+          if (path === '/statistics/overview' && req.method === 'GET') return reply(statisticsPreview(tourSamples.statistics, url.searchParams));
           if (/^\/adapters\/[^/]+$/.test(path) && req.method === 'PUT') {
             const bot = state['/adapters'].find((item) => item.id === path.slice('/adapters/'.length));
             if (!bot) throw new Error('Preview bot not found');
@@ -171,8 +174,23 @@ const server = await createServer({
             Object.assign(bot, body);
             return reply(bot);
           }
+          const previewUpdateSchedule = (status) => {
+            status.scheduledInstallAt = 0;
+            if (!status.pending) return;
+            if (status.settings.scheduledInstall && status.settings.autoAction === 'install') {
+              const now = Math.floor(Date.now() / 1000);
+              const [hours, minutes] = status.settings.installTime.split(':').map(Number);
+              const offset = status.timezoneMinutes * 60;
+              let due = Math.floor((now + offset) / 86400) * 86400 + hours * 3600 + minutes * 60 - offset;
+              if (due <= now) due += 86400;
+              status.scheduledInstallAt = due;
+              status.phase = 'scheduled';
+            } else status.phase = 'staged';
+          };
           if (path === '/system/update' && req.method === 'PUT') {
+            if (body.installTime !== undefined && !/^([01]\d|2[0-3]):[0-5]\d$/.test(body.installTime)) throw new Error('Invalid installation time');
             Object.assign(state[path].settings, body);
+            previewUpdateSchedule(state[path]);
             return reply(state[path]);
           }
           if (path === '/system/tray' && req.method === 'PUT') {
@@ -180,15 +198,30 @@ const server = await createServer({
             Object.assign(state[path], { text: body.text.trim(), tooltip: trayTooltip(body.text, state[path].port) });
             return reply(state[path]);
           }
-          if (/^\/system\/update\/(check|download|cancel)$/.test(path) && req.method === 'POST') {
+          if (path === '/system/restart' && req.method === 'POST') {
+            const status = state['/system/update'];
+            if (status.pending && status.settings.autoAction === 'install') {
+              Object.assign(status, { phase: 'up_to_date', scheduledInstallAt: 0, pending: false, updateAvailable: false, current: { ...status.latest } });
+            }
+            return reply({ restarting: true }); // Simulated only; no actual restart.
+          }
+          if (/^\/system\/update\/(check|download|cancel|install)$/.test(path) && req.method === 'POST') {
             const status = state['/system/update'];
             if (path.endsWith('/download')) {
               if (status.canCancel) throw new Error('预览下载已在进行');
               Object.assign(status, { phase: 'downloading', canCancel: true, downloadedBytes: status.totalBytes * 0.36 });
+              setTimeout(() => {
+                if (status.phase !== 'downloading') return;
+                Object.assign(status, { phase: 'staged', pending: true, canCancel: false, pendingTag: status.latest.tag, downloadedBytes: status.totalBytes });
+                previewUpdateSchedule(status); // Simulated only: never download files or restart a process.
+              }, 1500);
             } else if (path.endsWith('/cancel')) {
               Object.assign(status, { phase: 'cancelled', canCancel: false });
+            } else if (path.endsWith('/install')) {
+              if (!status.pending) throw new Error('No simulated package is ready');
+              Object.assign(status, { phase: 'up_to_date', scheduledInstallAt: 0, pending: false, updateAvailable: false, current: { ...status.latest } });
             } else {
-              Object.assign(status, { phase: 'available', error: '', checkedAt: Math.floor(Date.now() / 1000) });
+              Object.assign(status, { phase: status.scheduledInstallAt ? 'scheduled' : 'available', error: '', checkedAt: Math.floor(Date.now() / 1000) });
             }
             return reply(status);
           }

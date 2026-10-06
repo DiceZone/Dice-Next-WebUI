@@ -3,7 +3,9 @@
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { FeatureHelp } from '@/components/ui/feature-help';
+import { ResponsiveActions } from '@/components/ui/responsive-actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -15,7 +17,7 @@ import {
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useDialogs } from '@/hooks/use-dialogs';
-import { Sparkles, Plus, Copy, Trash2, Edit3, Check, FileDown, Upload, Users, Globe2, Info } from 'lucide-react';
+import { Sparkles, Plus, Copy, Trash2, Edit3, Check, FileDown, Upload, Users, Globe2 } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import type { PersonaTemplate, PersonaExport, ActivePersonaInfo } from '@/types/persona';
 import { PersonaEditor } from './persona-editor';
@@ -164,30 +166,27 @@ export const PersonaManagerCard: React.FC<{ onChanged?: () => void }> = ({ onCha
         <CardTitle className="text-base flex items-center gap-2">
           <Sparkles className="h-4 w-4" />
           {t('persona.title')}
+          <FeatureHelp title={t('persona.title')} description={<p>{t('persona.desc')}</p>} />
         </CardTitle>
-        <CardDescription>
-          {t('persona.desc')}
-        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
           <div className="flex items-center gap-2 text-sm font-medium">
             <Globe2 className="h-4 w-4 text-primary" />
             <span>{t('persona.global_scope_title')}</span>
+            <FeatureHelp title={t('persona.global_scope_title')} description={<><p>{t('persona.global_scope_desc')}</p><p>{t('persona.group_scope_hint')}</p></>} />
             <Badge variant="outline" className="ml-auto max-w-[55%] truncate">{poolActive ? t('weighted.pool_name') : globalPersonaName}</Badge>
           </div>
           <p className="text-xs leading-relaxed text-muted-foreground">{t('persona.global_scope_desc')}</p>
-          <div className="flex items-start gap-2 rounded-md bg-background/70 px-2.5 py-2 text-xs leading-relaxed text-muted-foreground">
-            <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-            <span>{t('persona.group_scope_hint')}</span>
-          </div>
         </div>
 
         <div className="rounded-lg border p-3 space-y-3">
-          <label className="flex items-center gap-2 text-sm font-medium">
-            <Switch checked={randomMode} disabled={poolSaving || loading || !Array.isArray(activeInfo.pool)} onCheckedChange={setRandomMode} />{t('weighted.pool_title')}
-          </label>
-          <p className="text-xs leading-relaxed text-muted-foreground">{t('weighted.pool_hint')}</p>
+          <div className="flex items-center gap-1.5">
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <Switch checked={randomMode} disabled={poolSaving || loading || !Array.isArray(activeInfo.pool)} onCheckedChange={setRandomMode} />{t('weighted.pool_title')}
+            </label>
+            <FeatureHelp title={t('weighted.pool_title')} description={<p>{t('weighted.pool_hint')}</p>} />
+          </div>
           {randomMode && <div className="grid gap-2 sm:grid-cols-2">{poolCandidates.map(candidate => {
             const index = pool.findIndex(item => item.id === candidate.id);
             const selected = index >= 0;
@@ -210,10 +209,12 @@ export const PersonaManagerCard: React.FC<{ onChanged?: () => void }> = ({ onCha
           </Button>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button size="sm" onClick={() => setCreateOpen(true)}><Plus className="mr-2 h-4 w-4" />{t('persona.new')}</Button>
-          <Button size="sm" variant="outline" onClick={() => setImportOpen(true)}><Upload className="mr-2 h-4 w-4" />{t('persona.import')}</Button>
-          <Button size="sm" variant="outline" onClick={fetchPersonas}>{t('common.refresh')}</Button>
+          <ResponsiveActions size="sm" actions={[
+            { id: 'import', label: t('persona.import'), icon: Upload, onAction: () => setImportOpen(true) },
+            { id: 'refresh', label: t('common.refresh'), onAction: fetchPersonas },
+          ]} />
         </div>
 
         {loading ? (
@@ -245,6 +246,11 @@ export const PersonaManagerCard: React.FC<{ onChanged?: () => void }> = ({ onCha
                   <Button variant="ghost" size="icon" className="h-8 w-8" title={t('persona.edit_entries')} onClick={() => setEditingPersona(p)}>
                     <Edit3 className="h-4 w-4" />
                   </Button>
+                  <ResponsiveActions size="sm" actions={[
+                    { id: 'copy', label: t('persona.copy'), icon: Copy, onAction: () => handleCopy(p) },
+                    { id: 'export', label: t('persona.export'), icon: FileDown, onAction: () => handleExport(p) },
+                    ...(!p.isBuiltin ? [{ id: 'delete', label: t('common.delete'), icon: Trash2, destructive: true, onAction: () => handleDelete(p) }] : []),
+                  ]} desktop={<>
                   <Button variant="ghost" size="icon" className="h-8 w-8" title={t('persona.copy')} onClick={() => handleCopy(p)}>
                     <Copy className="h-4 w-4" />
                   </Button>
@@ -256,6 +262,7 @@ export const PersonaManagerCard: React.FC<{ onChanged?: () => void }> = ({ onCha
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   )}
+                  </>} />
                 </div>
               </div>
             ))}
@@ -278,8 +285,10 @@ export const PersonaManagerCard: React.FC<{ onChanged?: () => void }> = ({ onCha
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>{t('persona.new')}</DialogTitle>
-            <DialogDescription>{t('persona.new_desc')}</DialogDescription>
+            <DialogTitle className="flex items-center gap-1.5 pr-6">{t('persona.new')}
+              <FeatureHelp title={t('persona.new')} description={<p>{t('persona.new_desc')}</p>} />
+            </DialogTitle>
+            <DialogDescription className="sr-only">{t('persona.new_desc')}</DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-2">
             <div className="space-y-1.5">
@@ -302,8 +311,10 @@ export const PersonaManagerCard: React.FC<{ onChanged?: () => void }> = ({ onCha
       <Dialog open={importOpen} onOpenChange={setImportOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>{t('persona.import_title')}</DialogTitle>
-            <DialogDescription>{t('persona.import_desc')}</DialogDescription>
+            <DialogTitle className="flex items-center gap-1.5 pr-6">{t('persona.import_title')}
+              <FeatureHelp title={t('persona.import_title')} description={<p>{t('persona.import_desc')}</p>} />
+            </DialogTitle>
+            <DialogDescription className="sr-only">{t('persona.import_desc')}</DialogDescription>
           </DialogHeader>
           <textarea
             className="w-full min-h-[200px] rounded-md border bg-muted/20 p-3 font-mono text-xs"

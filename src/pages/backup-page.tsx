@@ -2,7 +2,8 @@ import { useTourState } from '@/components/onboarding/tour-data';
 import { tourSamples } from '@/lib/tour-samples';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { FeatureHelp } from '@/components/ui/feature-help';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -252,13 +253,14 @@ export const BackupPage: React.FC = () => {
   return (
     <div className="space-y-6 max-w-3xl">
       {dlg.node}
-      <PageHeader icon={Archive} title={t('backup.title')} description={t('backup.subtitle')} />
+      <PageHeader icon={Archive} title={t('backup.title')} description={t('backup.subtitle')} help={t('page_help.backup')} />
 
       {/* 导入旧版数据 */}
       <Card data-tour="backup-legacy">
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2"><Database className="h-4 w-4" />{t('backup.legacy_title')}</CardTitle>
-          <CardDescription>{t('backup.legacy_desc')}</CardDescription>
+          <CardTitle className="text-base flex items-center gap-2"><Database className="h-4 w-4" />{t('backup.legacy_title')}
+            <FeatureHelp title={t('backup.legacy_title')} description={<><p>{t('backup.legacy_desc')}</p><p>{t('backup.legacy_hint')}</p></>} />
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex items-center gap-2">
@@ -267,7 +269,6 @@ export const BackupPage: React.FC = () => {
               {importing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Database className="mr-2 h-4 w-4" />}{t('backup.legacy_import')}
             </Button>
           </div>
-          <p className="text-xs text-muted-foreground">{t('backup.legacy_hint')}</p>
           {importResult && <p className="text-sm text-green-600 dark:text-green-400 whitespace-pre-wrap">{importResult}</p>}
           {referenceReport && <div className="space-y-2 rounded-md border p-3 text-sm">
             <p>{t('backup.reply_reference_summary', referenceReport)}</p>
@@ -293,8 +294,9 @@ export const BackupPage: React.FC = () => {
 
       <Card data-tour="backup-manual">
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2"><Archive className="h-4 w-4" />{t('backup.backup_restore_title')}</CardTitle>
-          <CardDescription>{t('backup.backup_restore_desc')}</CardDescription>
+          <CardTitle className="text-base flex items-center gap-2"><Archive className="h-4 w-4" />{t('backup.backup_restore_title')}
+            <FeatureHelp title={t('backup.backup_restore_title')} description={<><p>{t('backup.backup_restore_desc')}</p><p>{t('feature_help.backup_selection_desc')}</p></>} />
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex flex-wrap gap-2">
@@ -307,15 +309,16 @@ export const BackupPage: React.FC = () => {
             <input ref={restoreFileRef} className="hidden" type="file" accept=".zip,application/zip" onChange={(e) => void stageRestore(e.target.files?.[0])} />
           </div>
           <SelectionOptions value={selection} onChange={setSelection} />
-          <p className="text-xs text-muted-foreground">立即备份默认包含全部项目。图片、媒体及运行日志可能显著增大备份，请按需取消；局部备份恢复时只覆盖已选择的内容。</p>
+          <p className="text-xs text-muted-foreground">{t('feature_help.backup_selection_note')}</p>
           <p className="text-xs text-amber-600 dark:text-amber-400">{t('backup.restore_warning')}</p>
         </CardContent>
       </Card>
 
       <Card data-tour="backup-auto">
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2"><Clock3 className="h-4 w-4" />自动备份</CardTitle>
-          <CardDescription>自动备份保存到 data/backups/；可按间隔或每日时刻执行，并按最近保留天数自动清理。</CardDescription>
+          <CardTitle className="text-base flex items-center gap-2"><Clock3 className="h-4 w-4" />{t('feature_help.backup_auto')}
+            <FeatureHelp title={t('feature_help.backup_auto')} description={<><p>{t('feature_help.backup_auto_desc')}</p><p>{t('feature_help.backup_auto_selection')}</p></>} />
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={autoConfig.enabled} onChange={(e) => setAutoConfig({ ...autoConfig, enabled: e.target.checked })} />启用自动备份</label>
@@ -332,13 +335,15 @@ export const BackupPage: React.FC = () => {
           </div>
           <SelectionOptions value={autoConfig.selection}
             onChange={(next) => setAutoConfig({ ...autoConfig, selection: next })} />
-          <p className="text-xs text-muted-foreground">自动备份默认采用精简组合，不包含运行/审计日志及图片、媒体，避免长期定时备份过快占满服务器。</p>
+          <p className="text-xs text-muted-foreground">{t('feature_help.backup_retention_note')}</p>
           <Button variant="outline" onClick={() => void saveAutoConfig()} disabled={savingAuto}>{savingAuto ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}保存自动备份设置</Button>
         </CardContent>
       </Card>
 
       <Card className="rt-section" data-tour="backup-archives">
-        <CardHeader className="rt-section-header"><CardTitle className="text-base">已保存的备份</CardTitle><CardDescription>手动备份保存在程序目录的 backups/，自动备份保存在 data/backups/；均可随时重新下载或删除。</CardDescription></CardHeader>
+        <CardHeader className="rt-section-header"><CardTitle className="text-base flex items-center gap-1.5">{t('feature_help.backup_archives')}
+          <FeatureHelp title={t('feature_help.backup_archives')} description={<p>{t('feature_help.backup_archives_desc')}</p>} />
+        </CardTitle></CardHeader>
         <CardContent className="rt-section-content p-0">
           {archives.length === 0 ? <p className="px-6 py-8 text-center text-sm text-muted-foreground">暂无已保存的备份。</p> : <div className="overflow-x-auto"><table className="rt rt-record w-full text-sm"><thead className="border-y bg-muted/50 text-muted-foreground"><tr><th className="p-3 text-left">文件</th><th className="p-3 text-left">来源</th><th className="p-3 text-left">大小</th><th className="p-3 text-left">创建时间</th><th className="p-3 text-right">操作</th></tr></thead><tbody>{archives.map((item) => <tr key={`${item.automatic}-${item.name}`} className="border-b last:border-0"><td data-label="文件" className="rt-title p-3 font-mono text-xs break-all">{item.name}</td><td data-label="来源" className="p-3">{item.automatic ? '自动' : '手动'}</td><td data-label="大小" className="p-3">{formatSize(item.size)}</td><td data-label="创建时间" className="rt-body p-3 whitespace-nowrap">{new Date(item.createdAt * 1000).toLocaleString()}</td><td data-label="操作" className="rt-footer p-3 text-right whitespace-nowrap"><Button size="sm" variant="ghost" disabled={restoring} onClick={() => void restoreStored(item.name, item.automatic)}><RotateCcw className="mr-1 h-4 w-4" />恢复</Button><Button size="sm" variant="ghost" onClick={() => void downloadStored(item.name, item.automatic)}><Download className="mr-1 h-4 w-4" />下载</Button><Button size="icon" variant="ghost" aria-label={`删除备份 ${item.name}`} className="text-destructive" onClick={() => void deleteStored(item.name, item.automatic)}><Trash2 className="h-4 w-4" /></Button></td></tr>)}</tbody></table></div>}
         </CardContent>

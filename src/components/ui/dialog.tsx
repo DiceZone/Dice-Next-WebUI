@@ -8,6 +8,31 @@ const DialogTrigger = DialogPrimitive.Trigger;
 const DialogPortal = DialogPrimitive.Portal;
 const DialogClose = DialogPrimitive.Close;
 
+// Help remains in the Tab order, but must not be the modal's automatic first
+// focus target: focus also opens its tooltip, covering the form on arrival.
+function focusPastHelp(event: Event) {
+  const container = event.currentTarget;
+  if (!(container instanceof HTMLElement) || !container.querySelector('[data-dialog-autofocus-skip]')) return;
+
+  const candidates = Array.from(container.querySelectorAll<HTMLElement>('*')).filter((element) => {
+    if (element.tabIndex < 0 || element.tagName === 'A'
+      || element.matches(':disabled, input[type="hidden"]')
+      || element.closest('[hidden], [inert]') || element.getClientRects().length === 0) return false;
+    const visibility = element.ownerDocument.defaultView?.getComputedStyle(element).visibility;
+    return visibility !== 'hidden' && visibility !== 'collapse';
+  });
+  // Leave dialogs without a leading help trigger to Radix's normal behavior.
+  if (!candidates[0]?.hasAttribute('data-dialog-autofocus-skip')) return;
+
+  event.preventDefault();
+  for (const candidate of candidates) {
+    if (candidate.hasAttribute('data-dialog-autofocus-skip')) continue;
+    candidate.focus({ preventScroll: true });
+    if (candidate.ownerDocument.activeElement === candidate) return;
+  }
+  container.focus({ preventScroll: true });
+}
+
 const DialogOverlay = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Overlay>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay>
@@ -26,7 +51,7 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => (
+>(({ className, children, onOpenAutoFocus, ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
@@ -36,6 +61,10 @@ const DialogContent = React.forwardRef<
         className
       )}
       {...props}
+      onOpenAutoFocus={(event) => {
+        onOpenAutoFocus?.(event);
+        if (!event.defaultPrevented) focusPastHelp(event);
+      }}
     >
       {children}
       <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">

@@ -14,6 +14,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { AdvancedOptions } from '@/components/ui/advanced-options';
+import { FeatureHelp } from '@/components/ui/feature-help';
+import { HelpLabel } from '@/components/ui/help-label';
 import { MAX_REPLY_WEIGHT, replyResults, resultProbabilities, validResultWeights } from '@/lib/reply-results';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -163,8 +165,14 @@ export const ReplyForm: React.FC<ReplyFormProps> = ({ open, onOpenChange, onSubm
     <Dialog open={open} onOpenChange={(next) => { if (!submitting && !uploading) onOpenChange(next); }}>
       <DialogContent className="max-w-2xl lg:max-w-6xl max-h-[90dvh] flex flex-col overflow-hidden">
         <DialogHeader className="shrink-0">
-          <DialogTitle>{eventTrigger ? t('replies.poke_title') : isEdit ? t('replies.edit_title') : t('replies.add_title')}</DialogTitle>
-          <DialogDescription>{eventTrigger ? t('replies.poke_desc') : t('replies.form_desc')}</DialogDescription>
+          <DialogTitle className="flex items-center gap-1.5 pr-6">
+            {eventTrigger ? t('replies.poke_title') : isEdit ? t('replies.edit_title') : t('replies.add_title')}
+            <FeatureHelp title={t('replies.result_label')} description={<>
+              <p>{eventTrigger ? t('replies.poke_desc') : t('replies.form_desc')}</p>
+              <p>{t('replies.var_hint')}</p><p>{t('replies.presentation_component_hint')}</p><p>{t('replies.result_weight_hint')}</p>
+            </>} />
+          </DialogTitle>
+          <DialogDescription className="sr-only">{eventTrigger ? t('replies.poke_desc') : t('replies.form_desc')}</DialogDescription>
         </DialogHeader>
 
         {/* fieldset 的匿名内容盒在收缩时可能溢出；由普通容器承担滚动，保留整组禁用语义。 */}
@@ -249,8 +257,6 @@ export const ReplyForm: React.FC<ReplyFormProps> = ({ open, onOpenChange, onSubm
               onChange={(e) => { const f = e.target.files?.[0]; if (f) void uploadImage(f); e.target.value = ''; }} />
             <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={addResult}><Plus className="mr-1 h-3.5 w-3.5" />{t('replies.add_result')}</Button>
             <p className="text-xs text-muted-foreground">{t('replies.result_weight_hint')}</p>
-            <p className="text-xs text-muted-foreground leading-relaxed">{t('replies.var_hint')}</p>
-            <p className="text-xs text-muted-foreground leading-relaxed">{t('replies.presentation_component_hint')}</p>
           </div>
           </div>
           <AdvancedOptions title={t('ui_refresh.advanced_options')} description={t('ui_refresh.reply_advanced_hint')} sessionOpen={open} revealToken={revealAdvanced}>
@@ -261,7 +267,7 @@ export const ReplyForm: React.FC<ReplyFormProps> = ({ open, onOpenChange, onSubm
           </div>
           {/* 触发限制（原版每条规则自带：概率 / 冷却 / 生效范围） */}
           <div className="space-y-3">
-            <Label>{t('replies.limits_label')}</Label>
+            <HelpLabel title={t('replies.limits_label')} description={<p>{t('replies.limits_hint')}</p>} />
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <span className="text-xs text-muted-foreground">{t('replies.limit_prob')}</span>
@@ -324,18 +330,17 @@ export const ReplyForm: React.FC<ReplyFormProps> = ({ open, onOpenChange, onSubm
                   placeholder={t('replies.scope_users_ph')} className="min-w-[150px] flex-1 font-mono" />
               )}
             </div>
-            <p className="text-xs text-muted-foreground">{t('replies.limits_hint')}</p>
+            <p className="text-xs text-muted-foreground">{t('feature_help.reply_limits_note')}</p>
           </div>
 
           {/* Priority */}
           {!eventTrigger && <div className="space-y-1.5">
-            <Label htmlFor="priority">{t('replies.priority')}</Label>
+            <HelpLabel htmlFor="priority" title={t('replies.priority')} description={<p>{t('replies.priority_hint')}</p>} />
             <Input id="priority" type="number" min={0} max={9999} className="w-24"
               value={priority} onChange={(e) => setPriority(parseInt(e.target.value) || 0)} />
-            <p className="text-xs text-muted-foreground">{t('replies.priority_hint')}</p>
           </div>}
           {eventTrigger && <div className="space-y-2 rounded-lg border p-3">
-            <Label htmlFor="poke-command">{t('replies.poke_command')}</Label>
+            <HelpLabel htmlFor="poke-command" title={t('replies.poke_command')} description={<p>{t('replies.poke_command_hint')}</p>} />
             <Input id="poke-command" value={command} onChange={(e) => setCommand(e.target.value)} placeholder=".jrrp" />
             <p className="text-xs text-muted-foreground">{t('replies.poke_command_hint')}</p>
           </div>}

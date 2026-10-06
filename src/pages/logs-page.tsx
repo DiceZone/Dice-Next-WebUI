@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useDialogs } from '@/hooks/use-dialogs';
 import { LogActionButtons } from '@/components/log-action-buttons';
 import { PageHeader } from '@/components/ui/page-header';
+import { FeatureHelp } from '@/components/ui/feature-help';
 
 interface GameLog {
   id: number;
@@ -290,7 +291,7 @@ export const LogsPage: React.FC = () => {
 
   return <div className="space-y-6">
     {dlg.node}
-    <PageHeader icon={Scroll} title={t('logs.title')} description={t('logs.subtitle')}
+    <PageHeader icon={Scroll} title={t('logs.title')} description={t('logs.subtitle')} help={t('page_help.logs')}
       actions={<Button variant="outline" onClick={load} disabled={loading}><RefreshCw className="mr-2 h-4 w-4" />{t('common.refresh')}</Button>} />
 
     <div data-tour="logs-search" className="relative max-w-xl">
@@ -318,7 +319,7 @@ export const LogsPage: React.FC = () => {
                   <th className="p-3 text-center"><SortHeader column="group">{t('logs.col_group')}</SortHeader></th>
                   <th className="p-3 text-center"><SortHeader column="status">{t('logs.col_status')}</SortHeader></th>
                   <th className="p-3 text-center"><SortHeader column="count">{t('logs.col_count')}</SortHeader></th>
-                  <th className="p-3 text-center" title={t('logs.storage_hint')}><SortHeader column="storage">{t('logs.col_storage')}</SortHeader></th>
+                  <th className="p-3 text-center"><div className="flex items-center justify-center gap-1.5"><SortHeader column="storage">{t('logs.col_storage')}</SortHeader><FeatureHelp title={t('logs.col_storage')} description={<p>{t('logs.storage_hint')}</p>} /></div></th>
                   <th className="p-3 text-center"><SortHeader column="game">{t('logs.col_game')}</SortHeader></th>
                   <th className="p-3 text-center"><SortHeader column="creator">{t('logs.col_creator')}</SortHeader></th>
                   <th className="p-3 text-center"><SortHeader column="createdAt">{t('logs.col_created')}</SortHeader></th>

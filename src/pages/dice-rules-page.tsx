@@ -34,12 +34,12 @@ export const DiceRulesPage: React.FC = () => {
   const handleReset = () => { resetRules(); toast({ title: t('dice.reset_done') }); };
 
   if (loading && !localRules) {
-    return (<div className="space-y-6"><PageHeader icon={Dices} title={t('dice.title')} description={t('common.loading')} /><div className="h-64 animate-pulse rounded-lg bg-muted" /></div>);
+    return (<div className="space-y-6"><PageHeader icon={Dices} title={t('dice.title')} description={t('common.loading')} help={t('page_help.dice_rules')} /><div className="h-64 animate-pulse rounded-lg bg-muted" /></div>);
   }
 
   return (
     <div className="space-y-6">
-      <PageHeader icon={Dices} title={t('dice.title')} description={t('dice.subtitle')}
+      <PageHeader icon={Dices} title={t('dice.title')} description={t('dice.subtitle')} help={t('page_help.dice_rules')}
         actions={<div data-tour="dice-actions" className="flex items-center gap-2">
           <Button variant="outline" onClick={handleReset}>{t('dice.reset_default')}</Button>
           <Button onClick={handleSave} disabled={saving}>{saving ? t('common.saving') : t('dice.save_rules')}</Button>

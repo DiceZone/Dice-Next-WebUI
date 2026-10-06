@@ -368,6 +368,7 @@ export const SETTINGS_SEARCH_ENTRIES: SettingsSearchEntry[] = [
   e('page-backup', '/backup', 'nav.backup', 'backup.title', '备份 備份 backup restore export import database', 'backup.subtitle'),
   e('page-about', '/about', 'nav.about', 'about.title', '关于 關於 about project info 项目 專案 技术栈 技術棧', 'about.subtitle'),
   e('about-update', '/about', 'nav.about', 'about.update_title', '更新 升级 升級 update upgrade updater release 新版本 版本检测 版本檢測 自动检测 自動檢測 检查更新 檢查更新 自动更新 自動更新 自动升级 自動升級 在线升级 線上升級 github mirror 镜像 鏡像 镜像升级 鏡像升級 镜像更新 鏡像更新 container docker podman kubernetes k8s 容器 コンテナ 拉取镜像 拉取鏡像 下载 下載 安装 安裝 回滚 回滾', 'about.update_desc', true),
+  e('about-update-schedule', '/about', 'nav.about', 'about.update_scheduled_install', '定时安装 定時安裝 定时更新 定時更新 先下载 先下載 凌晨 4点 4點 04:00 schedule scheduled installation update night upgrade', 'about.update_scheduled_install_desc', true),
 ];
 
 export const searchDestination = (entry: SettingsSearchEntry) => {

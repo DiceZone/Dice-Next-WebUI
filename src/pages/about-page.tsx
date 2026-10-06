@@ -7,10 +7,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { TimePicker } from '@/components/ui/date-time-picker';
 import { Badge } from '@/components/ui/badge';
+import { FeatureHelp } from '@/components/ui/feature-help';
+import { HelpLabel } from '@/components/ui/help-label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { apiClient, ApiTimeoutError } from '@/lib/api-client';
-import { formatVersion, isUpdateBusy, type UpdateAction, type UpdateSource, type UpdateSettings, type UpdateStatus } from '@/lib/system-update';
+import { formatVersion, formatScheduledInstallAt, updateTimezoneLabel, isUpdateBusy, type UpdateAction, type UpdateSource, type UpdateSettings, type UpdateStatus } from '@/lib/system-update';
 import { useSystemUpdateStore } from '@/store/system-update-store';
 import { formatBuildTimeUtc8 } from '@/lib/build-time';
 import { useDialogs } from '@/hooks/use-dialogs';
@@ -216,6 +219,8 @@ export const AboutPage: React.FC = () => {
 
   const phase = updateStatus?.phase ?? 'idle';
   const updateBusy = isUpdateBusy(phase);
+  const scheduleDisabled = !updateDraft?.autoCheck || updateDraft.autoAction !== 'install'
+    || !updateStatus?.scheduledInstallSupported || !!working;
   const phaseVariant = phase === 'error'
     ? 'danger'
     : phase === 'up_to_date'
@@ -228,7 +233,7 @@ export const AboutPage: React.FC = () => {
 
   return (
     <div className="space-y-6 max-w-2xl">
-      <PageHeader icon={Info} title={t('about.title')} description={t('about.subtitle')} />
+      <PageHeader icon={Info} title={t('about.title')} description={t('about.subtitle')} help={t('page_help.about')} />
 
       <Card>
         <CardHeader>
@@ -274,12 +279,12 @@ export const AboutPage: React.FC = () => {
             <CardTitle className="text-base flex items-center gap-2">
               <RefreshCw className="h-4 w-4" />
               {t('about.update_title')}
+              <FeatureHelp title={t('about.update_title')} description={<p>{t('about.update_desc')}</p>} />
             </CardTitle>
             <Badge variant={phaseVariant}>
               {t('about.phase_' + phase, { defaultValue: phase })}
             </Badge>
           </div>
-          <p className="text-sm text-muted-foreground">{t('about.update_desc')}</p>
         </CardHeader>
         <CardContent className="space-y-5">
           <div className="grid gap-2 text-sm">
@@ -402,7 +407,7 @@ export const AboutPage: React.FC = () => {
             <Button
               variant="outline"
               onClick={() => void runAction('download')}
-              disabled={updateStatus?.downloadSupported === false || !updateStatus?.updateAvailable || !updateStatus.latest?.asset || updateBusy || !!working || statusUncertain}
+              disabled={updateStatus?.downloadSupported === false || !updateStatus?.updateAvailable || !updateStatus.latest?.asset || (updateStatus.pending && updateStatus.pendingTag === updateStatus.latest.tag) || updateBusy || !!working || statusUncertain}
             >
               <Download className="mr-2 h-4 w-4" />
               {t('about.update_download')}
@@ -428,19 +433,25 @@ export const AboutPage: React.FC = () => {
             )}
           </div>
           {statusUncertain && <p className="text-sm text-muted-foreground">{t('about.update_status_uncertain')}</p>}
+          {!!updateStatus?.scheduledInstallAt && (
+            <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm" role="status">
+              {t('about.update_scheduled_pending', {
+                tag: updateStatus.pendingTag || updateStatus.latest?.tag || '',
+                time: formatScheduledInstallAt(updateStatus.scheduledInstallAt, updateStatus.timezoneMinutes ?? 0),
+              })}
+            </div>
+          )}
 
           <Separator />
 
           <div className="space-y-4">
             <div>
               <h3 className="text-sm font-medium">{t('about.update_settings')}</h3>
-              <p className="text-xs text-muted-foreground">{t('about.update_settings_desc')}</p>
             </div>
 
             <div className="flex items-center justify-between gap-4">
               <div>
-                <Label htmlFor="update-auto-check">{t('about.update_auto_check')}</Label>
-                <p className="text-xs text-muted-foreground">{t('about.update_auto_check_desc')}</p>
+                <HelpLabel htmlFor="update-auto-check" title={t('about.update_auto_check')} description={<p>{t('about.update_auto_check_desc')}</p>} />
               </div>
               <Switch
                 id="update-auto-check"
@@ -470,7 +481,19 @@ export const AboutPage: React.FC = () => {
               </div>
 
               <div className="space-y-2">
-                <Label>{t('about.update_auto_action')}</Label>
+                <div className="flex items-center gap-1.5">
+                  <Label>{t('about.update_auto_action')}</Label>
+                  <FeatureHelp title={t('about.update_auto_action')} description={
+                    <dl className="space-y-2">
+                      {(['notify', 'download', 'install'] as const).map((action) => (
+                        <div key={action}>
+                          <dt className="font-medium">{t(`about.action_${action}`)}</dt>
+                          <dd>{t(`about.update_action_${action}_desc`)}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  } />
+                </div>
                 <Select
                   value={updateDraft?.autoAction ?? 'notify'}
                   disabled={!updateDraft || !updateDraft.autoCheck}
@@ -489,8 +512,48 @@ export const AboutPage: React.FC = () => {
                 </Select>
               </div>
 
+              <div data-setting-anchor="about-update-schedule" role="group" aria-disabled={scheduleDisabled}
+                className={'space-y-3 rounded-lg border p-3 sm:col-span-2' + (scheduleDisabled ? ' bg-muted/40 opacity-50' : '')}>
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-1.5">
+                    <Label htmlFor="update-scheduled-install">{t('about.update_scheduled_install')}</Label>
+                    <FeatureHelp title={t('about.update_scheduled_install')}
+                      ariaLabel={t('about.update_scheduled_install_help')}
+                      description={<>
+                        <p>{t('about.update_scheduled_install_desc')}</p>
+                        {!updateStatus?.scheduledInstallSupported && <p>{t('about.update_schedule_unsupported')}</p>}
+                      </>}
+                    />
+                  </div>
+                  <Switch id="update-scheduled-install"
+                    checked={updateDraft?.scheduledInstall ?? false}
+                    disabled={scheduleDisabled}
+                    onCheckedChange={(checked) => updateSetting('scheduledInstall', checked)}
+                  />
+                </div>
+                {updateDraft?.scheduledInstall && (
+                  <div className="max-w-sm space-y-2">
+                    <Label>{t('about.update_install_time')}</Label>
+                    <TimePicker value={updateDraft.installTime ?? '04:00'}
+                      label={t('about.update_install_time')}
+                      disabled={scheduleDisabled}
+                      onValueChange={(value) => updateSetting('installTime', value)}
+                    />
+                    <p className="text-xs text-muted-foreground">{t('about.update_install_timezone', {
+                      timezone: updateTimezoneLabel(updateStatus?.timezoneMinutes ?? 0),
+                    })}</p>
+                  </div>
+                )}
+              </div>
+
               <div className="space-y-2 sm:col-span-2">
-                <Label>{t('about.update_source')}</Label>
+                <div className="flex items-center gap-1.5">
+                  <Label>{t('about.update_source')}</Label>
+                  <FeatureHelp title={t('about.update_source')} description={<>
+                    <p>{t('about.update_settings_desc')}</p>
+                    <p>{t('about.update_source_desc')}</p>
+                  </>} />
+                </div>
                 <Select
                   value={updateDraft?.source ?? 'auto'}
                   disabled={!updateDraft}

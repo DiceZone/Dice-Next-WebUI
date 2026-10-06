@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useTourState } from '@/components/onboarding/tour-data';
 import { useTranslation } from 'react-i18next';
+import { FeatureHelp } from '@/components/ui/feature-help';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -77,8 +78,10 @@ export const BroadcastBar: React.FC<{ render?: 'both' | 'banner' | 'button' }> =
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{t('broadcast.dialog_title')}</DialogTitle>
-            <DialogDescription className="whitespace-pre-wrap">{t('broadcast.rules')}</DialogDescription>
+            <DialogTitle className="flex items-center gap-1.5 pr-6">{t('broadcast.dialog_title')}
+              <FeatureHelp title={t('broadcast.dialog_title')} description={<p className="whitespace-pre-wrap">{t('broadcast.rules')}</p>} />
+            </DialogTitle>
+            <DialogDescription>{t('feature_help.broadcast_note')}</DialogDescription>
           </DialogHeader>
           <Textarea value={text} onChange={(e) => setText(e.target.value)} rows={4}
             placeholder={t('broadcast.placeholder')} maxLength={800} />

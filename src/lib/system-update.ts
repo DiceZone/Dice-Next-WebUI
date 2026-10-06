@@ -12,6 +12,8 @@ export interface UpdateSettings {
   autoCheck: boolean;
   intervalHours: number;
   autoAction: UpdateAction;
+  scheduledInstall?: boolean;
+  installTime?: string;
   source: UpdateSource;
   customMirror: string;
 }
@@ -36,6 +38,10 @@ export interface UpdateStatus {
   checkedAt: number;
   downloadSupported?: boolean;
   installSupported: boolean;
+  scheduledInstallSupported?: boolean;
+  scheduledInstallAt?: number;
+  pendingTag?: string;
+  timezoneMinutes?: number;
   cancelSupported?: boolean;
   canCancel?: boolean;
   selfUpdateBlockedReason?: string;
@@ -58,3 +64,15 @@ export function formatVersion(info: VersionInfo | null): string {
 export const isUpdateBusy = (phase: string) => (
   ['checking', 'connecting', 'downloading', 'verifying', 'preparing', 'cancelling', 'installing'].includes(phase)
 );
+
+export function updateTimezoneLabel(offsetMinutes: number): string {
+  const minutes = Math.abs(offsetMinutes);
+  return `UTC${offsetMinutes >= 0 ? '+' : '-'}${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+}
+
+// Never use the browser timezone for a server-side installation deadline.
+export function formatScheduledInstallAt(seconds: number, offsetMinutes: number): string {
+  if (!Number.isFinite(seconds) || seconds <= 0 || !Number.isFinite(offsetMinutes)) return '—';
+  const date = new Date((seconds + offsetMinutes * 60) * 1000);
+  return `${date.toISOString().slice(0, 16).replace('T', ' ')} (${updateTimezoneLabel(offsetMinutes)})`;
+}

@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { FeatureHelp } from '@/components/ui/feature-help';
+import { HelpLabel } from '@/components/ui/help-label';
 import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
@@ -165,7 +167,7 @@ export const RuleEditor: React.FC<Props> = ({ file, onClose, onSaved }) => {
 
   const testPanel = (
     <div className="rounded-md border border-dashed p-3 space-y-2">
-      <Label className="text-xs font-medium flex items-center gap-1.5"><FlaskConical className="h-3.5 w-3.5" />{t('ruleed.test_title')}</Label>
+      <div className="flex items-center gap-1.5"><FlaskConical className="h-3.5 w-3.5" /><HelpLabel title={t('ruleed.test_title')} description={<p>{t('ruleed.test_hint')}</p>} labelClassName="text-xs font-medium" /></div>
       <div className="flex gap-1">
         <Input className="h-8 text-sm flex-1 font-mono" placeholder={t('ruleed.test_cmd_ph')} value={testCmd}
           onChange={(e) => setTestCmd(e.target.value)}
@@ -181,7 +183,6 @@ export const RuleEditor: React.FC<Props> = ({ file, onClose, onSaved }) => {
                 : <span className="whitespace-pre-wrap break-all font-mono">{testOut.reply}</span>}
         </div>
       )}
-      <p className="text-[11px] leading-relaxed text-muted-foreground">{t('ruleed.test_hint')}</p>
     </div>
   );
 
@@ -205,7 +206,7 @@ export const RuleEditor: React.FC<Props> = ({ file, onClose, onSaved }) => {
   // 自定义指令编辑器：指令名 + 输出模板 + 帮助文字（写入 add 的 {output,help} 对象）。
   const customCmdEditor = (rows: KV[], set: (r: KV[]) => void) => (
     <div className="space-y-1">
-      <Label className="text-xs font-medium">{t('ruleed.custom')}</Label>
+      <HelpLabel title={t('ruleed.custom')} description={<p>{t('ruleed.custom_hint')}</p>} labelClassName="text-xs font-medium" />
       <div className="space-y-2">
         {rows.map((r, i) => (
           <div key={i} className="flex gap-1 items-start rounded-md border border-input p-1.5">
@@ -229,7 +230,10 @@ export const RuleEditor: React.FC<Props> = ({ file, onClose, onSaved }) => {
       <DialogContent className="max-w-3xl max-h-[88vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
-            <span>{isNew ? t('ruleed.new') : t('ruleed.edit', { file })}</span>
+            <span className="flex items-center gap-1.5">
+              <span>{isNew ? t('ruleed.new') : t('ruleed.edit', { file })}</span>
+              <FeatureHelp title={t('rules.title')} description={<p className="whitespace-pre-line">{t('page_help.rule_editor')}</p>} />
+            </span>
             <Button size="sm" variant="ghost" onClick={mode === 'form' ? toRaw : toForm}>
               {mode === 'form' ? t('ruleed.raw_mode') : t('ruleed.form_mode')}
             </Button>
@@ -263,7 +267,6 @@ export const RuleEditor: React.FC<Props> = ({ file, onClose, onSaved }) => {
             {kvEditor(t('ruleed.entries'), t('ruleed.term'), t('ruleed.explain'), form.entries, (r) => setForm({ ...form, entries: r }))}
             {kvEditor(t('ruleed.cmd_alias'), t('ruleed.cmd_in'), t('ruleed.cmd_target'), form.cmdAlias, (r) => setForm({ ...form, cmdAlias: r }))}
             {customCmdEditor(form.customCmds, (r) => setForm({ ...form, customCmds: r }))}
-            <p className="text-[11px] leading-relaxed text-muted-foreground -mt-2">{t('ruleed.custom_hint')}</p>
             <div><Label className="text-xs">{t('ruleed.disable')}</Label><Input className="h-8 text-sm" value={form.disableCmds} onChange={(e) => setForm({ ...form, disableCmds: e.target.value })} placeholder="jrrp, gugu" /></div>
           </div>
         )}

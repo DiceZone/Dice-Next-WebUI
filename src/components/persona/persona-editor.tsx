@@ -4,8 +4,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
+import { FeatureHelp } from '@/components/ui/feature-help';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -109,7 +110,10 @@ export const PersonaEditor: React.FC<Props> = ({ persona, onClose, onChanged }) 
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>{t('persona.ed.title', { name: persona.name })}</DialogTitle>
+          <DialogTitle className="flex items-center gap-1.5 pr-6">{t('persona.ed.title', { name: persona.name })}
+            <FeatureHelp title={t('persona.ed.title', { name: persona.name })} description={<><p>{t('feature_help.persona_editor_desc')}</p><p>{t('weighted.reply_hint')}</p></>} />
+          </DialogTitle>
+          <DialogDescription className="sr-only">{t('feature_help.persona_editor_desc')}</DialogDescription>
         </DialogHeader>
 
         {/* Add new entry */}

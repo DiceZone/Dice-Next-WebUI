@@ -24,6 +24,8 @@ import {
 } from 'lucide-react';
 import { PaginationBar } from '@/components/ui/pagination-bar';
 import { PageHeader } from '@/components/ui/page-header';
+import { FeatureHelp } from '@/components/ui/feature-help';
+import { ResponsiveActions } from '@/components/ui/responsive-actions';
 
 interface PluginConfig {
   ext: string; key: string; type: string;
@@ -76,12 +78,16 @@ const ConfigDialog: React.FC<{ plugin: Plugin; onClose: () => void; onSaved: () 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
-        <DialogHeader><DialogTitle>{t('modules.config_title', { name: plugin.name })}</DialogTitle><DialogDescription>{t('modules.config_desc')}</DialogDescription></DialogHeader>
+        <DialogHeader><DialogTitle className="flex items-center gap-1.5 pr-6">{t('modules.config_title', { name: plugin.name })}
+          <FeatureHelp title={t('modules.config_title', { name: plugin.name })} description={<p>{t('modules.config_desc')}</p>} />
+        </DialogTitle><DialogDescription className="sr-only">{t('modules.config_desc')}</DialogDescription></DialogHeader>
         <div className="space-y-4 py-2">
           {plugin.configs.map((c) => (
             <div key={c.key} className="space-y-1.5">
-              <Label className="text-sm font-medium">{c.key}</Label>
-              {c.description && <p className="text-xs text-muted-foreground whitespace-pre-wrap">{c.description}</p>}
+              <div className="flex items-center gap-1.5">
+                <Label className="text-sm font-medium">{c.key}</Label>
+                {c.description && <FeatureHelp title={c.key} description={<p className="whitespace-pre-wrap">{c.description}</p>} />}
+              </div>
               {c.type === 'bool' ? (
                 <div className="flex items-center gap-2">
                   <Switch checked={form[c.key] === '1' || form[c.key] === 'true'} onCheckedChange={(v) => setForm((f) => ({ ...f, [c.key]: v ? '1' : '0' }))} />
@@ -170,7 +176,7 @@ const DetailDialog: React.FC<{ plugin: Plugin; update?: UpdateState; onClose: ()
             <p className="text-sm font-medium">{t('modules.detail_compatibility')}</p>
             <ul className="mt-2 max-h-48 list-disc space-y-1 overflow-y-auto pl-4 text-xs">{plugin.compatibilityWarnings.map((warning, i) => <li key={i} className="break-words">{warning}</li>)}</ul>
           </div>}
-          <div className="pt-1"><p className="mb-1 text-sm text-muted-foreground">{t('modules.detail_commands')}（{plugin.commandList?.length || 0}）{plugin.kind === 'lua' && plugin.luaCommands && plugin.luaCommands.length > 0 && <span className="ml-1 text-[10px] text-muted-foreground">{t('luamod.cmd_hint')}</span>}</p>
+          <div className="pt-1"><div className="mb-1 flex items-center gap-1.5 text-sm text-muted-foreground">{t('modules.detail_commands')}（{plugin.commandList?.length || 0}）{plugin.kind === 'lua' && plugin.luaCommands && plugin.luaCommands.length > 0 && <FeatureHelp title={t('modules.detail_commands')} description={<p>{t('luamod.cmd_hint')}</p>} />}</div>
             {plugin.kind === 'lua' && plugin.luaCommands ? (
               plugin.luaCommands.length > 0 ? (
                 <div className="flex flex-col gap-1.5">
@@ -187,7 +193,7 @@ const DetailDialog: React.FC<{ plugin: Plugin; update?: UpdateState; onClose: ()
             )}
           </div>
           {plugin.kind === 'lua' && plugin.helpTopics && plugin.helpTopics.length > 0 && (
-            <div className="pt-1"><p className="mb-1 text-sm text-muted-foreground">{t('luamod.help_topics')}（{plugin.helpTopics.length}）<span className="ml-1 text-[10px] text-muted-foreground">{t('luamod.help_hint')}</span></p>
+            <div className="pt-1"><div className="mb-1 flex items-center gap-1.5 text-sm text-muted-foreground">{t('luamod.help_topics')}（{plugin.helpTopics.length}）<FeatureHelp title={t('luamod.help_topics')} description={<p>{t('luamod.help_hint')}</p>} /></div>
               <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto rounded-md bg-muted/30 p-1.5">
                 {plugin.helpTopics.slice(0, 200).map((h) => <Badge key={h} variant="outline" className="font-mono text-[10px] px-1 py-0 font-normal">{h}</Badge>)}
                 {plugin.helpTopics.length > 200 && <span className="text-[10px] text-muted-foreground self-center">+{plugin.helpTopics.length - 200}</span>}
@@ -249,6 +255,12 @@ const PluginCard: React.FC<{
           )}
         </div>
         <div className="flex shrink-0 items-center gap-1">
+          <ResponsiveActions size="sm" actions={[
+            ...(up?.hasUpdate && onUpdate ? [{ id: 'update', label: t('modules.update_now'), icon: ArrowUpCircle, disabled: busy, onAction: onUpdate }] : []),
+            { id: 'details', label: t('modules.details'), icon: Info, onAction: onDetail },
+            ...(!inactive && p.configs?.length ? [{ id: 'config', label: t('modules.config'), icon: Settings2, disabled: busy, onAction: onConfig }] : []),
+            { id: 'delete', label: t('common.delete'), icon: Trash2, disabled: busy, destructive: true, onAction: onDelete },
+          ]} desktop={<>
           {up?.hasUpdate && onUpdate && (
             <Button variant="ghost" size="icon" className="h-9 w-9 text-amber-600 dark:text-amber-400" title={t('modules.update_now')} onClick={onUpdate} disabled={busy}><ArrowUpCircle className="h-4 w-4" /></Button>
           )}
@@ -256,8 +268,9 @@ const PluginCard: React.FC<{
           {!inactive && p.configs && p.configs.length > 0 && (
             <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-foreground" title={t('modules.config')} onClick={onConfig} disabled={busy}><Settings2 className="h-4 w-4" /></Button>
           )}
-          {!p.superseded && <Switch checked={p.enabled} onCheckedChange={onToggle} disabled={busy} />}
           <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-destructive" onClick={onDelete} disabled={busy}><Trash2 className="h-4 w-4" /></Button>
+          </>} />
+          {!p.superseded && <Switch checked={p.enabled} onCheckedChange={onToggle} disabled={busy} aria-label={p.name} />}
         </div>
       </CardContent>
     </Card>
@@ -385,11 +398,13 @@ export const ModulesPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {dlg.node}
-      <PageHeader icon={Puzzle} title={t('modules.title')} description={t('modules.subtitle')}
+      <PageHeader icon={Puzzle} title={t('modules.title')} description={t('modules.subtitle')} help={t('page_help.modules')}
         actions={<div data-tour="modules-actions" className="flex flex-wrap gap-2">
           <input ref={fileRef} type="file" accept=".js,.lua,.zip,.json" className="hidden" onChange={onFileChosen} />
-          <Button variant="outline" onClick={checkAll} disabled={busy}><ArrowUpCircle className="mr-2 h-4 w-4" />{t('modules.check_all')}</Button>
-          <Button variant="outline" onClick={reload} disabled={busy}><RefreshCw className={`mr-2 h-4 w-4 ${busy ? 'animate-spin' : ''}`} />{t('modules.reload')}</Button>
+          <ResponsiveActions actions={[
+            { id: 'check', label: t('modules.check_all'), icon: ArrowUpCircle, disabled: busy, onAction: checkAll },
+            { id: 'reload', label: t('modules.reload'), icon: RefreshCw, iconClassName: busy ? 'animate-spin' : '', disabled: busy, onAction: reload },
+          ]} />
           <Button onClick={onPickFile} disabled={busy}><Upload className="mr-2 h-4 w-4" />{t('modules.upload')}</Button>
         </div>} />
 

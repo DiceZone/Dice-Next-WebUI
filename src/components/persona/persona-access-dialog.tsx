@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { FeatureHelp } from '@/components/ui/feature-help';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -97,8 +98,10 @@ export function PersonaAccessDialog({ onClose }: { onClose: () => void }) {
     <Dialog open onOpenChange={(open) => { if (!open) void close(); }}>
       <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>{t('commands.persona_access')}</DialogTitle>
-          <DialogDescription>{t('commands.persona_access_desc')}</DialogDescription>
+          <DialogTitle className="flex items-center gap-1.5 pr-6">{t('commands.persona_access')}
+            <FeatureHelp title={t('commands.persona_access')} description={<><p>{t('commands.persona_access_desc')}</p><p>{t('commands.persona_scope_hint')}</p></>} />
+          </DialogTitle>
+          <DialogDescription className="sr-only">{t('commands.persona_access_desc')}</DialogDescription>
         </DialogHeader>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
           {loading ? <p className="text-sm text-muted-foreground">{t('common.loading')}</p> : <>

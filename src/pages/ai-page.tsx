@@ -12,6 +12,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { FeatureHelp } from '@/components/ui/feature-help';
+import { HelpLabel } from '@/components/ui/help-label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -202,8 +204,7 @@ export const AiPage: React.FC = () => {
   // 覆盖范围（5 类别复选）
   const coverage = (cov: Cov, set: (c: Cov) => void) => (
     <div className="space-y-1">
-      <Label className="text-xs">{t('ai.cov')}</Label>
-      <p className="text-[11px] text-muted-foreground">{t('ai.cov_desc')}</p>
+      <HelpLabel title={t('ai.cov')} description={<p>{t('ai.cov_desc')}</p>} labelClassName="text-xs" />
       <div className="flex flex-wrap gap-x-4 gap-y-1 pt-1">
         {(['roll', 'deck', 'fun', 'custom', 'plugin'] as const).map((k) => (
           <label key={k} className="flex items-center gap-1.5 text-xs cursor-pointer select-none">
@@ -220,7 +221,7 @@ export const AiPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <PageHeader icon={TitleIcon} title={t(titleKey)} description={t('ai.desc')} />
+      <PageHeader icon={TitleIcon} title={t(titleKey)} description={t('ai.desc')} help={`${t(`page_help.ai_${section}`)}\n\n${t('ai.stage_note')}`} />
 
       {/* ══ 模型 section ══ */}
       {section === 'models' && (<>
@@ -228,7 +229,7 @@ export const AiPage: React.FC = () => {
           <CardContent className="py-4 space-y-3">
             <div className="flex items-center justify-between">
               <div className="pr-4">
-                <Label className="text-sm font-medium">{t('ai.master')}</Label>
+                <HelpLabel title={t('ai.master')} description={<p>{t('ai.master_desc')}</p>} labelClassName="text-sm font-medium" />
                 <p className="text-xs text-muted-foreground mt-0.5">{t('ai.master_desc')}</p>
               </div>
               <Switch checked={enabled} onCheckedChange={setEnabled} />
@@ -245,8 +246,7 @@ export const AiPage: React.FC = () => {
         {/* 全局请求参数 */}
         <Card data-setting-anchor="ai-params">
           <CardContent className="py-4 space-y-2">
-            <Label className="text-sm font-medium">{t('ai.params')}</Label>
-            <p className="text-xs text-muted-foreground">{t('ai.params_desc')}</p>
+            <HelpLabel title={t('ai.params')} description={<p>{t('ai.params_desc')}</p>} labelClassName="text-sm font-medium" />
             <div className="grid grid-cols-1 gap-2 pt-1 sm:grid-cols-3">
               {([['temperature', 'ai.temperature'], ['top_p', 'ai.top_p'], ['max_tokens', 'ai.max_tokens'], ['frequency_penalty', 'ai.freq_penalty'], ['presence_penalty', 'ai.pres_penalty']] as const).map(([k, lk]) => (
                 <div key={k} className="space-y-1">
@@ -321,8 +321,13 @@ export const AiPage: React.FC = () => {
             <div className={enabled ? '' : 'opacity-50 pointer-events-none select-none'}>
             <div className="flex items-center justify-between">
               <div className="pr-4">
-                <Label className="text-sm font-medium">{t('ai.polish')}</Label>
-                <p className="text-xs text-muted-foreground mt-0.5">{t('ai.polish_desc')}</p>
+                <div className="flex items-center gap-1.5">
+                  <Label className="text-sm font-medium">{t('ai.polish')}</Label>
+                  <FeatureHelp title={t('ai.polish')} description={<>
+                    <p>{t('ai.polish_desc')}</p>
+                    <p>{t('ai.polish_note')}</p>
+                  </>} />
+                </div>
               </div>
               <Switch checked={polish.enabled} onCheckedChange={(v) => setPolish((p) => ({ ...p, enabled: v }))} />
             </div>
@@ -348,13 +353,12 @@ export const AiPage: React.FC = () => {
                 </div>
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
-                    <Label className="text-xs">{t('ai.polish_prompt')}</Label>
+                    <HelpLabel title={t('ai.polish_prompt')} description={<p>{t('ai.polish_prompt_note')}</p>} labelClassName="text-xs" />
                     <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setPolish((p) => ({ ...p, prompt: p.mode === 'rp' ? defaults.polish_rp : defaults.polish_text }))}>
                       <Wand2 className="mr-1 h-3 w-3" />{t('ai.load_default')}
                     </Button>
                   </div>
                   <Textarea className="text-sm min-h-[100px]" value={polish.prompt} onChange={(e) => setPolish((p) => ({ ...p, prompt: e.target.value }))} placeholder={t('ai.polish_prompt_ph')} />
-                  <p className="text-[11px] text-muted-foreground">{t('ai.polish_prompt_note')}</p>
                 </div>
                 <p className="text-[11px] text-muted-foreground">{t('ai.polish_note')}</p>
               </div>
@@ -376,8 +380,13 @@ export const AiPage: React.FC = () => {
             <div className={enabled ? '' : 'opacity-50 pointer-events-none select-none'}>
             <div className="flex items-center justify-between">
               <div className="pr-4">
-                <Label className="text-sm font-medium">{t('ai.trans')}</Label>
-                <p className="text-xs text-muted-foreground mt-0.5">{t('ai.trans_desc')}</p>
+                <div className="flex items-center gap-1.5">
+                  <Label className="text-sm font-medium">{t('ai.trans')}</Label>
+                  <FeatureHelp title={t('ai.trans')} description={<>
+                    <p>{t('ai.trans_desc')}</p>
+                    <p>{t('ai.trans_note')}</p>
+                  </>} />
+                </div>
               </div>
               <Switch checked={trans.enabled} onCheckedChange={(v) => setTrans((p) => ({ ...p, enabled: v }))} />
             </div>
@@ -407,13 +416,12 @@ export const AiPage: React.FC = () => {
                 </div>
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
-                    <Label className="text-xs">{t('ai.trans_prompt')}</Label>
+                    <HelpLabel title={t('ai.trans_prompt')} description={<p>{t('ai.trans_prompt_note')}</p>} labelClassName="text-xs" />
                     <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setTrans((p) => ({ ...p, prompt: defaults.translate }))}>
                       <Wand2 className="mr-1 h-3 w-3" />{t('ai.load_default')}
                     </Button>
                   </div>
                   <Textarea className="text-sm min-h-[100px]" value={trans.prompt} onChange={(e) => setTrans((p) => ({ ...p, prompt: e.target.value }))} placeholder={t('ai.trans_prompt_ph')} />
-                  <p className="text-[11px] text-muted-foreground">{t('ai.trans_prompt_note')}</p>
                 </div>
                 <p className="text-[11px] text-muted-foreground">{t('ai.trans_note')}</p>
               </div>
@@ -435,8 +443,13 @@ export const AiPage: React.FC = () => {
             <div className={enabled ? '' : 'opacity-50 pointer-events-none select-none'}>
               <div className="flex items-center justify-between">
                 <div className="pr-4">
-                  <Label className="text-sm font-medium">{t('ai.chat')}</Label>
-                  <p className="text-xs text-muted-foreground mt-0.5">{t('ai.chat_desc')}</p>
+                  <div className="flex items-center gap-1.5">
+                    <Label className="text-sm font-medium">{t('ai.chat')}</Label>
+                    <FeatureHelp title={t('ai.chat')} description={<>
+                      <p>{t('ai.chat_desc')}</p>
+                      <p>{t('ai.chat_note')}</p>
+                    </>} />
+                  </div>
                 </div>
                 <Switch checked={chat.enabled} onCheckedChange={(v) => setChat((p) => ({ ...p, enabled: v }))} />
               </div>
@@ -445,8 +458,7 @@ export const AiPage: React.FC = () => {
                   <div className="space-y-1 max-w-xs"><Label className="text-xs">{t('ai.chat_model')}</Label>{modelSelect(chat.model_id, (v) => setChat((p) => ({ ...p, model_id: v })))}</div>
 
                   <div className="space-y-1.5 rounded-md border p-2.5">
-                    <Label className="text-xs font-medium">{t('ai.chat_trigger')}</Label>
-                    <p className="text-[11px] text-muted-foreground">{t('ai.chat_trigger_desc')}</p>
+                    <HelpLabel title={t('ai.chat_trigger')} description={<p>{t('ai.chat_trigger_desc')}</p>} labelClassName="text-xs font-medium" />
                     <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none">
                       <input type="checkbox" className="accent-primary" checked={chat.at_bot} onChange={(e) => setChat((p) => ({ ...p, at_bot: e.target.checked }))} />
                       {t('ai.chat_at_bot')}
@@ -478,11 +490,10 @@ export const AiPage: React.FC = () => {
                   </label>
 
                   <div className="space-y-1">
-                    <Label className="text-xs">{t('ai.chat_filters')}</Label>
+                    <HelpLabel title={t('ai.chat_filters')} description={<p>{t('ai.chat_filters_note')}</p>} labelClassName="text-xs" />
                     <Textarea className="text-sm min-h-[60px] font-mono" value={chat.filters.join('\n')}
                       placeholder={t('ai.chat_filters_ph')}
                       onChange={(e) => setChat((p) => ({ ...p, filters: e.target.value.split('\n').map((s) => s.trim()).filter(Boolean) }))} />
-                    <p className="text-[11px] text-muted-foreground">{t('ai.chat_filters_note')}</p>
                   </div>
 
                   <div className="space-y-1">
@@ -511,8 +522,13 @@ export const AiPage: React.FC = () => {
             <div className={enabled ? '' : 'opacity-50 pointer-events-none select-none'}>
               <div className="flex items-center justify-between">
                 <div className="pr-4">
-                  <Label className="text-sm font-medium">{t('ai.mem')}</Label>
-                  <p className="text-xs text-muted-foreground mt-0.5">{t('ai.mem_desc')}</p>
+                  <div className="flex items-center gap-1.5">
+                    <Label className="text-sm font-medium">{t('ai.mem')}</Label>
+                    <FeatureHelp title={t('ai.mem')} description={<>
+                      <p>{t('ai.mem_desc')}</p>
+                      <p>{t('ai.mem_note')}</p>
+                    </>} />
+                  </div>
                 </div>
                 <Switch checked={memory.short.enabled} onCheckedChange={(v) => setMemory((p) => ({ ...p, short: { ...p.short, enabled: v } }))} />
               </div>
@@ -565,8 +581,13 @@ export const AiPage: React.FC = () => {
               <div data-setting-anchor="ai-memory-long" className="mt-4 border-t pt-3">
                 <div className="flex items-center justify-between">
                   <div className="pr-4">
-                    <Label className="text-sm font-medium">{t('ai.mlong')}</Label>
-                    <p className="text-xs text-muted-foreground mt-0.5">{t('ai.mlong_desc')}</p>
+                    <div className="flex items-center gap-1.5">
+                      <Label className="text-sm font-medium">{t('ai.mlong')}</Label>
+                      <FeatureHelp title={t('ai.mlong')} description={<>
+                        <p>{t('ai.mlong_desc')}</p>
+                        <p>{t('ai.mlong_note')}</p>
+                      </>} />
+                    </div>
                   </div>
                   <Switch checked={memory.long.enabled} onCheckedChange={(v) => setMemory((p) => ({ ...p, long: { ...p.long, enabled: v } }))} />
                 </div>
@@ -631,8 +652,13 @@ export const AiPage: React.FC = () => {
             <div className={enabled ? '' : 'opacity-50 pointer-events-none select-none'}>
               <div className="flex items-center justify-between">
                 <div className="pr-4">
-                  <Label className="text-sm font-medium">{t('ai.tools')}</Label>
-                  <p className="text-xs text-muted-foreground mt-0.5">{t('ai.tools_desc')}</p>
+                  <div className="flex items-center gap-1.5">
+                    <Label className="text-sm font-medium">{t('ai.tools')}</Label>
+                    <FeatureHelp title={t('ai.tools')} description={<>
+                      <p>{t('ai.tools_desc')}</p>
+                      <p>{t('ai.tools_note')}</p>
+                    </>} />
+                  </div>
                 </div>
                 <Switch checked={tools.enabled} onCheckedChange={(v) => setTools((p) => ({ ...p, enabled: v }))} />
               </div>
@@ -682,7 +708,13 @@ export const AiPage: React.FC = () => {
             <div className={enabled ? '' : 'opacity-50 pointer-events-none select-none'}>
               <div className="flex items-center justify-between">
                 <div className="pr-4">
-                  <Label className="text-sm font-medium">{t('ai.wl')}</Label>
+                  <div className="flex items-center gap-1.5">
+                    <Label className="text-sm font-medium">{t('ai.wl')}</Label>
+                    <FeatureHelp title={t('ai.wl')} description={<>
+                      <p>{t('ai.wl_desc')}</p>
+                      <p>{t('ai.wl_note')}</p>
+                    </>} />
+                  </div>
                   <p className="text-xs text-muted-foreground mt-0.5">{t('ai.wl_desc')}</p>
                 </div>
                 <Switch checked={wl.enabled} onCheckedChange={(v) => setWl((p) => ({ ...p, enabled: v }))} />
@@ -749,8 +781,13 @@ export const AiPage: React.FC = () => {
             <div className={enabled ? '' : 'opacity-50 pointer-events-none select-none'}>
               <div className="flex items-center justify-between">
                 <div className="pr-4">
-                  <Label className="text-sm font-medium">{t('ai.vision')}</Label>
-                  <p className="text-xs text-muted-foreground mt-0.5">{t('ai.vision_desc')}</p>
+                  <div className="flex items-center gap-1.5">
+                    <Label className="text-sm font-medium">{t('ai.vision')}</Label>
+                    <FeatureHelp title={t('ai.vision')} description={<>
+                      <p>{t('ai.vision_desc')}</p>
+                      <p>{t('ai.vision_note')}</p>
+                    </>} />
+                  </div>
                 </div>
                 <Switch checked={vision.enabled} onCheckedChange={(v) => setVision((p) => ({ ...p, enabled: v }))} />
               </div>
@@ -763,8 +800,7 @@ export const AiPage: React.FC = () => {
                   </div>
                   <div className="flex items-center justify-between rounded-md border p-3">
                     <div>
-                      <Label className="text-sm font-medium">{t('ai.vision_pass_url')}</Label>
-                      <p className="text-xs text-muted-foreground">{t('ai.vision_pass_url_desc')}</p>
+                      <HelpLabel title={t('ai.vision_pass_url')} description={<p>{t('ai.vision_pass_url_desc')}</p>} labelClassName="text-sm font-medium" />
                     </div>
                     <Switch checked={vision.pass_url !== false} onCheckedChange={(v) => setVision((p) => ({ ...p, pass_url: v }))} />
                   </div>
@@ -797,8 +833,13 @@ export const AiPage: React.FC = () => {
             <div className={enabled ? '' : 'opacity-50 pointer-events-none select-none'}>
               <div className="flex items-center justify-between">
                 <div className="pr-4">
-                  <Label className="text-sm font-medium">{t('ai.npc')}</Label>
-                  <p className="text-xs text-muted-foreground mt-0.5">{t('ai.npc_desc')}</p>
+                  <div className="flex items-center gap-1.5">
+                    <Label className="text-sm font-medium">{t('ai.npc')}</Label>
+                    <FeatureHelp title={t('ai.npc')} description={<>
+                      <p>{t('ai.npc_desc')}</p>
+                      <p>{t('ai.npc_note')}</p>
+                    </>} />
+                  </div>
                 </div>
                 <Switch checked={npc.enabled} onCheckedChange={(v) => setNpc((p) => ({ ...p, enabled: v }))} />
               </div>
@@ -813,10 +854,10 @@ export const AiPage: React.FC = () => {
                           <input type="checkbox" className="accent-primary" checked={n.enabled} onChange={(e) => patchNpc(i, { enabled: e.target.checked })} />
                           {t('ai.npc_on')}
                         </label>
-                        <label className="flex items-center gap-1 text-xs whitespace-nowrap" title={t('ai.npc_mood_tip')}>
-                          <input type="checkbox" className="accent-primary" checked={n.mood_enabled} onChange={(e) => patchNpc(i, { mood_enabled: e.target.checked })} />
-                          {t('ai.npc_mood')}
-                        </label>
+                        <div className="flex items-center gap-1">
+                          <input id={`npc-mood-${n.id}`} type="checkbox" className="accent-primary" checked={n.mood_enabled} onChange={(e) => patchNpc(i, { mood_enabled: e.target.checked })} />
+                          <HelpLabel htmlFor={`npc-mood-${n.id}`} title={t('ai.npc_mood')} description={<p>{t('ai.npc_mood_tip')}</p>} labelClassName="text-xs whitespace-nowrap" />
+                        </div>
                         <Button variant="ghost" size="sm" className="ml-auto h-7 w-7 p-0 text-destructive" onClick={() => delNpc(i)}><Trash2 className="h-4 w-4" /></Button>
                       </div>
                       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -844,7 +885,6 @@ export const AiPage: React.FC = () => {
       <div data-tour="ai-save" className="flex justify-end pt-2">
         <Button onClick={save} disabled={saving}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{t('common.save')}</Button>
       </div>
-      <p className="text-[11px] text-muted-foreground">{t('ai.stage_note')}</p>
     </div>
   );
 };

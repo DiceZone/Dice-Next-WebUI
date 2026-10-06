@@ -3,6 +3,8 @@ import { tourSamples } from '@/lib/tour-samples';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/ui/page-header';
+import { FeatureHelp } from '@/components/ui/feature-help';
+import { HelpLabel } from '@/components/ui/help-label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -192,7 +194,9 @@ const PermTab: React.FC<{ entries: BanEntry[]; reload: () => Promise<void>; del:
       {/* 用户信任等级 */}
       <Card className="rt-section" data-tour="permissions-trust">
         <CardHeader className="rt-section-header">
-          <CardTitle className="text-base flex items-center gap-2"><Users className="h-4 w-4" />{t('banlist.perm_users')}</CardTitle>
+          <CardTitle className="text-base flex items-center gap-2"><Users className="h-4 w-4" />{t('banlist.perm_users')}
+            <FeatureHelp title={t('banlist.perm_users')} description={<p>{t('banlist.perm_users_desc')}</p>} />
+          </CardTitle>
         </CardHeader>
         <CardContent className="rt-section-content space-y-3">
           <p className="text-xs text-muted-foreground">{t('banlist.perm_users_desc')}</p>
@@ -261,12 +265,14 @@ const PermTab: React.FC<{ entries: BanEntry[]; reload: () => Promise<void>; del:
 
       {/* C#94：白名单群（用户白名单=信任等级，只有群需要单独设置） */}
       <Card className="rt-section" data-tour="permissions-whitelist">
-        <CardHeader className="rt-section-header"><CardTitle className="text-base flex items-center gap-2"><ShieldCheck className="h-4 w-4" />{t('banlist.perm_white_group')}</CardTitle></CardHeader>
+        <CardHeader className="rt-section-header"><CardTitle className="text-base flex items-center gap-2"><ShieldCheck className="h-4 w-4" />{t('banlist.perm_white_group')}
+          <FeatureHelp title={t('banlist.perm_white_group')} description={<p>{t('banlist.perm_white_group_desc')}</p>} />
+        </CardTitle></CardHeader>
         <CardContent className="rt-section-content space-y-3">
           <p className="text-xs text-muted-foreground">{t('banlist.perm_white_group_desc')}</p>
           <div className="flex items-center justify-between rounded-md border p-3">
             <div>
-              <Label className="text-sm font-medium">{t('banlist.whitelist_only')}</Label>
+              <HelpLabel title={t('banlist.whitelist_only')} description={<p>{t('banlist.whitelist_only_desc')}</p>} labelClassName="text-sm font-medium" />
               <p className="text-xs text-muted-foreground">{t('banlist.whitelist_only_desc')}</p>
             </div>
             <Switch checked={whitelistOnly} onCheckedChange={toggleWhitelistOnly} />
@@ -550,7 +556,7 @@ export const BanlistPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <PageHeader icon={ShieldCheck} title={t('banlist.title')} description={t('banlist.desc')}
+      <PageHeader icon={ShieldCheck} title={t('banlist.title')} description={t('banlist.desc')} help={t('page_help.permissions')}
         actions={
           <Button variant="outline" onClick={load} disabled={loading}>
             <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />{t('common.refresh')}
@@ -574,7 +580,9 @@ export const BanlistPage: React.FC = () => {
         <>
           <Card>
             <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2"><Bot className="h-4 w-4" />{t('banlist.dicebot_title')}</CardTitle>
+              <CardTitle className="text-base flex items-center gap-2"><Bot className="h-4 w-4" />{t('banlist.dicebot_title')}
+                <FeatureHelp title={t('banlist.dicebot_title')} description={<p>{t('banlist.dicebot_desc')}</p>} />
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <p className="text-xs text-muted-foreground">{t('banlist.dicebot_desc')}</p>

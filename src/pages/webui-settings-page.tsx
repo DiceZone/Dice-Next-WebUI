@@ -5,6 +5,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { FeatureHelp } from '@/components/ui/feature-help';
 import { Switch } from '@/components/ui/switch';
 import { zustandAppStore } from '@/store/app-store';
 import { useToast } from '@/hooks/use-toast';
@@ -67,7 +68,12 @@ export const WebuiSettingsPage: React.FC = () => {
 
   const handleRestart = async () => {
     try {
-      await fetch('/api/system/restart', { method: 'POST' });
+      const response = await fetch('/api/system/restart', { method: 'POST' });
+      const result = await response.json();
+      if (!response.ok || result.code !== 0) {
+        toast({ title: result.message || t('common.error'), variant: 'destructive' });
+        return;
+      }
       toast({ title: t('settings.restarting') });
     } catch { /* 连接会断开属正常 */ toast({ title: t('settings.restarting') }); }
   };
@@ -101,10 +107,25 @@ export const WebuiSettingsPage: React.FC = () => {
 
   return (
     <div className="space-y-6 max-w-3xl">
-      <PageHeader icon={Monitor} title={t('webui.title')} description={t('webui.desc')} />
+      <PageHeader icon={Monitor} title={t('webui.title')} description={t('webui.desc')} help={t('page_help.webui')} />
 
       <Card data-setting-anchor="webui-content-width">
-        <CardHeader><CardTitle className="text-base">{t('workspace.width')}</CardTitle><CardDescription>{t('workspace.width_hint')}</CardDescription></CardHeader>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            {t('workspace.width')}
+            <FeatureHelp title={t('workspace.width')} description={<>
+              <p>{t('workspace.width_hint')}</p>
+              <dl className="space-y-2">
+                {(['classic', 'modern'] as const).map((mode) => (
+                  <div key={mode}>
+                    <dt className="font-medium">{t(`workspace.${mode}`)}</dt>
+                    <dd>{t(`workspace.${mode}_hint`)}</dd>
+                  </div>
+                ))}
+              </dl>
+            </>} />
+          </CardTitle>
+        </CardHeader>
         <CardContent className="grid gap-3 sm:grid-cols-2">
           {(['classic', 'modern'] as const).map((mode) => <button key={mode} type="button" aria-pressed={contentWidth === mode} onClick={() => setContentWidth(mode)} className={`rounded-lg border p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${contentWidth === mode ? 'border-primary bg-primary/5' : 'hover:bg-muted/50'}`}>
             <span className="block text-sm font-medium">{t(`workspace.${mode}`)}</span><span className="mt-1 block text-sm text-muted-foreground">{t(`workspace.${mode}_hint`)}</span>
@@ -115,8 +136,10 @@ export const WebuiSettingsPage: React.FC = () => {
       {/* API Key */}
       <Card data-setting-anchor="webui-api-key">
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2"><Key className="h-4 w-4" />{t('settings.api_key_title')}</CardTitle>
-          <CardDescription>{t('settings.api_key_desc')}</CardDescription>
+          <CardTitle className="text-base flex items-center gap-2"><Key className="h-4 w-4" />{t('settings.api_key_title')}
+            <FeatureHelp title={t('settings.api_key_title')} description={<p>{t('settings.api_key_desc')}</p>} />
+          </CardTitle>
+          <CardDescription>{t('feature_help.api_key_note')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
@@ -138,7 +161,13 @@ export const WebuiSettingsPage: React.FC = () => {
       {/* WebUI 登录口令 */}
       <Card data-setting-anchor="webui-password">
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2"><Lock className="h-4 w-4" />{t('settings.webpw_title')}</CardTitle>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Lock className="h-4 w-4" />{t('settings.webpw_title')}
+            <FeatureHelp title={t('settings.webpw_title')} description={<>
+              <p>{t('settings.webpw_desc')}</p>
+              <p>{t('settings.webpw_hint')}</p>
+            </>} />
+          </CardTitle>
           <CardDescription>{t('settings.webpw_desc')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -169,8 +198,14 @@ export const WebuiSettingsPage: React.FC = () => {
       {/* 运行 IP / 端口 */}
       <Card data-setting-anchor="webui-server">
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2"><Server className="h-4 w-4" />{t('settings.server_title')}</CardTitle>
-          <CardDescription>{t('settings.server_desc')}</CardDescription>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Server className="h-4 w-4" />{t('settings.server_title')}
+            <FeatureHelp title={t('settings.server_title')} description={<>
+              <p>{t('settings.server_desc')}</p>
+              <p>{t('settings.server_hint')}</p>
+              <p>{t('settings.restart_update_hint')}</p>
+            </>} />
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex flex-wrap items-end gap-3">
@@ -185,6 +220,7 @@ export const WebuiSettingsPage: React.FC = () => {
             <Button size="sm" onClick={handleSaveServer} disabled={srvSaving}>{srvSaving ? t('common.saving') : t('common.save')}</Button>
           </div>
           <p className="text-xs text-muted-foreground">{t('settings.server_hint')}</p>
+          <p className="text-xs text-muted-foreground">{t('settings.restart_update_hint')}</p>
           {restartNeeded && (
             <div className="flex items-center gap-3 rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-sm">
               <span className="text-amber-700 dark:text-amber-400">{t('settings.server_restart_note')}</span>
@@ -197,8 +233,9 @@ export const WebuiSettingsPage: React.FC = () => {
       {/* 主题偏好 */}
       <Card data-setting-anchor="webui-theme">
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2"><Palette className="h-4 w-4" />{t('settings.theme_title')}</CardTitle>
-          <CardDescription>{t('settings.theme_desc')}</CardDescription>
+          <CardTitle className="text-base flex items-center gap-2"><Palette className="h-4 w-4" />{t('settings.theme_title')}
+            <FeatureHelp title={t('settings.theme_title')} description={<p>{t('settings.theme_desc')}</p>} />
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-3">
@@ -214,8 +251,9 @@ export const WebuiSettingsPage: React.FC = () => {
       {/* 控制台日志 */}
       <Card data-setting-anchor="webui-log">
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2"><Terminal className="h-4 w-4" />{t('settings.log_title')}</CardTitle>
-          <CardDescription>{t('settings.log_desc')}</CardDescription>
+          <CardTitle className="text-base flex items-center gap-2"><Terminal className="h-4 w-4" />{t('settings.log_title')}
+            <FeatureHelp title={t('settings.log_title')} description={<p>{t('settings.log_desc')}</p>} />
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-between">

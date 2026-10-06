@@ -1,18 +1,19 @@
 import { useTourState } from '@/components/onboarding/tour-data';
 import { tourSamples } from '@/lib/tour-samples';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Activity, BarChart3, CalendarDays, Command, Dices, MessagesSquare,
   PlugZap, User, UsersRound,
 } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
+import { FeatureHelp } from '@/components/ui/feature-help';
+import { AvailabilityHistory } from '@/components/statistics/availability-history';
+import type { OnlineGranularity } from '@/lib/availability-history';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-
-type OnlineGranularity = '5m' | '1h' | '6h' | '1d';
 
 interface AdapterOption {
   id: string;
@@ -96,21 +97,33 @@ const commandLabel = (command: string) => ({
 
 const shortDate = (value: string) => value.length >= 10 ? value.slice(5, 10).replace('-', '/') : value;
 const lastUsed = (value: string) => value ? value.slice(0, 10) : '—';
-const localTime = (value: string) => {
-  if (!value) return '—';
-  const date = new Date(/(?:Z|[+-]\d{2}:\d{2})$/i.test(value) ? value : value + 'Z');
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
-};
-
 export const StatisticsPage: React.FC = () => {
   const { t } = useTranslation();
-  const [days, setDays] = useTourState(30, 30);
+  const [days, setDays] = useTourState(7, 7);
   const [platform, setPlatform] = useTourState('', '');
   const [adapter, setAdapter] = useTourState('', '');
   const [granularity, setGranularity] = useTourState<OnlineGranularity>('1h', '1h');
   const [data, setData] = useTourState<StatisticsData | null>(null, tourSamples.statistics);
   const [loading, setLoading] = useTourState(true, false);
   const [error, setError] = useTourState('', '');
+  const [timezone, setTimezone] = useTourState<number | null>(null, 480);
+
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      try {
+        const response = await fetch('/api/system/timezone');
+        const payload = await response.json();
+        if (!response.ok || payload.code !== 0 || !Number.isFinite(payload.data?.effective_offset_minutes)) throw new Error('timezone');
+        if (active) setTimezone(payload.data.effective_offset_minutes);
+      } catch {
+        if (active) setTimezone(null); // Explicit UTC fallback, not the browser's timezone.
+      }
+    };
+    void load();
+    const timer = window.setInterval(() => void load(), 60_000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [setTimezone]);
 
   useEffect(() => {
     let active = true;
@@ -155,13 +168,14 @@ export const StatisticsPage: React.FC = () => {
     setAdapter('');
   };
 
-  if (!data && loading) return <div className="h-[36rem] animate-pulse rounded-xl bg-muted" />;
-  if (!data) return <p className="text-sm text-destructive">{t('statistics.load_failed')}: {error}</p>;
+  const header = <PageHeader icon={BarChart3} title={t('statistics.title')} description={t('statistics.subtitle')} help={t('page_help.statistics')} />;
+  if (!data && loading) return <div className="space-y-4">{header}<div className="h-[36rem] animate-pulse rounded-xl bg-muted" /></div>;
+  if (!data) return <div className="space-y-4">{header}<p className="text-sm text-destructive">{t('statistics.load_failed')}: {error}</p></div>;
 
   return (
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-4">
-        <PageHeader icon={BarChart3} title={t('statistics.title')} description={t('statistics.subtitle')} />
+        {header}
         {loading && <span className="mt-2 text-xs text-muted-foreground">{t('statistics.refreshing')}</span>}
       </div>
 
@@ -227,17 +241,18 @@ export const StatisticsPage: React.FC = () => {
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-base">
             <Activity className="h-4 w-4 text-primary" />{t('statistics.daily_trend')}
+            <FeatureHelp title={t('statistics.daily_trend')} description={<p>{t('statistics.daily_trend_desc')}</p>} />
           </CardTitle>
-          <p className="text-xs text-muted-foreground">{t('statistics.daily_trend_desc')}</p>
         </CardHeader>
         <CardContent><DailyTrend rows={data.daily_usage} /></CardContent>
       </Card>
 
-      <Card data-tour="statistics-online">
-        <CardHeader className="flex flex-row items-start justify-between gap-3 pb-2">
+      <Card data-tour="statistics-online" data-setting-anchor="statistics-online">
+        <CardHeader className="flex flex-col gap-3 pb-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <CardTitle className="flex items-center gap-2 text-base"><PlugZap className="h-4 w-4 text-primary" />{t('statistics.online_history')}</CardTitle>
-            <p className="mt-1 text-xs text-muted-foreground">{t('statistics.online_history_desc')}</p>
+            <CardTitle className="flex items-center gap-2 text-base"><PlugZap className="h-4 w-4 text-primary" />{t('statistics.online_history')}
+              <FeatureHelp title={t('statistics.online_history')} description={<><p>{t('statistics.online_history_desc')}</p><p className="whitespace-pre-line">{t('availability.help')}</p></>} />
+            </CardTitle>
           </div>
           <Select value={granularity} onValueChange={(value) => setGranularity(value as OnlineGranularity)}>
             <SelectTrigger aria-label={t('statistics.online_granularity')} className="h-8 w-36"><SelectValue /></SelectTrigger>
@@ -249,7 +264,9 @@ export const StatisticsPage: React.FC = () => {
             </SelectContent>
           </Select>
         </CardHeader>
-        <CardContent><OnlineHistory rows={data.online_history} granularityLabel={t('statistics.granularity_' + granularity)} /></CardContent>
+        <CardContent><AvailabilityHistory key={`${data.filters.days}/${data.filters.platform}/${data.filters.adapter}`}
+          rows={data.online_history} dates={data.daily_usage.map(row => row.date)}
+          granularity={data.filters.granularity || granularity} timezoneMinutes={timezone} /></CardContent>
       </Card>
 
       <div className="grid gap-4 xl:grid-cols-3">
@@ -358,54 +375,6 @@ function DailyTrend({ rows }: { rows: StatisticsData['daily_usage'] }) {
       <Legend color="bg-primary" label={t('statistics.commands')} />
       <Legend color="bg-cyan-500" label={t('statistics.rolls')} />
       <span className="ml-auto">{t('statistics.all_dates_shown', { count: rows.length })}</span>
-    </div>
-  </div>;
-}
-
-function OnlineHistory({ rows, granularityLabel }: {
-  rows: StatisticsData['online_history'];
-  granularityLabel: string;
-}) {
-  const { t } = useTranslation();
-  const [focused, setFocused] = useState<StatisticsData['online_history'][number] | null>(null);
-  if (!rows.length) return <Empty />;
-  const statusOf = (sample: StatisticsData['online_history'][number]) => sample.total_count === 0 ? 'unknown'
-    : sample.online_count === sample.total_count ? 'online' : sample.online_count > 0 ? 'partial' : 'offline';
-  const colors: Record<string, string> = {
-    online: 'bg-emerald-500 hover:bg-emerald-400',
-    partial: 'bg-amber-400 hover:bg-amber-300',
-    offline: 'bg-rose-500 hover:bg-rose-400',
-    unknown: 'bg-muted hover:bg-muted-foreground/30',
-  };
-  const labels: Record<string, string> = {
-    online: t('statistics.online'), partial: t('statistics.partial'),
-    offline: t('statistics.offline'), unknown: t('statistics.collecting'),
-  };
-  const current = focused || rows[rows.length - 1];
-  const currentStatus = statusOf(current);
-
-  return <div className="space-y-3">
-    <div className="max-h-56 overflow-y-auto rounded-md border bg-muted/20 p-2">
-      <div className="grid gap-[2px]" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(6px, 1fr))' }}>
-        {rows.map((sample, index) => {
-          const status = statusOf(sample);
-          const active = sample.sampled_at === current.sampled_at;
-          const detail = `${localTime(sample.sampled_at)} · ${labels[status]} · ${sample.online_count}/${sample.total_count}`;
-          return <button type="button" key={sample.sampled_at + '-' + index} aria-label={detail}
-            onMouseEnter={() => setFocused(sample)} onFocus={() => setFocused(sample)} onClick={() => setFocused(sample)}
-            className={cn('h-4 min-w-0 rounded-[2px] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring',
-              colors[status], active && 'ring-2 ring-foreground/50 ring-offset-1 ring-offset-background')} />;
-        })}
-      </div>
-    </div>
-    <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
-      <Legend color="bg-emerald-500" label={t('statistics.online')} />
-      <Legend color="bg-amber-400" label={t('statistics.partial')} />
-      <Legend color="bg-rose-500" label={t('statistics.offline')} />
-      <span className="ml-auto">{t('statistics.online_points', { count: rows.length })} · {granularityLabel}</span>
-    </div>
-    <div className="rounded-md bg-muted/40 px-3 py-2 text-xs tabular-nums">
-      {localTime(current.sampled_at)} · {labels[currentStatus]} · {current.online_count}/{current.total_count}
     </div>
   </div>;
 }

@@ -111,7 +111,7 @@ export const RoadmapPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <PageHeader icon={Map} title={t('roadmap.title')} description={t('roadmap.subtitle')}
+      <PageHeader icon={Map} title={t('roadmap.title')} description={t('roadmap.subtitle')} help={t('page_help.roadmap')}
         actions={<Button variant="outline" onClick={load} disabled={loading}>
           <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />{t('common.refresh')}
         </Button>} />

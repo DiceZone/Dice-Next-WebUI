@@ -65,7 +65,7 @@ export const AdaptersPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <PageHeader icon={PlugZap} title={t('adapters.title')} description={t('adapters.subtitle')}
+      <PageHeader icon={PlugZap} title={t('adapters.title')} description={t('adapters.subtitle')} help={t('page_help.adapters')}
         actions={
           <Button data-tour="adapters-add" onClick={() => { setEditingAdapter(null); setFormOpen(true); }}>
             <Plus className="mr-2 h-4 w-4" />{t('adapters.add')}

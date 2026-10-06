@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useTourActive, useTourState } from '@/components/onboarding/tour-data';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { FeatureHelp } from '@/components/ui/feature-help';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -70,8 +71,9 @@ export function TraySettingsCard() {
   return (
     <Card data-setting-anchor="settings-tray">
       <CardHeader>
-        <CardTitle className="text-base">{t('settings.tray_title')}</CardTitle>
-        <CardDescription>{t('settings.tray_desc')}</CardDescription>
+        <CardTitle className="text-base flex items-center gap-1.5">{t('settings.tray_title')}
+          <FeatureHelp title={t('settings.tray_title')} description={<><p>{t('settings.tray_desc')}</p><p>{t('settings.tray_hint')}</p></>} />
+        </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         {loadError ? (

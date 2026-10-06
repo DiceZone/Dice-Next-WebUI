@@ -147,7 +147,7 @@ export const RepliesPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {dlg.node}
-      <PageHeader icon={MessageSquareReply} title={t('replies.title')} description={t('replies.subtitle')} />
+      <PageHeader icon={MessageSquareReply} title={t('replies.title')} description={t('replies.subtitle')} help={t('page_help.replies')} />
 
       {tab === 'replies' && <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-card p-4">
         <label htmlFor="replies-scope" className="text-sm font-medium">{t('settings.scope_title')}</label>
@@ -185,13 +185,13 @@ export const RepliesPage: React.FC = () => {
           {/* C#72：活动广播横幅（仅有待发广播时显示，单独一行）。 */}
           <BroadcastBar render="banner" />
           {/* C#72：搜索框 + 添加回复 + 新增广播 同一横排。 */}
-          <div data-tour="replies-toolbar" className="flex flex-wrap items-center gap-2">
-            <div className="relative min-w-[180px] flex-[1_1_100%] sm:flex-1">
+          <div data-tour="replies-toolbar" className="grid grid-cols-2 items-center gap-2 md:flex md:flex-wrap">
+            <div className="relative col-span-2 min-w-0 md:flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input placeholder={t('replies.search_placeholder')} value={filterText} onChange={(e) => setFilterText(e.target.value)} className="pl-9" />
             </div>
             <Select value={matchTypeFilter} onValueChange={(value) => setMatchTypeFilter(value as MatchTypeFilter)}>
-              <SelectTrigger className="w-[calc(50vw-24px)] min-w-[130px] sm:w-[150px]" aria-label={t('replies.filter_match_type')}>
+              <SelectTrigger className="w-full md:w-[150px]" aria-label={t('replies.filter_match_type')}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -203,7 +203,7 @@ export const RepliesPage: React.FC = () => {
               </SelectContent>
             </Select>
             <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as StatusFilter)}>
-              <SelectTrigger className="w-[calc(50vw-24px)] min-w-[120px] sm:w-[130px]" aria-label={t('replies.filter_status')}>
+              <SelectTrigger className="w-full md:w-[130px]" aria-label={t('replies.filter_status')}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

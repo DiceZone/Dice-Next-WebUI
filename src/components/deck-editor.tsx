@@ -1,6 +1,7 @@
 import React from 'react';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 import { useTranslation } from 'react-i18next';
+import { FeatureHelp } from '@/components/ui/feature-help';
 import { Plus, Trash2, Loader2, Code2, List, Check, AlertCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -79,8 +80,10 @@ export function DeckEditor({ filename, title, initialContent, initialGroup, onCl
     <Dialog open onOpenChange={(open) => { if (!open) void close(); }}>
       <DialogContent className="flex max-h-[90dvh] max-w-5xl flex-col gap-0 overflow-hidden p-0" onInteractOutside={(event) => event.preventDefault()}>
         <DialogHeader className="shrink-0 border-b px-5 py-5 text-left sm:px-6">
-          <DialogTitle className="pr-8">{t('decks.edit_title', { title })}</DialogTitle>
-          <DialogDescription className="break-all">{filename} · {t('ui_refresh.edit_hint')}</DialogDescription>
+          <DialogTitle className="flex items-center gap-1.5 pr-8">{t('decks.edit_title', { title })}
+            <FeatureHelp title={t('decks.edit_title', { title })} description={<p>{t('ui_refresh.edit_hint')}</p>} />
+          </DialogTitle>
+          <DialogDescription className="break-all">{filename}</DialogDescription>
         </DialogHeader>
         <div aria-busy={saving} className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <Tabs value={mode} onValueChange={setMode} className="flex min-h-0 flex-1 flex-col">

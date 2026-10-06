@@ -75,24 +75,25 @@ export function DatePicker({ value, onValueChange, label, placeholder, className
   </Dialog>;
 }
 
-export function TimePicker({ value, onValueChange, label, className }: {
+export function TimePicker({ value, onValueChange, label, className, disabled = false }: {
   value: string;
   onValueChange: (value: string) => void;
   label: string;
   className?: string;
+  disabled?: boolean;
 }) {
   const match = /^(\d{2}):(\d{2})$/.exec(value);
   const hour = match && Number(match[1]) < 24 ? match[1] : '00';
   const minute = match && Number(match[2]) < 60 ? match[2] : '00';
   return <div className={cn('grid grid-cols-[1fr_auto_1fr] items-center gap-2', className)}>
-    <Select value={hour} onValueChange={(next) => onValueChange(next + ':' + minute)}>
+    <Select disabled={disabled} value={hour} onValueChange={(next) => onValueChange(next + ':' + minute)}>
       <SelectTrigger aria-label={label} className="h-10"><SelectValue /></SelectTrigger>
       <SelectContent>{Array.from({ length: 24 }, (_, index) => pad(index)).map((item) => (
         <SelectItem key={item} value={item}>{item}</SelectItem>
       ))}</SelectContent>
     </Select>
     <span className="text-sm text-muted-foreground">:</span>
-    <Select value={minute} onValueChange={(next) => onValueChange(hour + ':' + next)}>
+    <Select disabled={disabled} value={minute} onValueChange={(next) => onValueChange(hour + ':' + next)}>
       <SelectTrigger aria-label={label} className="h-10"><SelectValue /></SelectTrigger>
       <SelectContent>{Array.from({ length: 60 }, (_, index) => pad(index)).map((item) => (
         <SelectItem key={item} value={item}>{item}</SelectItem>

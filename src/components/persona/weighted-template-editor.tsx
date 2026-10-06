@@ -4,6 +4,7 @@ import { Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { FeatureHelp } from '@/components/ui/feature-help';
 import { MAX_TEMPLATE_WEIGHT, probabilities, splitLegacySample, validWeights, type TemplateVariant } from '@/lib/weighted-templates';
 
 interface Props {
@@ -23,7 +24,10 @@ export function WeightedTemplateEditor({ items, onChange, activeIndex, onActiveI
   const chances = probabilities(items);
   const legacy = items.length === 1 ? splitLegacySample(items[0].text) : null;
   return <div className="space-y-3">
-    <p className="text-xs leading-relaxed text-muted-foreground">{t('weighted.reply_hint')}</p>
+    <div className="flex items-center gap-1.5 text-sm font-medium">
+      {t('weighted.replies')}
+      <FeatureHelp title={t('weighted.replies')} description={<p>{t('weighted.reply_hint')}</p>} />
+    </div>
     <div className="flex flex-wrap gap-2" role="group" aria-label={t('weighted.replies')}>
       {items.map((item, i) => <Button key={i} type="button" size="sm" variant={i === index ? 'default' : 'outline'}
         aria-pressed={i === index} onClick={() => select(i)}>

@@ -8,6 +8,9 @@ import ja from './locales/ja.json';
 import { uiRefresh } from './ui-refresh';
 import { uiAudit } from './ui-audit';
 import { weightedTemplates } from './weighted-templates';
+import { pageHelp } from './page-help';
+import { featureHelpCopy } from './feature-help';
+import { availabilityCopy } from './availability';
 
 /**
  * Front-end i18n setup (繁體中文 / 简体中文 / English).
@@ -46,10 +49,10 @@ const initialLanguage = detectInitialLanguage();
 
 i18n.use(initReactI18next).init({
   resources: {
-    'zh-Hant': { translation: { ...zhHant, ui_refresh: uiRefresh['zh-Hant'], ui_audit: uiAudit['zh-Hant'], weighted: weightedTemplates['zh-Hant'] } },
-    'zh-Hans': { translation: { ...zhHans, ui_refresh: uiRefresh['zh-Hans'], ui_audit: uiAudit['zh-Hans'], weighted: weightedTemplates['zh-Hans'] } },
-    en: { translation: { ...en, ui_refresh: uiRefresh.en, ui_audit: uiAudit.en, weighted: weightedTemplates.en } },
-    ja: { translation: { ...ja, ui_refresh: uiRefresh.ja, ui_audit: uiAudit.ja, weighted: weightedTemplates.ja } },
+    'zh-Hant': { translation: { ...zhHant, ui_refresh: uiRefresh['zh-Hant'], ui_audit: uiAudit['zh-Hant'], weighted: weightedTemplates['zh-Hant'], page_help: pageHelp['zh-Hant'], feature_help: featureHelpCopy['zh-Hant'], availability: availabilityCopy['zh-Hant'] } },
+    'zh-Hans': { translation: { ...zhHans, ui_refresh: uiRefresh['zh-Hans'], ui_audit: uiAudit['zh-Hans'], weighted: weightedTemplates['zh-Hans'], page_help: pageHelp['zh-Hans'], feature_help: featureHelpCopy['zh-Hans'], availability: availabilityCopy['zh-Hans'] } },
+    en: { translation: { ...en, ui_refresh: uiRefresh.en, ui_audit: uiAudit.en, weighted: weightedTemplates.en, page_help: pageHelp.en, feature_help: featureHelpCopy.en, availability: availabilityCopy.en } },
+    ja: { translation: { ...ja, ui_refresh: uiRefresh.ja, ui_audit: uiAudit.ja, weighted: weightedTemplates.ja, page_help: pageHelp.ja, feature_help: featureHelpCopy.ja, availability: availabilityCopy.ja } },
   },
   lng: initialLanguage,
   fallbackLng: 'zh-Hans',

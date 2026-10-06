@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useTourActive, useTourState } from '@/components/onboarding/tour-data';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { FeatureHelp } from '@/components/ui/feature-help';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -54,8 +55,10 @@ export function IdentityEmailSettings() {
   return (
     <Card data-setting-anchor="settings-identity-email">
       <CardHeader>
-        <CardTitle className="text-base">{t('identitymail.title')}</CardTitle>
-        <CardDescription>{t('identitymail.desc')}</CardDescription>
+        <CardTitle className="text-base flex items-center gap-1.5">{t('identitymail.title')}
+          <FeatureHelp title={t('identitymail.title')} description={<><p>{t('identitymail.desc')}</p><p>{t('identitymail.usage')}</p><p>{t('identitymail.tls_hint')}</p></>} />
+        </CardTitle>
+        <CardDescription>{t('feature_help.identity_global')}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {loadError ? <div className="flex items-center gap-2 text-sm text-destructive">
@@ -90,7 +93,6 @@ export function IdentityEmailSettings() {
             <Label htmlFor="identity-mail-ssl">{t('identitymail.ssl')}</Label>
           </div>
           <p className="text-xs text-muted-foreground">{t('identitymail.tls_hint')}</p>
-          <p className="text-xs text-muted-foreground">{t('identitymail.usage')}</p>
           <Button size="sm" disabled={tourActive || loading || saving} onClick={() => void save()}>{t('common.save')}</Button>
         </>}
       </CardContent>

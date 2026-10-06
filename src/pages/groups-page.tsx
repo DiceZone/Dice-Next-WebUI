@@ -28,6 +28,8 @@ import { cn } from '@/lib/utils';
 import { PlatformIcon, platformLabel } from '@/components/platform-icon';
 import { LogActionButtons } from '@/components/log-action-buttons';
 import { PageHeader } from '@/components/ui/page-header';
+import { FeatureHelp } from '@/components/ui/feature-help';
+import { HelpLabel } from '@/components/ui/help-label';
 import type { ActivePersonaInfo, PersonaTemplate } from '@/types/persona';
 
 interface GroupFeatures {
@@ -242,7 +244,7 @@ export const GroupsPage: React.FC = () => {
     <>
       {dlg.node}
       <div ref={workspaceRef} className="space-y-6">
-        <PageHeader icon={Users} title={t('groups.title')} description={t('groups.subtitle')}
+        <PageHeader icon={Users} title={t('groups.title')} description={t('groups.subtitle')} help={t('page_help.groups')}
           actions={<div data-tour="groups-view-actions" className="flex items-center gap-2">
             <Select value={preference} onValueChange={setViewPreference}>
               <SelectTrigger aria-label={t('workspace.view')} className="w-36"><SelectValue /></SelectTrigger>
@@ -548,14 +550,14 @@ const AiGroupTab: React.FC<any> = ({ group, base, scopedBody, onChanged, t, toas
     <div data-group-panel="ai" className="min-w-0 w-full space-y-4">
       <div className="flex items-center justify-between rounded-md border p-3">
         <div className="pr-4">
-          <div className="text-sm font-medium">{t('groups.ai_switch')}</div>
+          <HelpLabel title={t('groups.ai_switch')} description={<p>{t('groups.ai_switch_desc')}</p>} labelClassName="text-sm font-medium" />
           <p className="text-xs text-muted-foreground mt-0.5">{t('groups.ai_switch_desc')}</p>
         </div>
         <Switch checked={aiOn} onCheckedChange={toggle} />
       </div>
       <div className="rounded-md border p-3 space-y-2">
         <div className="flex items-center justify-between">
-          <div className="text-sm font-medium">{t('groups.ai_memory')}</div>
+          <HelpLabel title={t('groups.ai_memory')} description={<p>{t('groups.ai_memory_note')}</p>} labelClassName="text-sm font-medium" />
           <div className="flex gap-2">
             <Button size="sm" variant="outline" className="h-7 text-xs" disabled={busy} onClick={loadMem}>{t('groups.ai_refresh')}</Button>
             <Button size="sm" variant="outline" className="h-7 text-xs text-destructive" disabled={busy || empty} onClick={clearMem}>{t('groups.ai_clear')}</Button>
@@ -575,7 +577,6 @@ const AiGroupTab: React.FC<any> = ({ group, base, scopedBody, onChanged, t, toas
             ))}
           </div>
         )}
-        <p className="text-[11px] text-muted-foreground">{t('groups.ai_memory_note')}</p>
       </div>
     </div>
   );
@@ -613,7 +614,7 @@ const PluginsTab: React.FC<any> = ({ group, adapterId, t, toast }) => {
 
   return (
     <div data-group-panel="plugins" className="min-w-0 w-full space-y-3">
-      <p className="text-sm text-muted-foreground">{t('groups.plugins_hint')}</p>
+      <HelpLabel title={t('modules.title')} description={<p>{t('groups.plugins_hint')}</p>} labelClassName="text-sm font-medium" />
       <div className="flex items-center gap-2">
         <div className="relative flex-1 max-w-xs">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -805,8 +806,7 @@ const FunctionTab: React.FC<any> = ({ group, base, scopedBody, onChanged, onBack
         </div>
       </section>
       <div className="space-y-1">
-        <label className="text-sm font-medium">{t('groups.bot_card')}</label>
-        <p className="text-xs text-muted-foreground">{t('groups.bot_card_hint')}</p>
+        <HelpLabel title={t('groups.bot_card')} description={<p>{t('groups.bot_card_hint')}</p>} labelClassName="text-sm font-medium" />
         {editingCard ? (
           <div className="flex gap-2">
             <Input value={card} onChange={(e) => setCard(e.target.value)} placeholder={botNick || t('groups.bot_card')} autoFocus />
@@ -827,7 +827,7 @@ const FunctionTab: React.FC<any> = ({ group, base, scopedBody, onChanged, onBack
       {/* C#47: 群邀请人（头像 + QQ），其群权限 = 群管理员 */}
       {group.inviter && (
         <div className="space-y-1">
-          <label className="text-sm font-medium">{t('groups.inviter')}</label>
+          <HelpLabel title={t('groups.inviter')} description={<p>{t('groups.inviter_hint')}</p>} labelClassName="text-sm font-medium" />
           <p className="text-xs text-muted-foreground">{t('groups.inviter_hint')}</p>
           <div className="flex items-center gap-2 rounded-md border bg-muted/30 px-3 py-2">
             <img src={`https://q1.qlogo.cn/g?b=qq&nk=${group.inviter}&s=100`} alt=""
@@ -841,8 +841,7 @@ const FunctionTab: React.FC<any> = ({ group, base, scopedBody, onChanged, onBack
 
       {/* C#49: 本群回复语言（写 locale_settings，热生效） */}
       <div className="space-y-1">
-        <label className="text-sm font-medium">{t('groups.group_locale')}</label>
-        <p className="text-xs text-muted-foreground">{t('groups.group_locale_hint')}</p>
+        <HelpLabel title={t('groups.group_locale')} description={<p>{t('groups.group_locale_hint')}</p>} labelClassName="text-sm font-medium" />
         <Select value={locale || '__default__'} onValueChange={(v) => {
           const lc = v === '__default__' ? '' : v;
           setLocale(lc); void save({ locale: lc });
@@ -856,10 +855,11 @@ const FunctionTab: React.FC<any> = ({ group, base, scopedBody, onChanged, onBack
       </div>
 
       <div className="space-y-1.5">
-        <label className="flex items-center gap-1.5 text-sm font-medium">
+        <div className="flex items-center gap-1.5 text-sm font-medium">
           <Sparkles className="h-4 w-4 text-primary" />
           {t('groups.group_persona')}
-        </label>
+          <FeatureHelp title={t('groups.group_persona')} description={<p>{t('groups.group_persona_hint')}</p>} />
+        </div>
         <p className="text-xs text-muted-foreground">{t('groups.group_persona_hint')}</p>
         <Select value={personaSelection} onValueChange={(value) => { void setGroupPersona(value); }} disabled={personaLoading || !personaInfo}>
           <SelectTrigger className="h-9 w-full sm:w-80">
@@ -888,8 +888,7 @@ const FunctionTab: React.FC<any> = ({ group, base, scopedBody, onChanged, onBack
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <div>
-            <label className="text-sm font-medium">{t('groups.welcome_settings')}</label>
-            <p className="text-xs text-muted-foreground">{t('groups.welcome_settings_hint')}</p>
+            <HelpLabel title={t('groups.welcome_settings')} description={<p>{t('groups.welcome_settings_hint')}</p>} labelClassName="text-sm font-medium" />
           </div>
           <Switch checked={!!group.welcome} onCheckedChange={(v) => void save({ welcome: v ? t('groups.welcome_default_text') : '' })} />
         </div>

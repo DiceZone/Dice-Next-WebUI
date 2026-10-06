@@ -3,7 +3,8 @@
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { FeatureHelp } from '@/components/ui/feature-help';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -64,8 +65,8 @@ export const CounterManager: React.FC = () => {
         <CardTitle className="text-base flex items-center gap-2">
           <Gauge className="h-4 w-4" />
           {t('counter.title')}
+          <FeatureHelp title={t('counter.title')} description={<p>{t('counter.desc')}</p>} />
         </CardTitle>
-        <CardDescription>{t('counter.desc')}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex items-center gap-2">

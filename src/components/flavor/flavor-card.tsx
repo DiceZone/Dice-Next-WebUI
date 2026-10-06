@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { FeatureHelp } from '@/components/ui/feature-help';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
@@ -58,10 +59,8 @@ export const FlavorCard: React.FC = () => {
         <CardTitle className="text-base flex items-center gap-2">
           <Sparkles className="h-4 w-4" />
           {t('flavor.title')}
+          <FeatureHelp title={t('flavor.title')} description={<><p>{t('flavor.desc')}</p><p>{t('flavor.var_note')}</p></>} />
         </CardTitle>
-        <CardDescription>
-          {t('flavor.desc')}
-        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex items-center gap-3">
@@ -94,9 +93,6 @@ export const FlavorCard: React.FC = () => {
               <li>{t('flavor.item_mapped')}</li>
               <li>{t('flavor.item_extra')}</li>
             </ul>
-            <p className="pt-1">
-              {t('flavor.var_note')}
-            </p>
           </div>
         )}
       </CardContent>

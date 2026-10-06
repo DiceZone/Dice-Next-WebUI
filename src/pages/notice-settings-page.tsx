@@ -10,6 +10,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { FeatureHelp } from '@/components/ui/feature-help';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { PlatformIcon, platformLabel } from '@/components/platform-icon';
@@ -139,7 +140,7 @@ export const NoticeSettingsPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <PageHeader icon={Bell} title={t('noticeset.title')} description={t('noticeset.desc')} />
+      <PageHeader icon={Bell} title={t('noticeset.title')} description={t('noticeset.desc')} help={t('page_help.notices')} />
 
       <Tabs value={tab} onValueChange={(value) => setTab(value as typeof tab)} className="space-y-5">
       <TabsList variant="page" data-tour="notice-tabs" aria-label={t('noticeset.title')}>
@@ -152,6 +153,14 @@ export const NoticeSettingsPage: React.FC = () => {
       {/* ══ 通知窗口 ══ */}
       {tab === 'windows' && (
         <div className="space-y-4" data-setting-anchor="notice-windows">
+          <div className="flex items-center gap-1.5">
+            <h2 className="text-sm font-medium">{t('noticeset.tab_windows')}</h2>
+            <FeatureHelp title={t('noticeset.tab_windows')} description={<>
+              <p>{t('settings.notice_desc')}</p>
+              <p>{t('noticeset.win_hint')}</p>
+              <p>{t('settings.notice_hint')}</p>
+            </>} />
+          </div>
           {wins.length === 0 && <p className="text-sm text-muted-foreground">{t('noticeset.win_empty')}</p>}
           {wins.map((w, i) => (
             <Card key={`${w.platform}/${w.adapter_id || 'global'}/${w.chat_id}`}>
@@ -243,7 +252,6 @@ export const NoticeSettingsPage: React.FC = () => {
             <Button data-tour="notice-add" variant="outline" size="sm" onClick={() => setPicking(true)}><Plus className="mr-1 h-4 w-4" />{t('noticeset.win_add')}</Button>
           )}
 
-          <p className="text-[11px] text-muted-foreground">{t('noticeset.win_hint')}</p>
           <div data-tour="notice-save" className="flex justify-end"><Button onClick={save} disabled={saving}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{t('common.save')}</Button></div>
         </div>
       )}
@@ -253,7 +261,13 @@ export const NoticeSettingsPage: React.FC = () => {
         <div className="space-y-4">
           <Card data-setting-anchor="notice-smtp">
             <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2"><Mail className="h-4 w-4" />{t('noticeset.push_smtp')}</CardTitle>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Mail className="h-4 w-4" />{t('noticeset.push_smtp')}
+                <FeatureHelp title={t('noticeset.push_smtp')} description={<>
+                  <p>{t('noticeset.push_smtp_desc')}</p>
+                  <p>{t('noticeset.push_hint')}</p>
+                </>} />
+              </CardTitle>
               <CardDescription>{t('noticeset.push_smtp_desc')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -296,8 +310,13 @@ export const NoticeSettingsPage: React.FC = () => {
 
           <Card data-setting-anchor="notice-webhook">
             <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2"><Webhook className="h-4 w-4" />{t('noticeset.push_webhook')}</CardTitle>
-              <CardDescription>{t('noticeset.push_webhook_desc')}</CardDescription>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Webhook className="h-4 w-4" />{t('noticeset.push_webhook')}
+                <FeatureHelp title={t('noticeset.push_webhook')} description={<>
+                  <p>{t('noticeset.push_webhook_desc')}</p>
+                  <p>{t('noticeset.push_hint')}</p>
+                </>} />
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex items-center justify-between">
@@ -335,7 +354,10 @@ export const NoticeSettingsPage: React.FC = () => {
         <Card className="rt-section" data-setting-anchor="notice-audit">
           <CardContent className="rt-section-content p-0">
             <div className="rt-section-header flex items-center justify-between gap-3 p-3 border-b">
-              <p className="text-xs text-muted-foreground">{t('noticeset.audit_hint')}</p>
+              <div className="flex min-w-0 items-center gap-1.5">
+                <p className="text-xs text-muted-foreground">{t('noticeset.audit_hint')}</p>
+                <FeatureHelp title={t('noticeset.tab_audit')} description={<p>{t('noticeset.audit_hint')}</p>} />
+              </div>
               <Button size="sm" variant="outline" onClick={loadAudit} disabled={auditLoading}>
                 <RefreshCw className={`mr-2 h-4 w-4 ${auditLoading ? 'animate-spin' : ''}`} />{t('common.refresh')}
               </Button>

@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { useTourActive, useTourState } from '@/components/onboarding/tour-data';
 import { tourSamples } from '@/lib/tour-samples';
 import { useTranslation } from 'react-i18next';
+import { FeatureHelp } from '@/components/ui/feature-help';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -75,7 +76,9 @@ export const ReplyMatchPreview: React.FC<ReplyMatchPreviewProps> = ({ replies, s
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-sm">{t('replies.preview_title')}</CardTitle>
+        <CardTitle className="text-sm flex items-center gap-1.5">{t('replies.preview_title')}
+          <FeatureHelp title={t('replies.preview_title')} description={<><p>{t('replies.preview_hint')}</p><p>{t('replies.preview_group_hint')}</p></>} />
+        </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex gap-2">
@@ -90,7 +93,6 @@ export const ReplyMatchPreview: React.FC<ReplyMatchPreviewProps> = ({ replies, s
             value={groupId}
             onChange={(e) => setGroupId(e.target.value)}
             className="w-32 font-mono"
-            title={t('replies.preview_group_hint')}
           />
         </div>
 

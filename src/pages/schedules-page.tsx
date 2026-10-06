@@ -6,6 +6,8 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { FeatureHelp } from '@/components/ui/feature-help';
+import { HelpLabel } from '@/components/ui/help-label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -203,7 +205,7 @@ export const SchedulesPage: React.FC = () => {
   return (
     <div className="space-y-6 max-w-3xl">
       {dlg.node}
-      <PageHeader icon={Clock} title={t('nav.schedules')} description={t('ui_audit.schedule_subtitle')} />
+      <PageHeader icon={Clock} title={t('nav.schedules')} description={t('ui_audit.schedule_subtitle')} help={t('page_help.schedules')} />
       <p className="text-sm text-muted-foreground" role="status">
         {timezone === null ? t('ui_audit.timezone_unavailable') : t('ui_audit.schedule_timezone', { timezone: timezoneLabel(timezone) })}
         {timeError && <Button variant="outline" className="ml-2" onClick={() => void loadTimezone()}>{t('ui_refresh.retry')}</Button>}
@@ -220,7 +222,7 @@ export const SchedulesPage: React.FC = () => {
             {editingId == null ? <Plus className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
             {editingId == null ? t('schedules.add') : t('schedules.editing')}
           </DialogTitle>
-          <DialogDescription>{t('schedules.add_hint')}</DialogDescription>
+          <DialogDescription className="sr-only">{t('schedules.add_hint')}</DialogDescription>
         </DialogHeader>
         <fieldset disabled={saving} className="min-w-0 space-y-3">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -293,7 +295,7 @@ export const SchedulesPage: React.FC = () => {
                 </SelectContent>
               </Select></div>
             {form.targetType === 'group' && (
-              <div className="space-y-1.5"><Label className="font-normal">{t('schedules.condition')}</Label>
+              <div className="space-y-1.5"><HelpLabel title={t('schedules.condition')} description={<p>{t('schedules.condition_hint')}</p>} labelClassName="font-normal" />
                 <div className="flex items-center gap-2">
                   <Select value={condKind} onValueChange={(v) => setCondKind(v as CondKind)}>
                     <SelectTrigger className="h-10 flex-1"><SelectValue /></SelectTrigger>
@@ -312,7 +314,6 @@ export const SchedulesPage: React.FC = () => {
               </div>
             )}
           </div>
-          {form.targetType === 'group' && condKind !== 'none' && <p className="text-xs text-muted-foreground">{t('schedules.condition_hint')}</p>}
           {form.triggerType === 'daily' && (
             <div className="space-y-1.5">
               <Label className="font-normal">{t('schedules.days')}</Label>
@@ -341,7 +342,14 @@ export const SchedulesPage: React.FC = () => {
 
       <Card className="rt-section" data-tour="schedules-list">
         <CardHeader className="rt-section-header flex flex-row items-center justify-between">
-          <CardTitle className="text-base">{t('schedules.list')} ({tasks.length})</CardTitle>
+          <CardTitle className="text-base flex items-center gap-2">
+            {t('schedules.list')} ({tasks.length})
+            <FeatureHelp title={t('nav.schedules')} description={<>
+              <p>{t('schedules.add_hint')}</p>
+              <p>{t('schedules.condition_hint')}</p>
+              <p>{t('schedules.plugin_command_hint')}</p>
+            </>} />
+          </CardTitle>
           <Button variant="outline" size="sm" onClick={load} disabled={loading || busy}><RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />{t('common.refresh')}</Button>
         </CardHeader>
         <CardContent className="rt-section-content">
