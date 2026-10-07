@@ -12,6 +12,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useDialogs } from '@/hooks/use-dialogs';
 import { Archive, Clock3, Database, Download, Loader2, RotateCcw, Save, Trash2, Upload } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
+import { LegacyTextReport } from '@/components/persona/legacy-text-report';
+import { readLegacyTextReport, type LegacyTextReport as TextReport } from '@/lib/legacy-templates';
 
 type StoredBackup = { name: string; size: number; createdAt: number; automatic: boolean };
 type ReplyReferenceReport = {
@@ -138,6 +140,8 @@ export const BackupPage: React.FC = () => {
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useTourState<string>('', '');
   const [referenceReport, setReferenceReport] = useState<ReplyReferenceReport | null>(null);
+  const [textReport, setTextReport] = useState<TextReport | null>(null);
+  const [upgradeReport, setUpgradeReport] = useState<TextReport | null>(null);
   const [backingUp, setBackingUp] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [archives, setArchives] = useTourState<StoredBackup[]>([], tourSamples.archives);
@@ -155,6 +159,15 @@ export const BackupPage: React.FC = () => {
     } catch { /* 页面首次加载失败时保留可用的手动备份入口 */ }
   }, []);
   useEffect(() => { void loadBackupState(); }, [loadBackupState]);
+  useEffect(() => {
+    const controller = new AbortController();
+    void fetch('/api/legacy/texts/upgrade-report', { signal: controller.signal }).then(async response => {
+      if (!response.ok) return;
+      const result = await response.json();
+      if (!controller.signal.aborted && result.code === 0) setUpgradeReport(readLegacyTextReport(result.data));
+    }).catch(() => { /* Older backends do not have the historical report. */ });
+    return () => controller.abort();
+  }, []);
 
   const saveBlob = (blob: Blob, name: string) => {
     const url = URL.createObjectURL(blob);
@@ -165,13 +178,14 @@ export const BackupPage: React.FC = () => {
 
   const runImport = async () => {
     if (!legacyDir.trim()) return;
-    setImporting(true); setImportResult(''); setReferenceReport(null);
+    setImporting(true); setImportResult(''); setReferenceReport(null); setTextReport(null);
     try {
       const r = await fetch('/api/legacy/import', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dir: legacyDir.trim() }) });
       const j = await r.json();
       if (j.code !== 0) throw new Error(j.message);
       const d = j.data;
       setReferenceReport(d.replyReferences ?? null);
+      setTextReport(readLegacyTextReport(d.customTextDetails));
       const importedFiles = (value: unknown) => typeof value === 'number'
         ? value
         : (value && typeof value === 'object' && 'success' in value
@@ -270,6 +284,10 @@ export const BackupPage: React.FC = () => {
             </Button>
           </div>
           {importResult && <p className="text-sm text-green-600 dark:text-green-400 whitespace-pre-wrap">{importResult}</p>}
+          {textReport && <LegacyTextReport report={textReport} onDownload={() => saveBlob(
+            new Blob([JSON.stringify(textReport, null, 2)], { type: 'application/json' }), 'legacy-reply-text-import.json')} />}
+          {upgradeReport && <LegacyTextReport report={upgradeReport} historical onDownload={() => saveBlob(
+            new Blob([JSON.stringify(upgradeReport, null, 2)], { type: 'application/json' }), 'legacy-reply-text-upgrade.json')} />}
           {referenceReport && <div className="space-y-2 rounded-md border p-3 text-sm">
             <p>{t('backup.reply_reference_summary', referenceReport)}</p>
             {(referenceReport.ambiguous > 0 || referenceReport.unresolved > 0) &&

@@ -27,13 +27,15 @@ import { ResponsiveActions } from '@/components/ui/responsive-actions';
 import { VARIABLE_STYLES, variableStyleOf, restyleVariable, type VariableStyle } from '@/lib/template-variable-style';
 import { PREVIEW_PLATFORMS, readReplyPreview, type PreviewPlatform, type ReplyPreview } from '@/lib/reply-preview';
 import { Switch } from '@/components/ui/switch';
+import { resolveOutcomeText, resolveOutcomeInheritance, outcomePreviewArgs, type OutcomeText, type ResolvedOutcomeText } from '@/lib/outcome-replies';
+import { legacyTemplatePreviewArgs } from '@/lib/legacy-templates';
 import { buildTextMetadata, commandCategory, COMMAND_CATEGORIES, filterAndSortTexts, type TextSort, type TextSortField } from '@/lib/command-text-catalog';
 
 interface Var { name: string; desc: string; }
 type ReplyFormat = 'plain' | 'markdown';
-interface Reply { key: string; default: string; override: string | null; format: ReplyFormat; defaultFormat: ReplyFormat; v2key?: string; example?: string; vars: Var[]; }
+interface Reply extends OutcomeText { v2key?: string; example?: string; vars: Var[]; effective?: ResolvedOutcomeText; inherited?: ResolvedOutcomeText; }
 interface Cmd { cmd: string; title: string; category: string; sources: string[]; example: string; desc: string; replies: Reply[]; }
-interface AllKey { key: string; group: string; default: string; override: string | null; format: ReplyFormat; defaultFormat: ReplyFormat; v2key?: string; }
+interface AllKey extends OutcomeText { group: string; v2key?: string; vars?: Var[]; effective?: ResolvedOutcomeText; inherited?: ResolvedOutcomeText; }
 
 const ALL_TAB = '__all__', VAR_TAB = '__vars__', ORPHAN_TAB = '__orphans__';
 const SPECIAL_TABS = [ALL_TAB, VAR_TAB, ORPHAN_TAB];
@@ -149,6 +151,13 @@ export const CommandsPage: React.FC = () => {
     : c === ORPHAN_TAB ? t('commands.tab_orphans') : categoryLabel(c);
   const replyLabel = (key: string) => {
     const parts = key.split('.');
+    if (parts[0] === 'dice' && parts[1] === 'compat') {
+      const kind = parts[2] === 'check' ? parts[3] === 'single' ? 'single' : parts[3] : parts.slice(2).join('_');
+      const label = t('legacy_text.labels.' + kind);
+      return parts[3] === 'single' ? label + ' · ' + t('outcome.grades.' + parts[4]) : label;
+    }
+    if (parts[0] === 'dice' && parts[1] === 'outcome')
+      return `${t(`outcome.families.${parts[2]}`)} · ${t(`outcome.grades.${parts[3]}`)}`;
     if (parts[0] === 'help' && parts[1] === 'topic') {
       const related = categoryRows.find((row) => row.cmd.split('/').some((cmd) => cmd.replace(/^\./, '') === parts[2]));
       return related ? `${related.title} · ${t('commands.text_labels.usage')}` : t('commands.text_labels.usage');
@@ -158,15 +167,31 @@ export const CommandsPage: React.FC = () => {
     return full || t(`commands.text_labels.${parts[parts.length - 1]}`, { defaultValue: '' });
   };
   const textMetadata = buildTextMetadata(tourActive || rowsLocale === lang ? categoryRows : [], replyLabel);
+  const textIndex = new Map<string, OutcomeText>([
+    ...(allLocale === lang ? allRows : []),
+    ...(tourActive || rowsLocale === lang ? categoryRows.flatMap(row => row.replies) : []),
+  ].map(row => [row.key, row]));
+  const decorateOutcome = <T extends OutcomeText,>(row: T) => ({ ...row,
+    effective: resolveOutcomeText(row, textIndex, personaId > 0 ? personaMap : undefined),
+    inherited: resolveOutcomeInheritance(row, textIndex, personaId > 0 ? personaMap : undefined),
+  });
+  const inheritanceLabel = (reply: Reply | AllKey) => {
+    const source = reply.effective;
+    if (!source) return t('outcome.unavailable');
+    const name = source.key.startsWith('dice.outcome.') ? replyLabel(source.key) : t('outcome.original');
+    return t('outcome.inherited', { source: source.layer === 'global' && personaId > 0 ? `${t('outcome.global')} · ${name}` : name });
+  };
   // When a persona is selected, swap each key's `override` for that persona's entry
   // (or null if it hasn't overridden the key) so the whole page shows / edits THAT persona.
-  const dispRows = personaId === 0 ? categoryRows
-    : categoryRows.map((c) => ({ ...c, replies: c.replies.map((r) => ({ ...r,
+  const outcomeRows = categoryRows.map(c => ({ ...c, replies: c.replies.map(decorateOutcome) }));
+  const dispRows = personaId === 0 ? outcomeRows
+    : outcomeRows.map((c) => ({ ...c, replies: c.replies.map((r) => ({ ...r,
       override: personaMap[r.key]?.value ?? null,
       format: personaMap[r.key]?.format ?? 'plain',
     })) }));
-  const dispAll = personaId === 0 ? allRows
-    : allRows.map((k) => ({ ...k, override: personaMap[k.key]?.value ?? null,
+  const outcomeAll = allRows.map(decorateOutcome);
+  const dispAll = personaId === 0 ? outcomeAll
+    : outcomeAll.map((k) => ({ ...k, override: personaMap[k.key]?.value ?? null,
       format: personaMap[k.key]?.format ?? 'plain' }));
   const shown = dispRows.filter((r) => r.category === cat);
 
@@ -201,9 +226,7 @@ export const CommandsPage: React.FC = () => {
   };
 
   const editKey = (k: AllKey) => beginEdit({ cmd: k.key, reply: {
-    key: k.key, default: k.default, override: k.override, v2key: k.v2key,
-    format: k.format, defaultFormat: k.defaultFormat,
-    vars: extractVars(k.default).map((n) => ({ name: n, desc: '' })) } });
+    ...k, vars: k.vars ?? extractVars(k.default).map((n) => ({ name: n, desc: '' })) } });
 
   // 删除导入的无效文本（legacy.* 覆盖）：清除 DB 覆盖并刷新列表。
   const delKey = async (k: AllKey) => {
@@ -391,7 +414,8 @@ export const CommandsPage: React.FC = () => {
                       {text.key}<V2Sub v2={text.v2key} />
                     </td>
                     <td data-label={t('commands.col_text')} className="rt-body p-2.5 text-muted-foreground">
-                      <div className="line-clamp-3 whitespace-pre-wrap break-words" title={templateSummary(text.override ?? text.default)}>{templateSummary(text.override ?? text.default)}</div>
+                      {text.outcome && !text.override && <p className="mb-1 text-xs text-primary">{inheritanceLabel(text)}</p>}
+                      <div className="line-clamp-3 whitespace-pre-wrap break-words" title={templateSummary(text.effective?.value ?? text.override ?? text.default)}>{templateSummary(text.effective?.value ?? text.override ?? text.default)}</div>
                     </td>
                     <td data-label={t('common.actions')} className="rt-footer p-2.5">
                       <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => editKey(text)}>
@@ -514,7 +538,8 @@ export const CommandsPage: React.FC = () => {
                           {rep.example && <code className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono text-foreground/80 whitespace-nowrap">{rep.example}</code>}
                         </td>
                         <td data-label={t('commands.col_reply')} className="p-2 text-xs text-muted-foreground" colSpan={1}>
-                          <span className="font-mono whitespace-pre-wrap break-words">{templateSummary(rep.override ?? rep.default)}</span>
+                          {rep.outcome && !rep.override && <p className="mb-1 text-primary">{inheritanceLabel(rep)}</p>}
+                          <span className="font-mono whitespace-pre-wrap break-words">{templateSummary(rep.effective?.value ?? rep.override ?? rep.default)}</span>
                         </td>
                         <td data-label={t('common.actions')} className="p-2">
                           <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => beginEdit({ cmd: c.cmd, reply: rep })}><Pencil className="mr-1 h-3.5 w-3.5" />{t('commands.edit')}</Button>
@@ -604,6 +629,7 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
   const { t } = useTranslation();
   const toast = useToast();
   const [variants, setVariants] = useState(() => readTemplateVariants(reply.override ?? reply.default));
+  const [useInherited, setUseInherited] = useState(!!reply.outcome && !reply.override);
   const [activeIndex, setActiveIndex] = useState(0);
   const text = variants[activeIndex]?.text ?? '';
   const setText = (next: string | ((current: string) => string)) =>
@@ -623,15 +649,27 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
   const [previewFailed, setPreviewFailed] = useState(false);
   const [showGlobals, setShowGlobals] = useState(false);
   const taRef = useRef<HTMLTextAreaElement>(null);
+  const inheritedSource = reply.inherited?.key.startsWith('dice.outcome.')
+    ? `${t(`outcome.families.${reply.inherited.key.split('.')[2]}`)} · ${t(`outcome.grades.${reply.inherited.key.split('.')[3]}`)}`
+    : t('outcome.original');
+  const inheritedLabel = t('outcome.inherited', { source: reply.inherited?.layer === 'global' && personaId > 0
+    ? `${t('outcome.global')} · ${inheritedSource}` : inheritedSource });
+  const gradeLabels = Object.fromEntries(['critical', 'extreme', 'hard', 'regular', 'failure', 'fumble', 'special', 'tie']
+    .map(grade => [grade, t(`outcome.grades.${grade}`)]));
+  const previewArgs = legacyTemplatePreviewArgs(outcomePreviewArgs(PREVIEW_VALUES, reply.outcome, gradeLabels),
+    useInherited ? reply.inherited?.key ?? reply.key : reply.key, gradeLabels, reply.outcome);
 
   useEffect(() => {
     const controller = new AbortController();
     setPreviewLoading(true); setPreviewFailed(false);
     const timer = window.setTimeout(async () => {
       try {
+        if (useInherited && reply.outcome && !reply.inherited) throw new Error('Inherited text unavailable');
+        const previewVariants = useInherited ? readTemplateVariants(reply.inherited?.value ?? '') : variants;
+        const previewFormat = useInherited ? reply.inherited?.format ?? 'plain' : format;
         const r = await fetch('/api/templates/preview', { method: 'POST', signal: controller.signal,
-          headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ variants, args: PREVIEW_VALUES, format,
-            platform: previewPlatform, style: previewStyle, forcePlain: previewPlain }) });
+          headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ variants: previewVariants, args: previewArgs, format: previewFormat,
+            platform: previewPlatform, style: previewStyle, forcePlain: previewPlain, locale: lang, personaId }) });
         const j = await r.json();
         if (controller.signal.aborted) return;
         if (j.code === 0 && j.data?.templateVersion !== 1) {
@@ -645,14 +683,15 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
       finally { if (!controller.signal.aborted) setPreviewLoading(false); }
     }, 160);
     return () => { window.clearTimeout(timer); controller.abort(); };
-  }, [storedValue, format, previewPlatform, previewStyle, previewPlain, resample]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storedValue, format, previewPlatform, previewStyle, previewPlain, resample, useInherited, reply.inherited, lang, personaId]);
 
   // Command-specific vars (chips) vs global vars (behind the button).
   const exclusiveVars = reply.vars.filter((v) => !GLOBAL_SET.has(v.name));
-  const allowed = new Set([...reply.vars.map((v) => v.name), ...GLOBAL_VARS]);
+  const allowed = new Set([...reply.vars.map((v) => v.name), ...GLOBAL_VARS, ...(reply.legacyReferences ?? [])]);
   const used = extractVars(variants.map(item => item.text).join('\n'));
   const unknown = [...new Set(used.filter((u) => !allowed.has(u) && !u.includes('|') && !u.includes(':')))];
-  const missing = exclusiveVars.map((v) => v.name).filter((n) => !used.includes(n));
+  const missing = reply.outcome || reply.legacyCompatibility ? [] : exclusiveVars.map((v) => v.name).filter((n) => !used.includes(n));
   const styledVars = [...new Set(used.filter((name) => allowed.has(name)))];
   const applyVariableStyle = (name: string, style: VariableStyle) => {
     setText((current) => restyleVariable(current, name, style));
@@ -683,6 +722,7 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
 
   const save = async () => {
     if (saving) return;
+    if (reply.outcome && (useInherited || storedValue === '')) { await reset(); return; }
     if (!supportsWeighted) { toast({ title: t('weighted.backend_required'), variant: 'destructive' }); return; }
     if (!validWeights(variants)) { toast({ title: t('weighted.invalid_weights'), variant: 'destructive' }); return; }
     if (variants.reduce((bytes, item) => bytes + new TextEncoder().encode(item.text).length, 0) > 65536) {
@@ -705,7 +745,9 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
     finally { setSaving(false); }
   };
   const reset = async () => {
+    if (reply.outcome && reply.override == null) { onSaved(reply.key, null, reply.defaultFormat); return; }
     if (reply.override == null) { setVariants(readTemplateVariants(reply.default)); setActiveIndex(0); setFormat(reply.defaultFormat); return; }
+    setSaving(true);
     try {
       const r = personaId > 0
         ? await fetch(`/api/personas/${personaId}/entries`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' },
@@ -715,6 +757,7 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
       if (j.code !== 0) throw new Error(j.message);
       toast({ title: t('commands.reset_done') }); onSaved(reply.key, null, reply.defaultFormat);
     } catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
+    finally { setSaving(false); }
   };
 
   return (
@@ -728,15 +771,36 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
         </DialogHeader>
         <div className="grid min-h-0 flex-1 items-start gap-5 overflow-y-auto pr-1 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
         <div className="min-w-0 space-y-4">
+          {reply.outcome && <div className="space-y-2 rounded-lg border bg-primary/5 p-3">
+            <div className="flex items-center justify-between gap-3">
+              <HelpLabel title={t('outcome.title')} description={<><p>{t('outcome.hint')}</p><p>{t('outcome.preview_hint')}</p></>} labelClassName="text-sm font-medium" />
+              <label className="flex items-center gap-2 text-xs">
+                {t('outcome.independent')}
+                <Switch checked={!useInherited} aria-label={t('outcome.independent')} onCheckedChange={checked => {
+                  if (checked && storedValue === '') {
+                    setVariants(readTemplateVariants(reply.inherited?.value ?? '')); setActiveIndex(0);
+                    setFormat(reply.inherited?.format ?? reply.defaultFormat);
+                  }
+                  setUseInherited(!checked);
+                }} />
+              </label>
+            </div>
+            {useInherited && <p className="text-xs text-muted-foreground">{reply.inherited ? inheritedLabel : t('outcome.unavailable')}</p>}
+          </div>}
+          {reply.legacyCompatibility && <HelpLabel title={t('legacy_text.title')}
+            description={<><p>{t('legacy_text.hint')}</p><p>{t('legacy_text.macros')}</p><p>{t('legacy_text.preview')}</p></>}
+            labelClassName="text-sm font-medium" />}
+          {!useInherited && <>
           <div className="flex items-center justify-between gap-2"><span className="text-sm font-medium">{t('commands.edit')}</span><span className="text-xs text-muted-foreground">{t('commands.format_' + format)}</span></div>
           <WeightedTemplateEditor items={variants} onChange={setVariants} activeIndex={activeIndex}
             onActiveIndex={setActiveIndex} textareaRef={taRef} />
           {unknown.length > 0 && <p role="alert" className="text-xs text-destructive">{t('commands.err_unknown', { vars: unknown.map((u) => `{${u}}`).join(' ') })}</p>}
           {missing.length > 0 && unknown.length === 0 && <p className="text-xs text-amber-600">{t('commands.warn_missing', { vars: missing.map((m) => `{${m}}`).join(' ') })}</p>}
+          </>}
           <Tabs defaultValue="display" className="rounded-lg border bg-muted/20 p-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <HelpLabel title={t('commands.preview_title')} description={<p>{t('commands.preview_hint')}</p>} labelClassName="text-sm font-medium" />
-              <Button type="button" size="sm" variant="outline" disabled={!validWeights(variants)}
+              <Button type="button" size="sm" variant="outline" disabled={useInherited ? !reply.inherited : !validWeights(variants)}
                 onClick={() => setResample(current => current + 1)}><RefreshCw className="mr-1 h-3.5 w-3.5" />{t('weighted.resample')}</Button>
               <TabsList aria-label={t('commands.preview_title')}>
                 <TabsTrigger value="display" className="px-2.5 text-xs">{t('commands.preview_display')}</TabsTrigger>
@@ -766,7 +830,7 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
               </>}
           </Tabs>
         </div>
-        <AdvancedOptions title={t('ui_refresh.advanced_options')} description={t('ui_refresh.template_advanced_hint')}>
+        {!useInherited && <AdvancedOptions title={t('ui_refresh.advanced_options')} description={t('ui_refresh.template_advanced_hint')}>
         <div className="space-y-4">
         {/* command-specific chips + insert image + insert global var */}
         <div className="flex flex-wrap items-center gap-1.5">
@@ -837,12 +901,12 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
 
         <p className="text-[11px] text-muted-foreground">{t('commands.default_label')}: <span className="font-mono">{reply.default}</span></p>
         </div>
-        </AdvancedOptions>
+        </AdvancedOptions>}
         </div>
         <DialogFooter className="shrink-0 gap-2 border-t pt-4 sm:gap-2">
-          <Button variant="outline" disabled={saving || (storedValue === reply.default && reply.override == null)} onClick={reset}><RotateCcw className="mr-2 h-4 w-4" />{t('commands.reset')}</Button>
+          <Button variant="outline" disabled={saving || (storedValue === reply.default && reply.override == null)} onClick={reset}><RotateCcw className="mr-2 h-4 w-4" />{t(reply.outcome ? 'outcome.reset' : 'commands.reset')}</Button>
           <Button variant="ghost" onClick={onClose}>{t('common.cancel')}</Button>
-          <Button disabled={saving || !supportsWeighted || unknown.length > 0 || !validWeights(variants)} onClick={save}><Save className="mr-2 h-4 w-4" />{t('common.save')}</Button>
+          <Button disabled={saving || (useInherited ? !reply.inherited : !supportsWeighted || unknown.length > 0 || !validWeights(variants))} onClick={save}><Save className="mr-2 h-4 w-4" />{t('common.save')}</Button>
         </DialogFooter>
       </DialogContent>
 

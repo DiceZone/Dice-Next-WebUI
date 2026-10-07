@@ -34,11 +34,13 @@ const compiled = await build({
       "import { pageHelp } from './src/i18n/page-help';",
       "import { featureHelpCopy } from './src/i18n/feature-help';",
       "import { availabilityCopy } from './src/i18n/availability';",
+      "import { outcomeReplies } from './src/i18n/outcome-replies';",
+      "import { legacyTemplates } from './src/i18n/legacy-templates';",
       "import { HelpLabel } from './src/components/ui/help-label';",
-      "export { uiRefresh, uiAudit, weightedTemplates, pageHelp, featureHelpCopy, availabilityCopy };",
+      "export { uiRefresh, uiAudit, weightedTemplates, pageHelp, featureHelpCopy, availabilityCopy, outcomeReplies, legacyTemplates };",
       ...pageImports.map(({ component, file }) => `import { ${component} } from './src/pages/${file}';`),
       ...languages.map((language, index) => `import locale${index} from './src/i18n/locales/${language}.json';`),
-      `const resources = { ${languages.map((language, index) => `'${language}': { translation: { ...locale${index}, ui_refresh: uiRefresh['${language}'], ui_audit: uiAudit['${language}'], weighted: weightedTemplates['${language}'], page_help: pageHelp['${language}'], feature_help: featureHelpCopy['${language}'], availability: availabilityCopy['${language}'] } }`).join(', ')} };`,
+      `const resources = { ${languages.map((language, index) => `'${language}': { translation: { ...locale${index}, ui_refresh: uiRefresh['${language}'], ui_audit: uiAudit['${language}'], weighted: weightedTemplates['${language}'], page_help: pageHelp['${language}'], feature_help: featureHelpCopy['${language}'], availability: availabilityCopy['${language}'], outcome: outcomeReplies['${language}'], legacy_text: legacyTemplates['${language}'] } }`).join(', ')} };`,
       "const i18n = createInstance(); i18n.init({ lng: 'zh-Hans', initImmediate: false, resources, interpolation: { escapeValue: false } });",
       `const pages = { ${pageImports.map(({ component }) => component).join(', ')}, settings: SettingsPage, webui: WebuiSettingsPage, cloud: CloudSettingsPage, notice: NoticeSettingsPage, schedules: SchedulesPage, ai: AiPage };`,
       "export const render = (page, language, tour = false) => {",
@@ -62,6 +64,8 @@ for (const language of languages) {
   messages[language].ui_refresh = module.exports.uiRefresh[language];
   messages[language].feature_help = module.exports.featureHelpCopy[language];
   messages[language].availability = module.exports.availabilityCopy[language];
+  messages[language].outcome = module.exports.outcomeReplies[language];
+  messages[language].legacy_text = module.exports.legacyTemplates[language];
 }
 
 function renderPage(page, hash, language = 'zh-Hans', tour = false) {

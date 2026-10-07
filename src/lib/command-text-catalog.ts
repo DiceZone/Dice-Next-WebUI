@@ -20,6 +20,7 @@ export interface EditableText {
   default: string;
   override: string | null;
   v2key?: string;
+  effective?: { value: string };
 }
 export interface TextMetadata {
   description: string;
@@ -60,10 +61,11 @@ export function filterAndSortTexts<T extends EditableText>(
 ): DescribedText<T>[] {
   const queryWords = query.trim().toLocaleLowerCase(locale).split(/\s+/).filter(Boolean);
   const collator = new Intl.Collator(locale, { numeric: true, sensitivity: 'base' });
-  const value = (text: DescribedText<T>) => sort.field === 'text' ? templateSummary(text.override ?? text.default) : text[sort.field];
+  const currentText = (text: DescribedText<T>) => templateSummary(text.effective?.value ?? text.override ?? text.default);
+  const value = (text: DescribedText<T>) => sort.field === 'text' ? currentText(text) : text[sort.field];
   return texts.filter((text) => {
     if (category && !text.categories.includes(category)) return false;
-    const content = [text.key, text.v2key, text.description, text.example, templateSummary(text.override ?? text.default), ...text.categories]
+    const content = [text.key, text.v2key, text.description, text.example, currentText(text), ...text.categories]
       .filter(Boolean).join(' ').toLocaleLowerCase(locale);
     return queryWords.every((word) => content.includes(word));
   }).sort((a, b) => {

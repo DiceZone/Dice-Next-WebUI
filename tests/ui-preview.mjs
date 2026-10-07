@@ -90,9 +90,18 @@ const commandCategories = [
 // In the multi-repository workspace, preview the complete real catalog and
 // default text. Only read source JSON; changes remain in these in-memory maps.
 const previewLocales = new Map();
+const previewOutcomeFamilies = new Map();
+const previewLegacyKeys = new Map();
 let previewCatalog;
 try {
   previewCatalog = JSON.parse(await readFile(new URL('../../Dice-Next-Doc/commands.json', import.meta.url), 'utf8'));
+  const legacyRegistry = await readFile(new URL('../../Dice-Next/server/src/storage/legacy_message_keys.h', import.meta.url), 'utf8');
+  for (const match of legacyRegistry.matchAll(/\{"(str[^"]+)", "([^"]+)"\}/g)) previewLegacyKeys.set(match[1], match[2]);
+  // Read the production registry's data-only rows, not another rule/grade
+  // implementation. This preview never runs a live backend or uses credentials.
+  const outcomeRegistry = await readFile(new URL('../../Dice-Next/server/src/common/check_reply.h', import.meta.url), 'utf8');
+  for (const match of outcomeRegistry.matchAll(/^\s*\{"([^"]+)", (?:coc|\{[^}]*\}), "([^"]+)", \{([^}]*)\}\},?$/gm))
+    previewOutcomeFamilies.set(match[1], { legacyKey: match[2], vars: [...match[3].matchAll(/"([^"]+)"/g)].map(item => item[1]) });
   for (const lang of ['zh-Hans', 'zh-Hant', 'en', 'ja']) {
     const json = JSON.parse(await readFile(new URL(`../../Dice-Next/server/i18n/${lang}.json`, import.meta.url), 'utf8'));
     const texts = {};
@@ -113,10 +122,32 @@ try {
 }
 const previewTextOverrides = new Map();
 const previewPersonaEntries = new Map();
+const previewOutcomeMetadata = (key, locale) => {
+  const references = [...previewLegacyKeys.keys()];
+  const mapped = [...previewLegacyKeys.values()].includes(key);
+  if (key.startsWith('dice.compat.')) {
+    const fields = ['nick', 'attr', 'reason', 'roll', 'rate', 'level', 'res', 'result'];
+    if (key.startsWith('dice.compat.sanity.')) fields.push('san', 'rank', 'loss', 'change', 'final');
+    if (key.startsWith('dice.compat.growth.')) fields.push('change', 'final');
+    return { legacyCompatibility: true, legacyReferences: references,
+      vars: fields.map(name => ({ name, desc: previewLocales.get(locale)?.['tplvar.' + name] || '' })) };
+  }
+  if (!key.startsWith('dice.outcome.')) return mapped ? { legacyReferences: references } : {};
+  const [, , family, grade] = key.split('.');
+  const schema = previewOutcomeFamilies.get(family);
+  if (!schema) return {};
+  return { legacyReferences: references, outcome: { family, grade }, fallbackKeys: [
+    ...(family === 'standard' ? [] : [`dice.outcome.standard.${grade}`]),
+    family === 'growth' && grade === 'failure' ? 'card.en.fail' : schema.legacyKey,
+  ], vars: ['nick', 'attr', 'reason', 'roll', 'rate', 'level', 'res', 'result', 'outcome', ...schema.vars]
+    .map(name => ({ name, desc: previewLocales.get(locale)?.[`tplvar.${name}`] || '' })) };
+};
 const previewTexts = (lang) => Object.entries(previewLocales.get(lang) || { [commandReply.key]: commandReply.default }).map(([key, value]) => {
   const override = previewTextOverrides.get(`${lang}:${key}`);
-  return { key, group: key.split('.')[0], default: value, override: override?.value ?? null, format: override?.format || 'plain', defaultFormat: 'plain',
-    vars: [...new Set([...value.matchAll(/\{([^{}]+)\}/g)].map(match => match[1]))].map(name => ({ name, desc: '' })) };
+  return { key, group: key.split('.')[0], default: value, override: override?.value ?? null, format: override?.format || 'plain',
+    defaultFormat: /\*\*|`|\[[^\]]+\]\(/.test(value) ? 'markdown' : 'plain',
+    vars: [...new Set([...value.matchAll(/\{([^{}]+)\}/g)].map(match => match[1]))].map(name => ({ name, desc: '' })),
+    ...previewOutcomeMetadata(key, lang) };
 });
 const previewCommands = (lang) => {
   if (!previewCatalog) return [{ cmd: 'r', title: '掷骰', category: '掷骰', sources: ['core'], example: '.r 1d100', desc: '投掷骰子，支持表达式与原因。', replies: [commandReply] }, ...commandCategories];
@@ -227,6 +258,7 @@ const server = await createServer({
           }
           const textLocale = ['zh-Hans', 'zh-Hant', 'en', 'ja'].includes(url.searchParams.get('lang')) ? url.searchParams.get('lang') : 'zh-Hans';
           if (path === '/commands') return reply(previewCommands(textLocale));
+          if (path === '/legacy/texts/upgrade-report') return reply({ items: [], restored: 0, conflicts: 0, preserved: 0 });
           if (path === '/personas/pool') {
             if (req.method === 'PUT') {
               const pool = body.pool;
@@ -277,7 +309,12 @@ const server = await createServer({
           if (path === '/templates/preview') {
             const renderer = process.env.DICENEXT_UI_PREVIEW_RENDERER;
             if (!renderer) throw new Error('This isolated preview needs DICENEXT_UI_PREVIEW_RENDERER for production serialization');
-            const output = spawnSync(renderer, [], { input: JSON.stringify(body), encoding: 'utf8', timeout: 3000, maxBuffer: 1024 * 1024 });
+            const locale = body.locale || 'zh-Hans', referenceOverrides = {};
+            for (const [entryKey, entry] of previewTextOverrides)
+              if (entryKey.startsWith(locale + ':')) referenceOverrides[entryKey.slice(locale.length + 1)] = entry;
+            for (const entry of previewPersonaEntries.get(body.personaId)?.values() || [])
+              if (entry.locale === locale) referenceOverrides[entry.key] = { value: entry.value, format: entry.format };
+            const output = spawnSync(renderer, [], { input: JSON.stringify({ ...body, referenceOverrides }), encoding: 'utf8', timeout: 3000, maxBuffer: 1024 * 1024 });
             if (output.error || output.status !== 0) throw new Error('The isolated text renderer failed');
             const result = JSON.parse(output.stdout);
             if (result.code !== 0) throw new Error('The isolated text renderer rejected this request');
