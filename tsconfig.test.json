@@ -23,6 +23,8 @@
     "src/i18n/outcome-replies.ts",
     "src/lib/legacy-templates.ts",
     "src/i18n/legacy-templates.ts",
+    "src/lib/command-shortcuts.ts",
+    "src/i18n/shortcuts.ts",
     "src/lib/workspace-view.ts",
     "src/lib/template-variable-style.ts",
     "src/lib/weighted-templates.ts",

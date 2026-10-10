@@ -29,6 +29,7 @@ import { PREVIEW_PLATFORMS, readReplyPreview, type PreviewPlatform, type ReplyPr
 import { Switch } from '@/components/ui/switch';
 import { resolveOutcomeText, resolveOutcomeInheritance, outcomePreviewArgs, type OutcomeText, type ResolvedOutcomeText } from '@/lib/outcome-replies';
 import { legacyTemplatePreviewArgs } from '@/lib/legacy-templates';
+import { shortcutTemplatePreviewArgs } from '@/lib/command-shortcuts';
 import { buildTextMetadata, commandCategory, COMMAND_CATEGORIES, filterAndSortTexts, type TextSort, type TextSortField } from '@/lib/command-text-catalog';
 
 interface Var { name: string; desc: string; }
@@ -151,6 +152,7 @@ export const CommandsPage: React.FC = () => {
     : c === ORPHAN_TAB ? t('commands.tab_orphans') : categoryLabel(c);
   const replyLabel = (key: string) => {
     const parts = key.split('.');
+    if (parts[0] === 'shortcut') return t(`shortcuts.labels.${parts[1]}`, { defaultValue: '' });
     if (parts[0] === 'dice' && parts[1] === 'compat') {
       const kind = parts[2] === 'check' ? parts[3] === 'single' ? 'single' : parts[3] : parts.slice(2).join('_');
       const label = t('legacy_text.labels.' + kind);
@@ -504,7 +506,11 @@ export const CommandsPage: React.FC = () => {
                           </button>
                         )}
                       </td>
-                      <td data-label={t('commands.col_title')} className="command-title p-2.5 font-medium whitespace-nowrap">{c.title}</td>
+                      <td data-label={t('commands.col_title')} className="command-title p-2.5 font-medium whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1.5">{c.title}
+                          {c.cmd === '.alias' && <FeatureHelp title={t('shortcuts.title')} description={<div className="whitespace-pre-line">{t('shortcuts.help')}</div>} />}
+                        </span>
+                      </td>
                       <td data-label={t('commands.col_cmd')} className="command-name p-2.5 font-mono whitespace-nowrap">
                         {c.cmd || <span className="text-xs font-sans text-muted-foreground">{t('commands.automatic_event')}</span>}{hasOverride && <span className="ml-1 text-[11px] text-amber-600">●</span>}
                       </td>
@@ -656,8 +662,9 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
     ? `${t('outcome.global')} · ${inheritedSource}` : inheritedSource });
   const gradeLabels = Object.fromEntries(['critical', 'extreme', 'hard', 'regular', 'failure', 'fumble', 'special', 'tie']
     .map(grade => [grade, t(`outcome.grades.${grade}`)]));
-  const previewArgs = legacyTemplatePreviewArgs(outcomePreviewArgs(PREVIEW_VALUES, reply.outcome, gradeLabels),
-    useInherited ? reply.inherited?.key ?? reply.key : reply.key, gradeLabels, reply.outcome);
+  const previewKey = useInherited ? reply.inherited?.key ?? reply.key : reply.key;
+  const previewArgs = shortcutTemplatePreviewArgs(legacyTemplatePreviewArgs(
+    outcomePreviewArgs(PREVIEW_VALUES, reply.outcome, gradeLabels), previewKey, gradeLabels, reply.outcome), previewKey, lang);
 
   useEffect(() => {
     const controller = new AbortController();
