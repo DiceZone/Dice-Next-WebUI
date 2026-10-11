@@ -9,6 +9,18 @@ import { apiClient, ApiError, ApiTimeoutError } from '../.test-dist/lib/api-clie
 
 const read = (path) => fs.readFileSync(new URL('../' + path, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
+test('update hints explain managed Linux/macOS and the one-time manual migration', () => {
+  for (const locale of ['zh-Hans', 'zh-Hant', 'en', 'ja']) {
+    const about = JSON.parse(read(`src/i18n/locales/${locale}.json`)).about;
+    for (const key of ['update_manual_hint', 'update_schedule_unsupported']) {
+      for (const word of ['Linux/macOS', 'start.sh', 'dice-next.exe']) assert.ok(about[key].includes(word), `${locale}: ${key}`);
+    }
+  }
+  const page = read('src/pages/about-page.tsx');
+  assert.ok(page.includes('disabled={!updateStatus?.installSupported'));
+  assert.ok(page.includes('disabled={!updateStatus?.installSupported || !updateStatus.pending'));
+});
+
 test('scheduled updates display server time and use frontend time controls', () => {
   assert.equal(formatScheduledInstallAt(86400, 480), '1970-01-02 08:00 (UTC+08:00)');
   assert.equal(formatScheduledInstallAt(86400, -210), '1970-01-01 20:30 (UTC-03:30)');
