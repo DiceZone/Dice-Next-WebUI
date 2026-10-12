@@ -7,6 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { FeatureHelp } from '@/components/ui/feature-help';
 import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { LOG_LEVELS, normalizeLogLevel } from '@/lib/runtime-logs';
+import type { LogLevel } from '@/types/log';
 import { zustandAppStore } from '@/store/app-store';
 import { useToast } from '@/hooks/use-toast';
 import { ADMIN_PASSWORD_MAX_LENGTH, isValidAdminPassword, sanitizeAdminPassword } from '@/lib/admin-password';
@@ -21,6 +24,8 @@ export const WebuiSettingsPage: React.FC = () => {
   const [showKey, setShowKey] = useTourState(false, false);
   const [saving, setSaving] = useState(false);
   const [rawLog, setRawLog] = useTourState(false, false);
+  const [logLevel, setLogLevel] = useTourState<LogLevel | 'off'>('info', 'info');
+  const [logSaving, setLogSaving] = useState(false);
   // WebUI 登录口令
   const [pwInput, setPwInput] = useTourState('', '');
   const [pwEnabled, setPwEnabled] = useTourState(false, true);
@@ -34,7 +39,7 @@ export const WebuiSettingsPage: React.FC = () => {
 
   useEffect(() => {
     void (async () => {
-      try { const r = await fetch('/api/system/log-mode'); const j = await r.json(); if (j.code === 0) setRawLog(!!j.data.raw); } catch { /* ignore */ }
+      try { const r = await fetch('/api/system/log-mode'); const j = await r.json(); if (j.code === 0) { setRawLog(!!j.data.raw); setLogLevel(j.data.level === 'off' ? 'off' : normalizeLogLevel(j.data.level)); } } catch { /* ignore */ }
       try { const r = await fetch('/api/system/webui-auth'); const j = await r.json(); if (j.code === 0) setPwEnabled(!!j.data.enabled); } catch { /* ignore */ }
       try { const r = await fetch('/api/system/server-config'); const j = await r.json(); if (j.code === 0) { setHost(j.data.host || '0.0.0.0'); setPort(Number(j.data.port) || 18088); } } catch { /* ignore */ }
     })();
@@ -103,6 +108,17 @@ export const WebuiSettingsPage: React.FC = () => {
       if (j.code !== 0) throw new Error(j.message);
       toast({ title: t('common.save_success') });
     } catch { setRawLog(!raw); toast({ title: t('common.save_fail'), variant: 'destructive' }); }
+  };
+  const changeLogLevel = async (level: LogLevel) => {
+    setLogSaving(true);
+    try {
+      const response = await fetch('/api/system/log-mode', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ level }) });
+      const result = await response.json();
+      if (!response.ok || result.code !== 0) throw new Error(result.message);
+      setLogLevel(normalizeLogLevel(result.data.level));
+      toast({ title: t('common.save_success') });
+    } catch { toast({ title: t('common.save_fail'), variant: 'destructive' }); }
+    finally { setLogSaving(false); }
   };
 
   return (
@@ -252,12 +268,23 @@ export const WebuiSettingsPage: React.FC = () => {
       <Card data-setting-anchor="webui-log">
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2"><Terminal className="h-4 w-4" />{t('settings.log_title')}
-            <FeatureHelp title={t('settings.log_title')} description={<p>{t('settings.log_desc')}</p>} />
+            <FeatureHelp title={t('settings.log_title')} description={t('runtime_logs.help')} />
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <Label htmlFor="recording-log-level">{t('runtime_logs.recording_level')}</Label>
+            <Select value={logLevel} disabled={logSaving} onValueChange={(value) => void changeLogLevel(value as LogLevel)}>
+              <SelectTrigger id="recording-log-level" className="w-36"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {logLevel === 'off' && <SelectItem value="off" disabled>OFF</SelectItem>}
+                {LOG_LEVELS.map((level) => <SelectItem key={level} value={level}>{level.toUpperCase()}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <p className="text-xs text-muted-foreground">{t('runtime_logs.recording_note')}</p>
           <div className="flex items-center justify-between">
-            <Label htmlFor="raw-log" className="font-normal">{t('settings.log_raw')}</Label>
+            <Label htmlFor="raw-log" className="font-normal">{t('runtime_logs.protocol')}</Label>
             <Switch id="raw-log" checked={rawLog} onCheckedChange={toggleRawLog} />
           </div>
         </CardContent>

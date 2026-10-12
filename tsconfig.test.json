@@ -11,6 +11,8 @@
     "tsBuildInfoFile": ".test-dist/tsconfig.test.tsbuildinfo"
   },
   "include": [
+    "src/lib/runtime-logs.ts",
+    "src/i18n/runtime-logs.ts",
     "src/lib/tray-settings.ts",
     "src/i18n/ui-refresh.ts",
     "src/i18n/page-help.ts",

@@ -3,7 +3,7 @@
  *
  * System and bot event logs with filtering and pagination support.
  */
-export type LogLevel = 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'critical';
+export type LogLevel = 'trace' | 'debug' | 'info' | 'success' | 'warn' | 'error';
 export type LogSource = 'system' | 'adapter' | 'dice' | 'reply' | 'session' | 'deck';
 export interface LogEntry {
     id: string;

@@ -4,7 +4,7 @@
  * System and bot event logs with filtering and pagination support.
  */
 
-export type LogLevel = 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'critical';
+export type LogLevel = 'trace' | 'debug' | 'info' | 'success' | 'warn' | 'error';
 export type LogSource = 'system' | 'adapter' | 'dice' | 'reply' | 'session' | 'deck';
 
 export interface LogEntry {
@@ -41,9 +41,9 @@ export const LOG_LEVEL_LABELS: Record<LogLevel, string> = {
   trace: 'TRACE',
   debug: 'DEBUG',
   info: 'INFO',
+  success: 'SUCCESS',
   warn: 'WARN',
   error: 'ERROR',
-  critical: 'CRITICAL',
 };
 
 export const LOG_SOURCE_LABELS: Record<LogSource, string> = {

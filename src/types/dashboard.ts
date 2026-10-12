@@ -59,9 +59,11 @@ export interface SystemInfo {
 export interface RecentLogEntry {
   id: string;
   timestamp: string;
-  level: 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'critical';
+  level: 'trace' | 'debug' | 'info' | 'success' | 'warn' | 'error';
   module?: string;
   message: string;
+  msg_id?: string;
+  details?: Record<string, unknown>;
 }
 
 /** Default empty dashboard stats. */
