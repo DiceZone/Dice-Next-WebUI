@@ -10,6 +10,7 @@ import { nextScheduleRun, scheduleToday, timezoneLabel } from '../.test-dist/lib
 import { runBatch } from '../.test-dist/lib/batch-operation.js';
 import { canCopyDeckGroup, deckCopyFilename, deckFileKey } from '../.test-dist/lib/deck-document.js';
 import { resolveReplyScope, globalReplyScope, replyScopeKey, replyScopeQuery } from '../.test-dist/lib/reply-scope.js';
+import { replyMatchTestBody } from '../.test-dist/lib/reply-preview.js';
 import { readWorkspaceView, resolveWorkspaceView, WORKSPACE_WIDE_QUERY } from '../.test-dist/lib/workspace-view.js';
 import { readPersonaPolicy, samePersonaPolicy } from '../.test-dist/lib/persona-policy.js';
 import { uiRefresh } from '../.test-dist/i18n/ui-refresh.js';
@@ -540,14 +541,14 @@ test('reply preview sends its account context and discards results after a scope
   let shown, scheduled;
   const context = { timer: { current: null }, showingSamples: false, testText: ' hello ', groupId: ' 123 ',
     scope: resolveReplyScope('account:bot:A:1', [{ id: 'bot:A:1', type: 'qq_official' }]),
-    setResult: (value) => { shown = value; }, setLoading() {}, AbortController,
+    setResult: (value) => { shown = value; }, setLoading() {}, AbortController, replyMatchTestBody,
     setTimeout: (callback) => { scheduled = callback; return 1; }, clearTimeout() {},
     fetch: async (_path, options) => { writes.push(options); return writes.length === 1 ? a.promise : b.promise; },
   };
   vm.runInNewContext(js, context);
   const cleanup = context.effect(); const first = scheduled();
   const payload = JSON.parse(writes[0].body);
-  assert.deepEqual(payload, { text: 'hello', groupId: '123', scope: 'account', platform: 'qq_official', adapterId: 'bot:A:1' });
+  assert.deepEqual(payload, { text: ' hello ', groupId: '123', scope: 'account', platform: 'qq_official', adapterId: 'bot:A:1' });
   cleanup(); assert.equal(writes[0].signal.aborted, true);
   context.scope = globalReplyScope;
   const cleanupB = context.effect(); const second = scheduled();
@@ -555,7 +556,7 @@ test('reply preview sends its account context and discards results after a scope
   b.resolve(response({ reply: 'global' })); await second;
   a.resolve(response({ reply: 'wrong-account' })); await first;
   assert.equal(shown.reply, 'global');
-  assert.deepEqual(JSON.parse(writes[1].body), { text: 'hello', groupId: '123', scope: 'global' });
+  assert.deepEqual(JSON.parse(writes[1].body), { text: ' hello ', groupId: '123', scope: 'global' });
   cleanupB();
 });
 
@@ -680,6 +681,27 @@ test('rule test sends the draft and selected context, refuses old server results
     });
     await run(); assert.equal(sent.rule, editing); assert.equal(sent.userId, '123'); assert.equal(sent.groupId, '');
     assert.equal(Boolean(result?.matched), supported); assert.equal(errors.length, supported ? 0 : 1);
+  }
+});
+
+test('causal draft test preserves whitespace-only and multiline messages', async () => {
+  for (const testMsg of [' a ', '   ', 'a\nb', '']) {
+    let sent;
+    const run = handler('components/causal/causal-rule-editor.tsx', 'handleTest', {
+      editing: { conditions: [{ type: 'regex', content: '[\\s\\S]*' }] },
+      testMsg, testUser: ' u ', testGroup: ' g ', testNick: 'N', testGate: createRequestGate(),
+      setTesting() {}, setTestResult() {}, t: s => s, toast() {},
+      apiClient: { post: async (_url, payload) => {
+        sent = payload; return { data: { matched: true, draftTested: true } };
+      } },
+    });
+    await run();
+    if (testMsg === '') assert.equal(sent, undefined);
+    else {
+      assert.equal(sent.msg, testMsg);
+      assert.equal(sent.userId, 'u');
+      assert.equal(sent.groupId, 'g');
+    }
   }
 });
 

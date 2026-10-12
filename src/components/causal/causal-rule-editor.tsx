@@ -161,7 +161,7 @@ export const CausalRuleEditor: React.FC<Props> = ({ rule, open, onOpenChange, on
   };
 
   const handleTest = async () => {
-    if (!testMsg.trim()) return;
+    if (testMsg === '') return;
     setTesting(true); setTestResult(null);
     const current = testGate.start();
     try {
@@ -402,8 +402,8 @@ export const CausalRuleEditor: React.FC<Props> = ({ rule, open, onOpenChange, on
               <Label className="space-y-1"><span>{t('ui_audit.test_nick')}</span><Input value={testNick} onChange={(e) => setTestNick(e.target.value)} /></Label>
             </div>
             <div className="flex gap-2">
-              <Input value={testMsg} onChange={(e) => setTestMsg(e.target.value)} placeholder={t('causal.ed.test_ph')} />
-              <Button variant="outline" onClick={handleTest} disabled={testing || !testMsg.trim()}>
+              <Textarea rows={2} value={testMsg} onChange={(e) => setTestMsg(e.target.value)} placeholder={t('causal.ed.test_ph')} />
+              <Button variant="outline" onClick={handleTest} disabled={testing || testMsg === ''}>
                 {testing ? t('causal.ed.testing') : t('causal.ed.test_btn')}
               </Button>
             </div>

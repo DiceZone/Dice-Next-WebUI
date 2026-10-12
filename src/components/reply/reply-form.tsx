@@ -17,6 +17,7 @@ import { AdvancedOptions } from '@/components/ui/advanced-options';
 import { FeatureHelp } from '@/components/ui/feature-help';
 import { HelpLabel } from '@/components/ui/help-label';
 import { MAX_REPLY_WEIGHT, replyResults, resultProbabilities, validResultWeights } from '@/lib/reply-results';
+import { replyRegexError as regexError } from '@/lib/reply-preview';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
@@ -27,12 +28,6 @@ import { DEFAULT_REPLY_PRIORITY } from '@/types/reply';
 // 下拉顺序按「日常最常用」排：包含 → 完全等于 → 前缀 → 正则。
 // （keyword 的语义是整条消息完全相等，别再叫它「关键词」误导人。）
 const MATCH_TYPES: MatchType[] = ['search', 'keyword', 'prefix', 'regex'];
-
-// 客户端先粗验正则（服务端保存时还会用真引擎再验一次）。
-const regexError = (pattern: string): string | null => {
-  if (pattern.length > 400) return 'too long';
-  try { new RegExp(pattern); return null; } catch (e) { return String(e); }
-};
 
 interface ReplyFormProps {
   open: boolean;
@@ -184,7 +179,9 @@ export const ReplyForm: React.FC<ReplyFormProps> = ({ open, onOpenChange, onSubm
           {/* Conditions */}
           {!eventTrigger && <div className="space-y-2 rounded-lg border p-3">
             <div className="flex items-center justify-between">
-              <Label>{t('replies.cond_label')}</Label>
+              {conditions.some(c => c.type === 'regex')
+                ? <HelpLabel title={t('replies.cond_label')} description={t('replies.regex_hint')} />
+                : <Label>{t('replies.cond_label')}</Label>}
               {conditions.length > 1 && (
                 <div className="flex items-center gap-1 text-xs">
                   <button type="button" onClick={() => setLogic('and')}

@@ -5,10 +5,12 @@ import { useTranslation } from 'react-i18next';
 import { FeatureHelp } from '@/components/ui/feature-help';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Loader2 } from 'lucide-react';
 import type { ReplyRule } from '@/types/reply';
 import type { ReplySettingsScope } from '@/lib/reply-scope';
+import { replyMatchTestBody } from '@/lib/reply-preview';
 
 interface ReplyMatchPreviewProps {
   replies: ReplyRule[];
@@ -17,7 +19,7 @@ interface ReplyMatchPreviewProps {
 
 // 真引擎测试结果（POST /api/replies/test）。
 // 以前这里是前端自己模拟匹配：keyword 被当成「包含」、前缀区分大小写、正则
-// 不锚定开头、优先级还排成升序——四种模式全部和后端行为对不上，预览会骗人。
+// 正则的匹配范围、优先级也和后端不一致，预览会骗人。
 // 现在把文本发给后端，用真实 ReplyManager 匹配 + 渲染，所见即所得。
 interface TestResult {
   matched: boolean;
@@ -46,7 +48,7 @@ export const ReplyMatchPreview: React.FC<ReplyMatchPreviewProps> = ({ replies, s
     let active = true;
     const controller = new AbortController();
     setResult(null);
-    const text = testText.trim();
+    const text = testText;
     if (!text) { setResult(null); setLoading(false); return; }
     setLoading(true);
     timer.current = setTimeout(async () => {
@@ -54,10 +56,7 @@ export const ReplyMatchPreview: React.FC<ReplyMatchPreviewProps> = ({ replies, s
         const r = await fetch('/api/replies/test', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           signal: controller.signal,
-          body: JSON.stringify({ text, groupId: groupId.trim() || undefined,
-            scope: scope.scope,
-            platform: scope.platform || undefined,
-            adapterId: scope.scope === 'account' ? scope.target : undefined }),
+          body: JSON.stringify(replyMatchTestBody(text, groupId, scope)),
         });
         const j = await r.json();
         if (active) setResult(j.code === 0 ? (j.data as TestResult) : null);
@@ -82,11 +81,12 @@ export const ReplyMatchPreview: React.FC<ReplyMatchPreviewProps> = ({ replies, s
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex gap-2">
-          <Input
+          <Textarea
             placeholder={t('replies.preview_ph')}
             value={testText}
             onChange={(e) => setTestText(e.target.value)}
-            className="flex-1"
+            rows={2}
+            className="flex-1 min-w-0"
           />
           <Input
             placeholder={t('replies.preview_group_ph')}
@@ -96,7 +96,7 @@ export const ReplyMatchPreview: React.FC<ReplyMatchPreviewProps> = ({ replies, s
           />
         </div>
 
-        {testText.trim() === '' ? (
+        {testText === '' ? (
           <p className="text-xs text-muted-foreground">{t('replies.preview_hint')}</p>
         ) : loading && !result ? (
           <div className="flex justify-center py-4"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
