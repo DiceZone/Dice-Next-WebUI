@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { AdapterCard } from '@/components/adapter/adapter-card';
 import { AdapterForm } from '@/components/adapter/adapter-form';
 import { ReverseWsInfo } from '@/components/adapter/reverse-ws-info';
+import { useServerNetworkInfo } from '@/hooks/use-server-network-info';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/ui/page-header';
 import { zustandAdapterStore } from '@/store/adapter-store';
@@ -24,6 +25,15 @@ export const AdaptersPage: React.FC = () => {
   const [formOpen, setFormOpen] = useState(false);
   const [editingAdapter, setEditingAdapter] = useState<Adapter | null>(null);
   const [reverseWsPort, setReverseWsPort] = useState<string | null>(null);
+  const { network, refresh: refreshNetwork, readCache: readNetworkCache } = useServerNetworkInfo();
+  useEffect(() => {
+    if (!reverseWsPort) return;
+    // Reads are cheap snapshots, not external detection. Keep an open dialog
+    // current when the server's periodic job updates its cache.
+    void readNetworkCache();
+    const timer = setInterval(() => void readNetworkCache(), 15000);
+    return () => clearInterval(timer);
+  }, [reverseWsPort, readNetworkCache]);
 
   // Initial load + live polling so connect/disconnect shows up without a manual
   // refresh (an enabled-but-not-yet-connected adapter renders as 黄色「连接中…」).
@@ -102,7 +112,8 @@ export const AdaptersPage: React.FC = () => {
       </div>
       <AdapterForm open={formOpen} onOpenChange={setFormOpen}
         onSubmit={editingAdapter ? handleUpdate : handleCreate} adapter={editingAdapter} />
-      <ReverseWsInfo open={!!reverseWsPort} onClose={() => setReverseWsPort(null)} port={reverseWsPort ?? ''} />
+      <ReverseWsInfo open={!!reverseWsPort} onClose={() => setReverseWsPort(null)} port={reverseWsPort ?? ''}
+        network={network} onRefresh={refreshNetwork} />
     </div>
   );
 };

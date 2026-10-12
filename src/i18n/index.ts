@@ -12,6 +12,7 @@ import { pageHelp } from './page-help';
 import { featureHelpCopy } from './feature-help';
 import { availabilityCopy } from './availability';
 import { runtimeLogsCopy } from './runtime-logs';
+import { networkInfoCopy } from './network-info';
 import { outcomeReplies } from './outcome-replies';
 import { legacyTemplates } from './legacy-templates';
 import { shortcuts } from './shortcuts';
@@ -53,10 +54,10 @@ const initialLanguage = detectInitialLanguage();
 
 i18n.use(initReactI18next).init({
   resources: {
-    'zh-Hant': { translation: { ...zhHant, ui_refresh: uiRefresh['zh-Hant'], ui_audit: uiAudit['zh-Hant'], weighted: weightedTemplates['zh-Hant'], page_help: pageHelp['zh-Hant'], feature_help: featureHelpCopy['zh-Hant'], outcome: outcomeReplies['zh-Hant'], legacy_text: legacyTemplates['zh-Hant'], shortcuts: shortcuts['zh-Hant'], availability: availabilityCopy['zh-Hant'], runtime_logs: runtimeLogsCopy['zh-Hant'] } },
-    'zh-Hans': { translation: { ...zhHans, ui_refresh: uiRefresh['zh-Hans'], ui_audit: uiAudit['zh-Hans'], weighted: weightedTemplates['zh-Hans'], page_help: pageHelp['zh-Hans'], feature_help: featureHelpCopy['zh-Hans'], outcome: outcomeReplies['zh-Hans'], legacy_text: legacyTemplates['zh-Hans'], shortcuts: shortcuts['zh-Hans'], availability: availabilityCopy['zh-Hans'], runtime_logs: runtimeLogsCopy['zh-Hans'] } },
-    en: { translation: { ...en, ui_refresh: uiRefresh.en, ui_audit: uiAudit.en, weighted: weightedTemplates.en, page_help: pageHelp.en, feature_help: featureHelpCopy.en, outcome: outcomeReplies.en, legacy_text: legacyTemplates.en, shortcuts: shortcuts.en, availability: availabilityCopy.en, runtime_logs: runtimeLogsCopy.en } },
-    ja: { translation: { ...ja, ui_refresh: uiRefresh.ja, ui_audit: uiAudit.ja, weighted: weightedTemplates.ja, page_help: pageHelp.ja, feature_help: featureHelpCopy.ja, outcome: outcomeReplies.ja, legacy_text: legacyTemplates.ja, shortcuts: shortcuts.ja, availability: availabilityCopy.ja, runtime_logs: runtimeLogsCopy.ja } },
+    'zh-Hant': { translation: { ...zhHant, ui_refresh: uiRefresh['zh-Hant'], ui_audit: uiAudit['zh-Hant'], weighted: weightedTemplates['zh-Hant'], page_help: pageHelp['zh-Hant'], feature_help: featureHelpCopy['zh-Hant'], outcome: outcomeReplies['zh-Hant'], legacy_text: legacyTemplates['zh-Hant'], shortcuts: shortcuts['zh-Hant'], availability: availabilityCopy['zh-Hant'], runtime_logs: runtimeLogsCopy['zh-Hant'], network_info: networkInfoCopy['zh-Hant'] } },
+    'zh-Hans': { translation: { ...zhHans, ui_refresh: uiRefresh['zh-Hans'], ui_audit: uiAudit['zh-Hans'], weighted: weightedTemplates['zh-Hans'], page_help: pageHelp['zh-Hans'], feature_help: featureHelpCopy['zh-Hans'], outcome: outcomeReplies['zh-Hans'], legacy_text: legacyTemplates['zh-Hans'], shortcuts: shortcuts['zh-Hans'], availability: availabilityCopy['zh-Hans'], runtime_logs: runtimeLogsCopy['zh-Hans'], network_info: networkInfoCopy['zh-Hans'] } },
+    en: { translation: { ...en, ui_refresh: uiRefresh.en, ui_audit: uiAudit.en, weighted: weightedTemplates.en, page_help: pageHelp.en, feature_help: featureHelpCopy.en, outcome: outcomeReplies.en, legacy_text: legacyTemplates.en, shortcuts: shortcuts.en, availability: availabilityCopy.en, runtime_logs: runtimeLogsCopy.en, network_info: networkInfoCopy.en } },
+    ja: { translation: { ...ja, ui_refresh: uiRefresh.ja, ui_audit: uiAudit.ja, weighted: weightedTemplates.ja, page_help: pageHelp.ja, feature_help: featureHelpCopy.ja, outcome: outcomeReplies.ja, legacy_text: legacyTemplates.ja, shortcuts: shortcuts.ja, availability: availabilityCopy.ja, runtime_logs: runtimeLogsCopy.ja, network_info: networkInfoCopy.ja } },
   },
   lng: initialLanguage,
   fallbackLng: 'zh-Hans',
