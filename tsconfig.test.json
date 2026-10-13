@@ -26,6 +26,8 @@
     "src/lib/outcome-replies.ts",
     "src/i18n/outcome-replies.ts",
     "src/lib/legacy-templates.ts",
+    "src/lib/legacy-import.ts",
+    "src/i18n/legacy-import.ts",
     "src/i18n/legacy-templates.ts",
     "src/lib/command-shortcuts.ts",
     "src/i18n/shortcuts.ts",

@@ -1,6 +1,6 @@
 import { useTourState } from '@/components/onboarding/tour-data';
 import { tourSamples } from '@/lib/tour-samples';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { FeatureHelp } from '@/components/ui/feature-help';
@@ -14,6 +14,8 @@ import { Archive, Clock3, Database, Download, Loader2, RotateCcw, Save, Trash2, 
 import { PageHeader } from '@/components/ui/page-header';
 import { LegacyTextReport } from '@/components/persona/legacy-text-report';
 import { readLegacyTextReport, type LegacyTextReport as TextReport } from '@/lib/legacy-templates';
+import { readMigrationView } from '@/lib/legacy-import';
+import { Switch } from '@/components/ui/switch';
 
 type StoredBackup = { name: string; size: number; createdAt: number; automatic: boolean };
 type ReplyReferenceReport = {
@@ -100,7 +102,7 @@ const selectionGroups: Array<{ title: string; items: SelectionItem[] }> = [
   ] },
   { title: '图片与媒体（可能显著增大备份）', items: [
     { key: 'uploadedAssets', label: '上传的回复图片', description: '在网页中上传、供回复或插件使用的图片。', large: true },
-    { key: 'resourceImages', label: '资源图片', description: '帮助、规则等内容引用的 data/images 图片。', large: true },
+    { key: 'resourceImages', label: '资源图片', description: '帮助、规则图片，以及旧版迁入的 image 和牌堆媒体。', large: true },
     { key: 'gameLogImages', label: '跑团日志图片', description: '随跑团日志保存的本地图片；与日志正文独立。', large: true },
     { key: 'chatMedia', label: '模拟聊天媒体缓存', description: '模拟聊天中为防链接失效而缓存的图片。', large: true },
   ] },
@@ -138,6 +140,14 @@ export const BackupPage: React.FC = () => {
   const dlg = useDialogs(t);
   const [legacyDir, setLegacyDir] = useTourState('', '');
   const [importing, setImporting] = useState(false);
+  const [overwriteFiles, setOverwriteFiles] = useState(false);
+  const [overwriteData, setOverwriteData] = useState(false);
+  const [targetAdapter, setTargetAdapter] = useState('__shared__');
+  const [importAdapters, setImportAdapters] = useState<{ id: string; name: string; type: string }[]>([]);
+  const [importReport, setImportReport] = useState<Record<string, unknown> | null>(null);
+  const [sessionMappings, setSessionMappings] = useState<Record<string, string>>({});
+  const migrationView = useMemo(() => importReport ? readMigrationView(importReport) : null, [importReport]);
+  const visibleMigrationDetails = migrationView?.details.filter(item => item.status !== 'ignored') ?? [];
   const [importResult, setImportResult] = useTourState<string>('', '');
   const [referenceReport, setReferenceReport] = useState<ReplyReferenceReport | null>(null);
   const [textReport, setTextReport] = useState<TextReport | null>(null);
@@ -149,6 +159,7 @@ export const BackupPage: React.FC = () => {
   const [autoConfig, setAutoConfig] = useTourState<AutoBackupConfig>({ enabled: true, schedule: 'interval', intervalHours: 24, dailyTime: '04:00', keepDays: 7, selection: autoSelectionDefaults, lastAutoAt: 0 }, { enabled: true, schedule: 'daily', intervalHours: 24, dailyTime: '04:00', keepDays: 7, selection: autoSelectionDefaults, lastAutoAt: tourSamples.archives[0].createdAt });
   const [savingAuto, setSavingAuto] = useState(false);
   const restoreFileRef = useRef<HTMLInputElement>(null);
+  useEffect(() => { setSessionMappings({}); setImportReport(null); }, [legacyDir, targetAdapter]);
 
   const loadBackupState = useCallback(async () => {
     try {
@@ -159,6 +170,15 @@ export const BackupPage: React.FC = () => {
     } catch { /* 页面首次加载失败时保留可用的手动备份入口 */ }
   }, []);
   useEffect(() => { void loadBackupState(); }, [loadBackupState]);
+  useEffect(() => {
+    const controller = new AbortController();
+    void fetch('/api/adapters', { signal: controller.signal }).then(r => r.json()).then(result => {
+      if (controller.signal.aborted || result.code !== 0 || !Array.isArray(result.data)) return;
+      setImportAdapters(result.data.filter((item: { type?: string }) => item.type === 'onebot_v11' || item.type === 'milky')
+        .map((item: { id: string; name: string; type: string }) => ({ id: String(item.id), name: item.name, type: item.type })));
+    }).catch(() => { /* Keep the explicit shared-compatibility option available. */ });
+    return () => controller.abort();
+  }, []);
   useEffect(() => {
     const controller = new AbortController();
     void fetch('/api/legacy/texts/upgrade-report', { signal: controller.signal }).then(async response => {
@@ -178,12 +198,19 @@ export const BackupPage: React.FC = () => {
 
   const runImport = async () => {
     if (!legacyDir.trim()) return;
-    setImporting(true); setImportResult(''); setReferenceReport(null); setTextReport(null);
+    if (overwriteData && !(await dlg.confirm({ title: t('legacy_import.confirm_title'),
+      description: t('legacy_import.confirm_desc'), destructive: true, confirmText: t('common.ok') }))) return;
+    setImporting(true); setImportResult(''); setImportReport(null); setReferenceReport(null); setTextReport(null);
     try {
-      const r = await fetch('/api/legacy/import', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dir: legacyDir.trim() }) });
+      const r = await fetch('/api/legacy/import', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dir: legacyDir.trim(), overwrite: overwriteFiles, overwrite_data: overwriteData,
+          target_adapter_id: targetAdapter === '__shared__' ? '' : targetAdapter,
+          session_mappings: sessionMappings }) });
       const j = await r.json();
       if (j.code !== 0) throw new Error(j.message);
       const d = j.data;
+      setImportReport(d);
+      const view = readMigrationView(d);
       setReferenceReport(d.replyReferences ?? null);
       setTextReport(readLegacyTextReport(d.customTextDetails));
       const importedFiles = (value: unknown) => typeof value === 'number'
@@ -193,7 +220,8 @@ export const BackupPage: React.FC = () => {
           : 0);
       setImportResult(t('backup.legacy_result', { cards: d.cards, users: d.profiles, black: d.blacklist, replies: d.replies, help: d.help, msgs: d.msgs, masters: d.masters, censor: d.censorWords ?? 0 })
         + '\n' + t('backup.legacy_result2', { mods: importedFiles(d.mods), decks: importedFiles(d.decks), groups: d.chatGroups ?? 0, settings: d.chatSettings ?? 0 }));
-      toast({ title: t('backup.legacy_done') });
+      toast({ title: t('legacy_import.' + view.status), variant: view.status === 'failed' ? 'destructive' : undefined });
+      await loadBackupState();
     } catch (e) { setImportResult(''); toast({ title: t('backup.legacy_fail'), description: String(e), variant: 'destructive' }); }
     finally { setImporting(false); }
   };
@@ -277,13 +305,74 @@ export const BackupPage: React.FC = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="flex items-center gap-2">
-            <Input placeholder="C:\…\DiceData" value={legacyDir} onChange={(e) => setLegacyDir(e.target.value)} />
+          <fieldset aria-busy={importing} className="space-y-3">
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-1.5 text-sm font-medium">{t('legacy_import.target')}
+                <FeatureHelp title={t('legacy_import.target')} description={t('legacy_import.target_hint')} />
+              </div>
+              <Select value={targetAdapter} onValueChange={setTargetAdapter} disabled={importing}>
+                <SelectTrigger aria-label={t('legacy_import.target')}><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__shared__">{t('legacy_import.shared')}</SelectItem>
+                  {importAdapters.map(item => <SelectItem key={item.id} value={item.id}>{item.name} · {item.type}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-wrap gap-x-5 gap-y-3 text-sm">
+              <label className="flex items-center gap-2"><Switch checked={overwriteFiles} onCheckedChange={setOverwriteFiles} disabled={importing} />{t('legacy_import.files')}</label>
+              <label className="flex items-center gap-2"><Switch checked={overwriteData} onCheckedChange={setOverwriteData} disabled={importing} />{t('legacy_import.data')}</label>
+              <FeatureHelp title={t('backup.legacy_title')} description={t('legacy_import.options_hint')} />
+            </div>
+          </fieldset>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <Input placeholder="C:\…\DiceData" disabled={importing} value={legacyDir} onChange={(e) => setLegacyDir(e.target.value)} />
             <Button onClick={runImport} disabled={importing || !legacyDir.trim()}>
               {importing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Database className="mr-2 h-4 w-4" />}{t('backup.legacy_import')}
             </Button>
           </div>
-          {importResult && <p className="text-sm text-green-600 dark:text-green-400 whitespace-pre-wrap">{importResult}</p>}
+          {importResult && <p className={'text-sm whitespace-pre-wrap ' + (migrationView?.status === 'complete'
+            ? 'text-green-600 dark:text-green-400' : migrationView?.status === 'failed' ? 'text-destructive' : 'text-amber-600 dark:text-amber-400')}>{importResult}</p>}
+          {migrationView && <div className="space-y-2 rounded-md border p-3 text-sm">
+            <p className="font-medium">{t('legacy_import.' + migrationView.status)}</p>
+            <p>{t('legacy_import.sessions', { sessions: migrationView.sessions, logs: migrationView.logs, messages: migrationView.messages })}</p>
+            {migrationView.backupPath && <p className="break-all text-xs text-muted-foreground">{t('legacy_import.backup', { path: migrationView.backupPath })}</p>}
+            {migrationView.reportPath && <p className="break-all text-xs text-muted-foreground">{t('legacy_import.stored', { path: migrationView.reportPath })}</p>}
+            {migrationView.reloadRequired && <p className="text-amber-600 dark:text-amber-400">{t('legacy_import.reload')}</p>}
+            <Button size="sm" variant="outline" onClick={() => saveBlob(new Blob([JSON.stringify(importReport, null, 2)],
+              { type: 'application/json' }), 'legacy-import-report.json')}><Download className="mr-2 h-4 w-4" />{t('legacy_import.download')}</Button>
+            {migrationView.sessionConfirmations.length > 0 && <div className="space-y-3 rounded-md border border-amber-300 p-3">
+              <div className="flex items-center gap-2 font-medium">{t('legacy_import.confirm_sessions')}
+                <FeatureHelp title={t('legacy_import.confirm_sessions')} description={t('legacy_import.confirm_session_hint')} />
+              </div>
+              {migrationView.sessionConfirmations.map(item => <label key={item.key} className="block space-y-1">
+                <span className="block break-words">{item.name} · {item.file}</span>
+                <Select disabled={importing} value={sessionMappings[item.key] || '__skip__'} onValueChange={value => setSessionMappings(current => {
+                  const next = { ...current }; if (value === '__skip__') delete next[item.key]; else next[item.key] = value; return next;
+                })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__skip__">{t('legacy_import.session_choice_skip')}</SelectItem>
+                    {item.candidates.map(candidate => <SelectItem key={candidate.id} value={candidate.id}>{candidate.name} · {candidate.code}</SelectItem>)}
+                    <SelectItem value="__new__">{t('legacy_import.session_choice_new')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </label>)}
+              <Button size="sm" variant="outline" disabled={importing || !migrationView.sessionConfirmations.some(item => sessionMappings[item.key])}
+                onClick={async () => { if (await dlg.confirm({ title: t('legacy_import.confirm_sessions'), description: t('legacy_import.confirm_session_hint'), confirmText: t('common.ok') })) await runImport(); }}>
+                {t('legacy_import.apply_session_mappings')}
+              </Button>
+            </div>}
+            {migrationView.details.length > 0 && <details>
+              <summary className="cursor-pointer">{t('legacy_import.details')}</summary>
+              <ul className="mt-2 max-h-72 space-y-2 overflow-y-auto">
+                {visibleMigrationDetails.slice(0, 100).map((item, index) => <li key={index} className="break-words rounded bg-muted/50 p-2">
+                  <span className="font-medium">{item.name || item.stage}</span> · {t('legacy_import.' + (item.status === 'failed' ? 'failed_item' : item.status), { defaultValue: item.status })}
+                  {item.reason && <p className="mt-1 text-xs text-muted-foreground">{item.reason}</p>}
+                </li>)}
+              </ul>
+              {visibleMigrationDetails.length > 100 && <p className="mt-2 text-xs text-muted-foreground">{t('legacy_import.more', { count: visibleMigrationDetails.length - 100 })}</p>}
+            </details>}
+          </div>}
           {textReport && <LegacyTextReport report={textReport} onDownload={() => saveBlob(
             new Blob([JSON.stringify(textReport, null, 2)], { type: 'application/json' }), 'legacy-reply-text-import.json')} />}
           {upgradeReport && <LegacyTextReport report={upgradeReport} historical onDownload={() => saveBlob(
