@@ -1,6 +1,6 @@
-import React, { useRef, useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronDown, Link2 } from 'lucide-react';
+import { ArrowDown, ChevronDown, Link2 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { RecentLogEntry } from '@/types/dashboard';
 import type { LogLevel } from '@/types/log';
 import { LOG_LEVELS, logAtLeast, logMessageId, logTimestamp, normalizeLogLevel } from '@/lib/runtime-logs';
+import { useLogFollow } from '@/hooks/use-log-follow';
 import { cn } from '@/lib/utils';
 
 interface RecentLogsProps { logs: RecentLogEntry[]; }
@@ -54,8 +55,6 @@ function RuntimeLogRow({ log, onRelated }: { log: RecentLogEntry; onRelated?: (l
 
 export const RecentLogs: React.FC<RecentLogsProps> = ({ logs }) => {
   const { t } = useTranslation();
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const autoScrollRef = useRef(true);
   const [minimum, setMinimum] = useState<LogLevel>(() => {
     try { return normalizeLogLevel(localStorage.getItem('dice-log-display-level')); } catch { return 'info'; }
   });
@@ -64,21 +63,11 @@ export const RecentLogs: React.FC<RecentLogsProps> = ({ logs }) => {
   const visible = useMemo(() => logs.filter((log) => logAtLeast(log.level, minimum)
     && (!query.trim() || [log.module, log.message, logMessageId(log), JSON.stringify(log.details)]
       .join(' ').toLowerCase().includes(query.trim().toLowerCase()))), [logs, minimum, query]);
+  const { scrollRef, contentRef, following, onScroll, jumpToLatest } = useLogFollow(visible);
   const relatedId = related ? logMessageId(related) : undefined;
   // Correlated records intentionally ignore the list threshold. An ERROR row's
   // diagnostics retain its source even if its INFO plan was never recorded.
   const relatedLogs = relatedId ? logs.filter((log) => logMessageId(log) === relatedId) : [];
-  useEffect(() => {
-    const viewport = scrollRef.current?.querySelector<HTMLDivElement>('[data-radix-scroll-area-viewport]');
-    if (!viewport) return;
-    const trackScroll = () => { autoScrollRef.current = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight < 40; };
-    viewport.addEventListener('scroll', trackScroll, { passive: true });
-    return () => viewport.removeEventListener('scroll', trackScroll);
-  }, []);
-  useEffect(() => {
-    const viewport = scrollRef.current?.querySelector<HTMLDivElement>('[data-radix-scroll-area-viewport]');
-    if (autoScrollRef.current && viewport) viewport.scrollTop = viewport.scrollHeight;
-  }, [visible]);
   const changeMinimum = (value: string) => {
     const level = normalizeLogLevel(value); setMinimum(level);
     try { localStorage.setItem('dice-log-display-level', level); } catch { /* browser storage unavailable */ }
@@ -101,10 +90,18 @@ export const RecentLogs: React.FC<RecentLogsProps> = ({ logs }) => {
         <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('runtime_logs.search')} aria-label={t('runtime_logs.search')} className="h-8 text-xs" />
       </CardHeader>
       <CardContent className="relative flex-1 min-h-0 p-0">
-        <ScrollArea ref={scrollRef} className="h-[400px] lg:absolute lg:inset-0 lg:h-auto">
-          {visible.length === 0 ? <div className="flex h-full items-center justify-center p-6 text-sm text-muted-foreground">{t(logs.length ? 'runtime_logs.empty' : 'dashboard.no_logs')}</div>
-            : visible.map((log) => <RuntimeLogRow key={log.id} log={log} onRelated={setRelated} />)}
+        <ScrollArea ref={scrollRef} onScroll={onScroll} tabIndex={0} role="region" aria-label={t('dashboard.recent_logs')} className="h-[400px] overscroll-contain scroll-auto lg:absolute lg:inset-0 lg:h-auto">
+          <div ref={contentRef} className="min-h-full">
+            {visible.length === 0 ? <div className="flex h-full items-center justify-center p-6 text-sm text-muted-foreground">{t(logs.length ? 'runtime_logs.empty' : 'dashboard.no_logs')}</div>
+              : visible.map((log) => <RuntimeLogRow key={log.id} log={log} onRelated={setRelated} />)}
+          </div>
         </ScrollArea>
+        {!following && <div className="absolute bottom-3 right-3 z-10">
+          <span className="sr-only" role="status">{t('runtime_logs.follow_paused')}</span>
+          <Button type="button" size="sm" variant="secondary" onClick={jumpToLatest} className="gap-1.5 rounded-full border shadow-md">
+            <ArrowDown className="h-3.5 w-3.5" aria-hidden="true" />{t('runtime_logs.back_to_latest')}
+          </Button>
+        </div>}
       </CardContent>
       <Dialog open={!!related} onOpenChange={(open) => { if (!open) setRelated(null); }}>
         <DialogContent className="max-w-4xl">

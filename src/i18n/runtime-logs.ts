@@ -4,6 +4,7 @@ const en = {
   protocol: 'Protocol event diagnostics (DEBUG / TRACE)', empty: 'No records match this filter.',
   details: 'Diagnostic details', related: 'Related records', show_related: 'View related records',
   clear: 'Clear message filter', search: 'Search content, module, plugin or msgID',
+  follow_paused: 'Automatic scrolling paused.', back_to_latest: 'Back to latest',
   recording_note: 'Changes immediately affect new console and file logs. DEBUG / TRACE increase recording volume.',
 };
 type Copy = typeof en;
@@ -13,6 +14,7 @@ const zhHans: Copy = {
   protocol: '协议事件诊断（DEBUG／TRACE）', empty: '没有符合筛选条件的日志。',
   details: '诊断详情', related: '关联记录', show_related: '查看关联记录',
   clear: '清除消息筛选', search: '搜索内容、模块、插件或 msgID',
+  follow_paused: '已暂停自动滚动。', back_to_latest: '回到最新',
   recording_note: '修改后立即影响新产生的控制台与文件日志。DEBUG／TRACE 会增加记录量。',
 };
 const zhHant: Copy = {
@@ -21,6 +23,7 @@ const zhHant: Copy = {
   protocol: '協定事件診斷（DEBUG／TRACE）', empty: '沒有符合篩選條件的日誌。',
   details: '診斷詳情', related: '關聯記錄', show_related: '查看關聯記錄',
   clear: '清除訊息篩選', search: '搜尋內容、模組、插件或 msgID',
+  follow_paused: '已暫停自動捲動。', back_to_latest: '回到最新',
   recording_note: '修改後立即影響新產生的控制台與檔案日誌。DEBUG／TRACE 會增加記錄量。',
 };
 const ja: Copy = {
@@ -29,6 +32,7 @@ const ja: Copy = {
   protocol: 'プロトコルイベント診断（DEBUG / TRACE）', empty: 'フィルターに一致するログはありません。',
   details: '診断詳細', related: '関連レコード', show_related: '関連レコードを表示',
   clear: 'メッセージフィルターを解除', search: '内容、モジュール、プラグイン、msgID を検索',
+  follow_paused: '自動スクロールを一時停止しました。', back_to_latest: '最新へ戻る',
   recording_note: '新しいコンソール・ファイルログにすぐ適用します。DEBUG / TRACE は記録量を増やします。',
 };
 export const runtimeLogsCopy = { en, 'zh-Hans': zhHans, 'zh-Hant': zhHant, ja };
