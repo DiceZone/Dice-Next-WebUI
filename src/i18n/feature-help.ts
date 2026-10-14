@@ -21,6 +21,10 @@ const en = {
   cloudban_note: 'Cloud entries and removals are maintained by cloud review and synchronization.',
   persona_editor_desc: 'Add an override using its reply key, such as dice.roll.result. Filter by key or content. Add saves a new entry; after editing an existing entry, use that entry’s Save button.',
   verify_image_title: 'Strict Markdown image validation',
+  subscribeGroupMemberEvents_title: 'Group member events',
+  subscribeGroupMemberEvents_desc: 'Subscribe to QQ Official member join/leave events for welcome messages, plugin hooks and member-cache updates. Disabled by default to preserve existing account subscriptions; enabling this requires the corresponding platform capability and reconnects the adapter.',
+  autoAcknowledgeInteractions_title: 'Automatically acknowledge interactions',
+  autoAcknowledgeInteractions_desc: 'Acknowledge button and shortcut-menu events once so QQ stops loading. Callback data is not executed as a command. Disable this if a plugin or external handler needs to choose its own response code.',
   verify_image_desc: 'When enabled, a failed image transfer aborts the entire Markdown message. When disabled, QQ Official keeps its default compatible behavior.',
 };
 type Labels = typeof en;
@@ -45,6 +49,10 @@ const zhHans: Labels = {
   cloudban_note: '云端条目及解除由云端核验、同步维护。',
   persona_editor_desc: '使用回复文本的键名（如 dice.roll.result）添加覆盖条目；可按键名或内容筛选。新条目点击“添加”保存，已有条目修改后点击该条的“保存”按钮。',
   verify_image_title: 'Markdown 图片资源强校验',
+  subscribeGroupMemberEvents_title: '订阅群成员进出事件',
+  subscribeGroupMemberEvents_desc: '接收 QQ 官方群成员加入、退出事件，用于欢迎词、插件事件与成员缓存更新。默认关闭以保留现有账号的订阅方式；开启需具备对应平台能力，保存后会重新连接适配器。',
+  autoAcknowledgeInteractions_title: '自动回应互动事件',
+  autoAcknowledgeInteractions_desc: '对按钮和快捷菜单事件回应一次，结束 QQ 客户端的加载状态；不会把回调数据自动当成指令执行。如需由插件或外部处理器自行选择回应码，请关闭此项。',
   verify_image_desc: '开启后，图片转存失败会中断整条 Markdown 消息；关闭时保持 QQ 官方默认兼容行为。',
 };
 const zhHant: Labels = {
@@ -68,6 +76,10 @@ const zhHant: Labels = {
   cloudban_note: '雲端項目及解除由雲端核驗、同步維護。',
   persona_editor_desc: '使用回覆文字的鍵名（如 dice.roll.result）新增覆蓋項目；可按鍵名或內容篩選。新項目點擊「新增」儲存，已有項目修改後點擊該項的「儲存」按鈕。',
   verify_image_title: 'Markdown 圖片資源強校驗',
+  subscribeGroupMemberEvents_title: '訂閱群成員進出事件',
+  subscribeGroupMemberEvents_desc: '接收 QQ 官方群成員加入、退出事件，用於歡迎詞、插件事件與成員快取更新。預設關閉以保留既有帳號的訂閱方式；開啟需具備對應平台能力，儲存後會重新連線適配器。',
+  autoAcknowledgeInteractions_title: '自動回應互動事件',
+  autoAcknowledgeInteractions_desc: '對按鈕和快捷選單事件回應一次，結束 QQ 客戶端的載入狀態；不會將回呼資料自動當成指令執行。如需由插件或外部處理器自行選擇回應碼，請關閉此項。',
   verify_image_desc: '開啟後，圖片轉存失敗會中斷整條 Markdown 訊息；關閉時維持 QQ 官方預設相容行為。',
 };
 const ja: Labels = {
@@ -91,6 +103,10 @@ const ja: Labels = {
   cloudban_note: 'クラウドの登録と解除は、クラウド側の審査と同期で管理します。',
   persona_editor_desc: 'dice.roll.result などの返信キーで上書き項目を追加します。キーや内容で絞り込めます。新しい項目は「追加」で保存し、既存項目の編集後はその項目の「保存」を押してください。',
   verify_image_title: 'Markdown 画像の厳格な検証',
+  subscribeGroupMemberEvents_title: 'グループ参加・退出イベント',
+  subscribeGroupMemberEvents_desc: '参加・退出イベントを購読し、歓迎文、プラグイン、メンバーキャッシュに使用します。既定では無効です。有効化には対応する QQ の権限が必要で、保存後に再接続します。',
+  autoAcknowledgeInteractions_title: 'インタラクションの自動応答',
+  autoAcknowledgeInteractions_desc: 'ボタンとメニューのイベントに一度応答して、QQ の読み込み表示を終了します。コールバック値をコマンドとして実行しません。プラグイン等で応答コードを選ぶ場合は無効にしてください。',
   verify_image_desc: '有効な場合、画像の転送に失敗すると Markdown メッセージ全体を中止します。無効な場合は QQ 公式の既定の互換動作を使用します。',
 };
 export const featureHelpCopy = { 'zh-Hans': zhHans, 'zh-Hant': zhHant, en, ja };

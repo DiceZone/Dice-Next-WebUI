@@ -279,6 +279,8 @@ const e = (
 // Common aliases are intentionally multilingual: protocol names and older Dice terms
 // remain searchable even when the administration language changes.
 export const SETTINGS_SEARCH_ENTRIES: SettingsSearchEntry[] = [
+  e('qq-menu', '/qq-official', 'qq_editor.title', 'qq_editor.menu', '卡片与按钮 卡片 按钮 官方菜单与面板 QQ 官方 自定义菜单 全局菜单 二级菜单 开关 menu switch c2c cards buttons', 'qq_editor.menu_help'),
+  e('qq-panels', '/qq-official', 'qq_editor.title', 'qq_editor.panels', '卡片与按钮 卡片 按钮 官方菜单与面板 QQ 官方 指令面板 关联对象 OpenID panel command group channel cards buttons', 'qq_editor.panel_help'),
   e('settings-master', '/settings', 'nav.settings', 'settings.master_title', 'master 主人 骰主 管理员 管理員 admin owner', 'settings.master_desc', true),
   e('settings-plugin-verify', '/settings', 'nav.settings', 'settings.plugin_verify_title', '插件签名 插件簽名 signature public key verify js lua security', 'settings.plugin_verify_desc'),
   e('settings-prefix', '/settings', 'nav.settings', 'settings.prefix_title', '指令前缀 指令前綴 命令前缀 command prefix dot 点号 點號', 'settings.prefix_desc', true),
@@ -286,7 +288,7 @@ export const SETTINGS_SEARCH_ENTRIES: SettingsSearchEntry[] = [
   e('settings-scope', '/settings', 'nav.settings', 'settings.scope_title', '作用域 分账号 分帳號 适配器 適配器 account adapter inherit override 覆盖 覆寫', 'settings.scope_desc'),
   e('settings-expression', '/settings', 'nav.settings', 'settings.expression_title', '表达式 表達式 expression dicescript onedice engine compatibility 兼容 原版 增强 增強', 'settings.expression_desc', true),
   e('settings-approval', '/settings', 'nav.settings', 'settings.approval_title', '好友申请 好友申請 加群邀请 加群邀請 审批 審批 approve reject keyword blacklist whitelist', 'settings.approval_desc'),
-  e('settings-poke', '/replies', 'nav.replies', 'replies.poke_title', '戳一戳 nudge poke jrrp 随机回复 概率', 'replies.poke_desc'),
+  e('settings-poke', '/replies', 'nav.custom_replies', 'replies.poke_title', '戳一戳 nudge poke jrrp 随机回复 概率', 'replies.poke_desc'),
   e('settings-welcome', '/settings', 'nav.settings', 'settings.welcome_min_title', '欢迎词 歡迎詞 welcome 入群 delay cooldown 延迟 延遲 冷却 冷卻', 'settings.welcome_min_desc'),
   e('settings-user-group', '/settings', 'nav.settings', 'usergroup.title', '用户群 用戶群 user group 分组 分組 邀请 邀請 enforce'),
   e('settings-friend-clean', '/settings', 'nav.settings', 'friendclean.title', '好友清理 群聊清理 自动清理 自動清理 friend clean cleanup leave group'),
@@ -342,7 +344,7 @@ export const SETTINGS_SEARCH_ENTRIES: SettingsSearchEntry[] = [
   e('page-webui', '/webui-settings', 'nav.webui', 'webui.title', 'webui 设置 設定 panel server login auth password port theme', 'webui.desc'),
   e('page-notice', '/notice-settings', 'nav.notice', 'noticeset.title', '通知设置 通知設定 notice notification smtp webhook audit window', 'noticeset.desc'),
   e('page-adapters', '/adapters', 'nav.adapters', 'adapters.title', '平台连接 平台連線 adapter onebot milky websocket http qq official discord kook 账号 帳號', 'adapters.subtitle', true),
-  e('page-replies', '/replies', 'nav.replies', 'replies.title', '回复 回覆 reply template text markdown variables 自定义 自訂', 'replies.subtitle'),
+  e('page-replies', '/replies', 'nav.custom_replies', 'replies.title', '高级回复 進階回覆 自定义回复 自訂回覆 回复 回覆 advanced custom reply template text markdown variables 自定义 自訂', 'replies.subtitle'),
   e('page-commands', '/commands', 'nav.commands', 'commands.title', '指令 命令 command alias enable disable reply text', 'commands.subtitle'),
   e('page-modules', '/modules', 'nav.modules', 'modules.title', '插件 plugin js javascript lua module extension config', 'modules.subtitle'),
   e('page-rules', '/rules', 'nav.rules', 'rules.title', '规则 規則 rule coc dnd dice system bundle', 'rules.desc'),

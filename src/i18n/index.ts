@@ -17,6 +17,7 @@ import { outcomeReplies } from './outcome-replies';
 import { legacyTemplates } from './legacy-templates';
 import { shortcuts } from './shortcuts';
 import { legacyImport } from './legacy-import';
+import { qqOfficialEditorCopy } from './qq-official-editor';
 
 /**
  * Front-end i18n setup (繁體中文 / 简体中文 / English).
@@ -55,6 +56,10 @@ const initialLanguage = detectInitialLanguage();
 for (const [language, bundle] of Object.entries(legacyImport)) {
   const resource = language === 'zh-Hans' ? zhHans : language === 'zh-Hant' ? zhHant : language === 'ja' ? ja : en;
   Object.assign(resource, { legacy_import: bundle });
+}
+for (const [language, bundle] of Object.entries(qqOfficialEditorCopy)) {
+  const resource = language === 'zh-Hans' ? zhHans : language === 'zh-Hant' ? zhHant : language === 'ja' ? ja : en;
+  Object.assign(resource, { qq_editor: bundle });
 }
 
 i18n.use(initReactI18next).init({

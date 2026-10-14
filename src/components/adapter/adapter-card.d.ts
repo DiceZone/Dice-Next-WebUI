@@ -9,6 +9,7 @@ interface AdapterCardProps {
     onDelete: (id: string) => void;
     onTestConnection: (id: string) => void;
     onShowReverseInfo?: (port: string) => void;
+    onOfficialControls?: (id: string) => void;
 }
 export declare const AdapterCard: React.FC<AdapterCardProps>;
 export default AdapterCard;

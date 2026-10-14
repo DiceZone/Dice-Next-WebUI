@@ -4,6 +4,7 @@ import { Layout } from '@/components/layout/layout';
 import { Toaster } from '@/components/ui/toaster';
 import { DashboardPage } from '@/pages/dashboard-page';
 import { AdaptersPage } from '@/pages/adapters-page';
+import { QQOfficialPage } from '@/pages/qq-official-page';
 import { DiceRulesPage } from '@/pages/dice-rules-page';
 import { RepliesPage } from '@/pages/replies-page';
 import { DecksPage } from '@/pages/decks-page';
@@ -38,6 +39,7 @@ const ROUTES: Record<string, React.ComponentType> = {
   '/': DashboardPage,
   '/playground': PlaygroundPage,
   '/adapters': AdaptersPage,
+  '/qq-official': QQOfficialPage,
   '/dice-rules': DiceRulesPage,
   '/replies': RepliesPage,
   '/decks': DecksPage,

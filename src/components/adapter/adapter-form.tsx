@@ -44,6 +44,8 @@ const adapterFormSchema = z.object({
   appSecret: z.string().optional(),
   qqNumber: z.string().regex(/^\d{0,12}$/, 'QQ 号只能由最多 12 位数字组成').optional(),
   forceVerifyImageResource: z.boolean().optional().default(false),
+  subscribeGroupMemberEvents: z.boolean().optional().default(false),
+  autoAcknowledgeInteractions: z.boolean().optional().default(true),
   qqRichReplies: z.enum(['off', 'markdown', 'math']).default('off'),
   qqInteractions: z.enum(['off', 'links', 'buttons']).default('links'),
   heartApiKey: z.string().optional(),
@@ -89,6 +91,8 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
       appSecret: '',
       qqNumber: adapter?.qqNumber ?? '',
       forceVerifyImageResource: adapter?.forceVerifyImageResource ?? false,
+      subscribeGroupMemberEvents: adapter?.subscribeGroupMemberEvents ?? false,
+      autoAcknowledgeInteractions: adapter?.autoAcknowledgeInteractions ?? true,
       qqRichReplies: adapter?.qqRichReplies ?? 'off',
       qqInteractions: adapter?.qqInteractions ?? 'links',
       heartApiKey: '',
@@ -110,6 +114,8 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
         appSecret: '',
         qqNumber: adapter?.qqNumber ?? '',
         forceVerifyImageResource: adapter?.forceVerifyImageResource ?? false,
+        subscribeGroupMemberEvents: adapter?.subscribeGroupMemberEvents ?? false,
+        autoAcknowledgeInteractions: adapter?.autoAcknowledgeInteractions ?? true,
         qqRichReplies: adapter?.qqRichReplies ?? 'off',
         qqInteractions: adapter?.qqInteractions ?? 'links',
         heartApiKey: '',
@@ -234,7 +240,7 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
           const current = getValues();
           const name = current.name.trim() || `QQ 官方机器人 ${result.data.appId}`;
           setValue('name', name);
-          await onSubmit({ name, type: 'qq_official', connectionMode: 'forward_ws', endpoint: '', accessToken: '', appId: result.data.appId, appSecret: result.data.appSecret, heartApiKey: current.heartApiKey?.trim(), forceVerifyImageResource: current.forceVerifyImageResource, qqRichReplies: current.qqRichReplies, qqInteractions: current.qqInteractions, enabled: current.enabled ?? true });
+          await onSubmit({ name, type: 'qq_official', connectionMode: 'forward_ws', endpoint: '', accessToken: '', appId: result.data.appId, appSecret: result.data.appSecret, heartApiKey: current.heartApiKey?.trim(), forceVerifyImageResource: current.forceVerifyImageResource, subscribeGroupMemberEvents: current.subscribeGroupMemberEvents, autoAcknowledgeInteractions: current.autoAcknowledgeInteractions, qqRichReplies: current.qqRichReplies, qqInteractions: current.qqInteractions, enabled: current.enabled ?? true });
           setQrSaving(false); setQrBusy(false);
           toast({ title: 'QQ 官方机器人已添加，正在连接' }); onOpenChange(false); return;
         }
@@ -358,6 +364,12 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
                 </div>
                 <Switch id="forceVerifyImageResource" checked={watch('forceVerifyImageResource') ?? false} onCheckedChange={(v) => setValue('forceVerifyImageResource', v)} />
               </div>
+              {(['subscribeGroupMemberEvents', 'autoAcknowledgeInteractions'] as const).map((key) => (
+                <div key={key} className="flex items-center justify-between gap-4 rounded-md border bg-muted/20 p-3">
+                  <HelpLabel htmlFor={key} title={t(`feature_help.${key}_title`)} description={<p>{t(`feature_help.${key}_desc`)}</p>} />
+                  <Switch id={key} checked={watch(key)} onCheckedChange={(value) => setValue(key, value)} />
+                </div>
+              ))}
               <section className="space-y-3 rounded-md border p-3">
                 <HelpLabel title={t('qq_rich.title')} description={<p>{t('qq_rich.hint')}</p>} labelClassName="text-sm font-medium" />
                 <Label htmlFor="qqRichReplies">{t('qq_rich.style')}</Label>

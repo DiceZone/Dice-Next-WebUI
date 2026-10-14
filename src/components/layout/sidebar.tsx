@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { zustandAppStore } from '@/store/app-store';
 import {
-  LayoutDashboard, PlugZap, MessageSquareReply, FolderKanban, Boxes,
+  LayoutDashboard, PlugZap, MessageSquareReply, MessageSquareText, PanelsTopLeft, FolderKanban, Boxes,
   Settings, Info, ChevronLeft, ChevronDown, FlaskConical, Users, UserCog,
   Map, BookText, Clock, Scroll, ShieldBan, Database, Puzzle, SlidersHorizontal,
   Monitor, HelpCircle, Archive, Sparkles, Wand2, Languages, Cpu, MessageCircle, Drama, Bell, BarChart3, Cloud,
@@ -22,7 +22,10 @@ const NAV: Node[] = [
   { labelKey: 'nav.statistics', path: '/statistics', icon: BarChart3 },
   { labelKey: 'nav.playground', path: '/playground', icon: FlaskConical },
   { labelKey: 'nav.adapters', path: '/adapters', icon: PlugZap },
-  { labelKey: 'nav.replies', path: '/replies', icon: MessageSquareReply },
+  { labelKey: 'nav.replies', icon: MessageSquareReply, children: [
+    { labelKey: 'nav.custom_replies', path: '/replies', icon: MessageSquareText },
+    { labelKey: 'qq_editor.title', path: '/qq-official', icon: PanelsTopLeft },
+  ] },
   { labelKey: 'nav.commands', path: '/commands', icon: BookText },
   { labelKey: 'nav.help', path: '/help', icon: HelpCircle },
   { labelKey: 'nav.ext_mgmt', icon: Boxes, children: [
@@ -68,6 +71,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPath, onNavigate }) => 
     const active = NAV.find((n) => isGroup(n) && n.children.some((c) => isActivePath(c.path, currentPath)));
     return active && isGroup(active) ? active.labelKey : null;
   });
+  // Links from search and adapter shortcuts should reveal the new parent group.
+  // Users can still manually collapse it until the route changes again.
+  useEffect(() => {
+    if (currentPath === '/replies' || currentPath === '/qq-official') setExpandedGroup('nav.replies');
+  }, [currentPath]);
 
   const go = (path: string) => {
     onNavigate(path);
@@ -119,7 +127,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPath, onNavigate }) => 
               const childActive = n.children.some((c) => isActivePath(c.path, currentPath));
               return (
                 <div key={n.labelKey}>
-                  <button onClick={() => setExpandedGroup((current) => current === n.labelKey ? null : n.labelKey)}
+                  <button aria-expanded={open} onClick={() => setExpandedGroup((current) => current === n.labelKey ? null : n.labelKey)}
                     className={cn('flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
                       childActive ? 'text-primary' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground')}>
                     <n.icon className="h-5 w-5 shrink-0" />

@@ -105,6 +105,7 @@ export const AdaptersPage: React.FC = () => {
           {adapters.map((a) => (
             <AdapterCard key={a.id} adapter={a} onConnect={handleToggle} onDisconnect={handleToggle} onReconnect={handleReconnect}
               onEdit={(a) => { setEditingAdapter(a); setFormOpen(true); }} onDelete={handleDelete} onTestConnection={handleTest}
+              onOfficialControls={(id) => { window.location.hash = `/qq-official?adapter=${encodeURIComponent(id)}`; }}
               onShowReverseInfo={a.connectionMode === 'reverse_ws' ? (port) => setReverseWsPort(port) : undefined} />
           ))}
         </div>

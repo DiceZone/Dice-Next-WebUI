@@ -14,7 +14,7 @@ import {
 import { ConnectionStatus } from '@/components/adapter/connection-status';
 import { cn } from '@/lib/utils';
 import { formatDateTime } from '@/lib/utils';
-import { Cloud, Info, MoreHorizontal, Plug, Unplug, Pencil, Trash2, Wifi, PlugZap, Network } from 'lucide-react';
+import { Cloud, Info, MoreHorizontal, Plug, Unplug, Pencil, Trash2, Wifi, PlugZap, Network, ListTree } from 'lucide-react';
 import type { Adapter } from '@/types/adapter';
 import { PlatformIcon, platformLabel } from '@/components/platform-icon';
 
@@ -27,6 +27,7 @@ interface AdapterCardProps {
   onDelete: (id: string) => void;
   onTestConnection: (id: string) => void;
   onShowReverseInfo?: (port: string) => void;
+  onOfficialControls?: (id: string) => void;
 }
 
 const STATUS_LABEL_KEYS: Record<Adapter['status'], string> = {
@@ -53,6 +54,7 @@ export const AdapterCard: React.FC<AdapterCardProps> = ({
   onDelete,
   onTestConnection,
   onShowReverseInfo,
+  onOfficialControls,
 }) => {
   // Backend reports connected / timeout / disconnected. An adapter that is enabled
   // but not (yet) connected is actively retrying → show it as 「连接中」(yellow). A
@@ -156,6 +158,9 @@ export const AdapterCard: React.FC<AdapterCardProps> = ({
               <DropdownMenuItem onClick={() => onEdit(adapter)}>
                 <Pencil className="mr-2 h-4 w-4" />{t('common.edit')}
               </DropdownMenuItem>
+              {adapter.type === 'qq_official' && onOfficialControls && <DropdownMenuItem onClick={() => onOfficialControls(adapter.id)}>
+                <ListTree className="mr-2 h-4 w-4" />{t('qq_editor.title')}
+              </DropdownMenuItem>}
               <DropdownMenuSeparator />
               <DropdownMenuItem className="text-destructive" onClick={() => onDelete(adapter.id)}>
                 <Trash2 className="mr-2 h-4 w-4" />{t('common.delete')}

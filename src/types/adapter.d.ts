@@ -19,6 +19,8 @@ export interface Adapter {
     appSecret?: string;
     qqNumber?: string;
     forceVerifyImageResource?: boolean;
+    subscribeGroupMemberEvents?: boolean;
+    autoAcknowledgeInteractions?: boolean;
     qqRichReplies?: 'off' | 'markdown' | 'math';
     qqInteractions?: 'off' | 'links' | 'buttons';
     personaSelection?: 'all' | 'selected' | 'none';
@@ -44,6 +46,8 @@ export interface AdapterFormData {
     appSecret?: string;
     qqNumber?: string;
     forceVerifyImageResource?: boolean;
+    subscribeGroupMemberEvents?: boolean;
+    autoAcknowledgeInteractions?: boolean;
     qqRichReplies?: 'off' | 'markdown' | 'math';
     qqInteractions?: 'off' | 'links' | 'buttons';
     personaSelection?: 'all' | 'selected' | 'none';

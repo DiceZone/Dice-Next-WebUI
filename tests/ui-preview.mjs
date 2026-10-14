@@ -7,6 +7,8 @@ import { readFile } from 'node:fs/promises';
 import { transform } from 'esbuild';
 import { spawnSync } from 'node:child_process';
 import { statisticsPreview } from './statistics-preview-data.mjs';
+import { createQQOfficialPreview } from './qq-official-preview-data.mjs';
+const qqOfficialPreview = createQQOfficialPreview();
 const trayModule = await transform(await readFile(new URL('../src/lib/tray-settings.ts', import.meta.url), 'utf8'), { loader: 'ts', format: 'esm' });
 const { trayTextError, trayTooltip } = await import('data:text/javascript;base64,' + Buffer.from(trayModule.code).toString('base64'));
 
@@ -56,7 +58,7 @@ const state = {
     settings: { autoCheck: true, intervalHours: 6, autoAction: 'notify', scheduledInstall: false, installTime: '04:00', source: 'auto', customMirror: '' },
   },
   '/dashboard/stats': { uptime_seconds: 3600, active_connections: 0, total_adapters: 2, total_commands: 0, total_rules: 0, active_sessions: 0, recent_logs: [] },
-  '/adapters': [{ id: 'preview-qq', name: '星灯 · 预览', type: 'qq_official', appId: 'preview', enabled: false }, { id: 'preview-onebot', name: '月海 · 预览', type: 'onebot_v11', loginId: '10000', enabled: false }],
+  '/adapters': [{ id: 'preview-qq', name: '星灯 · 预览', type: 'qq_official', appId: 'preview', status: 'connected', enabled: false }, { id: 'preview-qq-two', name: '月海官方 · 预览', type: 'qq_official', appId: 'preview-two', status: 'connected', enabled: false }, { id: 'preview-onebot', name: '月海 · 预览', type: 'onebot_v11', loginId: '10000', enabled: false }],
   '/personas': [{ id: 1, name: '星灯', description: '本地预览人格', isBuiltin: false }, { id: 2, name: '月海', description: '本地预览人格', isBuiltin: false }],
   '/personas/active': { activeId: 0, globalId: 0, pool: [] },
   '/masters': { items: [{ platform: 'onebot_v11', id: '10001', nickname: '示例骰主' }], master_inherit: true },
@@ -205,6 +207,8 @@ const server = await createServer({
             Object.assign(bot, body);
             return reply(bot);
           }
+          const officialAction = path.match(/^\/adapters\/([^/]+)\/qq-official-actions$/);
+          if (officialAction) return reply(qqOfficialPreview(decodeURIComponent(officialAction[1]), req.method === 'GET' ? '' : body.action, body.params));
           const previewUpdateSchedule = (status) => {
             status.scheduledInstallAt = 0;
             if (!status.pending) return;
