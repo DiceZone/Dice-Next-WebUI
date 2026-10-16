@@ -360,7 +360,7 @@ test('workspace layout changes reuse details and keep list pagination stable', (
     assert.match(source, /previousView\.current/);
   }
   assert.match(groups, /const pageSize = 15;/);
-  assert.match(groups, /<table className="w-full min-w-\[720px\] text-sm">/);
+  assert.match(groups, /<table className="w-full min-w-\[840px\] text-sm">/);
   assert.match(players, /const PAGE_SIZE = 20;/);
   assert.match(players, /detailScroll\.close/);
   assert.match(players, /void change\(\(\) => detailScroll\.open/);

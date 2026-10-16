@@ -17,6 +17,18 @@ const { tourSamples } = await import('data:text/javascript;base64,' + Buffer.fro
 const previewGroups = structuredClone(tourSamples.groups);
 previewGroups[1].accounts = [{ ...previewGroups[0].accounts[0], adapterId: 'preview-onebot', adapterName: '月海 · 预览', endpointId: previewGroups[1].groupId }];
 previewGroups.push({ ...structuredClone(previewGroups[1]), platform: 'qq_official', groupId: 'demo-official', name: '官方测试群 · 示例', accounts: [{ ...previewGroups[1].accounts[0], adapterId: 'preview-qq', adapterName: '星灯 · 预览', platform: 'qq_official', endpointId: 'demo-official' }] });
+for (const [index, group] of previewGroups.entries()) {
+  group.lastCommandAt = index === 1 ? '2026-10-01' : '2026-10-15T04:30:45.000Z';
+  for (const account of group.accounts || []) {
+    account.canLeaveGroup = account.platform === 'onebot_v11';
+    account.lastCommandAt = group.lastCommandAt;
+  }
+}
+previewGroups.push({ ...structuredClone(previewGroups[0]), groupId: 'demo-multi-account', name: '多账号测试群 · 示例',
+  accounts: [
+    { ...previewGroups[0].accounts[0], endpointId: 'demo-multi-account' },
+    { ...previewGroups[1].accounts[0], endpointId: 'demo-multi-account', lastCommandAt: '2026-09-01T00:00:00.000Z' },
+  ] });
 const previewPlayers = structuredClone(tourSamples.players);
 if (process.env.DICENEXT_UI_PREVIEW_PAGINATION === '1') {
   for (let i = previewPlayers.length; i < 111; i++) previewPlayers.push({ ...previewPlayers[0], userId: `demo-player-${i + 1}`, nickname: `分页玩家 ${i + 1}`, trustLevel: 0 });
@@ -302,6 +314,16 @@ const server = await createServer({
             cards: [{ id: 1, name: '调查员', attrs: { 力量: 50, 敏捷: 60, HP: 12 }, bound: [], updatedAt: '2026-09-01' }],
             settings: [], luaVars: [], luaCards: [], lastMessageAt: 1788264000,
           });
+          if (/^\/groups\/[^/]+\/[^/]+\/action$/.test(path) && req.method === 'POST' && body.action === 'leave') {
+            const [, , platform, groupId] = path.split('/').map(decodeURIComponent);
+            const group = previewGroups.find((item) => item.groupId === groupId);
+            const account = group?.accounts?.find((item) => item.adapterId === body.adapterId && item.platform === platform);
+            if (!account?.canLeaveGroup || account.endpointId !== body.endpointId) throw new Error('模拟账号或群绑定不匹配');
+            if (groupId === 'demo-group-2') throw new Error('模拟退群请求失败（仅用于验证重试，不操作真实群）');
+            account.left = true;
+            group.left = group.accounts.every((item) => item.left);
+            return reply({ accepted: true });
+          }
           if (/^\/groups\/[^/]+\/[^/]+$/.test(path) && req.method === 'PUT') {
             const [, , platform, groupId] = path.split('/');
             const group = previewGroups.find((g) => g.platform === platform && g.groupId === groupId);

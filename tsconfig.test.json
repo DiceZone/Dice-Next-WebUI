@@ -37,6 +37,8 @@
     "src/i18n/weighted-templates.ts",
     "src/lib/reply-preview.ts",
     "src/lib/batch-operation.ts",
+    "src/lib/group-management.ts",
+    "src/i18n/group-management.ts",
     "src/lib/request-gate.ts",
     "src/lib/qq-official-editor.ts",
     "src/lib/qq-official-actions.ts",

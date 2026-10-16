@@ -31,9 +31,12 @@ import { PageHeader } from '@/components/ui/page-header';
 import { FeatureHelp } from '@/components/ui/feature-help';
 import { HelpLabel } from '@/components/ui/help-label';
 import type { ActivePersonaInfo, PersonaTemplate } from '@/types/persona';
+import { groupLeaveTarget, groupCommandTimeText, sortGroupActivity, submitGroupLeaves, MAX_GROUP_LEAVE_BATCH,
+  type GroupLeaveTarget, type GroupLeaveReport } from '@/lib/group-management';
 
 interface GroupFeatures {
   log_enabled?: boolean; reply_enabled?: boolean; roll_enabled?: boolean; plugin_enabled?: boolean;
+  lastCommandAt?: string; canLeaveGroup?: boolean;
 }
 interface GroupControlResult { logPaused?: boolean; logName?: string }
 interface GroupAccount extends GroupFeatures {
@@ -114,8 +117,16 @@ const StatusBadge: React.FC<{ g: Group; t: (k: string) => string }> = ({ g, t })
   return <Badge variant="success" className="rounded h-5 px-2 py-0 text-[11px] leading-5 whitespace-nowrap shrink-0">{t('groups.status_on')}</Badge>;
 };
 
+const GroupCommandTime: React.FC<{ value?: string; locale: string; t: (key: string) => string }> = ({ value, locale, t }) => {
+  const text = groupCommandTimeText(value, locale);
+  return <span className="block break-words text-xs leading-5 text-muted-foreground">
+    {t('group_management.last_command')}：{text || t('group_management.unknown')}
+    {text && value?.length === 10 && <span className="ml-1">({t('group_management.date_only')})</span>}
+  </span>;
+};
+
 export const GroupsPage: React.FC = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const toast = useToast();
   const dlg = useDialogs(t);
   const [groups, setGroups] = useTourState<Group[]>([], tourSamples.groups);
@@ -133,6 +144,16 @@ export const GroupsPage: React.FC = () => {
   const [tab, setTab] = useTourState<'active' | 'archived'>('active', 'active');
 
   const [adapterFilter, setAdapterFilter] = useTourState('all', 'all');
+  const [sortOrder, setSortOrder] = useState('name');
+  const [batchMode, setBatchMode] = useState(false);
+  const [selectedGroupKeys, setSelectedGroupKeys] = useState<Set<string>>(new Set());
+  const [batchTargets, setBatchTargets] = useState<GroupLeaveTarget[]>([]);
+  const [batchBusy, setBatchBusy] = useState(false);
+  const [batchDone, setBatchDone] = useState(0);
+  const [batchReport, setBatchReport] = useState<GroupLeaveReport | null>(null);
+  const batchLock = useRef(false);
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   const groupKey = (g: Group) => JSON.stringify([g.platform, g.groupId]);
   const adapterOptions = [...new Map(groups.flatMap((g) => g.accounts?.length
     ? g.accounts.map((a) => [a.adapterId, a.adapterName || a.loginName || a.adapterId] as const).filter(([id]) => id)
@@ -185,10 +206,61 @@ export const GroupsPage: React.FC = () => {
     : scoped;
   const activeGroups = matched.filter((g) => !g.left);
   const archivedGroups = matched.filter((g) => g.left);
-  const list = tab === 'active' ? activeGroups : archivedGroups;
+  const list = sortGroupActivity(tab === 'active' ? activeGroups : archivedGroups, sortOrder);
   const pages = Math.max(1, Math.ceil(list.length / pageSize));
   const curPage = Math.min(page, pages);
   const shown = list.slice((curPage - 1) * pageSize, curPage * pageSize);
+
+  const clearBatchSelection = () => setSelectedGroupKeys(new Set());
+  const toggleGroupSelection = (g: Group) => {
+    if (batchLock.current || !groupLeaveTarget(g, adapterFilter)) return;
+    setSelectedGroupKeys((previous) => {
+      const next = new Set(previous), key = groupKey(g);
+      if (next.has(key)) next.delete(key);
+      else if (next.size < MAX_GROUP_LEAVE_BATCH) next.add(key);
+      return next;
+    });
+  };
+  const selectPage = () => setSelectedGroupKeys((previous) => {
+    const next = new Set(previous);
+    for (const g of shown) if (next.size < MAX_GROUP_LEAVE_BATCH && groupLeaveTarget(g, adapterFilter)) next.add(groupKey(g));
+    return next;
+  });
+  const prepareBatch = () => {
+    const targets = list.filter((g) => selectedGroupKeys.has(groupKey(g))).map((g) => groupLeaveTarget(g, adapterFilter));
+    if (!targets.length || targets.length !== selectedGroupKeys.size || targets.some((item) => !item)) {
+      toast({ title: t('group_management.unavailable'), variant: 'destructive' }); return;
+    }
+    setBatchTargets(targets as GroupLeaveTarget[]);
+    setBatchReport(null); setBatchDone(0);
+  };
+  const runBatchLeave = async () => {
+    if (batchLock.current || !batchTargets.length || batchReport) return;
+    batchLock.current = true; setBatchBusy(true);
+    try {
+      const report = await submitGroupLeaves(batchTargets, (path, body) => jsend('POST', path, body),
+        () => !mounted.current, (done) => { if (mounted.current) setBatchDone(done); });
+      if (!mounted.current) return;
+      setBatchReport(report);
+      setSelectedGroupKeys(new Set([...report.failed.map(({ target }) => target.selectionKey), ...report.cancelled.map((target) => target.selectionKey)]));
+      toast({ title: t('group_management.summary', { submitted: report.submitted.length, failed: report.failed.length, cancelled: report.cancelled.length }),
+        variant: report.failed.length ? 'destructive' : 'default' });
+      await fetchGroups();
+    } catch (error) {
+      if (mounted.current) toast({ title: t('common.save_fail'), description: String(error), variant: 'destructive' });
+    } finally {
+      batchLock.current = false;
+      if (mounted.current) setBatchBusy(false);
+    }
+  };
+
+  const groupSelection = (group: Group) => batchMode ? (
+    <Button type="button" role="checkbox" aria-checked={selectedGroupKeys.has(groupKey(group))}
+      aria-label={t('group_management.select', { name: group.name })} size="icon" variant="outline"
+      className={cn('h-8 w-8 shrink-0 text-base', selectedGroupKeys.has(groupKey(group)) && 'border-primary bg-primary/10 text-primary')}
+      disabled={batchBusy || !groupLeaveTarget(group, adapterFilter) || (!selectedGroupKeys.has(groupKey(group)) && selectedGroupKeys.size >= MAX_GROUP_LEAVE_BATCH)}
+      onClick={() => toggleGroupSelection(group)}>{selectedGroupKeys.has(groupKey(group)) ? '✓' : ''}</Button>
+  ) : null;
 
   const active = shown.find((g) => selected && groupKey(g) === groupKey(selected)) ?? shown[0];
   const openGroup = (g: Group) => view === 'split' ? setSelected(g) : detailScroll.open(() => setSelected(g));
@@ -245,7 +317,11 @@ export const GroupsPage: React.FC = () => {
       {dlg.node}
       <div ref={workspaceRef} className="space-y-6">
         <PageHeader icon={Users} title={t('groups.title')} description={t('groups.subtitle')} help={t('page_help.groups')}
-          actions={<div data-tour="groups-view-actions" className="flex items-center gap-2">
+          actions={<div data-tour="groups-view-actions" className="flex flex-wrap items-center gap-2">
+            <Button variant={batchMode ? 'secondary' : 'outline'} disabled={batchBusy || loading || tab !== 'active' || showingSamples}
+              onClick={() => { setBatchMode(!batchMode); clearBatchSelection(); }}>
+              <LogOut className="mr-2 h-4 w-4" />{t(batchMode ? 'group_management.exit_select' : 'group_management.batch')}
+            </Button>
             <Select value={preference} onValueChange={setViewPreference}>
               <SelectTrigger aria-label={t('workspace.view')} className="w-36"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -255,22 +331,28 @@ export const GroupsPage: React.FC = () => {
                 <SelectItem value="table"><span className="flex items-center gap-2"><Table2 className="h-4 w-4" />{t('groups.view_table')}</span></SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline" onClick={fetchGroups} disabled={loading}>
+            <Button variant="outline" onClick={fetchGroups} disabled={loading || batchBusy}>
               <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />{t('common.refresh')}
             </Button>
           </div>} />
 
-        <Tabs value={tab} onValueChange={(value) => { setTab(value === 'archived' ? 'archived' : 'active'); setSelected(null); setPage(1); }} className="space-y-5">
+        <Tabs value={tab} onValueChange={(value) => { if (batchBusy) return; setTab(value === 'archived' ? 'archived' : 'active'); setSelected(null); setPage(1); setBatchMode(false); clearBatchSelection(); }} className="space-y-5">
         <div data-tour="groups-toolbar" className="flex flex-wrap items-center gap-3">
           <div className="relative max-w-xs flex-1 min-w-[12rem]">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input className="pl-8" placeholder={t('groups.search_placeholder')} value={search}
-              onChange={(e) => { setSearch(e.target.value); setSelected(null); setPage(1); }} />
+            <Input className="pl-8" placeholder={t('groups.search_placeholder')} value={search} disabled={batchBusy}
+              onChange={(e) => { setSearch(e.target.value); setSelected(null); setPage(1); clearBatchSelection(); }} />
           </div>
-          <Select value={adapterFilter} onValueChange={(v) => { setAdapterFilter(v); setSelected(null); setPage(1); }}>
+          <Select value={adapterFilter} disabled={batchBusy} onValueChange={(v) => { setAdapterFilter(v); setSelected(null); setPage(1); clearBatchSelection(); }}>
             <SelectTrigger aria-label={t('workspace.adapter')} className="w-full sm:w-56"><SelectValue /></SelectTrigger>
             <SelectContent><SelectItem value="all">{t('workspace.all_adapters')}</SelectItem>{adapterOptions.map(([id, name]) => <SelectItem key={id} value={id}>{name}</SelectItem>)}</SelectContent>
           </Select>
+          <Select value={sortOrder} disabled={batchBusy} onValueChange={(value) => { setSortOrder(value); setPage(1); }}>
+            <SelectTrigger aria-label={t('group_management.sort')} className="w-full sm:w-44"><SelectValue /></SelectTrigger>
+            <SelectContent>{(['name', 'recent', 'inactive'] as const).map((order) =>
+              <SelectItem key={order} value={order}>{t('group_management.sort_' + order)}</SelectItem>)}</SelectContent>
+          </Select>
+          <FeatureHelp title={t('group_management.last_command')} description={<p>{t('group_management.activity_help')}</p>} />
           <TabsList variant="page" aria-label={t('groups.title')}>
             <TabsTrigger value="active">
               <Users2 className="h-4 w-4" />{t('groups.tab_active')}<span className="text-xs text-muted-foreground">{activeGroups.length}</span>
@@ -280,6 +362,16 @@ export const GroupsPage: React.FC = () => {
             </TabsTrigger>
           </TabsList>
         </div>
+
+        {batchMode && <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/20 p-3" data-group-batch="selection">
+          <span className="text-sm font-medium">{t('group_management.selected', { count: selectedGroupKeys.size })}</span>
+          <FeatureHelp title={t('group_management.batch')} description={<p>{t('group_management.batch_help')}</p>} />
+          <Button size="sm" variant="outline" disabled={batchBusy || !shown.some((group) => groupLeaveTarget(group, adapterFilter))}
+            onClick={selectPage}>{t('group_management.select_page')}</Button>
+          <Button size="sm" variant="ghost" disabled={batchBusy || !selectedGroupKeys.size} onClick={clearBatchSelection}>{t('group_management.clear')}</Button>
+          <Button size="sm" variant="destructive" className="sm:ml-auto" disabled={batchBusy || !selectedGroupKeys.size}
+            onClick={prepareBatch}><LogOut className="mr-2 h-4 w-4" />{t('group_management.batch')}</Button>
+        </div>}
 
         <TabsContent value={tab} data-tour="groups-list" className="mt-0">
         <div className={cn('grid items-start gap-4', view === 'split' && 'lg:grid-cols-[300px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)]')}>
@@ -300,10 +392,14 @@ export const GroupsPage: React.FC = () => {
         ) : view === 'split' ? (
             <Card className="overflow-hidden p-2 shadow-none">
               <div className="max-h-[260px] space-y-1 overflow-y-auto lg:max-h-[65vh]" aria-label={t('groups.title')}>
-                {shown.map((g) => <button key={groupKey(g)} type="button" aria-pressed={active && groupKey(active) === groupKey(g)} onClick={() => openGroup(g)} className={cn('flex w-full items-start gap-3 rounded-lg border p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', active && groupKey(active) === groupKey(g) ? 'border-primary/20 bg-primary/[0.07]' : 'border-transparent hover:bg-muted/60')}>
+                {shown.map((g) => <div key={groupKey(g)} className="flex items-start gap-1">
+                  {batchMode && <div className="pt-3">{groupSelection(g)}</div>}
+                  <button type="button" aria-pressed={active && groupKey(active) === groupKey(g)} onClick={() => openGroup(g)} className={cn('flex min-w-0 w-full items-start gap-3 rounded-lg border p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', active && groupKey(active) === groupKey(g) ? 'border-primary/20 bg-primary/[0.07]' : 'border-transparent hover:bg-muted/60')}>
                   <GroupAvatar groupId={g.groupId} platform={g.platform} />
-                  <span className="min-w-0 flex-1"><span className="block break-words text-sm font-medium">{g.name}</span><span className="mt-1 block break-all font-mono text-xs text-muted-foreground">{g.groupId}</span><span className="mt-2 flex flex-wrap gap-1"><StatusBadge g={g} t={t} /><PlatformIcon platform={g.platform} /></span></span>
-                </button>)}
+                  <span className="min-w-0 flex-1"><span className="block break-words text-sm font-medium">{g.name}</span><span className="mt-1 block break-all font-mono text-xs text-muted-foreground">{g.groupId}</span><span className="mt-2 flex flex-wrap gap-1"><StatusBadge g={g} t={t} /><PlatformIcon platform={g.platform} /></span>
+                    <GroupCommandTime value={g.lastCommandAt} locale={i18n.language} t={t} />
+                  </span>
+                </button></div>)}
               </div>
               <PaginationBar total={list.length} page={curPage} pageSize={pageSize} onPageChange={setPage} fixedSize compact />
             </Card>
@@ -317,6 +413,7 @@ export const GroupsPage: React.FC = () => {
                   <div className="flex min-w-0 flex-1 flex-col gap-3">
                     <div>
                       <div className="flex items-start gap-2">
+                        {groupSelection(g)}
                         <GroupAvatar groupId={g.groupId} platform={g.platform} />
                         {/* C#105：flex-1+min-w-0 给出确定宽度，超长群名 truncate 成省略号 */}
                         <div className="min-w-0 flex-1">
@@ -337,6 +434,7 @@ export const GroupsPage: React.FC = () => {
                         <span>{t('groups.perm_label')}: {roleLabel(t, g.botRole)}</span>
                         {g.observers > 0 && <span>{t('groups.observers_label')}: {g.observers}</span>}
                       </div>
+                      <GroupCommandTime value={g.lastCommandAt} locale={i18n.language} t={t} />
                     </div>
                     <div className="mt-2"><Tags g={g} /></div>
                   </div>
@@ -349,20 +447,23 @@ export const GroupsPage: React.FC = () => {
         ) : (
           <>
             <div className="rounded-lg border overflow-x-auto">
-              <table className="w-full min-w-[720px] text-sm">
+              <table className="w-full min-w-[840px] text-sm">
                 <thead className="bg-muted/50 text-muted-foreground">
                   <tr>
+                    {batchMode && <th className="p-2.5 w-12"><span className="sr-only">{t('group_management.batch')}</span></th>}
                     <th className="text-left font-medium p-2.5 w-24">{t('groups.col_status')}</th>
                     <th className="text-left font-medium p-2.5 w-10">{t('groups.col_avatar')}</th>
                     <th className="text-left font-medium p-2.5">{t('groups.col_group')}</th>
                     <th className="text-left font-medium p-2.5 w-16">{t('groups.members_label')}</th>
                     <th className="text-left font-medium p-2.5 w-20">{t('groups.perm_label')}</th>
+                    <th className="text-left font-medium p-2.5">{t('group_management.last_command')}</th>
                     <th className="text-right font-medium p-2.5">{t('groups.col_actions')}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {shown.map((g) => (
                     <tr key={`${g.platform}/${g.groupId}`} className="border-t hover:bg-muted/30">
+                      {batchMode && <td data-label={t('group_management.batch')} className="p-2.5">{groupSelection(g)}</td>}
                       <td data-label={t('groups.col_status')} className="rt-status p-2.5"><StatusBadge g={g} t={t} /></td>
                       <td data-label={t('groups.col_avatar')} className="rt-avatar p-2.5"><div className="h-8 w-8 rounded-md overflow-hidden bg-muted shrink-0">
                         {g.platform === 'onebot_v11' ? <img src={`https://p.qlogo.cn/gh/${g.groupId}/${g.groupId}/100`} alt="" className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} /> : <Users2 className="h-5 w-5 m-1.5 text-muted-foreground" />}
@@ -373,6 +474,7 @@ export const GroupsPage: React.FC = () => {
                       </td>
                       <td data-label={t('groups.members_label')} className="p-2.5">{g.memberCount || '—'}</td>
                       <td data-label={t('groups.perm_label')} className="p-2.5">{roleLabel(t, g.botRole)}</td>
+                      <td data-label={t('group_management.last_command')} className="p-2.5"><GroupCommandTime value={g.lastCommandAt} locale={i18n.language} t={t} /></td>
                       <td data-label={t('common.actions')} className="rt-footer p-2.5"><div className="flex flex-wrap justify-end"><Actions g={g} /></div></td>
                     </tr>
                   ))}
@@ -390,13 +492,41 @@ export const GroupsPage: React.FC = () => {
         </TabsContent>
         </Tabs>
       </div>
+      <Dialog open={batchTargets.length > 0} onOpenChange={(open) => { if (!open && !batchBusy) setBatchTargets([]); }}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>{t('group_management.confirm_title', { count: batchTargets.length })}</DialogTitle>
+            <DialogDescription>{t('group_management.confirm_desc')}</DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[45vh] space-y-2 overflow-y-auto rounded-md border p-3">
+            {batchTargets.map((target) => <div key={target.selectionKey} className="break-words border-b pb-2 text-sm last:border-0 last:pb-0">
+              <p className="font-medium">{target.name} <span className="font-mono text-xs text-muted-foreground">{target.groupId}</span></p>
+              <p className="break-all text-xs text-muted-foreground">{target.adapterName} · {target.platform} · {target.adapterId}</p>
+            </div>)}
+          </div>
+          {batchBusy && <p role="status" className="text-sm">{t('group_management.submitting', { done: batchDone, total: batchTargets.length })}</p>}
+          {batchReport && <div role="status" className="space-y-2 text-sm">
+            <p>{t('group_management.summary', { submitted: batchReport.submitted.length, failed: batchReport.failed.length, cancelled: batchReport.cancelled.length })}</p>
+            {batchReport.failed.length > 0 && <div className="max-h-36 space-y-1 overflow-y-auto text-destructive dark:text-red-400">
+              <p>{t('group_management.failures')}</p>
+              {batchReport.failed.map(({ target, error }) => <p key={target.selectionKey} className="break-words">{target.name} ({target.groupId}) · {target.adapterName}: {error}</p>)}
+            </div>}
+          </div>}
+          <DialogFooter>
+            <Button variant="outline" disabled={batchBusy} onClick={() => setBatchTargets([])}>{t(batchReport ? 'common.close' : 'common.cancel')}</Button>
+            {!batchReport && <Button variant="destructive" disabled={batchBusy} onClick={() => void runBatchLeave()}>
+              {batchBusy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{t('group_management.submit')}
+            </Button>}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
 
 // ─── Detail view: 功能管理 / 人员管理 / 模拟聊天 ────────────────
 const GroupDetail: React.FC<{ group: Group; embedded?: boolean; initialAdapterId?: string; dlg: any; onBack: () => void; onChanged: () => void; welcomeRef: React.RefObject<HTMLTextAreaElement> }> = ({ group, embedded, initialAdapterId, dlg, onBack, onChanged, welcomeRef }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const showingSamples = useTourActive();
   const toast = useToast();
   const [tab, setTab] = useState<'function' | 'plugins' | 'members' | 'qqadmin' | 'logs' | 'chat' | 'ai' | 'files'>('function');
@@ -405,6 +535,7 @@ const GroupDetail: React.FC<{ group: Group; embedded?: boolean; initialAdapterId
     connected: false, enabled: group.enabled, ai_enabled: group.ai_enabled, locked: group.locked,
     card: group.card, activeLog: group.activeLog, observers: group.observers, botRole: group.botRole,
     memberCount: group.memberCount, inviter: group.inviter, locale: group.locale, left: group.left,
+    lastCommandAt: group.lastCommandAt, canLeaveGroup: group.canLeaveGroup,
     welcome: group.welcome, welcome_delay: group.welcome_delay, welcome_cooldown: group.welcome_cooldown,
   } satisfies GroupAccount];
   const [accountId, setAccountId] = useState(() => (accounts.find((a) => a.adapterId === initialAdapterId) || accounts.find((a) => a.connected && !a.left) || accounts[0]).adapterId);
@@ -435,6 +566,7 @@ const GroupDetail: React.FC<{ group: Group; embedded?: boolean; initialAdapterId
         <GroupAvatar groupId={group.groupId} platform={activeGroup.platform} />
         <div>
           <h1 className="break-words text-xl font-bold tracking-tight leading-tight">{group.name}</h1>
+          <GroupCommandTime value={activeGroup.lastCommandAt} locale={i18n.language} t={t} />
           <div className="flex items-center gap-2 mt-0.5">
             <StatusBadge g={activeGroup} t={t} />
             <span className="inline-flex min-w-0 items-center gap-1 rounded bg-muted px-2 py-0.5 text-xs">
@@ -930,7 +1062,7 @@ const FunctionTab: React.FC<any> = ({ group, base, scopedBody, onChanged, onBack
           {/* C#50: 发消息 → 跳转到模拟聊天页 */}
           <Button variant="outline" onClick={() => goChat?.()}><Send className="mr-2 h-4 w-4" />{t('groups.send_message')}</Button>
           {/* C#50: 退群二次确认（两种选项） */}
-          <Button variant="outline" onClick={() => setLeaveOpen(true)}><LogOut className="mr-2 h-4 w-4" />{t('groups.leave')}</Button>
+          <Button variant="outline" disabled={group.canLeaveGroup !== true} onClick={() => setLeaveOpen(true)}><LogOut className="mr-2 h-4 w-4" />{t('groups.leave')}</Button>
           <Button variant="ghost" className="text-muted-foreground" onClick={async () => {
             if (!await dlg.confirm({ title: t('groups.remove'), description: t('groups.remove_confirm', { id: group.groupId }) })) return;
             try { await jsend('DELETE', base, scopedBody); onChanged(); onBack(); } catch (e) { toast({ title: t('common.delete_fail'), description: String(e), variant: 'destructive' }); }
