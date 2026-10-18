@@ -1940,6 +1940,7 @@
     "gvar_group": "群號",
     "gvar_date": "日期",
     "gvar_time": "時間",
+    "gvar_FormFeed": "強制分頁，拆成多則訊息（不是換行）",
     "gvar_badge": "全域變數",
     "persona_default": "預設（全域）",
     "persona_manage": "人格管理",

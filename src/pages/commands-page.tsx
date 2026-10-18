@@ -25,7 +25,7 @@ import { FeatureHelp } from '@/components/ui/feature-help';
 import { HelpLabel } from '@/components/ui/help-label';
 import { ResponsiveActions } from '@/components/ui/responsive-actions';
 import { VARIABLE_STYLES, variableStyleOf, restyleVariable, type VariableStyle } from '@/lib/template-variable-style';
-import { PREVIEW_PLATFORMS, readReplyPreview, type PreviewPlatform, type ReplyPreview } from '@/lib/reply-preview';
+import { PREVIEW_PLATFORMS, readReplyPreview, previewMessages, isFormFeedVariable, type PreviewPlatform, type ReplyPreview } from '@/lib/reply-preview';
 import { Switch } from '@/components/ui/switch';
 import { resolveOutcomeText, resolveOutcomeInheritance, outcomePreviewArgs, type OutcomeText, type ResolvedOutcomeText } from '@/lib/outcome-replies';
 import { legacyTemplatePreviewArgs } from '@/lib/legacy-templates';
@@ -48,9 +48,9 @@ const LANGS = [
   { code: 'ja', label: '日本語' },
 ];
 
-// Globally-available variables (filled at send time for ANY text). Shown behind
+// Global variables and authored message-control tokens. Shown behind
 // the「插入全局变量」button; command-specific vars stay as first-level chips.
-const GLOBAL_VARS = ['self', 'nick', 'name', 'qqnick', 'card', 'pcname', 'qqnickw', 'cardw', 'pcnamew', 'user', 'group', 'date', 'time'];
+const GLOBAL_VARS = ['self', 'nick', 'name', 'qqnick', 'card', 'pcname', 'qqnickw', 'cardw', 'pcnamew', 'user', 'group', 'date', 'time', 'FormFeed'];
 const GLOBAL_SET = new Set(GLOBAL_VARS);
 
 const extractVars = (s: string): string[] =>
@@ -429,7 +429,7 @@ export const CommandsPage: React.FC = () => {
                     <tr><td colSpan={3} className="p-8 text-center text-sm text-muted-foreground">{t('commands.orphan_empty')}</td></tr>
                   )}
                   {cat === VAR_TAB && GLOBAL_VARS
-                    .filter((name) => { const q = allQ.toLowerCase(); return !q || name.includes(q) || t(`commands.gvar_${name}`).toLowerCase().includes(q); })
+                    .filter((name) => { const q = allQ.toLowerCase(); return !q || name.toLowerCase().includes(q) || t(`commands.gvar_${name}`).toLowerCase().includes(q); })
                     .map((name) => (
                     <tr key={`gvar-${name}`} className="border-t align-top bg-primary/5">
                       <td data-label={t('commands.col_key')} className="rt-title p-2.5 font-mono text-xs whitespace-nowrap">
@@ -694,12 +694,12 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
   }, [storedValue, format, previewPlatform, previewStyle, previewPlain, resample, useInherited, reply.inherited, lang, personaId]);
 
   // Command-specific vars (chips) vs global vars (behind the button).
-  const exclusiveVars = reply.vars.filter((v) => !GLOBAL_SET.has(v.name));
+  const exclusiveVars = reply.vars.filter((v) => !GLOBAL_SET.has(v.name) && !isFormFeedVariable(v.name));
   const allowed = new Set([...reply.vars.map((v) => v.name), ...GLOBAL_VARS, ...(reply.legacyReferences ?? [])]);
   const used = extractVars(variants.map(item => item.text).join('\n'));
-  const unknown = [...new Set(used.filter((u) => !allowed.has(u) && !u.includes('|') && !u.includes(':')))];
+  const unknown = [...new Set(used.filter((u) => !allowed.has(u) && !isFormFeedVariable(u) && !u.includes('|') && !u.includes(':')))];
   const missing = reply.outcome || reply.legacyCompatibility ? [] : exclusiveVars.map((v) => v.name).filter((n) => !used.includes(n));
-  const styledVars = [...new Set(used.filter((name) => allowed.has(name)))];
+  const styledVars = [...new Set(used.filter((name) => allowed.has(name) && !isFormFeedVariable(name)))];
   const applyVariableStyle = (name: string, style: VariableStyle) => {
     setText((current) => restyleVariable(current, name, style));
     if (style !== 'plain') setFormat('markdown');
@@ -830,10 +830,15 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
               : previewFailed ? <p role="alert" className="mt-3 text-xs text-destructive">{t(backendTooOld ? 'weighted.backend_required' : 'commands.preview_unavailable')}</p>
               : preview && <>
                 <TabsContent value="display" className="min-h-24 break-words rounded-md bg-background p-3 text-sm">
-                  <MarkdownExample text={preview.text} enabled={preview.markdown} />
-                  {preview.actions.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{preview.actions.map((action, i) => <span key={i} title={action.text} className="rounded border bg-muted px-2 py-1 text-xs">{action.label} · {action.text}</span>)}</div>}
+                  <div className="space-y-3">{previewMessages(preview).map((message, index) => <div key={index}
+                    data-preview-message={index + 1} className={preview.messages ? 'rounded-md border p-3' : undefined}>
+                    <MarkdownExample text={message.text} enabled={message.markdown} />
+                    {message.actions.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{message.actions.map((action, i) => <span key={i} title={action.text} className="rounded border bg-muted px-2 py-1 text-xs">{action.label} · {action.text}</span>)}</div>}
+                  </div>)}</div>
                 </TabsContent>
-                <TabsContent value="payload"><pre className="max-h-64 overflow-auto whitespace-pre-wrap break-all rounded-md bg-background p-3 text-xs">{preview.payload === null ? preview.plain : JSON.stringify(preview.payload, null, 2)}</pre></TabsContent>
+                <TabsContent value="payload"><pre className="max-h-64 overflow-auto whitespace-pre-wrap break-all rounded-md bg-background p-3 text-xs">{preview.messages
+                  ? JSON.stringify(preview.messages.map(message => message.payload ?? message.plain), null, 2)
+                  : preview.payload === null ? preview.plain : JSON.stringify(preview.payload, null, 2)}</pre></TabsContent>
               </>}
           </Tabs>
         </div>

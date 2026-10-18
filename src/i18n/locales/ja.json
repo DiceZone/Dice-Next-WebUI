@@ -1940,6 +1940,7 @@
     "gvar_group": "グループID",
     "gvar_date": "日付",
     "gvar_time": "時刻",
+    "gvar_FormFeed": "別のメッセージに分割（改行ではありません）",
     "gvar_badge": "グローバル",
     "persona_default": "既定（全体）",
     "persona_manage": "ペルソナ管理",

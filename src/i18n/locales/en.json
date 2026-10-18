@@ -1940,6 +1940,7 @@
     "gvar_group": "group id",
     "gvar_date": "date",
     "gvar_time": "time",
+    "gvar_FormFeed": "Start a separate message (not a line break)",
     "gvar_badge": "global",
     "persona_default": "Default (global)",
     "persona_manage": "Personas",

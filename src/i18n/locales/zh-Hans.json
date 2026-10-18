@@ -1929,6 +1929,7 @@
     "gvar_group": "群号",
     "gvar_date": "日期",
     "gvar_time": "时间",
+    "gvar_FormFeed": "强制分页，拆成多条消息（不是换行）",
     "gvar_badge": "全局变量",
     "persona_default": "默认（全局）",
     "persona_manage": "人格管理",
