@@ -27,6 +27,7 @@ import { IdentityEmailSettings } from '@/components/identity-email-settings';
 import { TraySettingsCard } from '@/components/tray-settings';
 import { PlatformIcon, platformLabel } from '@/components/platform-icon';
 import { SettingsWorkspace, SettingsPanel } from '@/components/settings-workspace';
+import { DEFAULT_BOT_MESSAGE, readBotMessageSettings, botMessageValues, validBotMessage } from '@/lib/bot-message';
 
 
 interface Master { platform: string; adapter_id?: string; id: string; nickname?: string; }
@@ -147,6 +148,73 @@ function useScopedLoader(props: ScopedCardProps, apply: (data: any) => void) {
   </div>;
   return { ready, status };
 }
+
+const BotMessageCard: React.FC<ScopedCardProps> = (scopeProps) => {
+  const { t } = useTranslation();
+  const toast = useToast();
+  const [message, setMessage] = useTourState(DEFAULT_BOT_MESSAGE, DEFAULT_BOT_MESSAGE);
+  const [header, setHeader] = useTourState('', '');
+  const [showHeader, setShowHeader] = useTourState(false, false);
+  const [locale, setLocale] = useTourState('zh-Hans', 'zh-Hans');
+  const [overridden, setOverridden] = useTourState(false, false);
+  const [saving, setSaving] = useTourState(false, false);
+  const gate = useRequestGate(scopedQuery(scopeProps));
+  const saveLock = React.useRef(false);
+  const id = React.useId();
+  const apply = (data: unknown) => {
+    const value = readBotMessageSettings(data);
+    setMessage(value.message); setHeader(value.legacyHeader);
+    setShowHeader(!!value.legacyHeader); setLocale(value.defaultLocale); setOverridden(value.overridden);
+  };
+  const { ready, status } = useScopedLoader(scopeProps, apply);
+  const save = async (reset = false) => {
+    if (!ready || scopeUnavailable(scopeProps) || saveLock.current) return;
+    if (!reset && !validBotMessage(message, header)) {
+      toast({ title: t('bot_message.too_long'), variant: 'destructive' }); return;
+    }
+    saveLock.current = true; setSaving(true);
+    const current = gate.start();
+    try {
+      const values = reset ? {} : botMessageValues(message, header);
+      const data = await putJson('/system/global', scopedBody(scopeProps, values,
+        reset ? ['bot_msg', 'bot_header'] : undefined));
+      if (current()) { apply(data); toast({ title: t('common.save_success') }); }
+    } catch (e) {
+      if (current()) toast({ title: (e as Error).message, variant: 'destructive' });
+    } finally { saveLock.current = false; if (current()) setSaving(false); }
+  };
+  return <Card data-setting-anchor="settings-bot-message">
+    <CardHeader>
+      <CardTitle className="text-base flex items-center gap-2">
+        {t('bot_message.title')}
+        <FeatureHelp title={t('bot_message.title')} description={<>
+          <p>{t('bot_message.help')}</p><p>{t('bot_message.language_help')}</p><p>{t('bot_message.migration_help')}</p>
+        </>} />
+      </CardTitle>
+      <CardDescription>{t('bot_message.description')}</CardDescription>
+    </CardHeader>
+    {status}
+    <fieldset disabled={!ready || saving} className="min-w-0">
+      <CardContent className="space-y-3">
+        <div className="space-y-2">
+          <Label htmlFor={`${id}-message`}>{t('bot_message.message')}</Label>
+          <Textarea id={`${id}-message`} rows={5} value={message} onChange={(e) => setMessage(e.target.value)} />
+        </div>
+        {showHeader && <div className="space-y-2">
+          <Label htmlFor={`${id}-header`}>{t('bot_message.header')}</Label>
+          <Textarea id={`${id}-header`} rows={2} value={header} onChange={(e) => setHeader(e.target.value)} />
+        </div>}
+        <p className="text-xs text-muted-foreground">{t('bot_message.language', { locale })}</p>
+        <div className="flex flex-wrap justify-end gap-2">
+          {scopeProps.scope !== 'global' && overridden && <Button size="sm" variant="outline" onClick={() => void save(true)}>
+            <RotateCcw className="mr-1.5 h-3.5 w-3.5" />{t('settings.scope_reset')}
+          </Button>}
+          <Button size="sm" onClick={() => void save()} disabled={scopeUnavailable(scopeProps)}>{t('common.save')}</Button>
+        </div>
+      </CardContent>
+    </fieldset>
+  </Card>;
+};
 
 // ── 图片发送方式（C#56）──────────────────────────────────
 interface ImageSendConf { mode?: string; host?: string; default_host?: string; }
@@ -1486,6 +1554,7 @@ export const SettingsPage: React.FC = () => {
       <MessageFormatCard key={scopeKey} {...currentScopeProps}
         overridden={settingsScope !== 'global' && Object.prototype.hasOwnProperty.call(globalOverrides, 'message_format')}
         onReset={() => void resetGlobalScope(['message_format'])} />
+      <BotMessageCard key={scopeKey} {...currentScopeProps} />
       {renderGlobalGroup('响应开关')}
       {renderGlobalGroup('牌堆 / 显示')}
       </SettingsPanel>

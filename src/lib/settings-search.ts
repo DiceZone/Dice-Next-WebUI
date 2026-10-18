@@ -301,6 +301,7 @@ export const SETTINGS_SEARCH_ENTRIES: SettingsSearchEntry[] = [
   e('settings-segment-length', '/settings', 'nav.settings', 'settings.seg_len', '分段长度 分段長度 segment length', 'settings.seg_len_desc'),
   e('settings-nick-wrap', '/settings', 'nav.settings', 'settings.nick_wrap', '昵称括号 暱稱括號 nickname wrapper name format', 'settings.nick_wrap_desc'),
   e('settings-message-format', '/settings', 'nav.settings', 'settings.message_format_title', 'markdown md 富文本 富卡片 传统文本 傳統文本 plain card message format qq官方', 'settings.message_format_desc_global', true),
+  e('settings-bot-message', '/settings', 'nav.settings', 'bot_message.title', 'BotMsg bot .bot 附加说明 附加說明 页眉 頁首 页脚 頁尾 版本信息 版本資訊 strBotMsg strBotHeader introduction footer header', 'bot_message.description'),
   e('settings-response-switches', '/settings', 'nav.settings', 'settings.sec_reply', '响应开关 響應開關 静默 靜默 silent jrrp me deck draw send help bot off'),
   e('settings-deck-display', '/settings', 'nav.settings', 'global_search.deck_display_title', '牌堆显示 牌堆顯示 deck display hide underscore metadata author title 元数据 元資料', 'global_search.deck_display_desc'),
   e('settings-event-response', '/settings', 'nav.settings', 'global_search.event_response_title', '事件响应 事件回應 加群请求 加群請求 好友请求 好友請求 入群欢迎 入群歡迎 黑名单退群 event response request welcome leave blacklist', 'global_search.event_response_desc'),

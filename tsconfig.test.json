@@ -11,6 +11,8 @@
     "tsBuildInfoFile": ".test-dist/tsconfig.test.tsbuildinfo"
   },
   "include": [
+    "src/lib/bot-message.ts",
+    "src/i18n/bot-message.ts",
     "src/lib/network-info.ts",
     "src/i18n/network-info.ts",
     "src/lib/runtime-logs.ts",

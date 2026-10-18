@@ -42,11 +42,12 @@ const compiled = await build({
       "import { legacyImport } from './src/i18n/legacy-import';",
       "import { qqOfficialEditorCopy } from './src/i18n/qq-official-editor';",
       "import { groupManagementCopy } from './src/i18n/group-management';",
+      "import { botMessageCopy } from './src/i18n/bot-message';",
       "import { HelpLabel } from './src/components/ui/help-label';",
-      "export { uiRefresh, uiAudit, weightedTemplates, pageHelp, featureHelpCopy, availabilityCopy, runtimeLogsCopy, networkInfoCopy, outcomeReplies, legacyTemplates, shortcuts, legacyImport, qqOfficialEditorCopy, groupManagementCopy };",
+      "export { uiRefresh, uiAudit, weightedTemplates, pageHelp, featureHelpCopy, availabilityCopy, runtimeLogsCopy, networkInfoCopy, outcomeReplies, legacyTemplates, shortcuts, legacyImport, qqOfficialEditorCopy, groupManagementCopy, botMessageCopy };",
       ...pageImports.map(({ component, file }) => `import { ${component} } from './src/pages/${file}';`),
       ...languages.map((language, index) => `import locale${index} from './src/i18n/locales/${language}.json';`),
-      `const resources = { ${languages.map((language, index) => `'${language}': { translation: { ...locale${index}, ui_refresh: uiRefresh['${language}'], ui_audit: uiAudit['${language}'], weighted: weightedTemplates['${language}'], page_help: pageHelp['${language}'], feature_help: featureHelpCopy['${language}'], availability: availabilityCopy['${language}'], runtime_logs: runtimeLogsCopy['${language}'], network_info: networkInfoCopy['${language}'], outcome: outcomeReplies['${language}'], legacy_text: legacyTemplates['${language}'], shortcuts: shortcuts['${language}'], legacy_import: legacyImport['${language}'], qq_editor: qqOfficialEditorCopy['${language}'], group_management: groupManagementCopy['${language}'] } }`).join(', ')} };`,
+      `const resources = { ${languages.map((language, index) => `'${language}': { translation: { ...locale${index}, ui_refresh: uiRefresh['${language}'], ui_audit: uiAudit['${language}'], weighted: weightedTemplates['${language}'], page_help: pageHelp['${language}'], feature_help: featureHelpCopy['${language}'], availability: availabilityCopy['${language}'], runtime_logs: runtimeLogsCopy['${language}'], network_info: networkInfoCopy['${language}'], outcome: outcomeReplies['${language}'], legacy_text: legacyTemplates['${language}'], shortcuts: shortcuts['${language}'], legacy_import: legacyImport['${language}'], qq_editor: qqOfficialEditorCopy['${language}'], group_management: groupManagementCopy['${language}'], bot_message: botMessageCopy['${language}'] } }`).join(', ')} };`,
       "const i18n = createInstance(); i18n.init({ lng: 'zh-Hans', initImmediate: false, resources, interpolation: { escapeValue: false } });",
       `const pages = { ${pageImports.map(({ component }) => component).join(', ')}, settings: SettingsPage, webui: WebuiSettingsPage, cloud: CloudSettingsPage, notice: NoticeSettingsPage, schedules: SchedulesPage, ai: AiPage };`,
       "export const render = (page, language, tour = false) => {",
@@ -78,6 +79,7 @@ for (const language of languages) {
   messages[language].legacy_import = module.exports.legacyImport[language];
   messages[language].qq_editor = module.exports.qqOfficialEditorCopy[language];
   messages[language].group_management = module.exports.groupManagementCopy[language];
+  messages[language].bot_message = module.exports.botMessageCopy[language];
 }
 
 function renderPage(page, hash, language = 'zh-Hans', tour = false) {
