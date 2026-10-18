@@ -48,6 +48,7 @@
     "src/lib/navigation-guard.ts",
     "src/lib/schedule-time.ts",
     "src/lib/help-document.ts",
+    "src/i18n/help-library.ts",
     "src/lib/deck-document.ts",
     "src/lib/reply-results.ts",
     "src/lib/reply-scope.ts",

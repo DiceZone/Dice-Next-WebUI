@@ -30,6 +30,7 @@ import { Switch } from '@/components/ui/switch';
 import { resolveOutcomeText, resolveOutcomeInheritance, outcomePreviewArgs, type OutcomeText, type ResolvedOutcomeText } from '@/lib/outcome-replies';
 import { legacyTemplatePreviewArgs } from '@/lib/legacy-templates';
 import { shortcutTemplatePreviewArgs } from '@/lib/command-shortcuts';
+import { belongsInCommandTexts } from '@/lib/help-document';
 import { buildTextMetadata, commandCategory, COMMAND_CATEGORIES, filterAndSortTexts, type TextSort, type TextSortField } from '@/lib/command-text-catalog';
 
 interface Var { name: string; desc: string; }
@@ -273,7 +274,8 @@ export const CommandsPage: React.FC = () => {
     const q = allQ.toLowerCase();
     return !q || k.key.toLowerCase().includes(q) || (k.override ?? k.default).toLowerCase().includes(q);
   });
-  const describedTexts = dispAll.filter((row) => row.group !== 'tplvar' && row.group !== 'legacy').map((row) => ({
+  const describedTexts = dispAll.filter((row) => row.group !== 'tplvar' && row.group !== 'legacy'
+    && belongsInCommandTexts(row.key, textMetadata.has(row.key), personaId)).map((row) => ({
     ...row, ...(textMetadata.get(row.key) ?? { description: t('commands.unclassified_description'), example: '', categories: ['__unclassified__'] }),
   }));
   const allGroups = [...COMMAND_CATEGORIES.filter((category) => describedTexts.some((row) => row.categories.includes(category))),
@@ -376,6 +378,7 @@ export const CommandsPage: React.FC = () => {
             </div>}
           </div>
           {cat === ALL_TAB && !loading && !tourActive && rowsLocale !== lang && <p role="alert" className="text-sm text-destructive">{t('commands.metadata_unavailable')}</p>}
+          {cat === ALL_TAB && personaId === 0 && <p className="text-sm text-muted-foreground">{t('help_library.moved')}{' '}<a className="text-primary underline underline-offset-4" href="#/help">{t('help_library.open')}</a></p>}
           {allLoading ? (
             <div className="flex items-center justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
           ) : (

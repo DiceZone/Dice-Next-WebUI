@@ -20,6 +20,7 @@ import { legacyImport } from './legacy-import';
 import { qqOfficialEditorCopy } from './qq-official-editor';
 import { groupManagementCopy } from './group-management';
 import { botMessageCopy } from './bot-message';
+import { helpLibraryCopy } from './help-library';
 
 /**
  * Front-end i18n setup (繁體中文 / 简体中文 / English).
@@ -55,6 +56,10 @@ function detectInitialLanguage(): LanguageCode {
 }
 
 const initialLanguage = detectInitialLanguage();
+for (const [language, bundle] of Object.entries(helpLibraryCopy)) {
+  const resource = language === 'zh-Hans' ? zhHans : language === 'zh-Hant' ? zhHant : language === 'ja' ? ja : en;
+  Object.assign(resource, { help_library: bundle });
+}
 for (const [language, bundle] of Object.entries(botMessageCopy)) {
   const resource = language === 'zh-Hans' ? zhHans : language === 'zh-Hant' ? zhHant : language === 'ja' ? ja : en;
   Object.assign(resource, { bot_message: bundle });
