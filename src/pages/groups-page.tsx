@@ -31,7 +31,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { FeatureHelp } from '@/components/ui/feature-help';
 import { HelpLabel } from '@/components/ui/help-label';
 import type { ActivePersonaInfo, PersonaTemplate } from '@/types/persona';
-import { groupLeaveTarget, groupCommandTimeText, sortGroupActivity, submitGroupLeaves, MAX_GROUP_LEAVE_BATCH,
+import { groupLeaveTarget, groupRecordTarget, groupCommandTimeText, sortGroupActivity, submitGroupLeaves, submitGroupRecordRemovals, MAX_GROUP_LEAVE_BATCH,
   type GroupLeaveTarget, type GroupLeaveReport } from '@/lib/group-management';
 
 interface GroupFeatures {
@@ -151,6 +151,8 @@ export const GroupsPage: React.FC = () => {
   const [batchBusy, setBatchBusy] = useState(false);
   const [batchDone, setBatchDone] = useState(0);
   const [batchReport, setBatchReport] = useState<GroupLeaveReport | null>(null);
+  const [batchOperation, setBatchOperation] = useState<'leave' | 'remove'>('leave');
+  const [batchRemoveRecord, setBatchRemoveRecord] = useState(false);
   const batchLock = useRef(false);
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
@@ -212,8 +214,10 @@ export const GroupsPage: React.FC = () => {
   const shown = list.slice((curPage - 1) * pageSize, curPage * pageSize);
 
   const clearBatchSelection = () => setSelectedGroupKeys(new Set());
+  const batchTarget = (group: Group) => tab === 'archived'
+    ? groupRecordTarget(group, adapterFilter) : groupLeaveTarget(group, adapterFilter);
   const toggleGroupSelection = (g: Group) => {
-    if (batchLock.current || !groupLeaveTarget(g, adapterFilter)) return;
+    if (batchLock.current || !batchTarget(g)) return;
     setSelectedGroupKeys((previous) => {
       const next = new Set(previous), key = groupKey(g);
       if (next.has(key)) next.delete(key);
@@ -223,27 +227,33 @@ export const GroupsPage: React.FC = () => {
   };
   const selectPage = () => setSelectedGroupKeys((previous) => {
     const next = new Set(previous);
-    for (const g of shown) if (next.size < MAX_GROUP_LEAVE_BATCH && groupLeaveTarget(g, adapterFilter)) next.add(groupKey(g));
+    for (const g of shown) if (next.size < MAX_GROUP_LEAVE_BATCH && batchTarget(g)) next.add(groupKey(g));
     return next;
   });
   const prepareBatch = () => {
-    const targets = list.filter((g) => selectedGroupKeys.has(groupKey(g))).map((g) => groupLeaveTarget(g, adapterFilter));
+    const targets = list.filter((g) => selectedGroupKeys.has(groupKey(g))).map(batchTarget);
     if (!targets.length || targets.length !== selectedGroupKeys.size || targets.some((item) => !item)) {
       toast({ title: t('group_management.unavailable'), variant: 'destructive' }); return;
     }
     setBatchTargets(targets as GroupLeaveTarget[]);
+    setBatchOperation(tab === 'archived' ? 'remove' : 'leave');
+    setBatchRemoveRecord(false);
     setBatchReport(null); setBatchDone(0);
   };
   const runBatchLeave = async () => {
     if (batchLock.current || !batchTargets.length || batchReport) return;
     batchLock.current = true; setBatchBusy(true);
     try {
-      const report = await submitGroupLeaves(batchTargets, (path, body) => jsend('POST', path, body),
-        () => !mounted.current, (done) => { if (mounted.current) setBatchDone(done); });
+      const cancelled = () => !mounted.current;
+      const progress = (done: number) => { if (mounted.current) setBatchDone(done); };
+      const report = batchOperation === 'remove'
+        ? await submitGroupRecordRemovals(batchTargets, (path, body) => jsend('DELETE', path, body), cancelled, progress)
+        : await submitGroupLeaves(batchTargets, (path, body) => jsend('POST', path, body), cancelled, progress,
+          { removeRecord: batchRemoveRecord });
       if (!mounted.current) return;
       setBatchReport(report);
       setSelectedGroupKeys(new Set([...report.failed.map(({ target }) => target.selectionKey), ...report.cancelled.map((target) => target.selectionKey)]));
-      toast({ title: t('group_management.summary', { submitted: report.submitted.length, failed: report.failed.length, cancelled: report.cancelled.length }),
+      toast({ title: t(batchOperation === 'remove' ? 'group_management.remove_summary' : 'group_management.summary', { submitted: report.submitted.length, failed: report.failed.length, cancelled: report.cancelled.length }),
         variant: report.failed.length ? 'destructive' : 'default' });
       await fetchGroups();
     } catch (error) {
@@ -258,7 +268,7 @@ export const GroupsPage: React.FC = () => {
     <Button type="button" role="checkbox" aria-checked={selectedGroupKeys.has(groupKey(group))}
       aria-label={t('group_management.select', { name: group.name })} size="icon" variant="outline"
       className={cn('h-8 w-8 shrink-0 text-base', selectedGroupKeys.has(groupKey(group)) && 'border-primary bg-primary/10 text-primary')}
-      disabled={batchBusy || !groupLeaveTarget(group, adapterFilter) || (!selectedGroupKeys.has(groupKey(group)) && selectedGroupKeys.size >= MAX_GROUP_LEAVE_BATCH)}
+      disabled={batchBusy || !batchTarget(group) || (!selectedGroupKeys.has(groupKey(group)) && selectedGroupKeys.size >= MAX_GROUP_LEAVE_BATCH)}
       onClick={() => toggleGroupSelection(group)}>{selectedGroupKeys.has(groupKey(group)) ? '✓' : ''}</Button>
   ) : null;
 
@@ -318,9 +328,9 @@ export const GroupsPage: React.FC = () => {
       <div ref={workspaceRef} className="space-y-6">
         <PageHeader icon={Users} title={t('groups.title')} description={t('groups.subtitle')} help={t('page_help.groups')}
           actions={<div data-tour="groups-view-actions" className="flex flex-wrap items-center gap-2">
-            <Button variant={batchMode ? 'secondary' : 'outline'} disabled={batchBusy || loading || tab !== 'active' || showingSamples}
+            <Button variant={batchMode ? 'secondary' : 'outline'} disabled={batchBusy || loading || showingSamples}
               onClick={() => { setBatchMode(!batchMode); clearBatchSelection(); }}>
-              <LogOut className="mr-2 h-4 w-4" />{t(batchMode ? 'group_management.exit_select' : 'group_management.batch')}
+              {tab === 'archived' ? <Trash2 className="mr-2 h-4 w-4" /> : <LogOut className="mr-2 h-4 w-4" />}{t(batchMode ? 'group_management.exit_select' : tab === 'archived' ? 'group_management.batch_remove' : 'group_management.batch')}
             </Button>
             <Select value={preference} onValueChange={setViewPreference}>
               <SelectTrigger aria-label={t('workspace.view')} className="w-36"><SelectValue /></SelectTrigger>
@@ -365,12 +375,12 @@ export const GroupsPage: React.FC = () => {
 
         {batchMode && <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/20 p-3" data-group-batch="selection">
           <span className="text-sm font-medium">{t('group_management.selected', { count: selectedGroupKeys.size })}</span>
-          <FeatureHelp title={t('group_management.batch')} description={<p>{t('group_management.batch_help')}</p>} />
-          <Button size="sm" variant="outline" disabled={batchBusy || !shown.some((group) => groupLeaveTarget(group, adapterFilter))}
+          <FeatureHelp title={t(tab === 'archived' ? 'group_management.batch_remove' : 'group_management.batch')} description={<p>{t(tab === 'archived' ? 'group_management.remove_help' : 'group_management.batch_help')}</p>} />
+          <Button size="sm" variant="outline" disabled={batchBusy || !shown.some((group) => batchTarget(group))}
             onClick={selectPage}>{t('group_management.select_page')}</Button>
           <Button size="sm" variant="ghost" disabled={batchBusy || !selectedGroupKeys.size} onClick={clearBatchSelection}>{t('group_management.clear')}</Button>
           <Button size="sm" variant="destructive" className="sm:ml-auto" disabled={batchBusy || !selectedGroupKeys.size}
-            onClick={prepareBatch}><LogOut className="mr-2 h-4 w-4" />{t('group_management.batch')}</Button>
+            onClick={prepareBatch}>{tab === 'archived' ? <Trash2 className="mr-2 h-4 w-4" /> : <LogOut className="mr-2 h-4 w-4" />}{t(tab === 'archived' ? 'group_management.batch_remove' : 'group_management.batch')}</Button>
         </div>}
 
         <TabsContent value={tab} data-tour="groups-list" className="mt-0">
@@ -495,9 +505,14 @@ export const GroupsPage: React.FC = () => {
       <Dialog open={batchTargets.length > 0} onOpenChange={(open) => { if (!open && !batchBusy) setBatchTargets([]); }}>
         <DialogContent className="max-w-xl">
           <DialogHeader>
-            <DialogTitle>{t('group_management.confirm_title', { count: batchTargets.length })}</DialogTitle>
-            <DialogDescription>{t('group_management.confirm_desc')}</DialogDescription>
+            <DialogTitle>{t(batchOperation === 'remove' ? 'group_management.remove_title' : 'group_management.confirm_title', { count: batchTargets.length })}</DialogTitle>
+            <DialogDescription>{t(batchOperation === 'remove' ? 'group_management.remove_desc' : batchRemoveRecord ? 'group_management.leave_remove_desc' : 'group_management.confirm_desc')}</DialogDescription>
           </DialogHeader>
+          {batchOperation === 'leave' && <div className="flex items-center gap-3 rounded-md border p-3">
+            <Switch id="batch-remove-record" checked={batchRemoveRecord} onCheckedChange={setBatchRemoveRecord} disabled={batchBusy || Boolean(batchReport)} />
+            <Label htmlFor="batch-remove-record" className="cursor-pointer">{t('group_management.remove_option')}</Label>
+            <FeatureHelp title={t('group_management.remove_option')} description={<p>{t('group_management.record_scope')}</p>} />
+          </div>}
           <div className="max-h-[45vh] space-y-2 overflow-y-auto rounded-md border p-3">
             {batchTargets.map((target) => <div key={target.selectionKey} className="break-words border-b pb-2 text-sm last:border-0 last:pb-0">
               <p className="font-medium">{target.name} <span className="font-mono text-xs text-muted-foreground">{target.groupId}</span></p>
@@ -506,7 +521,7 @@ export const GroupsPage: React.FC = () => {
           </div>
           {batchBusy && <p role="status" className="text-sm">{t('group_management.submitting', { done: batchDone, total: batchTargets.length })}</p>}
           {batchReport && <div role="status" className="space-y-2 text-sm">
-            <p>{t('group_management.summary', { submitted: batchReport.submitted.length, failed: batchReport.failed.length, cancelled: batchReport.cancelled.length })}</p>
+            <p>{t(batchOperation === 'remove' ? 'group_management.remove_summary' : 'group_management.summary', { submitted: batchReport.submitted.length, failed: batchReport.failed.length, cancelled: batchReport.cancelled.length })}</p>
             {batchReport.failed.length > 0 && <div className="max-h-36 space-y-1 overflow-y-auto text-destructive dark:text-red-400">
               <p>{t('group_management.failures')}</p>
               {batchReport.failed.map(({ target, error }) => <p key={target.selectionKey} className="break-words">{target.name} ({target.groupId}) · {target.adapterName}: {error}</p>)}
@@ -515,7 +530,7 @@ export const GroupsPage: React.FC = () => {
           <DialogFooter>
             <Button variant="outline" disabled={batchBusy} onClick={() => setBatchTargets([])}>{t(batchReport ? 'common.close' : 'common.cancel')}</Button>
             {!batchReport && <Button variant="destructive" disabled={batchBusy} onClick={() => void runBatchLeave()}>
-              {batchBusy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{t('group_management.submit')}
+              {batchBusy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{t(batchOperation === 'remove' ? 'group_management.remove_submit' : 'group_management.submit')}
             </Button>}
           </DialogFooter>
         </DialogContent>
@@ -894,8 +909,7 @@ const FunctionTab: React.FC<any> = ({ group, base, scopedBody, onChanged, onBack
   const doLeave = async (removeRecord: boolean) => {
     setLeaving(true);
     try {
-      await jsend('POST', `${base}/action`, { action: 'leave', ...scopedBody });
-      if (removeRecord) await jsend('DELETE', base, scopedBody);
+      await jsend('POST', `${base}/action`, { action: 'leave', removeRecord, ...scopedBody });
       setLeaveOpen(false); onChanged(); onBack();
     } catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
     finally { setLeaving(false); }

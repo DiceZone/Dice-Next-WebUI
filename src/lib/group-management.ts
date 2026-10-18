@@ -13,6 +13,7 @@ export interface GroupLeaveTarget {
   platform: string; groupId: string; name: string;
   adapterId: string; adapterName: string; endpointId: string;
   selectionKey: string;
+  legacy?: boolean;
 }
 
 export const groupSelectionKey = (group: Pick<LeaveGroup, 'platform' | 'groupId'>) =>
@@ -29,6 +30,24 @@ export function groupLeaveTarget(group: LeaveGroup, adapterFilter: string): Grou
   return { platform: account.platform, groupId: group.groupId, name: group.name,
     adapterId: account.adapterId, adapterName: account.adapterName || account.loginName || account.adapterId,
     endpointId: account.endpointId, selectionKey: groupSelectionKey(group) };
+}
+
+/** Departed records can be removed offline, but never guess a bot account. */
+export function groupRecordTarget(group: LeaveGroup, adapterFilter: string): GroupLeaveTarget | null {
+  if (!group.left) return null;
+  const accounts = group.accounts || [];
+  const account = adapterFilter === 'all'
+    ? (accounts.length === 1 ? accounts[0] : undefined)
+    : accounts.find((item) => item.adapterId === adapterFilter);
+  if (account?.adapterId && account.left && account.platform && account.endpointId)
+    return { platform: account.platform, groupId: group.groupId, name: group.name,
+      adapterId: account.adapterId, adapterName: account.adapterName || account.loginName || account.adapterId,
+      endpointId: account.endpointId, selectionKey: groupSelectionKey(group) };
+  if (accounts.length > 1 || accounts.some((item) => item.adapterId)) return null;
+  if (adapterFilter !== 'all' && adapterFilter !== `platform:${group.platform}`) return null;
+  return { platform: group.platform, groupId: group.groupId, name: group.name,
+    adapterId: '', adapterName: '', endpointId: group.groupId,
+    selectionKey: groupSelectionKey(group), legacy: true };
 }
 
 export function groupCommandTimestamp(value?: string): number | null {
@@ -69,8 +88,9 @@ export interface GroupLeaveReport {
 
 /** Sequential, bounded, exact-account requests. Failures stay available for retry. */
 export async function submitGroupLeaves(targets: readonly GroupLeaveTarget[],
-  post: (path: string, body: Record<string, string>) => Promise<unknown>,
-  cancelled = () => false, progress = (_completed: number) => {}) : Promise<GroupLeaveReport> {
+  post: (path: string, body: Record<string, string | boolean>) => Promise<unknown>,
+  cancelled = () => false, progress = (_completed: number) => {},
+  options: { removeRecord?: boolean } = {}) : Promise<GroupLeaveReport> {
   if (!targets.length || targets.length > MAX_GROUP_LEAVE_BATCH) throw new Error('Invalid group batch size');
   const keys = new Set<string>();
   for (const target of targets) {
@@ -84,7 +104,36 @@ export async function submitGroupLeaves(targets: readonly GroupLeaveTarget[],
     if (cancelled()) { report.cancelled.push(...targets.slice(index)); break; }
     try {
       await post(`/groups/${encodeURIComponent(target.platform)}/${encodeURIComponent(target.groupId)}/action`,
-        { action: 'leave', adapterId: target.adapterId, endpointId: target.endpointId });
+        { action: 'leave', adapterId: target.adapterId, endpointId: target.endpointId,
+          ...(options.removeRecord ? { removeRecord: true } : {}) });
+      report.submitted.push(target);
+    } catch (error) {
+      report.failed.push({ target, error: error instanceof Error ? error.message : String(error) });
+    }
+    progress(index + 1);
+  }
+  return report;
+}
+
+/** A server-side departed-state check prevents deleting a record that rejoined. */
+export async function submitGroupRecordRemovals(targets: readonly GroupLeaveTarget[],
+  remove: (path: string, body: Record<string, string | boolean>) => Promise<unknown>,
+  cancelled = () => false, progress = (_completed: number) => {}): Promise<GroupLeaveReport> {
+  if (!targets.length || targets.length > MAX_GROUP_LEAVE_BATCH) throw new Error('Invalid group batch size');
+  const keys = new Set<string>();
+  for (const target of targets) {
+    if (!target.platform || !target.groupId || !target.endpointId || (!target.adapterId && !target.legacy)
+      || (target.legacy && target.adapterId)) throw new Error('Missing group binding');
+    const key = JSON.stringify([target.platform, target.groupId, target.adapterId]);
+    if (keys.has(key)) throw new Error('Duplicate group binding');
+    keys.add(key);
+  }
+  const report: GroupLeaveReport = { submitted: [], failed: [], cancelled: [] };
+  for (const [index, target] of targets.entries()) {
+    if (cancelled()) { report.cancelled.push(...targets.slice(index)); break; }
+    try {
+      await remove(`/groups/${encodeURIComponent(target.platform)}/${encodeURIComponent(target.groupId)}`,
+        { adapterId: target.adapterId, endpointId: target.endpointId, onlyIfLeft: true });
       report.submitted.push(target);
     } catch (error) {
       report.failed.push({ target, error: error instanceof Error ? error.message : String(error) });

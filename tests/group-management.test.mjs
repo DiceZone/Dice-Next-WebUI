@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { groupLeaveTarget, groupSelectionKey, groupCommandTimestamp, groupCommandTimeText,
-  sortGroupActivity, submitGroupLeaves, MAX_GROUP_LEAVE_BATCH } from '../.test-dist/lib/group-management.js';
+import { groupLeaveTarget, groupRecordTarget, groupSelectionKey, groupCommandTimestamp, groupCommandTimeText,
+  sortGroupActivity, submitGroupLeaves, submitGroupRecordRemovals, MAX_GROUP_LEAVE_BATCH } from '../.test-dist/lib/group-management.js';
 import { groupManagementCopy } from '../.test-dist/i18n/group-management.js';
 
 const account = (id = 'a', overrides = {}) => ({ adapterId: id, adapterName: `Bot ${id}`, platform: 'onebot_v11',
@@ -97,6 +97,56 @@ test('management copy covers every supported language with identical keys', () =
   }
 });
 
+test('leave-and-clear is one exact-account request; clearing is opt-in', async () => {
+  const calls = [];
+  await submitGroupLeaves([target()], async (path, body) => calls.push([path, body]), () => false, () => {}, { removeRecord: true });
+  assert.equal(calls.length, 1);
+  assert.deepEqual(calls[0][1], { action: 'leave', adapterId: 'a', endpointId: 'native-group', removeRecord: true });
+});
+
+test('departed records can be selected offline and multi-account selection is exact', () => {
+  const archived = group([account('a', { left: true, connected: false, canLeaveGroup: false })], { left: true });
+  assert.equal(groupRecordTarget(archived, 'all').adapterId, 'a');
+  assert.equal(groupRecordTarget(group(), 'all'), null);
+  assert.equal(groupRecordTarget(group([account()], { left: true }), 'all'), null);
+  const multi = group([account('a', { left: true }), account('b', { left: true })], { left: true });
+  assert.equal(groupRecordTarget(multi, 'all'), null);
+  assert.equal(groupRecordTarget(multi, 'b').adapterId, 'b');
+  assert.equal(groupRecordTarget(multi, 'missing'), null);
+  const legacy = group([], { platform: 'onebot_v11', left: true });
+  assert.equal(groupRecordTarget(legacy, 'all').legacy, true);
+  assert.equal(groupRecordTarget(legacy, 'missing'), null);
+});
+
+test('record cleanup only deletes selected records, guards rejoined groups, and retains failures', async () => {
+  const records = ['g1', 'g2', 'g3'].map((id) => ({ ...target(id) }));
+  const calls = [], progress = [];
+  const report = await submitGroupRecordRemovals(records, async (path, body) => {
+    calls.push([path, body]);
+    assert.equal(body.onlyIfLeft, true);
+    assert.equal(body.adapterId, 'a');
+    assert.ok(!path.endsWith('/action'));
+    if (path.endsWith('/g2')) throw new Error('group rejoined');
+  }, () => false, (value) => progress.push(value));
+  assert.equal(calls.length, 3);
+  assert.deepEqual(report.submitted.map((item) => item.groupId), ['g1', 'g3']);
+  assert.equal(report.failed[0].error, 'group rejoined');
+  assert.deepEqual(progress, [1, 2, 3]);
+});
+
+test('record cleanup validates all targets before deleting and cancels remaining work', async () => {
+  let calls = 0;
+  const remove = async () => { ++calls; };
+  for (const records of [[], [target(), target()], [{ ...target(), adapterId: '' }],
+    [{ ...target(), legacy: true }], Array.from({ length: 101 }, (_, i) => target(String(i)))])
+    await assert.rejects(submitGroupRecordRemovals(records, remove));
+  assert.equal(calls, 0);
+  let stop = false;
+  const report = await submitGroupRecordRemovals([target('g1'), target('g2')], async () => { stop = true; }, () => stop);
+  assert.equal(report.submitted.length, 1);
+  assert.equal(report.cancelled[0].groupId, 'g2');
+});
+
 test('every group view has manual selection, time display and a styled confirmation', () => {
   const source = fs.readFileSync(new URL('../src/pages/groups-page.tsx', import.meta.url), 'utf8');
   assert.equal((source.match(/groupSelection\(g\)/g) || []).length, 3);
@@ -104,5 +154,8 @@ test('every group view has manual selection, time display and a styled confirmat
   assert.match(source, /<Dialog open=\{batchTargets\.length > 0\}/);
   assert.match(source, /clearBatchSelection\(\)/);
   assert.match(source, /batchLock\.current/);
+  assert.match(source, /batch-remove-record/);
+  assert.match(source, /submitGroupRecordRemovals/);
+  assert.doesNotMatch(source, /if \(removeRecord\) await jsend\('DELETE'/);
   assert.doesNotMatch(source, /window\.(?:confirm|prompt)\(/);
 });
