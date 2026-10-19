@@ -2462,7 +2462,9 @@
   },
   "chatcfg": {
     "title": "Chat history",
-    "desc": "Simulated-chat messages persist to a separate database (chat.db) and are pruned after the retention period; recalled messages are flagged but content is kept.",
+    "persist": "Save chat history",
+    "persist_desc": "When off, nothing is written to chat.db. Groups with AI chat or memory enabled are still saved so the AI can read context.",
+    "desc": "When enabled, group messages are stored in a separate database (chat.db) and pruned after the retention period; recalled messages are flagged but their content is kept. When disabled, the simulated chat shows only recent messages since startup.",
     "days": "Retention days",
     "hint": "0 = keep forever (no cleanup)."
   },

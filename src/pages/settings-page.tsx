@@ -1577,8 +1577,8 @@ export const SettingsPage: React.FC = () => {
         onReset={() => void resetGlobalScope(['image_host'])} />
       {/* 聊天记录保留期 */}
       <ChatRetentionCard key={scopeKey} {...currentScopeProps}
-        overridden={settingsScope !== 'global' && Object.prototype.hasOwnProperty.call(globalOverrides, 'chat_retention_days')}
-        onReset={() => void resetGlobalScope(['chat_retention_days'])} />
+        overridden={settingsScope !== 'global' && ['chat_retention_days', 'chat_persist'].some((key) => Object.prototype.hasOwnProperty.call(globalOverrides, key))}
+        onReset={() => void resetGlobalScope(['chat_retention_days', 'chat_persist'])} />
       </SettingsPanel>
       <SettingsPanel value="advanced">
       <SectionHeading>{t('settings.sec_network')}</SectionHeading>
@@ -1641,10 +1641,23 @@ const ChatRetentionCard: React.FC<ScopedCardProps> = (scopeProps) => {
   const { t } = useTranslation();
   const toast = useToast();
   const [days, setDays] = useTourState(7, 7);
+  const [persist, setPersist] = useTourState(false, false);
   const [saving, setSaving] = useTourState(false, false);
   const { ready, status } = useScopedLoader(scopeProps, (d) => {
         setDays(Number(d.values?.chat_retention_days ?? 7));
+        setPersist(!!d.values?.chat_persist);
   });
+  const togglePersist = async (value: boolean) => {
+    if (!ready || saving || scopeUnavailable(scopeProps)) return;
+    setSaving(true);
+    try {
+      const d = await putJson('/system/global', scopedBody(scopeProps, { chat_persist: value })) as any;
+      setPersist(!!(d.values?.chat_persist ?? value));
+      toast({ title: t('common.save_success') });
+    }
+    catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
+    finally { setSaving(false); }
+  };
   const save = async () => {
     if (!ready || saving) return;
     if (scopeUnavailable(scopeProps)) return;
@@ -1667,7 +1680,15 @@ const ChatRetentionCard: React.FC<ScopedCardProps> = (scopeProps) => {
       </CardHeader>
       {status}
       <fieldset disabled={!ready || saving} className="min-w-0">
-      <CardContent className="flex items-end gap-2">
+      <CardContent className="space-y-3">
+        <div className="flex items-center justify-between rounded border p-2.5">
+          <div className="space-y-0.5">
+            <Label className="text-sm font-medium">{t('chatcfg.persist')}</Label>
+            <p className="text-xs text-muted-foreground">{t('chatcfg.persist_desc')}</p>
+          </div>
+          <Switch checked={persist} disabled={scopeUnavailable(scopeProps)} onCheckedChange={(value) => void togglePersist(value)} />
+        </div>
+        <div className="flex items-end gap-2">
         <div className="space-y-1">
           <Label className="text-xs">{t('chatcfg.days')}</Label>
           <Input type="number" min={0} max={3650} className="h-9 w-28"
@@ -1675,6 +1696,7 @@ const ChatRetentionCard: React.FC<ScopedCardProps> = (scopeProps) => {
         </div>
         {scopeProps.overridden && <Button size="sm" variant="outline" onClick={scopeProps.onReset}><RotateCcw className="mr-1.5 h-3.5 w-3.5" />{t('settings.scope_reset')}</Button>}
         <Button size="sm" onClick={save} disabled={saving || scopeUnavailable(scopeProps)}>{t('common.save')}</Button>
+        </div>
       </CardContent>
       </fieldset>
     </Card>
