@@ -5,11 +5,18 @@ import { spawnSync } from 'node:child_process';
 import { build } from 'esbuild';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
-import { legacyTemplatePreviewArgs, readLegacyTextReport, legacyTextCounts, legacyTextIssue } from '../.test-dist/lib/legacy-templates.js';
+import { legacyTemplatePreviewArgs, readLegacyTextReport, legacyTextCounts, legacyTextIssue, templateLocalNames } from '../.test-dist/lib/legacy-templates.js';
 import { legacyTemplates } from '../.test-dist/i18n/legacy-templates.js';
 import { resolveOutcomeText } from '../.test-dist/lib/outcome-replies.js';
 
 const row = (key, value = '', extra = {}) => ({ key, default: value, override: null, format: 'plain', defaultFormat: 'plain', ...extra });
+
+test('local template lint recognizes nested values without treating escaped or dotted assignments as writes', () => {
+  assert.deepEqual(templateLocalNames('{var:n={ran:1~2}&label={sample:a|b}}{n}/{label}'), ['n', 'label']);
+  assert.deepEqual(templateLocalNames('{var:名称?hello}'), ['名称']);
+  assert.deepEqual(templateLocalNames('\\{var:ignored=value}{var:user.trust=999}{var:broken'), []);
+  assert.deepEqual(templateLocalNames('{var:n=1}{var:n=2}'), ['n']);
+});
 const standard = row('dice.outcome.standard.regular', '', { outcome: { family: 'standard', grade: 'regular' }, fallbackKeys: ['dice.check.result'] });
 const index = (...texts) => new Map(texts.map(text => [text.key, text]));
 const labels = { critical: 'CRIT', extreme: 'EXTREME', hard: 'HARD', regular: 'PASS', failure: 'FAIL', fumble: 'FUMBLE' };
@@ -131,5 +138,16 @@ test('production backend preview resolves nested legacy references after one wei
   const result = JSON.parse(output.stdout);
   assert.equal(result.code, 0);
   assert.equal(result.data.onebot, 'PASS {case:loss?0=literal&else=no}');
+  assert.equal(result.data.markdown, result.data.onebot);
+});
+
+test('production preview removes waits without delaying or reinterpreting inserted controls', { skip: !process.env.DICENEXT_TEST_RENDERER }, () => {
+  const input = { variants: [{ text: '{wait:500000}{var:x={sample:ok}}{x} {nick}', weight: 1 }],
+    args: { nick: '{wait:500000}' }, format: 'plain' };
+  const output = spawnSync(process.env.DICENEXT_TEST_RENDERER, [], { input: JSON.stringify(input), encoding: 'utf8', timeout: 5000 });
+  assert.equal(output.status, 0, output.stderr);
+  const result = JSON.parse(output.stdout);
+  assert.equal(result.code, 0);
+  assert.equal(result.data.onebot, 'ok {wait:500000}');
   assert.equal(result.data.markdown, result.data.onebot);
 });

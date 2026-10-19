@@ -28,7 +28,7 @@ import { VARIABLE_STYLES, variableStyleOf, restyleVariable, type VariableStyle }
 import { PREVIEW_PLATFORMS, readReplyPreview, previewMessages, isFormFeedVariable, type PreviewPlatform, type ReplyPreview } from '@/lib/reply-preview';
 import { Switch } from '@/components/ui/switch';
 import { resolveOutcomeText, resolveOutcomeInheritance, outcomePreviewArgs, type OutcomeText, type ResolvedOutcomeText } from '@/lib/outcome-replies';
-import { legacyTemplatePreviewArgs } from '@/lib/legacy-templates';
+import { legacyTemplatePreviewArgs, templateLocalNames } from '@/lib/legacy-templates';
 import { shortcutTemplatePreviewArgs } from '@/lib/command-shortcuts';
 import { belongsInCommandTexts } from '@/lib/help-document';
 import { buildTextMetadata, commandCategory, COMMAND_CATEGORIES, filterAndSortTexts, type TextSort, type TextSortField } from '@/lib/command-text-catalog';
@@ -698,7 +698,9 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
 
   // Command-specific vars (chips) vs global vars (behind the button).
   const exclusiveVars = reply.vars.filter((v) => !GLOBAL_SET.has(v.name) && !isFormFeedVariable(v.name));
-  const allowed = new Set([...reply.vars.map((v) => v.name), ...GLOBAL_VARS, ...(reply.legacyReferences ?? [])]);
+  const allowed = new Set([...reply.vars.map((v) => v.name), ...GLOBAL_VARS, ...(reply.legacyReferences ?? []),
+    ...templateLocalNames(variants.map(item => item.text).join('\n')), 'uid', 'gid', 'selfId', 'user.trust', 'user.favor', 'game.pls', 'game.gms',
+    'list_all_deck', 'list_extern_deck', 'list_extern_order', 'list_reply_deck', 'list_dice_sister']);
   const used = extractVars(variants.map(item => item.text).join('\n'));
   const unknown = [...new Set(used.filter((u) => !allowed.has(u) && !isFormFeedVariable(u) && !u.includes('|') && !u.includes(':')))];
   const missing = reply.outcome || reply.legacyCompatibility ? [] : exclusiveVars.map((v) => v.name).filter((n) => !used.includes(n));

@@ -1,5 +1,35 @@
 import type { OutcomeMetadata } from './outcome-replies.js';
 
+/** Lint metadata only; the backend remains the sole template evaluator. */
+export function templateLocalNames(text: string): string[] {
+  const names = new Set<string>();
+  let budget = 100000;
+  const escaped = (pos: number) => {
+    let count = 0; for (let i = pos - 1; i >= 0 && text[i] === '\\'; --i) count++;
+    return count % 2 !== 0;
+  };
+  for (let start = text.indexOf('{var:'); start >= 0 && budget > 0; start = text.indexOf('{var:', start + 5)) {
+    if (escaped(start)) continue;
+    let depth = 0, segment = start + 5;
+    const assignments: string[] = [];
+    for (let pos = segment; pos < text.length && budget-- > 0; ++pos) {
+      if (text[pos] === '\\') { pos++; continue; }
+      if (text[pos] === '{') depth++;
+      else if (text[pos] === '}') {
+        if (depth === 0) { assignments.push(text.slice(segment, pos)); break; }
+        depth--;
+      } else if (text[pos] === '&' && depth === 0) {
+        assignments.push(text.slice(segment, pos)); segment = pos + 1;
+      }
+    }
+    for (const assignment of assignments) {
+      const match = /^([^\s.{}:?&|=/\\\x00-\x1f\x7f]{1,128})[?=]/u.exec(assignment);
+      if (match && new TextEncoder().encode(match[1]).length <= 128) names.add(match[1]);
+    }
+  }
+  return [...names];
+}
+
 /** Display-only examples. Rule evaluation and random rolls remain on the backend. */
 export function legacyTemplatePreviewArgs(
   base: Record<string, string>, key: string, labels: Record<string, string>, outcome?: OutcomeMetadata,
