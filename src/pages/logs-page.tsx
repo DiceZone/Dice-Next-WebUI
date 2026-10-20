@@ -11,10 +11,12 @@ import { useDialogs } from '@/hooks/use-dialogs';
 import { LogActionButtons } from '@/components/log-action-buttons';
 import { PageHeader } from '@/components/ui/page-header';
 import { FeatureHelp } from '@/components/ui/feature-help';
+import { PaginationBar } from '@/components/ui/pagination-bar';
 
 interface GameLog {
   id: number;
   groupId: string;
+  groupName?: string;
   gmId: string;
   name: string;
   status: number;
@@ -39,11 +41,13 @@ interface GameSession {
   pausedLogs: number;
   endedLogs: number;
   active: boolean;
+  groupNames?: Record<string, string>;
 }
 
-interface Group { groupId: string; name?: string; groupName?: string; }
+interface LogPage { items: GameLog[]; total: number; page: number; size: number; }
 type SortKey = 'name' | 'group' | 'status' | 'count' | 'storage' | 'game' | 'creator' | 'createdAt' | 'lastAt';
 type SortDirection = 'asc' | 'desc';
+const PAGE_SIZE = 20;
 
 async function getJson<T>(url: string): Promise<T> {
   const response = await fetch(url);
@@ -67,11 +71,14 @@ export const LogsPage: React.FC = () => {
   const toast = useToast();
   const dlg = useDialogs(t);
   const [logs, setLogs] = useTourState<GameLog[]>([], tourSamples.gameLogs);
+  const [logTotal, setLogTotal] = useTourState(0, tourSamples.gameLogs.length);
+  const [page, setPage] = useState(1);
   const [sessions, setSessions] = useTourState<GameSession[]>([], tourSamples.sessions);
-  const [groups, setGroups] = useTourState<Group[]>([], tourSamples.groups);
   const [loading, setLoading] = useTourState(true, false);
+  const [logsLoading, setLogsLoading] = useState(false);
   const [activeTab, setActiveTab] = useTourState<'logs' | 'sessions'>('logs', 'logs');
   const [query, setQuery] = useTourState('', '');
+  const [searchTerm, setSearchTerm] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('lastAt');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [uploading, setUploading] = useState<number | null>(null);
@@ -80,71 +87,61 @@ export const LogsPage: React.FC = () => {
   const [endingSession, setEndingSession] = useState<string | null>(null);
   const [deletingSession, setDeletingSession] = useState<string | null>(null);
 
-  const groupName = useCallback((id: string) => {
-    const group = groups.find((item) => item.groupId === id);
-    return group?.groupName || group?.name || `${t('logs.group')} ${id}`;
-  }, [groups, t]);
+  const groupName = useCallback((id: string, name?: string) => name || `${t('logs.group')} ${id}`, [t]);
+  const sessionGroupLabel = useCallback((session: GameSession, id: string) =>
+    `${groupName(id, session.groupNames?.[id])} (${id})`, [groupName]);
 
-  const groupLabel = useCallback((id: string) => `${groupName(id)} (${id})`, [groupName]);
+  // The search box filters both tabs; the server-side log query waits for typing to pause.
+  useEffect(() => {
+    const timer = window.setTimeout(() => { setSearchTerm(query.trim()); setPage(1); }, 300);
+    return () => window.clearTimeout(timer);
+  }, [query]);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const loadLogs = useCallback(async () => {
+    setLogsLoading(true);
     try {
-      const [logRows, sessionRows, groupRows] = await Promise.all([
-        getJson<GameLog[]>('/api/logs'),
-        getJson<GameSession[]>('/api/game-sessions'),
-        getJson<Group[]>('/api/groups').catch(() => []),
-      ]);
-      setLogs(logRows || []);
-      setSessions(sessionRows || []);
-      setGroups(groupRows || []);
+      const params = new URLSearchParams({ page: String(page), size: String(PAGE_SIZE), sort: sortKey, dir: sortDirection });
+      if (searchTerm) params.set('q', searchTerm);
+      const result = await getJson<LogPage>(`/api/logs?${params}`);
+      setLogs(result.items || []);
+      setLogTotal(result.total || 0);
+      const lastPage = Math.max(1, Math.ceil((result.total || 0) / PAGE_SIZE));
+      if (page > lastPage) setPage(lastPage);
     } catch {
       toast({ title: t('common.load_fail'), variant: 'destructive' });
     } finally {
-      setLoading(false);
+      setLogsLoading(false);
     }
+  }, [page, searchTerm, sortDirection, sortKey, t, toast]);
+
+  const loadSessions = useCallback(async () => {
+    try { setSessions(await getJson<GameSession[]>('/api/game-sessions') || []); }
+    catch { toast({ title: t('common.load_fail'), variant: 'destructive' }); }
   }, [t, toast]);
 
-  useEffect(() => { void load(); }, [load]);
+  const load = useCallback(async () => {
+    setLoading(true);
+    try { await Promise.all([loadLogs(), loadSessions()]); }
+    finally { setLoading(false); }
+  }, [loadLogs, loadSessions]);
+
+  useEffect(() => { void loadSessions().finally(() => setLoading(false)); }, [loadSessions]);
+  useEffect(() => { void loadLogs(); }, [loadLogs]);
 
   const status = (value: number) => value === 0 ? t('logs.status_active') : value === 1 ? t('logs.status_paused') : t('logs.status_ended');
   const cycleSort = (key: SortKey) => {
     if (key === sortKey) setSortDirection((value) => value === 'asc' ? 'desc' : 'asc');
     else { setSortKey(key); setSortDirection(key === 'count' || key === 'storage' ? 'desc' : 'asc'); }
+    setPage(1);
   };
-
-  const visibleLogs = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
-    const filtered = !normalized ? logs : logs.filter((log) => [
-      log.name, log.groupId, groupName(log.groupId), log.gameCode, log.gameName, log.gmId,
-    ].some((value) => (value || '').toLowerCase().includes(normalized)));
-    const valueFor = (log: GameLog): string | number => {
-      switch (sortKey) {
-        case 'group': return groupLabel(log.groupId);
-        case 'status': return log.status;
-        case 'count': return log.count;
-        case 'storage': return log.storageBytes || 0;
-        case 'game': return `${log.gameName || ''} ${log.gameCode || ''}`;
-        case 'creator': return log.gmId;
-        case 'createdAt': return log.createdAt || '';
-        case 'lastAt': return log.lastAt || log.createdAt || '';
-        default: return log.name;
-      }
-    };
-    return [...filtered].sort((left, right) => {
-      const a = valueFor(left); const b = valueFor(right);
-      const result = typeof a === 'number' && typeof b === 'number' ? a - b : String(a).localeCompare(String(b), 'zh-Hans-CN');
-      return sortDirection === 'asc' ? result : -result;
-    });
-  }, [groupLabel, groupName, logs, query, sortDirection, sortKey]);
 
   const visibleSessions = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     if (!normalized) return sessions;
     return sessions.filter((session) => [
-      session.name, session.code, ...session.groups.map(groupLabel), ...session.gms, ...session.players,
+      session.name, session.code, ...session.groups.map((id) => sessionGroupLabel(session, id)), ...session.gms, ...session.players,
     ].some((value) => (value || '').toLowerCase().includes(normalized)));
-  }, [groupLabel, query, sessions]);
+  }, [query, sessionGroupLabel, sessions]);
 
   const exportLog = (id: number, format: 'txt' | 'csv' | 'html') => {
     const anchor = document.createElement('a');
@@ -171,7 +168,7 @@ export const LogsPage: React.FC = () => {
       const body = await response.json();
       if (!response.ok || body.code !== 0) throw new Error(body.message || t('common.delete_fail'));
       toast({ title: t('logs.deleted', { name: log.name }) });
-      await load();
+      await loadLogs();
     } catch (error) {
       toast({ title: t('common.delete_fail'), description: String(error), variant: 'destructive' });
     } finally {
@@ -195,7 +192,7 @@ export const LogsPage: React.FC = () => {
 
   const exportCross = async (session: GameSession, format: 'txt' | 'csv' | 'html') => {
     try {
-      const groupNames = Object.fromEntries(session.groups.map((id) => [id, groupName(id)]));
+      const groupNames = Object.fromEntries(session.groups.map((id) => [id, groupName(id, session.groupNames?.[id])]));
       const response = await fetch(`/api/game-sessions/${encodeURIComponent(session.code)}/export`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ groupNames, format }),
       });
@@ -213,7 +210,7 @@ export const LogsPage: React.FC = () => {
   const uploadCross = async (session: GameSession) => {
     setUploadingCross(session.code);
     try {
-      const groupNames = Object.fromEntries(session.groups.map((id) => [id, groupName(id)]));
+      const groupNames = Object.fromEntries(session.groups.map((id) => [id, groupName(id, session.groupNames?.[id])]));
       const response = await fetch(`/api/game-sessions/${encodeURIComponent(session.code)}/upload`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ groupNames }),
       });
@@ -306,12 +303,13 @@ export const LogsPage: React.FC = () => {
         className="space-y-4"
       >
         <TabsList variant="page" data-tour="logs-tabs" aria-label={t('logs.title')}>
-          <TabsTrigger value="logs"><ScrollText className="h-4 w-4" />{t('logs.tab_logs')} ({visibleLogs.length})</TabsTrigger>
+          <TabsTrigger value="logs"><ScrollText className="h-4 w-4" />{t('logs.tab_logs')} ({logTotal})</TabsTrigger>
           <TabsTrigger value="sessions"><UsersRound className="h-4 w-4" />{t('logs.tab_sessions')} ({visibleSessions.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent data-tour="logs-content" value="logs" className="mt-0">
-          {visibleLogs.length === 0 ? <div className="rounded-lg border border-dashed py-14 text-center text-muted-foreground">{t('logs.no_logs')}</div> :
+          {logs.length === 0 ? (logsLoading ? <LoadingState /> : <div className="rounded-lg border border-dashed py-14 text-center text-muted-foreground">{t('logs.no_logs')}</div>) :
+            <div className={logsLoading ? 'space-y-3 opacity-60' : 'space-y-3'}>
             <div className="rt-frame overflow-x-auto rounded-lg border">
               <table className="rt rt-record rt-with-status w-full sm:min-w-[1220px] text-sm">
                 <thead className="bg-muted/50 text-muted-foreground"><tr className="border-b">
@@ -326,9 +324,9 @@ export const LogsPage: React.FC = () => {
                   <th className="p-3 text-center"><SortHeader column="lastAt">{t('logs.col_last')}</SortHeader></th>
                   <th className="p-3 text-center">{t('logs.col_actions')}</th>
                 </tr></thead>
-                <tbody>{visibleLogs.map((log) => <tr key={log.id} className="border-b last:border-0 hover:bg-muted/30">
+                <tbody>{logs.map((log) => <tr key={log.id} className="border-b last:border-0 hover:bg-muted/30">
                   <td data-label={t('logs.col_name')} className="rt-title p-3 text-center font-medium">#{log.id} · {log.name}</td>
-                  <td data-label={t('logs.col_group')} className="rt-body p-3 text-center"><div>{groupName(log.groupId)}</div><div className="font-mono text-xs text-muted-foreground">{log.groupId}</div></td>
+                  <td data-label={t('logs.col_group')} className="rt-body p-3 text-center"><div>{groupName(log.groupId, log.groupName)}</div><div className="font-mono text-xs text-muted-foreground">{log.groupId}</div></td>
                   <td data-label={t('logs.col_status')} className="rt-status p-3 whitespace-nowrap text-center">{status(log.status)}</td>
                   <td data-label={t('logs.col_count')} className="p-3 text-center tabular-nums">{log.count}</td>
                   <td data-label={t('logs.col_storage')} className="p-3 whitespace-nowrap text-center tabular-nums"><div>{formatBytes(log.storageBytes)}</div>{log.imageBytes > 0 && <div className="text-xs text-muted-foreground">{t('logs.storage_images', { size: formatBytes(log.imageBytes) })}</div>}</td>
@@ -339,6 +337,8 @@ export const LogsPage: React.FC = () => {
                   <td data-label={t('common.actions')} className="rt-footer p-3 text-center"><LogActions log={log} /></td>
                 </tr>)}</tbody>
               </table>
+            </div>
+            <PaginationBar total={logTotal} page={page} pageSize={PAGE_SIZE} onPageChange={setPage} fixedSize disabled={logsLoading} />
             </div>}
         </TabsContent>
 
@@ -366,7 +366,7 @@ export const LogsPage: React.FC = () => {
                   <div><dt className="text-xs text-muted-foreground">{t('logs.session_status')}</dt><dd className="mt-1">{session.active ? t('logs.session_active') : t('logs.session_ended')}</dd></div>
                   <div><dt className="text-xs text-muted-foreground">GM</dt><dd className="mt-1 break-all">{session.gms?.join('、') || '—'}</dd></div>
                   <div><dt className="text-xs text-muted-foreground">{t('logs.players')}</dt><dd className="mt-1 break-all">{session.players?.join('、') || '—'}</dd></div>
-                  <div className="sm:col-span-2"><dt className="text-xs text-muted-foreground">{t('logs.joined_groups')}</dt><dd className="mt-1 break-all">{session.groups.map(groupLabel).join('、') || '—'}</dd></div>
+                  <div className="sm:col-span-2"><dt className="text-xs text-muted-foreground">{t('logs.joined_groups')}</dt><dd className="mt-1 break-all">{session.groups.map((id) => sessionGroupLabel(session, id)).join('、') || '—'}</dd></div>
                   <div className="sm:col-span-2"><dt className="text-xs text-muted-foreground">{t('logs.log_stats')}</dt><dd className="mt-1">{t('logs.log_stats_value', { total: session.logCount, active: session.activeLogs, paused: session.pausedLogs, ended: session.endedLogs })}</dd></div>
                 </dl>
               </article>;
