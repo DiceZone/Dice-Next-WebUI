@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
+import { ImageResourcePicker } from '@/components/image-resource-picker';
 import { Label } from '@/components/ui/label';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
@@ -98,7 +99,9 @@ const ConfigDialog: React.FC<{ plugin: Plugin; onClose: () => void; onSaved: () 
                   <SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{c.options.map((opt) => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}</SelectContent>
                 </Select>
               ) : c.type === 'template' ? (
-                <Textarea rows={4} value={form[c.key]} onChange={(e) => setForm((f) => ({ ...f, [c.key]: e.target.value }))} placeholder={t('modules.template_hint')} className="font-mono text-xs" />
+                <div className="space-y-2"><Textarea rows={4} value={form[c.key]} onChange={(e) => setForm((f) => ({ ...f, [c.key]: e.target.value }))} placeholder={t('modules.template_hint')} className="font-mono text-xs" />
+                  <ImageResourcePicker directory={`plugin/${(plugin.file.split(/[\\/]/).pop() || plugin.name).replace(/\.(js|lua)(\.disabled)?$/i,'').replace(/[\\/:*?"<>|]/g,'_')}`} disabled={saving} onSelect={(image) => setForm((previous) => ({ ...previous, [c.key]: (previous[c.key] || '') + image.code }))} />
+                </div>
               ) : (
                 <Input type={c.type === 'int' || c.type === 'float' ? 'number' : 'text'} value={form[c.key]} onChange={(e) => setForm((f) => ({ ...f, [c.key]: e.target.value }))} />
               )}

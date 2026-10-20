@@ -8,6 +8,8 @@ import { transform } from 'esbuild';
 import { spawnSync } from 'node:child_process';
 import { statisticsPreview } from './statistics-preview-data.mjs';
 import { createQQOfficialPreview } from './qq-official-preview-data.mjs';
+import { createImageResourcesPreview } from './image-resources-preview.mjs';
+const imageResourcesPreview = createImageResourcesPreview();
 const qqOfficialPreview = createQQOfficialPreview();
 const trayModule = await transform(await readFile(new URL('../src/lib/tray-settings.ts', import.meta.url), 'utf8'), { loader: 'ts', format: 'esm' });
 const { trayTextError, trayTooltip } = await import('data:text/javascript;base64,' + Buffer.from(trayModule.code).toString('base64'));
@@ -205,6 +207,12 @@ const server = await createServer({
         res.setHeader('Content-Type', 'application/json');
         const reply = (data, extra = {}) => res.end(JSON.stringify({ code: 0, data, ...extra }));
         try {
+          if (path.startsWith('/resources/images')) {
+            const chunks=[]; if(req.method!=='GET') for await (const chunk of req) chunks.push(chunk);
+            const response=imageResourcesPreview(req.method,path,url,Buffer.concat(chunks));
+            if(response?.bytes){res.setHeader('Content-Type',response.type);res.end(response.bytes);return;}
+            return reply(response?.data);
+          }
           let body = {};
           if (req.method !== 'GET') {
             const chunks = []; for await (const chunk of req) chunks.push(chunk);

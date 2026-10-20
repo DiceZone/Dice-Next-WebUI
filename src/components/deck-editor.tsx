@@ -2,6 +2,7 @@ import React from 'react';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 import { useTranslation } from 'react-i18next';
 import { FeatureHelp } from '@/components/ui/feature-help';
+import { ImageResourcePicker } from '@/components/image-resource-picker';
 import { Plus, Trash2, Loader2, Code2, List, Check, AlertCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -109,7 +110,10 @@ export function DeckEditor({ filename, title, initialContent, initialGroup, onCl
                   <span className="w-6 shrink-0 pt-2 text-right font-mono text-xs text-muted-foreground">{offset + index + 1}</span>
                   <Textarea disabled={saving} aria-label={t('ui_refresh.entry_label', { number: offset + index + 1 })} rows={2} className="min-h-16 resize-y border-transparent bg-transparent shadow-none focus-visible:border-input" value={entry}
                     onChange={(event) => update(entries.map((item, i) => i === offset + index ? event.target.value : item))} />
-                  <Button disabled={saving} size="icon" variant="ghost" aria-label={t('ui_refresh.remove_entry', { number: offset + index + 1 })} className="shrink-0 text-muted-foreground hover:text-destructive" onClick={() => update(entries.filter((_, i) => i !== offset + index))}><Trash2 className="h-4 w-4" /></Button>
+                  <div className="flex shrink-0 flex-col gap-1">
+                    <ImageResourcePicker iconOnly directory={`deck/${filename}`} disabled={saving} onSelect={(image) => update(entries.map((item, i) => i === offset + index ? item + image.code : item))} />
+                    <Button disabled={saving} size="icon" variant="ghost" aria-label={t('ui_refresh.remove_entry', { number: offset + index + 1 })} className="text-muted-foreground hover:text-destructive" onClick={() => update(entries.filter((_, i) => i !== offset + index))}><Trash2 className="h-4 w-4" /></Button>
+                  </div>
                 </div>)}
                 {!entries.length && <p className="py-6 text-center text-sm text-muted-foreground">{t('ui_refresh.empty_group')}</p>}
                 <Button disabled={saving} variant="outline" className="w-full border-dashed" onClick={() => { update([...entries, '']); setPage(Math.ceil((entries.length + 1) / 30)); }}><Plus className="mr-2 h-4 w-4" />{t('ui_refresh.add_entry')}</Button>

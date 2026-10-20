@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { PaginationBar } from '@/components/ui/pagination-bar';
 import { ChatTab } from '@/pages/groups-page';
 import { PlatformIcon, platformLabel } from '@/components/platform-icon';
+import { EntityAvatar } from '@/components/entity-avatar';
 import { PageHeader } from '@/components/ui/page-header';
 
 interface Player {
@@ -189,11 +190,7 @@ const PlayerDetailView: React.FC<{
       </div>}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex items-center gap-3">
-          {!player.virtualId && player.platform === 'onebot_v11' && !player.userId.startsWith('demo-') && (
-            <img src={`https://q1.qlogo.cn/g?b=qq&nk=${player.userId}&s=640`} alt=""
-              className="h-16 w-16 rounded-full object-cover bg-muted"
-              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-          )}
+          <EntityAvatar kind="user" id={player.userId} platform={player.platform} virtualId={player.virtualId} className="h-16 w-16" />
           <div>
             <div className="flex items-center gap-2">
               <span className="break-words text-lg font-semibold">{player.nickname || player.userId}</span>
@@ -585,7 +582,7 @@ export const PlayersPage: React.FC = () => {
           <div className={view === 'split' ? 'max-h-[260px] space-y-1 overflow-y-auto lg:max-h-[65vh]' : 'grid gap-3 sm:grid-cols-2 xl:grid-cols-3'}>
             {paged.map((p) => view === 'card' ? <Card key={key(p)} className="flex min-w-0 flex-col p-4 shadow-none">
               <div className="flex items-start gap-3">
-                <span className="rounded-lg bg-primary/10 p-2 text-primary"><UserCog className="h-5 w-5" /></span>
+                <EntityAvatar kind="user" id={p.userId} platform={p.platform} virtualId={p.virtualId} />
                 <div className="min-w-0 flex-1"><button type="button" onClick={() => void change(() => detailScroll.open(() => { setSelected(p); setDetailOpen(true); setEditFav(null); }))} className="break-words text-left font-semibold hover:text-primary">{p.nickname || p.userId}</button><div className="mt-1 flex items-start gap-1 text-xs text-muted-foreground"><PlatformIcon platform={p.platform} /><span className="break-all font-mono">{p.userId}</span></div></div>
               </div>
               <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
@@ -596,7 +593,7 @@ export const PlayersPage: React.FC = () => {
               </dl>
               <div className="mt-4 flex justify-end border-t pt-3"><Button variant="outline" size="sm" onClick={() => void change(() => detailScroll.open(() => { setSelected(p); setDetailOpen(true); setEditFav(null); }))}>{t('groups.manage')}<ChevronRight className="ml-1 h-4 w-4" /></Button></div>
             </Card> : <button type="button" key={key(p)} aria-pressed={active && key(active) === key(p)} onClick={() => void change(() => { setSelected(p); setEditFav(null); })} className={`flex w-full items-start gap-3 rounded-lg border p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${active && key(active) === key(p) ? 'border-primary/20 bg-primary/[0.07]' : 'border-transparent hover:bg-muted/60'}`}>
-              <span className="rounded-lg bg-primary/10 p-2 text-primary"><UserCog className="h-5 w-5" /></span><span className="min-w-0 flex-1"><span className="block break-words text-sm font-medium">{p.nickname || p.userId}</span><span className="mt-1 flex items-center gap-1 break-all text-xs text-muted-foreground"><PlatformIcon platform={p.platform} />{p.userId}</span><span className="mt-2 block text-xs text-muted-foreground">{t('players.col_count')}: {p.cmdCount} · {t('players.col_favor')}: {p.favor}</span></span>
+              <EntityAvatar kind="user" id={p.userId} platform={p.platform} virtualId={p.virtualId} /><span className="min-w-0 flex-1"><span className="block break-words text-sm font-medium">{p.nickname || p.userId}</span><span className="mt-1 flex items-center gap-1 break-all text-xs text-muted-foreground"><PlatformIcon platform={p.platform} />{p.userId}</span><span className="mt-2 block text-xs text-muted-foreground">{t('players.col_count')}: {p.cmdCount} · {t('players.col_favor')}: {p.favor}</span></span>
             </button>)}
           </div>
           <PaginationBar total={shown.length} page={curPage} pageSize={PAGE_SIZE} onPageChange={(value) => void change(() => setPage(value))} fixedSize compact={view === 'split'} />

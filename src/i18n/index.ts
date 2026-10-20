@@ -21,6 +21,8 @@ import { qqOfficialEditorCopy } from './qq-official-editor';
 import { groupManagementCopy } from './group-management';
 import { botMessageCopy } from './bot-message';
 import { helpLibraryCopy } from './help-library';
+import { imageResourcesCopy } from './image-resources';
+import { resourceTransferCopy } from './resource-transfer';
 
 /**
  * Front-end i18n setup (繁體中文 / 简体中文 / English).
@@ -56,6 +58,14 @@ function detectInitialLanguage(): LanguageCode {
 }
 
 const initialLanguage = detectInitialLanguage();
+for (const [language, bundle] of Object.entries(resourceTransferCopy)) {
+  const resource = language === 'zh-Hans' ? zhHans : language === 'zh-Hant' ? zhHant : language === 'ja' ? ja : en;
+  Object.assign(resource, { resource_transfer: bundle });
+}
+for (const [language, bundle] of Object.entries(imageResourcesCopy)) {
+  const resource = language === 'zh-Hans' ? zhHans : language === 'zh-Hant' ? zhHant : language === 'ja' ? ja : en;
+  Object.assign(resource, { image_resources: bundle });
+}
 for (const [language, bundle] of Object.entries(helpLibraryCopy)) {
   const resource = language === 'zh-Hans' ? zhHans : language === 'zh-Hant' ? zhHant : language === 'ja' ? ja : en;
   Object.assign(resource, { help_library: bundle });

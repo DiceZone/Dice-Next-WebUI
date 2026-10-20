@@ -351,6 +351,7 @@ export const SETTINGS_SEARCH_ENTRIES: SettingsSearchEntry[] = [
   e('page-rules', '/rules', 'nav.rules', 'rules.title', '规则 規則 rule coc dnd dice system bundle', 'rules.desc'),
   e('page-dice-rules', '/dice-rules', 'nav.dice_rules', 'nav.dice_rules', '骰子规则 骰子規則 dice rule expression roll default sides', 'dice.subtitle'),
   e('page-decks', '/decks', 'nav.decks', 'decks.title', '牌堆 deck draw 抽取 upload', 'decks.subtitle'),
+  e('page-files', '/files', 'nav.data_mgmt', 'image_resources.title', '文件管理 檔案管理 图片 圖片 资源 資源 上传 上傳 预览 預覽 文件夹 資料夾 复制图片代码 複製圖片代碼 image resources files asset upload preview folder copy code move rename recycle bin deck plugin', 'image_resources.help'),
   e('page-groups', '/groups', 'nav.groups', 'groups.title', '群组 群組 group settings bot on off welcome notice', 'groups.subtitle'),
   e('page-players', '/players', 'nav.players', 'players.title', '玩家 用户 用戶 player character card binding', 'players.subtitle'),
   e('page-permissions', '/permissions', 'nav.banlist', 'banlist.title', '权限 權限 permission black list ban trust admin master whitelist', 'banlist.desc'),

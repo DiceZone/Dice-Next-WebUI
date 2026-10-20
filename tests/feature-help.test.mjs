@@ -43,11 +43,15 @@ const compiled = await build({
       "import { qqOfficialEditorCopy } from './src/i18n/qq-official-editor';",
       "import { groupManagementCopy } from './src/i18n/group-management';",
       "import { botMessageCopy } from './src/i18n/bot-message';",
+      "import { imageResourcesCopy } from './src/i18n/image-resources';",
+      "import { resourceTransferCopy } from './src/i18n/resource-transfer';",
+      "export { imageResourcesCopy, resourceTransferCopy };",
       "import { HelpLabel } from './src/components/ui/help-label';",
       "export { uiRefresh, uiAudit, weightedTemplates, pageHelp, featureHelpCopy, availabilityCopy, runtimeLogsCopy, networkInfoCopy, outcomeReplies, legacyTemplates, shortcuts, legacyImport, qqOfficialEditorCopy, groupManagementCopy, botMessageCopy };",
       ...pageImports.map(({ component, file }) => `import { ${component} } from './src/pages/${file}';`),
       ...languages.map((language, index) => `import locale${index} from './src/i18n/locales/${language}.json';`),
       `const resources = { ${languages.map((language, index) => `'${language}': { translation: { ...locale${index}, ui_refresh: uiRefresh['${language}'], ui_audit: uiAudit['${language}'], weighted: weightedTemplates['${language}'], page_help: pageHelp['${language}'], feature_help: featureHelpCopy['${language}'], availability: availabilityCopy['${language}'], runtime_logs: runtimeLogsCopy['${language}'], network_info: networkInfoCopy['${language}'], outcome: outcomeReplies['${language}'], legacy_text: legacyTemplates['${language}'], shortcuts: shortcuts['${language}'], legacy_import: legacyImport['${language}'], qq_editor: qqOfficialEditorCopy['${language}'], group_management: groupManagementCopy['${language}'], bot_message: botMessageCopy['${language}'] } }`).join(', ')} };`,
+      "for (const language of Object.keys(resources)) Object.assign(resources[language].translation, { image_resources: imageResourcesCopy[language], resource_transfer: resourceTransferCopy[language] });",
       "const i18n = createInstance(); i18n.init({ lng: 'zh-Hans', initImmediate: false, resources, interpolation: { escapeValue: false } });",
       `const pages = { ${pageImports.map(({ component }) => component).join(', ')}, settings: SettingsPage, webui: WebuiSettingsPage, cloud: CloudSettingsPage, notice: NoticeSettingsPage, schedules: SchedulesPage, ai: AiPage };`,
       "export const render = (page, language, tour = false) => {",
@@ -80,6 +84,8 @@ for (const language of languages) {
   messages[language].qq_editor = module.exports.qqOfficialEditorCopy[language];
   messages[language].group_management = module.exports.groupManagementCopy[language];
   messages[language].bot_message = module.exports.botMessageCopy[language];
+  messages[language].image_resources = module.exports.imageResourcesCopy[language];
+  messages[language].resource_transfer = module.exports.resourceTransferCopy[language];
 }
 
 function renderPage(page, hash, language = 'zh-Hans', tour = false) {
@@ -320,7 +326,7 @@ test('editor and detail components keep contextual instructions in named help', 
     'src/pages/groups-page.tsx': ['groups.plugins_hint', 'groups.ai_memory_note', 'groups.bot_card_hint', 'groups.group_locale_hint', 'groups.welcome_settings_hint'],
     'src/pages/rule-editor.tsx': ['ruleed.test_hint', 'ruleed.custom_hint'],
     'src/pages/modules-page.tsx': ['modules.config_desc', 'luamod.cmd_hint', 'luamod.help_hint'],
-    'src/pages/decks-page.tsx': ['ui_refresh.import_note', 'ui_refresh.export_hint'],
+    'src/pages/decks-page.tsx': ['ui_refresh.import_note', 'resource_transfer.deckExportHint'],
     'src/components/deck-editor.tsx': ['ui_refresh.edit_hint'],
   };
   for (const [file, expected] of Object.entries(cases)) {

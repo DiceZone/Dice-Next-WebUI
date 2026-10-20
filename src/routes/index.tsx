@@ -28,6 +28,7 @@ import { AboutPage } from '@/pages/about-page';
 import { BackupPage } from '@/pages/backup-page';
 import { LogsPage } from '@/pages/logs-page';
 import { StatisticsPage } from '@/pages/statistics-page';
+import { FilesPage } from '@/pages/files-page';
 
 /**
  * Route configuration and page component map.
@@ -66,6 +67,7 @@ const ROUTES: Record<string, React.ComponentType> = {
   '/backup': BackupPage,
   '/logs': LogsPage,
   '/statistics': StatisticsPage,
+  '/files': FilesPage,
 };
 
 const DEFAULT_ROUTE = '/';

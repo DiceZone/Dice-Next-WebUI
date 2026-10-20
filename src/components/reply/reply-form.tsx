@@ -22,7 +22,8 @@ import { replyRegexError as regexError } from '@/lib/reply-preview';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { Image as ImageIcon, Plus, X } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
+import { ImageResourcePicker } from '@/components/image-resource-picker';
 import type { ReplyRule, ReplyFormData, MatchType, ReplyLogic, ReplyCondition, ReplyScopeMode } from '@/types/reply';
 import { DEFAULT_REPLY_PRIORITY } from '@/types/reply';
 
@@ -61,7 +62,6 @@ export const ReplyForm: React.FC<ReplyFormProps> = ({ open, onOpenChange, onSubm
   const [scopeUsersMode, setScopeUsersMode] = React.useState<ReplyScopeMode>('');
   const [scopeUsers, setScopeUsers] = React.useState<string>('');
   const [submitting, setSubmitting] = React.useState(false);
-  const [uploading, setUploading] = React.useState(false);
   const [error, setError] = React.useState('');
   const [revealAdvanced, setRevealAdvanced] = React.useState(0);
 
@@ -100,29 +100,8 @@ export const ReplyForm: React.FC<ReplyFormProps> = ({ open, onOpenChange, onSubm
   const delResult = (i: number) => { setResults((rs) => rs.filter((_, idx) => idx !== i)); setWeights((ws) => ws.filter((_, idx) => idx !== i)); };
   const probabilities = resultProbabilities(results, weights);
 
-  // Image upload → append the CQ code to a specific result.
-  const imgRef = React.useRef<HTMLInputElement>(null);
-  const imgTarget = React.useRef<number>(0);
-  const pickImage = (idx: number) => { imgTarget.current = idx; imgRef.current?.click(); };
-  const uploadImage = async (file: File) => {
-    if (uploading) return;
-    const target = imgTarget.current;
-    setUploading(true); setError('');
-    try {
-      const dataUrl: string = await new Promise((res, rej) => {
-        const fr = new FileReader(); fr.onload = () => res(String(fr.result)); fr.onerror = rej; fr.readAsDataURL(file);
-      });
-      const r = await fetch('/api/assets/upload', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filename: file.name, data: dataUrl }) });
-      const j = await r.json();
-      if (j.code !== 0) throw new Error(j.message);
-      setResults((rs) => rs.map((x, idx) => (idx === target ? x + j.data.code : x)));
-    } catch (e) { setError(`${t('ui_audit.upload_failed')} ${e instanceof Error ? e.message : ''}`); }
-    finally { setUploading(false); }
-  };
-
   const submit = async () => {
-    if (uploading || submitting) return;
+    if (submitting) return;
     const conds = conditions.filter((c) => c.content.trim());
     const selected = results.map((text, i) => ({ text, weight: weights[i] })).filter((r) => r.text.trim());
     const res = selected.map((r) => r.text);
@@ -158,7 +137,7 @@ export const ReplyForm: React.FC<ReplyFormProps> = ({ open, onOpenChange, onSubm
   };
 
   return (
-    <Dialog open={open} onOpenChange={(next) => { if (!submitting && !uploading) onOpenChange(next); }}>
+    <Dialog open={open} onOpenChange={(next) => { if (!submitting) onOpenChange(next); }}>
       <DialogContent layout="editor" className="max-w-2xl lg:max-w-6xl">
         <DialogHeader className="shrink-0">
           <DialogTitle className="flex items-center gap-1.5 pr-6">
@@ -173,7 +152,7 @@ export const ReplyForm: React.FC<ReplyFormProps> = ({ open, onOpenChange, onSubm
 
         {/* fieldset 的匿名内容盒在收缩时可能溢出；由普通容器承担滚动，保留整组禁用语义。 */}
         <DialogBody data-reply-scroll className="pr-2">
-        <fieldset disabled={uploading || submitting} className="min-w-0 space-y-5 pb-1">
+        <fieldset disabled={submitting} className="min-w-0 space-y-5 pb-1">
           {headerSlot}
           <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
           <div className="min-w-0 space-y-5">
@@ -233,9 +212,8 @@ export const ReplyForm: React.FC<ReplyFormProps> = ({ open, onOpenChange, onSubm
                       onClick={() => setResult(i, `${r}${r && !r.endsWith('\n') ? '\n' : ''}[[action:掷骰指令|.r]]`)} className="h-8 text-xs">
                       {t('replies.insert_action_hint')}
                     </Button>
-                    <Button type="button" variant="outline" size="sm" onClick={() => pickImage(i)} className="h-8 text-xs">
-                      <ImageIcon className="h-3.5 w-3.5 text-primary" />{t('replies.insert_image')}
-                    </Button>
+                    <ImageResourcePicker directory={reply?.id ? `reply/${reply.id}` : 'reply'} disabled={submitting} className="h-8 text-xs"
+                      onSelect={(entry) => setResults((rs) => rs.map((value, idx) => idx === i ? value + entry.code : value))}>{t('replies.insert_image')}</ImageResourcePicker>
                     {results.length > 1 && (
                       <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" aria-label={t('replies.remove_result')} onClick={() => delResult(i)}><X className="h-3.5 w-3.5" /></Button>
                     )}
@@ -251,8 +229,6 @@ export const ReplyForm: React.FC<ReplyFormProps> = ({ open, onOpenChange, onSubm
                 </div>
               </div>
             ))}
-            <input ref={imgRef} type="file" accept="image/*" className="hidden"
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) void uploadImage(f); e.target.value = ''; }} />
             <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={addResult}><Plus className="mr-1 h-3.5 w-3.5" />{t('replies.add_result')}</Button>
             <p className="text-xs text-muted-foreground">{t('replies.result_weight_hint')}</p>
           </div>
@@ -350,11 +326,11 @@ export const ReplyForm: React.FC<ReplyFormProps> = ({ open, onOpenChange, onSubm
         </DialogBody>
 
         <DialogFooter className="shrink-0 border-t pt-4 gap-2">
-          {onReset && <Button type="button" variant="ghost" className="sm:mr-auto" disabled={uploading || submitting || disabled} onClick={async () => {
+          {onReset && <Button type="button" variant="ghost" className="sm:mr-auto" disabled={submitting || disabled} onClick={async () => {
             setSubmitting(true); try { await onReset(); onOpenChange(false); } catch (e) { setError(String(e)); } finally { setSubmitting(false); }
           }}>{t('settings.scope_reset')}</Button>}
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={uploading || submitting}>{t('common.cancel')}</Button>
-          <Button type="button" onClick={submit} disabled={uploading || submitting || disabled}>{submitting ? t('common.saving') : eventTrigger ? t('common.save') : isEdit ? t('replies.save_edit') : t('common.add')}</Button>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>{t('common.cancel')}</Button>
+          <Button type="button" onClick={submit} disabled={submitting || disabled}>{submitting ? t('common.saving') : eventTrigger ? t('common.save') : isEdit ? t('replies.save_edit') : t('common.add')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

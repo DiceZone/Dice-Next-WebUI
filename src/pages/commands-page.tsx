@@ -3,6 +3,7 @@ import { tourSamples } from '@/lib/tour-samples';
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
+import { ImageResourcePicker } from '@/components/image-resource-picker';
 import { WeightedTemplateEditor } from '@/components/persona/weighted-template-editor';
 import { readTemplateVariants, writeTemplateVariants, templateSummary, validWeights } from '@/lib/weighted-templates';
 import { AdvancedOptions } from '@/components/ui/advanced-options';
@@ -19,7 +20,7 @@ import { PersonaManagerCard } from '@/components/persona/persona-manager';
 import { PersonaAccessDialog } from '@/components/persona/persona-access-dialog';
 import {
   Loader2, RefreshCw, RotateCcw, Save, ChevronRight, ChevronDown, Pencil, Trash2, Download, Upload,
-  Image as ImageIcon, Globe, Users, BookText, UserCheck, ArrowUpDown, ArrowUp, ArrowDown,
+  Globe, Users, BookText, UserCheck, ArrowUpDown, ArrowUp, ArrowDown,
 } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { FeatureHelp } from '@/components/ui/feature-help';
@@ -711,7 +712,6 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
     if (style !== 'plain') setFormat('markdown');
   };
 
-  const imgRef = useRef<HTMLInputElement>(null);
   const insertRaw = (tok: string) => {
     const ta = taRef.current;
     if (!ta) { setText((x) => x + tok); return; }
@@ -720,18 +720,6 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
     setTimeout(() => { ta.focus(); ta.selectionStart = ta.selectionEnd = s + tok.length; }, 0);
   };
   const insert = (name: string) => insertRaw(`{${name}}`);
-  const uploadImage = async (file: File) => {
-    try {
-      const dataUrl: string = await new Promise((res, rej) => {
-        const fr = new FileReader(); fr.onload = () => res(String(fr.result)); fr.onerror = rej; fr.readAsDataURL(file);
-      });
-      const r = await fetch('/api/assets/upload', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filename: file.name, data: dataUrl }) });
-      const j = await r.json();
-      if (j.code !== 0) throw new Error(j.message);
-      insertRaw(j.data.code);
-    } catch (e) { toast({ title: t('commands.image_fail'), description: String(e), variant: 'destructive' }); }
-  };
 
   const save = async () => {
     if (saving) return;
@@ -865,10 +853,8 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
             className="inline-flex items-center gap-1 rounded border border-dashed px-2 py-1 text-xs hover:bg-muted transition-colors">
             <Globe className="h-3.5 w-3.5 text-primary" />{t('commands.insert_global')}
           </button>
-          <button onClick={() => imgRef.current?.click()}
-            className="inline-flex items-center gap-1 rounded border border-dashed px-2 py-1 text-xs hover:bg-muted transition-colors">
-            <ImageIcon className="h-3.5 w-3.5 text-primary" />{t('commands.insert_image')}
-          </button>
+          <ImageResourcePicker directory={personaId > 0 ? `text/persona-${personaId}` : 'text/default'} disabled={saving}
+            className="h-7 border-dashed px-2 text-xs" onSelect={(entry) => insertRaw(entry.code)}>{t('commands.insert_image')}</ImageResourcePicker>
           <button onClick={() => insertRaw('[[bar:HP|6|10]]')}
             className="inline-flex items-center gap-1 rounded border border-dashed px-2 py-1 text-xs hover:bg-muted transition-colors">
             {t('commands.insert_status_bar')}
@@ -877,8 +863,6 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
             className="inline-flex items-center gap-1 rounded border border-dashed px-2 py-1 text-xs hover:bg-muted transition-colors">
             {t('commands.insert_action_hint')}
           </button>
-          <input ref={imgRef} type="file" accept="image/*" className="hidden"
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) void uploadImage(f); e.target.value = ''; }} />
         </div>
 
         <div className="flex flex-wrap items-center gap-3">

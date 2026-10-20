@@ -15,9 +15,13 @@ import { DeckEditor } from '@/components/deck-editor';
 import { useToast } from '@/hooks/use-toast';
 import { useDialogs } from '@/hooks/use-dialogs';
 import { DECK_METADATA, deckFileKey, isReadonlyDeck, parseDeckDocument, canCopyDeckGroup, deckCopyFilename, type DeckFileIdentity } from '@/lib/deck-document';
+import { sendDeckPackage, fetchDeckPackage } from '@/lib/deck-package';
+import { downloadResourceBlob } from '@/lib/image-resources';
+import { ApiError } from '@/lib/api-client';
 
 interface DeckFile extends DeckFileIdentity { id: number; title: string; author?: string | null; version?: string | null; date?: string | null; description?: string | null; entries: string[]; hidden_entries?: string[] }
 interface FileContent extends DeckFileIdentity { content: string }
+interface PendingImport extends FileContent { packageFile?: File; packageFiles?: string[]; images?: number; warnings?: string[]; }
 
 async function deckRequest<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`/api/decks${path}`, options);
@@ -46,7 +50,7 @@ export const DecksPage: React.FC = () => {
   const [readError, setReadError] = useTourState('', '');
   const [revision, setRevision] = useState(0);
   const [editing, setEditing] = useState<DeckFile | null>(null);
-  const [pending, setPending] = useState<FileContent | null>(null);
+  const [pending, setPending] = useState<PendingImport | null>(null);
   const [busy, setBusy] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [entryPage, setEntryPage] = useState(1);
@@ -101,33 +105,48 @@ export const DecksPage: React.FC = () => {
     setPending(null);
     if (!fileList?.length) return;
     const file = fileList[0];
-    if (fileList.length !== 1 || !file.name.endsWith('.json')) { toast({ title: t('ui_refresh.json_only'), variant: 'destructive' }); return; }
+    if (fileList.length !== 1 || !/\.(json|deck)$/i.test(file.name)) { toast({ title: t('resource_transfer.deckTypes'), variant: 'destructive' }); return; }
+    if (file.size > 128 * 1024 * 1024) { toast({ title: t('resource_transfer.archiveLimit'), variant: 'destructive' }); return; }
+    setBusy(true);
     try {
+      if (file.name.toLowerCase().endsWith('.deck')) {
+        const info = await sendDeckPackage(file, { inspect: true });
+        setPending({ filename: file.name, content: '', packageFile: file, packageFiles: info.files, images: info.images, warnings: info.warnings }); setTab('transfer'); return;
+      }
       const value = await file.text();
       parseDeckDocument(value, true);
       setPending({ filename: file.name, content: value }); setTab('transfer');
     } catch (error) { toast({ title: t('ui_refresh.invalid_json'), description: (error as Error).message === 'invalid_deck' ? t('ui_refresh.invalid_deck') : (error as Error).message, variant: 'destructive' }); }
-    finally { if (fileInput.current) fileInput.current.value = ''; }
+    finally { setBusy(false); if (fileInput.current) fileInput.current.value = ''; }
   };
   const importFile = async () => {
     if (!pending || busy) return;
-    if (files.some((file) => !isReadonlyDeck(file) && file.filename === pending.filename) && !(await dlg.confirm({ title: t('ui_refresh.overwrite'), description: t('ui_refresh.overwrite_hint', { name: pending.filename }), destructive: true }))) return;
+    const names = pending.packageFiles ?? [pending.filename];
+    let overwrite = files.some((file) => !isReadonlyDeck(file) && names.includes(file.filename));
+    if (overwrite && !(await dlg.confirm({ title: t('ui_refresh.overwrite'), description: t('ui_refresh.overwrite_hint', { name: names.join(', ') }), destructive: true }))) return;
     setBusy(true);
     try {
-      await deckRequest('/upload', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(pending) });
+      if (pending.packageFile) {
+        try { await sendDeckPackage(pending.packageFile, { overwrite }); }
+        catch (error) {
+          if (overwrite || !(error instanceof ApiError) || error.code !== 409 || !await dlg.confirm({ title: t('image_resources.overwriteTitle'), description: error.responseMessage, destructive: true })) throw error;
+          overwrite = true; await sendDeckPackage(pending.packageFile, { overwrite });
+        }
+      } else await deckRequest('/upload', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ filename: pending.filename, content: pending.content }) });
       try {
         await deckRequest('/reload', { method: 'POST' });
         toast({ title: t('decks.uploaded', { name: pending.filename }) });
       } catch { toast({ title: t('ui_refresh.reload_failed'), variant: 'destructive' }); }
-      setSelected(deckFileKey(pending)); setSearch(''); setPending(null); setRevision((n) => n + 1); setTab('library'); await fetchDecks();
+      setSelected(deckFileKey({ filename: names[0] })); setSearch(''); setPending(null); setRevision((n) => n + 1); setTab('library'); await fetchDecks();
     } catch (error) { notifyError(error, t('common.upload_fail')); }
     finally { setBusy(false); }
   };
-  const download = () => {
-    if (!current || currentContent === undefined) return;
-    const url = URL.createObjectURL(new Blob([currentContent], { type: 'application/json;charset=utf-8' }));
-    const link = window.document.createElement('a'); link.href = url; link.download = current.filename;
-    window.document.body.appendChild(link); link.click(); link.remove(); window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  const download = async () => {
+    if (!current || currentContent === undefined || busy) return;
+    setBusy(true);
+    try { const result = await fetchDeckPackage(current.filename, source); downloadResourceBlob(result.blob, result.name); }
+    catch (error) { notifyError(error, t('common.operation_fail')); }
+    finally { setBusy(false); }
   };
   const remove = async () => {
     if (!current || readOnly || busy || !(await dlg.confirm({ title: t('common.confirm_delete'), description: t('decks.confirm_delete', { title: current.title, filename: current.filename, count: current.entries.length }), destructive: true, confirmText: t('common.delete') }))) return;
@@ -192,7 +211,7 @@ export const DecksPage: React.FC = () => {
               <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-muted-foreground">{current.description || t('decks.no_brief')}</p>
               <div className="flex flex-wrap items-center gap-2">{[current.author, current.version && `v${current.version}`, current.date].filter(Boolean).map((value, i) => <Badge key={i} variant="secondary" className="font-normal">{value}</Badge>)}</div>
               {readOnly && <p className="text-sm text-muted-foreground">{t('decks.builtin_readonly_hint')}</p>}
-              <div className="flex flex-wrap gap-2"><Button size="sm" onClick={() => { if (!readOnly) setEditing(current); }} disabled={readOnly || currentContent === undefined || busy}><Pencil className="mr-2 h-4 w-4" />{t('common.edit')}</Button><Button size="sm" variant="outline" onClick={download} disabled={currentContent === undefined}><Download className="mr-2 h-4 w-4" />{t('ui_refresh.download')}</Button><Button size="sm" variant="ghost" className="ml-auto text-muted-foreground hover:text-destructive" onClick={() => void remove()} disabled={readOnly || currentContent === undefined || busy}><Trash2 className="mr-2 h-4 w-4" />{t('common.delete')}</Button></div>
+              <div className="flex flex-wrap gap-2"><Button size="sm" onClick={() => { if (!readOnly) setEditing(current); }} disabled={readOnly || currentContent === undefined || busy}><Pencil className="mr-2 h-4 w-4" />{t('common.edit')}</Button><Button size="sm" variant="outline" onClick={() => void download()} disabled={currentContent === undefined || busy}><Download className="mr-2 h-4 w-4" />{t('resource_transfer.deckExport')}</Button><Button size="sm" variant="ghost" className="ml-auto text-muted-foreground hover:text-destructive" onClick={() => void remove()} disabled={readOnly || currentContent === undefined || busy}><Trash2 className="mr-2 h-4 w-4" />{t('common.delete')}</Button></div>
             </div>
             <div className="space-y-5 p-5 sm:p-6">
               <div className="flex flex-wrap gap-2">{groups.map((name) => <button key={name} className={`max-w-full break-words rounded-md border px-3 py-1.5 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${activeGroup === name ? 'border-primary bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'} ${name.startsWith('_') ? 'border-dashed' : ''}`} onClick={() => { setGroup(name); setEntryPage(1); }} aria-pressed={activeGroup === name}>{name}</button>)}</div>
@@ -213,12 +232,12 @@ export const DecksPage: React.FC = () => {
           <h2 className="flex items-center gap-1.5 text-lg font-semibold">{t('ui_refresh.import_title')}<FeatureHelp title={t('ui_refresh.import_title')} description={<p>{t('ui_refresh.import_note')}</p>} /></h2>
           <div className={`flex flex-col items-center gap-4 rounded-xl border-2 border-dashed px-5 py-12 text-center transition-colors ${dragging ? 'border-primary bg-primary/10' : 'border-border bg-muted/20'}`}
             onDragOver={(event) => { event.preventDefault(); if (!busy) setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={(event) => { event.preventDefault(); setDragging(false); if (!busy) void prepareImport(event.dataTransfer.files); }}>
-            <span className="rounded-2xl border bg-card p-4 text-primary shadow-sm"><Upload className="h-7 w-7" /></span><p className="max-w-sm text-sm leading-relaxed text-muted-foreground">{t('ui_refresh.import_hint')}</p><Button variant="outline" disabled={busy} onClick={() => fileInput.current?.click()}>{t('ui_refresh.choose_file')}</Button>
-            <input ref={fileInput} type="file" accept=".json,application/json" className="hidden" onChange={(event) => void prepareImport(event.target.files)} />
+            <span className="rounded-2xl border bg-card p-4 text-primary shadow-sm"><Upload className="h-7 w-7" /></span><p className="max-w-sm text-sm leading-relaxed text-muted-foreground">{t('resource_transfer.deckHint')}</p><Button variant="outline" disabled={busy} onClick={() => fileInput.current?.click()}>{t('ui_refresh.choose_file')}</Button>
+            <input ref={fileInput} type="file" accept=".json,.deck,application/json,application/zip" className="hidden" onChange={(event) => void prepareImport(event.target.files)} />
           </div>
-          {pending && <div className="flex flex-wrap items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 p-4"><FileJson className="h-5 w-5 text-primary" /><div className="min-w-0 flex-1"><p className="break-all text-sm font-medium">{pending.filename}</p><p className="text-xs text-muted-foreground">{t('ui_refresh.import_ready')} · {(new Blob([pending.content]).size / 1024).toFixed(1)} KB</p></div><Button onClick={() => void importFile()} disabled={busy}>{busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{t('ui_refresh.import_confirm')}</Button><Button size="icon" variant="ghost" aria-label={t('common.cancel')} disabled={busy} onClick={() => setPending(null)}><X className="h-4 w-4" /></Button></div>}
+          {pending && <div className="flex flex-wrap items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 p-4"><FileJson className="h-5 w-5 text-primary" /><div className="min-w-0 flex-1"><p className="break-all text-sm font-medium">{pending.filename}</p><p className="text-xs text-muted-foreground">{t('ui_refresh.import_ready')} · {pending.packageFile ? t('resource_transfer.deckSummary', { decks: pending.packageFiles?.length || 0, images: pending.images || 0 }) : `${(new Blob([pending.content]).size / 1024).toFixed(1)} KB`}</p>{pending.warnings?.map((warning,index) => <p key={index} className="mt-1 text-xs text-amber-600">{warning}</p>)}</div><Button onClick={() => void importFile()} disabled={busy}>{busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{t('ui_refresh.import_confirm')}</Button><Button size="icon" variant="ghost" aria-label={t('common.cancel')} disabled={busy} onClick={() => setPending(null)}><X className="h-4 w-4" /></Button></div>}
         </Card>
-        <Card className="space-y-3 p-6 shadow-none"><Download className="h-5 w-5 text-primary" /><h3 className="flex items-center gap-1.5 font-medium">{t('ui_refresh.export_title')}<FeatureHelp title={t('ui_refresh.export_title')} description={<p>{t('ui_refresh.export_hint')}</p>} /></h3><Button variant="outline" size="sm" onClick={() => setTab('library')}>{t('ui_refresh.library')}<ArrowUpRight className="ml-2 h-4 w-4" /></Button></Card>
+        <Card className="space-y-3 p-6 shadow-none"><Download className="h-5 w-5 text-primary" /><h3 className="flex items-center gap-1.5 font-medium">{t('ui_refresh.export_title')}<FeatureHelp title={t('ui_refresh.export_title')} description={<p>{t('resource_transfer.deckExportHint')}</p>} /></h3><Button variant="outline" size="sm" onClick={() => setTab('library')}>{t('ui_refresh.library')}<ArrowUpRight className="ml-2 h-4 w-4" /></Button></Card>
       </TabsContent>
     </Tabs>
     {editing && !isReadonlyDeck(editing) && content && !isReadonlyDeck(content) && deckFileKey(content) === deckFileKey(editing) && <DeckEditor filename={editing.filename} title={editing.title} initialContent={content.content} initialGroup={activeGroup} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); setRevision((n) => n + 1); void fetchDecks(); }} />}

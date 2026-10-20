@@ -5,6 +5,8 @@ import { useDetailScroll } from '@/hooks/use-detail-scroll';
 ﻿import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
+import { ImageResourcePicker } from '@/components/image-resource-picker';
+import { managedImageSource } from '@/lib/image-resources';
 import { Card } from '@/components/ui/card';
 import { PaginationBar } from '@/components/ui/pagination-bar';
 import { Input } from '@/components/ui/input';
@@ -22,10 +24,11 @@ import {
   Power, PowerOff, ShieldBan, Settings2, MessagesSquare, Send, Blocks, Moon,
   LayoutGrid, Table2, Columns2, ScrollText, Trash2, Download, Upload,
   ShieldCheck, UserPlus, Play,
-  ChevronDown, Pencil, Image as ImageIcon, Smile, Plus, Sparkles, FolderOpen, FileText,
+  ChevronDown, Pencil, Smile, Plus, Sparkles, FolderOpen, FileText,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PlatformIcon, platformLabel } from '@/components/platform-icon';
+import { EntityAvatar } from '@/components/entity-avatar';
 import { LogActionButtons } from '@/components/log-action-buttons';
 import { PageHeader } from '@/components/ui/page-header';
 import { FeatureHelp } from '@/components/ui/feature-help';
@@ -90,24 +93,8 @@ async function jsend(method: string, path: string, body?: unknown) {
   return j.data;
 }
 
-const GroupAvatar: React.FC<{ groupId: string; platform: string }> = ({ groupId, platform }) => {
-  const [imgFailed, setImgFailed] = useState(false);
-  const showImg = platform === 'onebot_v11' && !imgFailed && !groupId.startsWith('demo-');
-  return (
-    <div className="h-11 w-11 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0 overflow-hidden">
-      {showImg ? (
-        <img
-          src={`https://p.qlogo.cn/gh/${groupId}/${groupId}/100`}
-          alt=""
-          className="h-full w-full object-cover"
-          onError={() => setImgFailed(true)}
-        />
-      ) : (
-        <Users2 className="h-5 w-5" />
-      )}
-    </div>
-  );
-};
+const GroupAvatar: React.FC<{ groupId: string; platform: string; className?: string }> = ({ groupId, platform, className }) =>
+  <EntityAvatar kind="group" id={groupId} platform={platform} className={className} />;
 
 const StatusBadge: React.FC<{ g: Group; t: (k: string) => string }> = ({ g, t }) => {
   // C#62: 指令退群/网页退群后（记录保留）→ 已退群
@@ -475,9 +462,7 @@ export const GroupsPage: React.FC = () => {
                     <tr key={`${g.platform}/${g.groupId}`} className="border-t hover:bg-muted/30">
                       {batchMode && <td data-label={t('group_management.batch')} className="p-2.5">{groupSelection(g)}</td>}
                       <td data-label={t('groups.col_status')} className="rt-status p-2.5"><StatusBadge g={g} t={t} /></td>
-                      <td data-label={t('groups.col_avatar')} className="rt-avatar p-2.5"><div className="h-8 w-8 rounded-md overflow-hidden bg-muted shrink-0">
-                        {g.platform === 'onebot_v11' ? <img src={`https://p.qlogo.cn/gh/${g.groupId}/${g.groupId}/100`} alt="" className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} /> : <Users2 className="h-5 w-5 m-1.5 text-muted-foreground" />}
-                      </div></td>
+                      <td data-label={t('groups.col_avatar')} className="rt-avatar p-2.5"><GroupAvatar groupId={g.groupId} platform={g.platform} className="h-8 w-8" /></td>
                       <td data-label={t('groups.col_group')} className="rt-title p-2.5">
                         <button onClick={() => openGroup(g)} className="font-medium hover:text-primary transition-colors">{g.name}</button>
                         <div className="mt-1"><Tags g={g} compact /></div>
@@ -1540,8 +1525,7 @@ const renderMessage = (content: string, onZoom: (src: string) => void,
       let src = um ? um[1].trim() : '';
       // C#56/57：本站资产统一走相对路径，本地目录引用转 /api/assets/，
       // 旧数据里的 http://localhost:xx/api/assets/.. 在其他设备浏览也能显示。
-      const am = src.match(/^data[/\\]assets[/\\]([^/\\]+)$/) || src.match(/\/api\/assets\/([^/?#]+)$/);
-      if (am) src = `/api/assets/${am[1]}`;
+      src = managedImageSource(src);
       // C#65：入站图片已本地化为 /api/chat/images/..（同源，无 rkey 问题）。
       if (/^https?:\/\//i.test(src) || src.startsWith('/api/')) {
         out.push(
@@ -1757,8 +1741,6 @@ export const ChatTab: React.FC<any> = ({ base, platform, t, toast, privateChat =
 
   // ── C#42: 发图 / 本地表情包 / 戳一戳 ──────────────────────────
   interface Sticker { url: string; code: string; }
-  const imgRef = useRef<HTMLInputElement>(null);
-  const stickerAddRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [fileUploading, setFileUploading] = useState(false);
   const [stickers, setStickers] = useState<Sticker[]>(() => {
@@ -1766,26 +1748,6 @@ export const ChatTab: React.FC<any> = ({ base, platform, t, toast, privateChat =
   });
   const [stickerOpen, setStickerOpen] = useState(false);
   const saveStickers = (s: Sticker[]) => { setStickers(s); localStorage.setItem('dice-stickers', JSON.stringify(s)); };
-  const uploadImage = async (file: File): Promise<Sticker | null> => {
-    try {
-      const dataUrl: string = await new Promise((res, rej) => {
-        const fr = new FileReader(); fr.onload = () => res(String(fr.result)); fr.onerror = rej; fr.readAsDataURL(file);
-      });
-      const r = await fetch('/api/assets/upload', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filename: file.name, data: dataUrl }) });
-      const j = await r.json();
-      if (j.code !== 0) throw new Error(j.message);
-      return { url: j.data.url, code: j.data.code };
-    } catch (e) { toast({ title: t('groups.chat_img_fail'), description: String(e), variant: 'destructive' }); return null; }
-  };
-  const sendImage = async (file: File) => {
-    const s = await uploadImage(file);
-    if (s) await sendRaw(s.code);   // [CQ:image,file=URL] — 发送路径会解析成真图片段
-  };
-  const addSticker = async (file: File) => {
-    const s = await uploadImage(file);
-    if (s) { saveStickers([...stickers, s]); toast({ title: t('groups.chat_sticker_added') }); }
-  };
   // D#10：模拟聊天可直接把任意文件上传到群文件，不必切换到「群文件」选项卡。
   const sendFile = async (file: File) => {
     if (file.size > 30 * 1024 * 1024) { toast({ title: t('groups.files_too_large'), variant: 'destructive' }); return; }
@@ -1872,10 +1834,10 @@ export const ChatTab: React.FC<any> = ({ base, platform, t, toast, privateChat =
                   className="absolute -top-1.5 -right-1.5 hidden group-hover:flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px]">×</button>
               </div>
             ))}
-            <button onClick={() => stickerAddRef.current?.click()}
-              className="h-14 w-14 rounded border border-dashed flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-primary">
-              <Plus className="h-5 w-5" />
-            </button>
+            <ImageResourcePicker directory="chat/stickers" iconOnly className="h-14 w-14 border-dashed" onSelect={(entry) => {
+              setStickers((current) => { const next = [...current, { url: `/api/resources/images/content?id=${encodeURIComponent(entry.id)}`, code: entry.code }]; localStorage.setItem('dice-stickers', JSON.stringify(next)); return next; });
+              toast({ title: t('groups.chat_sticker_added') });
+            }} />
           </div>
           {stickers.length === 0 && <p className="mt-1 text-[11px] text-muted-foreground">{t('groups.chat_sticker_hint')}</p>}
         </div>
@@ -1887,9 +1849,7 @@ export const ChatTab: React.FC<any> = ({ base, platform, t, toast, privateChat =
           catch (e) { toast({ title: t('common.operation_fail'), description: String(e), variant: 'destructive' }); }
         }}><Download className="h-4 w-4" /></Button>}
         {/* C#42: 发送图片 */}
-        <Button variant="outline" size="icon" title={t('groups.chat_send_image')} onClick={() => imgRef.current?.click()}>
-          <ImageIcon className="h-4 w-4" />
-        </Button>
+        <ImageResourcePicker directory="chat" iconOnly onSelect={(entry) => { void sendRaw(entry.code); }} />
         {!privateChat && <Button variant="outline" size="icon" title={t('groups.chat_send_file')} onClick={() => fileRef.current?.click()} disabled={fileUploading}>
           {fileUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
         </Button>}
@@ -1897,10 +1857,6 @@ export const ChatTab: React.FC<any> = ({ base, platform, t, toast, privateChat =
         <Button variant={stickerOpen ? 'secondary' : 'outline'} size="icon" title={t('groups.chat_stickers')} onClick={() => setStickerOpen((v) => !v)}>
           <Smile className="h-4 w-4" />
         </Button>
-        <input ref={imgRef} type="file" accept="image/*" className="hidden"
-          onChange={(e) => { const f = e.target.files?.[0]; if (f) void sendImage(f); e.target.value = ''; }} />
-        <input ref={stickerAddRef} type="file" accept="image/*" className="hidden"
-          onChange={(e) => { const f = e.target.files?.[0]; if (f) void addSticker(f); e.target.value = ''; }} />
         <input ref={fileRef} type="file" className="hidden"
           onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void sendFile(f); }} />
         <Input value={input} placeholder={t('groups.chat_placeholder')} onChange={(e) => setInput(e.target.value)}

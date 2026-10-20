@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { zustandAppStore } from '@/store/app-store';
 import {
-  LayoutDashboard, PlugZap, MessageSquareReply, MessageSquareText, PanelsTopLeft, FolderKanban, Boxes,
+  LayoutDashboard, PlugZap, MessageSquareReply, MessageSquareText, PanelsTopLeft, FolderKanban, FolderOpen, Boxes,
   Settings, Info, ChevronLeft, ChevronDown, FlaskConical, Users, UserCog,
   Map, BookText, Clock, Scroll, ShieldBan, Database, Puzzle, SlidersHorizontal,
   Monitor, HelpCircle, Archive, Sparkles, Wand2, Languages, Cpu, MessageCircle, Drama, Bell, BarChart3, Cloud,
@@ -34,6 +34,7 @@ const NAV: Node[] = [
     { labelKey: 'nav.decks', path: '/decks', icon: FolderKanban },
   ] },
   { labelKey: 'nav.data_mgmt', icon: Database, children: [
+    { labelKey: 'image_resources.title', path: '/files', icon: FolderOpen },
     { labelKey: 'nav.groups', path: '/groups', icon: Users },
     { labelKey: 'nav.players', path: '/players', icon: UserCog },
     { labelKey: 'nav.logs', path: '/logs', icon: Scroll },

@@ -719,7 +719,8 @@ test('reply dialogs use the shared scroll body, keep the fieldset inside and pin
   // directly in dialog-layout.test.mjs; this test checks the form structure.
   assert.equal(tag(scroll), 'DialogBody');
   assert.doesNotMatch(classes(fieldset), /overflow-|flex-1/);
-  assert.match(fieldset.openingElement.getText(tree), /disabled=\{uploading \|\| submitting\}/);
+  assert.match(fieldset.openingElement.getText(tree), /disabled=\{submitting\}/);
+  assert.match(source, /<ImageResourcePicker[\s\S]*?disabled=\{submitting\}/);
   const dialog = scroll.parent;
   assert.equal(tag(dialog), 'DialogContent');
   assert.match(dialog.openingElement.getText(tree), /layout="editor"/);
@@ -730,15 +731,12 @@ test('reply dialogs use the shared scroll body, keep the fieldset inside and pin
   assert.ok(dialog.children.indexOf(footer) > dialog.children.indexOf(scroll));
 });
 
-test('image upload failures are visible and existing replies are not modified', async () => {
-  let error = '', changed = false, busy = false;
-  const run = handler('components/reply/reply-form.tsx', 'uploadImage', {
-    uploading: false, imgTarget: { current: 0 }, setUploading: (v) => { busy = v; }, setError: (v) => { error = v; },
-    setResults: () => { changed = true; }, t: (s) => s,
-    FileReader: class { readAsDataURL() { this.result = 'data:image/png;base64,x'; this.onload(); } },
-    fetch: async () => ({ json: async () => ({ code: 1, message: 'upload refused' }) }),
-  });
-  await run({ name: 'a.png' }); assert.match(error, /upload refused/); assert.equal(changed, false); assert.equal(busy, false);
+test('reply image insertion delegates upload failures to the shared picker and only changes the selected result', () => {
+  const source = fs.readFileSync(new URL('../src/components/reply/reply-form.tsx', import.meta.url), 'utf8');
+  assert.doesNotMatch(source, /\/api\/assets\/upload|readAsDataURL/);
+  assert.match(source, /onSelect=\{\(entry\) => setResults\(\(rs\) => rs\.map\(\(value, idx\) => idx === i \? value \+ entry\.code : value\)\)\}/);
+  // Failure and cancellation are executed against the real shared browser in
+  // image-resources.test.mjs; there is no second private upload implementation.
 });
 
 test('reply scope keeps platforms and individual accounts distinct, including IDs containing colons', () => {
