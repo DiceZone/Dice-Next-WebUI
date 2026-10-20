@@ -15,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ADMIN_PASSWORD_MAX_LENGTH, isValidAdminPassword, sanitizeAdminPassword } from '@/lib/admin-password';
 import { Monitor, Key, Eye, EyeOff, Copy, Palette, Terminal, Lock, Server, RefreshCw } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
+import { SsoSettingsCard } from '@/components/settings/sso-settings-card';
 
 export const WebuiSettingsPage: React.FC = () => {
   const { t } = useTranslation();
@@ -210,6 +211,9 @@ export const WebuiSettingsPage: React.FC = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* 第三方登录 */}
+      <SsoSettingsCard />
 
       {/* 运行 IP / 端口 */}
       <Card data-setting-anchor="webui-server">

@@ -58,6 +58,7 @@
     "src/lib/settings-search.ts",
     "src/lib/update-error-notice.ts",
     "src/lib/system-update.ts",
+    "src/lib/sso.ts",
     "src/lib/api-client.ts",
     "src/lib/build-time.ts",
     "src/lib/onboarding.ts",
