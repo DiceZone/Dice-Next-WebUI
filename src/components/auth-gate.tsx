@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ADMIN_PASSWORD_MAX_LENGTH, isValidAdminPassword, sanitizeAdminPassword } from '@/lib/admin-password';
+import { isHttpsPanel, ssoStartUrl, takeSsoResult, type SsoLoginProvider } from '@/lib/sso';
 
 /**
  * WebUI 登录门（C#34）。挂在 AppRouter 外层：
@@ -18,12 +19,14 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const [trustDevice, setTrustDevice] = useState(false);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
+  const [ssoProviders, setSsoProviders] = useState<SsoLoginProvider[]>([]);
 
   const check = async () => {
     try {
       const r = await fetch('/api/auth/status');
       const j = await r.json();
       const d = j.data || {};
+      setSsoProviders(Array.isArray(d.sso) ? d.sso : []);
       if (d.need_setup) setState('setup');
       else if (d.required && !d.authed) setState('login');
       else setState('ok');
@@ -31,7 +34,13 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
       setState('ok');
     }
   };
-  useEffect(() => { void check(); }, []);
+  useEffect(() => {
+    // 第三方登录回调带回的结果只显示一次，随即从地址栏清掉。
+    const result = takeSsoResult();
+    if (result.error) setErr(t(result.error));
+    void check();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const setup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -249,6 +258,26 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
         >
           {busy ? t('auth.logging_in') : t('auth.login')}
         </button>
+        {ssoProviders.length > 0 && (
+          <div className="mt-5 space-y-2">
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              <span className="h-px flex-1 bg-border" />{t('sso.login_divider')}<span className="h-px flex-1 bg-border" />
+            </div>
+            {ssoProviders.map((provider) => (
+              <button
+                key={provider.id}
+                type="button"
+                disabled={!isHttpsPanel()}
+                onClick={() => { window.location.href = ssoStartUrl(provider.id); }}
+                className="flex w-full items-center justify-center gap-2 rounded-md border bg-background px-3 py-2 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
+              >
+                {provider.logo && <img src={provider.logo} alt="" className="h-4 w-4 rounded object-contain" />}
+                {t('sso.login_with', { name: provider.kind === 'bdc' ? t('sso.bdc_name') : provider.name })}
+              </button>
+            ))}
+            {!isHttpsPanel() && <p className="text-xs text-muted-foreground">{t('sso.https_required')}</p>}
+          </div>
+        )}
       </form>
 
       <p className="relative mt-6 text-xs text-muted-foreground">Dice!Next © 2025-2026 DiceZone</p>
