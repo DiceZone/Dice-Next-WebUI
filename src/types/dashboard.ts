@@ -26,8 +26,10 @@ export interface DashboardStats {
   recent_logs: RecentLogEntry[];
 }
 
-/** A mounted fixed disk / volume. */
+/** The filesystem containing the running instance's main database, not folder size. */
 export interface DiskInfo {
+  /** Resolved data path; optional for older backends. */
+  path?: string;
   mount: string;
   label: string;
   fs: string;

@@ -46,7 +46,7 @@ const system: SystemInfo = {
   os: 'Linux · 示例服务器', os_id: 'server', cpu_model: 'Virtual CPU', cpu_cores: 4,
   cpu_physical: 2, cpu_mhz: 2400, cpu_load: 18, mem_total_mb: 4096, mem_used_mb: 1024,
   mem_load: 25, mem_speed_mhz: 0, proc_mem_mb: 128,
-  disks: [{ mount: '/', label: '示例磁盘', fs: 'ext4', model: '', total_gb: 80, used_gb: 16, load: 20 }],
+  disks: [{ path: '/opt/dice-next/data/dice.db', mount: '/', label: '示例磁盘', fs: 'ext4', model: '', total_gb: 80, used_gb: 16, load: 20 }],
 };
 const dashboard: DashboardStats = {
   uptime_seconds: 93600, active_connections: 1, total_adapters: 1, total_commands: 128,

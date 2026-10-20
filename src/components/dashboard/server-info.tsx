@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Cpu, MemoryStick, HardDrive, Server } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { FeatureHelp } from '@/components/ui/feature-help';
 import { cn } from '@/lib/utils';
 import apiClient from '@/lib/api-client';
 import type { SystemInfo } from '@/types/dashboard';
@@ -122,17 +123,21 @@ export const ServerInfo: React.FC = () => {
           history={memHistory} />
 
         <div className="space-y-3">
-          <div className="flex items-center gap-2 text-sm font-medium"><HardDrive className="h-4 w-4 text-muted-foreground" />{t('dashboard.disk')}</div>
+          <div className="flex items-center gap-2 text-sm font-medium"><HardDrive className="h-4 w-4 text-muted-foreground" />{t('dashboard.disk')}
+            <FeatureHelp title={t('dashboard.disk')} description={<p>{t('dashboard.disk_hint')}</p>} />
+          </div>
+          {info.disks.length === 0 && <p className="text-xs text-muted-foreground">{t('dashboard.disk_unavailable')}</p>}
           {info.disks.map((d) => (
-            <div key={d.mount} className="space-y-1">
+            <div key={d.mount} data-disk-path={d.path || d.mount} className="space-y-1">
               <div className="flex items-center justify-between gap-3 text-xs">
-                <span className="truncate">
+                <span className="min-w-0 truncate" title={d.path || d.mount}>
                   <span className="font-medium">{d.mount}</span>
                   {d.label && <span className="text-muted-foreground"> {d.label}</span>}
                   {d.model && <span className="text-muted-foreground"> · {d.model}</span>}
                 </span>
                 <span className="shrink-0 tabular-nums text-muted-foreground">{d.used_gb} / {d.total_gb} GB · {d.load}%</span>
               </div>
+              {d.path && <p className="truncate text-xs text-muted-foreground" title={d.path}>{t('dashboard.disk_path', { path: d.path })}</p>}
               <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
                 <div className={cn('h-full rounded-full bg-current transition-all', loadColor(d.load))} style={{ width: `${Math.min(100, d.load)}%` }} />
               </div>

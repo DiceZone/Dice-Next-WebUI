@@ -1,6 +1,6 @@
-import { useTourState } from '@/components/onboarding/tour-data';
+import { useTourActive, useTourState, useTourValue } from '@/components/onboarding/tour-data';
 import { tourSamples } from '@/lib/tour-samples';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArrowDown, ArrowUp, ArrowUpDown, CircleStop, Loader2, RefreshCw, Scroll, Search, ScrollText, UsersRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,9 @@ import { LogActionButtons } from '@/components/log-action-buttons';
 import { PageHeader } from '@/components/ui/page-header';
 import { FeatureHelp } from '@/components/ui/feature-help';
 import { PaginationBar } from '@/components/ui/pagination-bar';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { useServerListPage } from '@/hooks/use-server-list-page';
+import { serverListUrl } from '@/lib/server-list-page';
 
 interface GameLog {
   id: number;
@@ -44,17 +47,10 @@ interface GameSession {
   groupNames?: Record<string, string>;
 }
 
-interface LogPage { items: GameLog[]; total: number; page: number; size: number; }
 type SortKey = 'name' | 'group' | 'status' | 'count' | 'storage' | 'game' | 'creator' | 'createdAt' | 'lastAt';
+type SessionSortKey = 'name' | 'code' | 'status' | 'logCount' | 'createdAt';
 type SortDirection = 'asc' | 'desc';
 const PAGE_SIZE = 20;
-
-async function getJson<T>(url: string): Promise<T> {
-  const response = await fetch(url);
-  const body = await response.json();
-  if (body.code !== 0) throw new Error(body.message || 'request failed');
-  return body.data as T;
-}
 
 function formatBytes(value: number): string {
   const bytes = Number.isFinite(value) && value > 0 ? value : 0;
@@ -70,17 +66,26 @@ export const LogsPage: React.FC = () => {
   const { t } = useTranslation();
   const toast = useToast();
   const dlg = useDialogs(t);
-  const [logs, setLogs] = useTourState<GameLog[]>([], tourSamples.gameLogs);
-  const [logTotal, setLogTotal] = useTourState(0, tourSamples.gameLogs.length);
+  const touring = useTourActive();
   const [page, setPage] = useState(1);
-  const [sessions, setSessions] = useTourState<GameSession[]>([], tourSamples.sessions);
-  const [loading, setLoading] = useTourState(true, false);
-  const [logsLoading, setLogsLoading] = useState(false);
+  const [sessionPage, setSessionPage] = useState(1);
   const [activeTab, setActiveTab] = useTourState<'logs' | 'sessions'>('logs', 'logs');
   const [query, setQuery] = useTourState('', '');
   const [searchTerm, setSearchTerm] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('lastAt');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [sessionSort, setSessionSort] = useState<SessionSortKey>('status');
+  const [sessionDirection, setSessionDirection] = useState<SortDirection>('desc');
+  const logList = useServerListPage<GameLog>(serverListUrl('/logs', page, PAGE_SIZE, searchTerm, sortKey, sortDirection));
+  const sessionList = useServerListPage<GameSession>(serverListUrl('/game-sessions', sessionPage, PAGE_SIZE, searchTerm, sessionSort, sessionDirection));
+  const logs = useTourValue(logList.data?.items || [], tourSamples.gameLogs);
+  const logTotal = useTourValue(logList.data?.total || 0, tourSamples.gameLogs.length);
+  const sessions = useTourValue(sessionList.data?.items || [], tourSamples.sessions);
+  const sessionTotal = useTourValue(sessionList.data?.total || 0, tourSamples.sessions.length);
+  const logsLoading = !touring && logList.loading;
+  const sessionsLoading = !touring && sessionList.loading;
+  const loadLogs = logList.load;
+  const loadSessions = sessionList.load;
   const [uploading, setUploading] = useState<number | null>(null);
   const [uploadingCross, setUploadingCross] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<number | null>(null);
@@ -91,42 +96,26 @@ export const LogsPage: React.FC = () => {
   const sessionGroupLabel = useCallback((session: GameSession, id: string) =>
     `${groupName(id, session.groupNames?.[id])} (${id})`, [groupName]);
 
-  // The search box filters both tabs; the server-side log query waits for typing to pause.
+  // Both tabs search the full server catalogue, not just the visible page.
   useEffect(() => {
-    const timer = window.setTimeout(() => { setSearchTerm(query.trim()); setPage(1); }, 300);
+    if (touring) return;
+    const timer = window.setTimeout(() => { setSearchTerm(query.trim()); setPage(1); setSessionPage(1); }, 300);
     return () => window.clearTimeout(timer);
-  }, [query]);
-
-  const loadLogs = useCallback(async () => {
-    setLogsLoading(true);
-    try {
-      const params = new URLSearchParams({ page: String(page), size: String(PAGE_SIZE), sort: sortKey, dir: sortDirection });
-      if (searchTerm) params.set('q', searchTerm);
-      const result = await getJson<LogPage>(`/api/logs?${params}`);
-      setLogs(result.items || []);
-      setLogTotal(result.total || 0);
-      const lastPage = Math.max(1, Math.ceil((result.total || 0) / PAGE_SIZE));
-      if (page > lastPage) setPage(lastPage);
-    } catch {
-      toast({ title: t('common.load_fail'), variant: 'destructive' });
-    } finally {
-      setLogsLoading(false);
-    }
-  }, [page, searchTerm, sortDirection, sortKey, t, toast]);
-
-  const loadSessions = useCallback(async () => {
-    try { setSessions(await getJson<GameSession[]>('/api/game-sessions') || []); }
-    catch { toast({ title: t('common.load_fail'), variant: 'destructive' }); }
-  }, [t, toast]);
+  }, [query, touring]);
 
   const load = useCallback(async () => {
-    setLoading(true);
-    try { await Promise.all([loadLogs(), loadSessions()]); }
-    finally { setLoading(false); }
-  }, [loadLogs, loadSessions]);
+    if (!touring) await Promise.all([loadLogs(), loadSessions()]);
+  }, [loadLogs, loadSessions, touring]);
 
-  useEffect(() => { void loadSessions().finally(() => setLoading(false)); }, [loadSessions]);
-  useEffect(() => { void loadLogs(); }, [loadLogs]);
+  useEffect(() => {
+    if (touring || !logList.data || logsLoading || logList.error) return;
+    const last = Math.max(1, Math.ceil(logList.data.total / PAGE_SIZE));
+    if (page > last) setPage(last);
+  }, [touring, logList.data, logList.error, logsLoading, page]);
+  useEffect(() => {
+    if (!touring && sessionList.data && !sessionsLoading && !sessionList.error && sessionPage !== sessionList.data.page)
+      setSessionPage(sessionList.data.page);
+  }, [touring, sessionList.data, sessionList.error, sessionsLoading, sessionPage]);
 
   const status = (value: number) => value === 0 ? t('logs.status_active') : value === 1 ? t('logs.status_paused') : t('logs.status_ended');
   const cycleSort = (key: SortKey) => {
@@ -134,14 +123,6 @@ export const LogsPage: React.FC = () => {
     else { setSortKey(key); setSortDirection(key === 'count' || key === 'storage' ? 'desc' : 'asc'); }
     setPage(1);
   };
-
-  const visibleSessions = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
-    if (!normalized) return sessions;
-    return sessions.filter((session) => [
-      session.name, session.code, ...session.groups.map((id) => sessionGroupLabel(session, id)), ...session.gms, ...session.players,
-    ].some((value) => (value || '').toLowerCase().includes(normalized)));
-  }, [query, sessionGroupLabel, sessions]);
 
   const exportLog = (id: number, format: 'txt' | 'csv' | 'html') => {
     const anchor = document.createElement('a');
@@ -168,7 +149,7 @@ export const LogsPage: React.FC = () => {
       const body = await response.json();
       if (!response.ok || body.code !== 0) throw new Error(body.message || t('common.delete_fail'));
       toast({ title: t('logs.deleted', { name: log.name }) });
-      await loadLogs();
+      await load();
     } catch (error) {
       toast({ title: t('common.delete_fail'), description: String(error), variant: 'destructive' });
     } finally {
@@ -289,14 +270,13 @@ export const LogsPage: React.FC = () => {
   return <div className="space-y-6">
     {dlg.node}
     <PageHeader icon={Scroll} title={t('logs.title')} description={t('logs.subtitle')} help={t('page_help.logs')}
-      actions={<Button variant="outline" onClick={load} disabled={loading}><RefreshCw className="mr-2 h-4 w-4" />{t('common.refresh')}</Button>} />
+      actions={<Button variant="outline" onClick={load} disabled={logsLoading || sessionsLoading}><RefreshCw className="mr-2 h-4 w-4" />{t('common.refresh')}</Button>} />
 
     <div data-tour="logs-search" className="relative max-w-xl">
       <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-      <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('logs.search_ph')} className="h-10 w-full rounded-md border bg-background pl-9 pr-3 text-sm" />
+      <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t(activeTab === 'sessions' ? 'logs.session_search_ph' : 'logs.search_ph')} className="h-10 w-full rounded-md border bg-background pl-9 pr-3 text-sm" />
     </div>
 
-    {loading ? <LoadingState /> :
       <Tabs
         value={activeTab}
         onValueChange={(value) => setActiveTab(value === 'sessions' ? 'sessions' : 'logs')}
@@ -304,11 +284,12 @@ export const LogsPage: React.FC = () => {
       >
         <TabsList variant="page" data-tour="logs-tabs" aria-label={t('logs.title')}>
           <TabsTrigger value="logs"><ScrollText className="h-4 w-4" />{t('logs.tab_logs')} ({logTotal})</TabsTrigger>
-          <TabsTrigger value="sessions"><UsersRound className="h-4 w-4" />{t('logs.tab_sessions')} ({visibleSessions.length})</TabsTrigger>
+          <TabsTrigger value="sessions"><UsersRound className="h-4 w-4" />{t('logs.tab_sessions')} ({sessionTotal})</TabsTrigger>
         </TabsList>
 
         <TabsContent data-tour="logs-content" value="logs" className="mt-0">
-          {logs.length === 0 ? (logsLoading ? <LoadingState /> : <div className="rounded-lg border border-dashed py-14 text-center text-muted-foreground">{t('logs.no_logs')}</div>) :
+          {!touring && logList.error ? <div role="alert" className="rounded-lg border border-destructive/40 p-5 text-sm"><p>{t('common.load_fail')}</p><Button className="mt-3" variant="outline" onClick={() => void loadLogs()}>{t('common.retry')}</Button></div> :
+          logs.length === 0 ? (logsLoading ? <LoadingState /> : <div className="rounded-lg border border-dashed py-14 text-center text-muted-foreground">{t('logs.no_logs')}</div>) :
             <div className={logsLoading ? 'space-y-3 opacity-60' : 'space-y-3'}>
             <div className="rt-frame overflow-x-auto rounded-lg border">
               <table className="rt rt-record rt-with-status w-full sm:min-w-[1220px] text-sm">
@@ -343,8 +324,26 @@ export const LogsPage: React.FC = () => {
         </TabsContent>
 
         <TabsContent value="sessions" className="mt-0 space-y-3">
-          {visibleSessions.length === 0 ? <p className="rounded-lg border border-dashed p-5 text-sm text-muted-foreground">{t('logs.no_sessions')}</p> :
-            <div className="grid gap-4 xl:grid-cols-2">{visibleSessions.map((session) => {
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm text-muted-foreground">{t('common.sort')}</span>
+            <Select value={sessionSort} onValueChange={(value) => { setSessionSort(value as SessionSortKey); setSessionPage(1); }}>
+              <SelectTrigger aria-label={t('common.sort')} className="h-9 w-36"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="status">{t('logs.session_status')}</SelectItem>
+                <SelectItem value="name">{t('logs.session_name')}</SelectItem>
+                <SelectItem value="code">{t('logs.session_code')}</SelectItem>
+                <SelectItem value="createdAt">{t('logs.col_created')}</SelectItem>
+                <SelectItem value="logCount">{t('logs.log_stats')}</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button variant="outline" size="sm" onClick={() => { setSessionDirection((old) => old === 'asc' ? 'desc' : 'asc'); setSessionPage(1); }}>
+              {sessionDirection === 'asc' ? <ArrowUp className="mr-1 h-4 w-4" /> : <ArrowDown className="mr-1 h-4 w-4" />}
+              {t(sessionDirection === 'asc' ? 'logs.sort_asc' : 'logs.sort_desc')}
+            </Button>
+          </div>
+          {!touring && sessionList.error ? <div role="alert" className="rounded-lg border border-destructive/40 p-5 text-sm"><p>{t('common.load_fail')}</p><Button className="mt-3" variant="outline" onClick={() => void loadSessions()}>{t('common.retry')}</Button></div> :
+          sessions.length === 0 ? (sessionsLoading ? <LoadingState /> : <p className="rounded-lg border border-dashed p-5 text-sm text-muted-foreground">{t(searchTerm ? 'logs.no_matching_sessions' : 'logs.no_sessions')}</p>) :
+            <div aria-busy={sessionsLoading} className={sessionsLoading ? 'grid gap-4 opacity-60 xl:grid-cols-2' : 'grid gap-4 xl:grid-cols-2'}>{sessions.map((session) => {
               return <article key={session.code} className="rounded-lg border p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div><h2 className="font-semibold">{session.name}</h2><p className="mt-1 font-mono text-xs text-muted-foreground">{t('logs.session_code')} {session.code}</p></div>
@@ -371,8 +370,9 @@ export const LogsPage: React.FC = () => {
                 </dl>
               </article>;
             })}</div>}
+          {(touring || !sessionList.error) && <PaginationBar total={sessionTotal} page={sessionPage} pageSize={PAGE_SIZE} onPageChange={setSessionPage} fixedSize disabled={sessionsLoading} />}
         </TabsContent>
-      </Tabs>}
+      </Tabs>
   </div>;
 };
 
