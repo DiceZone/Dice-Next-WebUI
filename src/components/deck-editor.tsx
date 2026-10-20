@@ -78,7 +78,7 @@ export function DeckEditor({ filename, title, initialContent, initialGroup, onCl
 
   return <>
     <Dialog open onOpenChange={(open) => { if (!open) void close(); }}>
-      <DialogContent className="flex max-h-[90dvh] max-w-5xl flex-col gap-0 overflow-hidden p-0" onInteractOutside={(event) => event.preventDefault()}>
+      <DialogContent layout="editor" className="max-w-5xl gap-0 p-0" onInteractOutside={(event) => event.preventDefault()}>
         <DialogHeader className="shrink-0 border-b px-5 py-5 text-left sm:px-6">
           <DialogTitle className="flex items-center gap-1.5 pr-8">{t('decks.edit_title', { title })}
             <FeatureHelp title={t('decks.edit_title', { title })} description={<p>{t('ui_refresh.edit_hint')}</p>} />
@@ -92,7 +92,7 @@ export function DeckEditor({ filename, title, initialContent, initialGroup, onCl
           </div>
           {parsed.error && <div role="alert" className="flex gap-2 border-b bg-destructive/5 px-5 py-3 text-sm text-destructive"><AlertCircle className="h-4 w-4 shrink-0" /><span>{t('ui_refresh.invalid_json')}：{parsed.error === 'invalid_deck' ? t('ui_refresh.invalid_deck') : parsed.error}</span></div>}
           <TabsContent value={mode} className="mt-0 flex min-h-0 flex-1 flex-col">
-          {mode === 'source' ? <div className="flex min-h-0 flex-1 flex-col gap-3 p-5">
+          {mode === 'source' ? <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain p-5 [scrollbar-gutter:stable]">
             <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground"><span>{parsed.error ? '' : t('ui_refresh.valid')}</span><Button variant="outline" size="sm" disabled={saving || !parsed.document} onClick={() => setContent(JSON.stringify(parsed.document, null, 2))}>{t('ui_refresh.format')}</Button></div>
             <Textarea disabled={saving} aria-label={t('ui_refresh.source')} value={content} onChange={(event) => setContent(event.target.value)} spellCheck={false} className="min-h-[20dvh] flex-1 resize-none bg-muted/20 font-mono text-xs leading-relaxed" />
           </div> : <div className="flex min-h-0 flex-1 flex-col">
@@ -103,7 +103,7 @@ export function DeckEditor({ filename, title, initialContent, initialGroup, onCl
               </Select>
               <Button size="sm" variant="outline" onClick={() => void addGroup()} disabled={saving || !parsed.document}><Plus className="mr-1.5 h-4 w-4" />{t('ui_refresh.add_group')}</Button>
             </div>
-            <div className="min-h-0 overflow-y-auto bg-muted/15 p-5">
+            <div className="min-h-0 flex-1 overflow-y-auto bg-muted/15 p-5 [scrollbar-gutter:stable]">
               {entries ? <div className="space-y-3">
                 {entries.slice(offset, offset + 30).map((entry, index) => <div key={offset + index} className="flex items-start gap-2 rounded-lg border bg-card p-3 shadow-sm">
                   <span className="w-6 shrink-0 pt-2 text-right font-mono text-xs text-muted-foreground">{offset + index + 1}</span>

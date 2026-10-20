@@ -4,6 +4,7 @@ import {
   Dialog,
   DialogContent,
   DialogHeader,
+  DialogBody,
   DialogTitle,
   DialogDescription,
   DialogFooter,
@@ -158,7 +159,7 @@ export const ReplyForm: React.FC<ReplyFormProps> = ({ open, onOpenChange, onSubm
 
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!submitting && !uploading) onOpenChange(next); }}>
-      <DialogContent className="max-w-2xl lg:max-w-6xl max-h-[90dvh] flex flex-col overflow-hidden">
+      <DialogContent layout="editor" className="max-w-2xl lg:max-w-6xl">
         <DialogHeader className="shrink-0">
           <DialogTitle className="flex items-center gap-1.5 pr-6">
             {eventTrigger ? t('replies.poke_title') : isEdit ? t('replies.edit_title') : t('replies.add_title')}
@@ -171,7 +172,7 @@ export const ReplyForm: React.FC<ReplyFormProps> = ({ open, onOpenChange, onSubm
         </DialogHeader>
 
         {/* fieldset 的匿名内容盒在收缩时可能溢出；由普通容器承担滚动，保留整组禁用语义。 */}
-        <div data-reply-scroll className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain pr-2">
+        <DialogBody data-reply-scroll className="pr-2">
         <fieldset disabled={uploading || submitting} className="min-w-0 space-y-5 pb-1">
           {headerSlot}
           <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
@@ -346,7 +347,7 @@ export const ReplyForm: React.FC<ReplyFormProps> = ({ open, onOpenChange, onSubm
           </div>
           {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
         </fieldset>
-        </div>
+        </DialogBody>
 
         <DialogFooter className="shrink-0 border-t pt-4 gap-2">
           {onReset && <Button type="button" variant="ghost" className="sm:mr-auto" disabled={uploading || submitting || disabled} onClick={async () => {

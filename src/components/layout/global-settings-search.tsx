@@ -145,11 +145,11 @@ export const GlobalSettingsSearch: React.FC<GlobalSettingsSearchProps> = ({ onNa
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-2xl">
+      <DialogContent layout="editor" className="h-[min(80dvh,40rem)] gap-0 p-0 sm:max-w-2xl">
         <DialogTitle className="sr-only">{t('global_search.title')}</DialogTitle>
         <DialogDescription className="sr-only">{t('global_search.description')}</DialogDescription>
 
-        <div className="border-b p-4 pr-12">
+        <div className="shrink-0 border-b p-4 pr-12">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -167,14 +167,14 @@ export const GlobalSettingsSearch: React.FC<GlobalSettingsSearchProps> = ({ onNa
           </div>
         </div>
 
-        <div className="flex items-center justify-between border-b bg-muted/25 px-4 py-2 text-xs text-muted-foreground">
+        <div className="flex shrink-0 items-center justify-between gap-2 border-b bg-muted/25 px-4 py-2 text-xs text-muted-foreground">
           <span>{query.trim() ? t('global_search.results', { count: results.length }) : t('global_search.suggested')}</span>
           <span>{t('global_search.scope_hint')}</span>
         </div>
 
-        <ScrollArea id="global-settings-search-results" className="max-h-[min(55vh,28rem)] p-2" role="listbox">
+        <ScrollArea id="global-settings-search-results" className="min-h-0 flex-1 p-2 overscroll-contain [scrollbar-gutter:stable]" role="listbox">
           {results.length === 0 ? (
-            <div className="flex min-h-48 flex-col items-center justify-center gap-2 px-6 text-center text-muted-foreground">
+            <div className="flex h-full min-h-0 flex-col items-center justify-center gap-2 px-6 py-4 text-center text-muted-foreground">
               <Search className="h-8 w-8 opacity-35" />
               <p className="text-sm font-medium text-foreground">{t('global_search.empty')}</p>
               <p className="text-xs">{t('global_search.empty_hint')}</p>
@@ -240,7 +240,7 @@ export const GlobalSettingsSearch: React.FC<GlobalSettingsSearchProps> = ({ onNa
           ))}
         </ScrollArea>
 
-        <div className="flex items-center gap-4 border-t bg-muted/25 px-4 py-2 text-[11px] text-muted-foreground">
+        <div className="flex shrink-0 items-center gap-4 border-t bg-muted/25 px-4 py-2 text-[11px] text-muted-foreground">
           <span className="flex items-center gap-1"><kbd className="rounded border bg-background px-1">↑↓</kbd>{t('global_search.move')}</span>
           <span className="flex items-center gap-1"><kbd className="rounded border bg-background p-0.5"><CornerDownLeft className="h-3 w-3" /></kbd>{t('global_search.open_result')}</span>
           <span className="ml-auto"><kbd className="rounded border bg-background px-1">Esc</kbd></span>

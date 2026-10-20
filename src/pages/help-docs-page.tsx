@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogBody, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useDialogs } from '@/hooks/use-dialogs';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
@@ -204,13 +204,13 @@ export const HelpDocsPage: React.FC = () => {
       </> : <div className="flex min-h-64 flex-col items-center justify-center gap-3 p-6 text-muted-foreground"><FileText className="h-8 w-8" /><p className="text-sm">{t('helpdoc.empty')}</p></div>}</Card>
     </div>
     <Dialog open={!!edit} onOpenChange={(open) => { if (!open) void closeEditor(); }}>
-      {edit && <DialogContent className="flex max-h-[90dvh] max-w-4xl flex-col overflow-hidden"><DialogHeader><DialogTitle className="flex items-center gap-1.5 pr-6">{t(edit.mode === 'new' ? 'helpdoc.new' : 'helpdoc.edit')}
+      {edit && <DialogContent layout="editor" className="max-w-4xl"><DialogHeader><DialogTitle className="flex items-center gap-1.5 pr-6">{t(edit.mode === 'new' ? 'helpdoc.new' : 'helpdoc.edit')}
         <FeatureHelp title={t(edit.mode === 'new' ? 'helpdoc.new' : 'helpdoc.edit')} description={<p>{t(edit.mode === 'builtin' ? 'ui_refresh.help_builtin_hint' : edit.mode === 'custom' ? 'help_library.custom_hint' : 'ui_refresh.help_file_hint')}</p>} />
       </DialogTitle><DialogDescription>{t(edit.mode === 'builtin' ? 'ui_refresh.help_builtin_hint' : edit.mode === 'custom' ? 'help_library.custom_hint' : 'ui_refresh.help_file_hint')}</DialogDescription></DialogHeader>
-        <div className="min-h-0 space-y-4 overflow-y-auto"><label className="block space-y-2 text-sm"><span>{t('helpdoc.name')}</span><Input value={edit.name} disabled={edit.mode !== 'new' || busy} placeholder={t('helpdoc.name_ph')} onChange={(event) => setEdit({ ...edit, name: event.target.value })} /></label>
+        <DialogBody className="space-y-4"><label className="block space-y-2 text-sm"><span>{t('helpdoc.name')}</span><Input value={edit.name} disabled={edit.mode !== 'new' || busy} placeholder={t('helpdoc.name_ph')} onChange={(event) => setEdit({ ...edit, name: event.target.value })} /></label>
           {edit.i18nKey && <div className="space-y-2"><p className="text-xs text-muted-foreground">{t('help_library.language', { locale: edit.locale })}</p><Select value={edit.format} disabled={busy} onValueChange={(format) => setEdit({ ...edit, format: format as 'plain' | 'markdown' })}><SelectTrigger aria-label={t('commands.format_label')}><SelectValue /></SelectTrigger><SelectContent><SelectItem value="plain">{t('commands.format_plain')}</SelectItem><SelectItem value="markdown">{t('commands.format_markdown')}</SelectItem></SelectContent></Select></div>}
           <label className="block space-y-2 text-sm"><span>{t('ui_refresh.help_content')}</span><Textarea className="min-h-[35vh] font-mono text-sm leading-relaxed sm:min-h-[45vh]" spellCheck={false} value={edit.content} disabled={busy} onChange={(event) => setEdit({ ...edit, content: event.target.value })} /></label>
-        </div>
+        </DialogBody>
         <DialogFooter className="shrink-0 gap-2 border-t pt-4"><span className="mr-auto self-center text-xs text-muted-foreground">{dirty ? t('ui_refresh.unsaved') : ''}</span><Button variant="outline" disabled={busy} onClick={closeEditor}>{t('common.cancel')}</Button><Button disabled={busy} onClick={save}>{t(busy ? 'common.loading' : 'common.save')}</Button></DialogFooter>
       </DialogContent>}
     </Dialog>

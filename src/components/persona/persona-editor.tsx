@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogBody, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
 import { FeatureHelp } from '@/components/ui/feature-help';
 import { Button } from '@/components/ui/button';
@@ -108,7 +108,7 @@ export const PersonaEditor: React.FC<Props> = ({ persona, onClose, onChanged }) 
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
+      <DialogContent layout="editor" className="max-w-3xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-1.5 pr-6">{t('persona.ed.title', { name: persona.name })}
             <FeatureHelp title={t('persona.ed.title', { name: persona.name })} description={<><p>{t('feature_help.persona_editor_desc')}</p><p>{t('weighted.reply_hint')}</p></>} />
@@ -116,28 +116,29 @@ export const PersonaEditor: React.FC<Props> = ({ persona, onClose, onChanged }) 
           <DialogDescription className="sr-only">{t('feature_help.persona_editor_desc')}</DialogDescription>
         </DialogHeader>
 
+        <DialogBody className="space-y-3">
         {/* Add new entry */}
-        <div className="flex items-end gap-2 py-2 border-b pb-3">
-          <div className="flex-1 space-y-1">
+        <div className="grid shrink-0 grid-cols-2 items-end gap-2 border-b py-2 pb-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_auto]">
+          <div className="min-w-0 space-y-1">
             <Label className="text-xs">{t('persona.ed.key_label')}</Label>
             <Input value={newKey} onChange={(e) => setNewKey(e.target.value)} placeholder="dice.roll.result" className="h-8 text-sm" />
           </div>
-          <div className="flex-[2] space-y-1">
+          <div className="min-w-0 space-y-1">
             <Label className="text-xs">{t('persona.ed.value_label')}</Label>
             <Input value={newValue} onChange={(e) => setNewValue(e.target.value)} placeholder={t('persona.ed.value_ph')} className="h-8 text-sm" />
           </div>
-          <Button size="sm" onClick={handleAdd}><Plus className="mr-1 h-4 w-4" />{t('common.add')}</Button>
+          <Button size="sm" className="col-span-2 sm:col-span-1" onClick={handleAdd}><Plus className="mr-1 h-4 w-4" />{t('common.add')}</Button>
         </div>
 
         {/* Search */}
-        <div className="relative py-2">
+        <div className="relative shrink-0 py-2">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder={t('persona.ed.search')} className="pl-9 h-8 text-sm" />
         </div>
 
         {/* Entry list */}
         {!loading && !supportsWeighted && <p role="alert" className="text-xs text-destructive">{t('weighted.backend_required')}</p>}
-        <div className="flex-1 overflow-y-auto space-y-1 min-h-[200px]">
+        <div className="space-y-1">
           {loading ? (
             <div className="h-32 animate-pulse rounded-lg bg-muted" />
           ) : filtered.length === 0 ? (
@@ -178,6 +179,7 @@ export const PersonaEditor: React.FC<Props> = ({ persona, onClose, onChanged }) 
             })
           )}
         </div>
+        </DialogBody>
 
         <DialogFooter>
           <span className="text-xs text-muted-foreground mr-auto">{t('persona.ed.count', { count: entries.length })}</span>

@@ -7,8 +7,9 @@ import { WeightedTemplateEditor } from '@/components/persona/weighted-template-e
 import { readTemplateVariants, writeTemplateVariants, templateSummary, validWeights } from '@/lib/weighted-templates';
 import { AdvancedOptions } from '@/components/ui/advanced-options';
 import {
-  Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription,
+  Dialog, DialogContent, DialogHeader, DialogBody, DialogFooter, DialogTitle, DialogDescription,
 } from '@/components/ui/dialog';
+import { AsyncPreview } from '@/components/ui/async-preview';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
@@ -774,14 +775,14 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="flex max-h-[90dvh] max-w-2xl flex-col overflow-hidden lg:max-w-6xl">
+      <DialogContent layout="editor" className="max-w-2xl lg:max-w-6xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-1.5 pr-6">{description || cmd || reply.key}
             <FeatureHelp title={description || cmd || reply.key} description={<p>{t('commands.var_insert_hint')}</p>} />
           </DialogTitle>
           <DialogDescription className={reply.v2key ? undefined : 'sr-only'}>{t('commands.var_insert_hint')}{reply.v2key ? `　${t('commands.v2_label')}: ${reply.v2key}` : ''}</DialogDescription>
         </DialogHeader>
-        <div className="grid min-h-0 flex-1 items-start gap-5 overflow-y-auto pr-1 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+        <DialogBody className="grid items-start gap-5 pr-1 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
         <div className="min-w-0 space-y-4">
           {reply.outcome && <div className="space-y-2 rounded-lg border bg-primary/5 p-3">
             <div className="flex items-center justify-between gap-3">
@@ -831,10 +832,10 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
             </div>
             <label className="mt-2 flex items-center gap-2 text-xs"><Switch checked={previewPlain} onCheckedChange={setPreviewPlain} />{t('commands.preview_force_plain')}</label>
             <p className="mt-2 text-[11px] text-muted-foreground">{t('feature_help.preview_note')}</p>
-            {previewLoading ? <p role="status" className="mt-3 text-xs text-muted-foreground">{t('common.loading')}</p>
-              : previewFailed ? <p role="alert" className="mt-3 text-xs text-destructive">{t(backendTooOld ? 'weighted.backend_required' : 'commands.preview_unavailable')}</p>
-              : preview && <>
-                <TabsContent value="display" className="min-h-24 break-words rounded-md bg-background p-3 text-sm">
+            <AsyncPreview loading={previewLoading} loadingLabel={t('common.loading')}
+              error={previewFailed ? t(backendTooOld ? 'weighted.backend_required' : 'commands.preview_unavailable') : undefined}>
+              {preview && <>
+                <TabsContent value="display" className="min-h-24 max-h-64 overflow-y-auto break-words rounded-md bg-background p-3 text-sm [overflow-wrap:anywhere] [scrollbar-gutter:stable]">
                   <div className="space-y-3">{previewMessages(preview).map((message, index) => <div key={index}
                     data-preview-message={index + 1} className={preview.messages ? 'rounded-md border p-3' : undefined}>
                     <MarkdownExample text={message.text} enabled={message.markdown} />
@@ -845,6 +846,7 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
                   ? JSON.stringify(preview.messages.map(message => message.payload ?? message.plain), null, 2)
                   : preview.payload === null ? preview.plain : JSON.stringify(preview.payload, null, 2)}</pre></TabsContent>
               </>}
+            </AsyncPreview>
           </Tabs>
         </div>
         {!useInherited && <AdvancedOptions title={t('ui_refresh.advanced_options')} description={t('ui_refresh.template_advanced_hint')}>
@@ -919,7 +921,7 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
         <p className="text-[11px] text-muted-foreground">{t('commands.default_label')}: <span className="font-mono">{reply.default}</span></p>
         </div>
         </AdvancedOptions>}
-        </div>
+        </DialogBody>
         <DialogFooter className="shrink-0 gap-2 border-t pt-4 sm:gap-2">
           <Button variant="outline" disabled={saving || (storedValue === reply.default && reply.override == null)} onClick={reset}><RotateCcw className="mr-2 h-4 w-4" />{t(reply.outcome ? 'outcome.reset' : 'commands.reset')}</Button>
           <Button variant="ghost" onClick={onClose}>{t('common.cancel')}</Button>

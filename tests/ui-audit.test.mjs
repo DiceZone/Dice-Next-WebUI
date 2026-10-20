@@ -705,7 +705,7 @@ test('causal draft test preserves whitespace-only and multiline messages', async
   }
 });
 
-test('reply dialogs scroll a normal container, keep the fieldset inside and pin the footer outside', () => {
+test('reply dialogs use the shared scroll body, keep the fieldset inside and pin the footer outside', () => {
   const source = fs.readFileSync(new URL('../src/components/reply/reply-form.tsx', import.meta.url), 'utf8');
   const tree = ts.createSourceFile('reply-form.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   const elements = [];
@@ -715,12 +715,14 @@ test('reply dialogs scroll a normal container, keep the fieldset inside and pin 
   const classes = (node) => node.openingElement.attributes.properties.find((p) => p.name?.getText(tree) === 'className')?.initializer?.text || '';
   const fieldset = elements.find((node) => tag(node) === 'fieldset');
   const scroll = fieldset.parent;
-  assert.equal(tag(scroll), 'div');
-  for (const cls of ['min-h-0', 'flex-1', 'overflow-y-auto', 'overscroll-contain']) assert.ok(classes(scroll).split(' ').includes(cls));
+  // DialogBody's rendered div, min-height and scrollbar contract are exercised
+  // directly in dialog-layout.test.mjs; this test checks the form structure.
+  assert.equal(tag(scroll), 'DialogBody');
   assert.doesNotMatch(classes(fieldset), /overflow-|flex-1/);
   assert.match(fieldset.openingElement.getText(tree), /disabled=\{uploading \|\| submitting\}/);
   const dialog = scroll.parent;
   assert.equal(tag(dialog), 'DialogContent');
+  assert.match(dialog.openingElement.getText(tree), /layout="editor"/);
   const header = dialog.children.find((node) => ts.isJsxElement(node) && tag(node) === 'DialogHeader');
   const footer = dialog.children.find((node) => ts.isJsxElement(node) && tag(node) === 'DialogFooter');
   assert.ok(classes(header).includes('shrink-0'));
