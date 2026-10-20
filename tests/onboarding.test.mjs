@@ -14,6 +14,7 @@ import {
   setTourMode,
 } from '../.test-dist/lib/onboarding.js';
 import { PAGE_TOURS, getPageTourProfile } from '../.test-dist/lib/page-tours.js';
+import { noticeManagerCopy } from '../.test-dist/i18n/notice-manager.js';
 
 function memoryStorage(initial = {}) {
   const values = new Map(Object.entries(initial));
@@ -89,6 +90,7 @@ test('tour copy and referenced page labels exist in every locale', () => {
 
   for (const locale of locales) {
     const messages = JSON.parse(readFileSync(`src/i18n/locales/${locale}.json`, 'utf8'));
+    messages.notice_manager = noticeManagerCopy[locale];
     for (const key of chromeKeys) {
       assert.equal(typeof lookup(messages, `onboarding.${key}`), 'string', `${locale}: tour copy ${key}`);
     }

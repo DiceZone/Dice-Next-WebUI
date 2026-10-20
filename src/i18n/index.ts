@@ -23,6 +23,7 @@ import { botMessageCopy } from './bot-message';
 import { helpLibraryCopy } from './help-library';
 import { imageResourcesCopy } from './image-resources';
 import { resourceTransferCopy } from './resource-transfer';
+import { noticeManagerCopy } from './notice-manager';
 
 /**
  * Front-end i18n setup (繁體中文 / 简体中文 / English).
@@ -58,6 +59,10 @@ function detectInitialLanguage(): LanguageCode {
 }
 
 const initialLanguage = detectInitialLanguage();
+for (const [language,bundle] of Object.entries(noticeManagerCopy)) {
+  const resource = ({ 'zh-Hans': zhHans, 'zh-Hant': zhHant, en, ja } as Record<string, object>)[language];
+  Object.assign(resource, { notice_manager: bundle });
+}
 for (const [language, bundle] of Object.entries(resourceTransferCopy)) {
   const resource = language === 'zh-Hans' ? zhHans : language === 'zh-Hant' ? zhHant : language === 'ja' ? ja : en;
   Object.assign(resource, { resource_transfer: bundle });

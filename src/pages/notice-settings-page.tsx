@@ -1,402 +1,184 @@
-import { useTourState } from '@/components/onboarding/tour-data';
-import { tourSamples } from '@/lib/tour-samples';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Bell, Plus, Trash2, RefreshCw, Mail, Webhook, Send, Loader2, Pencil, LayoutGrid, List, Search } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
 import { FeatureHelp } from '@/components/ui/feature-help';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogBody, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { PaginationBar } from '@/components/ui/pagination-bar';
+import { EntityAvatar } from '@/components/entity-avatar';
+import { platformLabel } from '@/components/platform-icon';
 import { useToast } from '@/hooks/use-toast';
-import { PlatformIcon, platformLabel } from '@/components/platform-icon';
-import { Bell, Plus, Trash2, RefreshCw, Search, Mail, Webhook, ScrollText, Send, Loader2 } from 'lucide-react';
+import { useDialogs } from '@/hooks/use-dialogs';
+import { useServerListPage } from '@/hooks/use-server-list-page';
+import { apiClient } from '@/lib/api-client';
+import { useTourActive } from '@/components/onboarding/tour-data';
+import { tourSamples } from '@/lib/tour-samples';
+import { channelTitle, channelKey, emptyNoticeRule, eventIsSelected, setEvent, toggleSelection, noticePageCorrection,
+  type NoticeRule, type NoticeChannel, type NoticeMeta } from '@/lib/notice-rules';
 
-interface CatalogItem { op: string; area: number; }
-interface NoticeWindow { platform: string; adapter_id?: string; chat_id: string; is_group: boolean; name?: string; level_mask: number; events: string[]; }
-interface SmtpConf { enabled: boolean; host: string; port: number; ssl: boolean; user: string; pass: string; from: string; to: string; level_mask: number; }
-interface WebhookConf { enabled: boolean; url: string; level_mask: number; }
-interface AuditItem { ts: string; level: number; op: string; msg: string; origin?: string; }
-interface GroupItem { platform: string; groupId: string; name: string; }
-interface PlayerItem { platform: string; userId: string; nickname: string; }
-
-async function jget(path: string) { const r = await fetch('/api' + path); const j = await r.json(); if (j.code !== 0) throw new Error(j.message); return j.data; }
-async function jsend(method: string, path: string, body?: unknown) {
-  const r = await fetch('/api' + path, { method, headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
-  const j = await r.json(); if (j.code !== 0) throw new Error(j.message); return j.data;
-}
-
-const AREAS = [1, 2, 4, 8] as const;
-
+const initialMeta: NoticeMeta = { accounts: [], catalog: [], smtp_ready: false, smtp_host: '', smtp_from: '' };
+type Audit = { ts: string; level: number; op: string; origin?: string; msg: string };
 export const NoticeSettingsPage: React.FC = () => {
-  const { t } = useTranslation();
-  const toast = useToast();
-  const [tab, setTab] = useTourState<'windows' | 'push' | 'audit'>(() => {
-    const value = new URLSearchParams(window.location.hash.split('?')[1] || '').get('tab');
-    return value === 'push' || value === 'audit' ? value : 'windows';
-  }, 'windows');
-  const [catalog, setCatalog] = useState<CatalogItem[]>([]);
-  const [wins, setWins] = useTourState<NoticeWindow[]>([], tourSamples.noticeWindows);
-  const [smtp, setSmtp] = useState<SmtpConf>({ enabled: false, host: '', port: 465, ssl: true, user: '', pass: '', from: '', to: '', level_mask: 15 });
-  const [webhook, setWebhook] = useState<WebhookConf>({ enabled: false, url: '', level_mask: 15 });
-  const [saving, setSaving] = useState(false);
-  const [testing, setTesting] = useState(false);
-  // 选择器数据源
-  const [groups, setGroups] = useTourState<GroupItem[]>([], tourSamples.groups);
-  const [players, setPlayers] = useTourState<PlayerItem[]>([], tourSamples.players);
-  const [accounts, setAccounts] = useTourState<{ id: string; platform: string; label: string; short: string }[]>([], tourSamples.accounts);
-  const [pick, setPick] = useState('');       // 搜索词
-  const [picking, setPicking] = useState(false);
-  // 审计
-  const [audit, setAudit] = useState<AuditItem[]>([]);
-  const [auditLoading, setAuditLoading] = useState(false);
-
-  const apply = (d: { windows?: NoticeWindow[]; smtp?: Partial<SmtpConf>; webhook?: Partial<WebhookConf>; catalog?: CatalogItem[] }) => {
-    setWins((d.windows || []).map((w) => ({ ...w, events: w.events || [] })));
-    if (d.smtp) setSmtp((p) => ({ ...p, ...d.smtp }));
-    if (d.webhook) setWebhook((p) => ({ ...p, ...d.webhook }));
-    if (d.catalog) setCatalog(d.catalog);
-  };
-  useEffect(() => { (async () => { try { apply(await jget('/system/notice')); } catch { /* ignore */ } })(); }, []);
+  const { t } = useTranslation(); const toast = useToast(); const dialogs = useDialogs(t);
+  const tourActive = useTourActive();
+  const [tab, setTab] = useState(() => new URLSearchParams(window.location.hash.split('?')[1] || '').get('tab') || 'windows');
+  const [view, setView] = useState(() => { try { return localStorage.getItem('dice-notice-view') || 'card'; } catch { return 'card'; } });
+  const [page, setPage] = useState(1), [size, setSize] = useState(10), [search, setSearch] = useState(''), [query, setQuery] = useState('');
+  const [meta, setMeta] = useState(initialMeta), [readOnly, setReadOnly] = useState(true);
+  const [draft, setDraft] = useState<NoticeRule | null>(null), [busy, setBusy] = useState(false);
+  const [targetKind, setTargetKind] = useState('group'), [pick, setPick] = useState(''), [pickQuery, setPickQuery] = useState(''), [pickPage, setPickPage] = useState(1);
+  const [manualId, setManualId] = useState(''), [manualPlatform, setManualPlatform] = useState('');
+  const [email, setEmail] = useState(''), [hook, setHook] = useState('');
+  const [audit, setAudit] = useState<Audit[]>([]), [auditPage, setAuditPage] = useState(1);
+  const result = useServerListPage<NoticeRule>(`/system/notice/rules?page=${page}&pageSize=${size}&q=${encodeURIComponent(query)}`);
+  const [targets, setTargets] = useState<{ items: NoticeChannel[]; total: number }>({ items: [], total: 0 });
+  const [targetLoading, setTargetLoading] = useState(false);
+  const nm = (key: string) => t('notice_manager.' + key);
+  const error = useCallback((e: unknown) => toast({ title: String(e instanceof Error ? e.message : e), variant: 'destructive' }), [toast]);
+  useEffect(() => { const timer = setTimeout(() => { setQuery(search.trim()); setPage(1); }, 250); return () => clearTimeout(timer); }, [search]);
+  useEffect(() => { const timer = setTimeout(() => { setPickQuery(pick.trim()); setPickPage(1); }, 250); return () => clearTimeout(timer); }, [pick]);
+  const loadMeta = useCallback(async () => { try {
+    const [m,status]=await Promise.all([apiClient.get<NoticeMeta>('/system/notice/meta'),apiClient.get<{role?:string}>('/auth/status')]);
+    setMeta(m.data);setReadOnly(status.data.role==='admin');setManualPlatform(current=>current || m.data.accounts[0]?.platform || 'onebot_v11');
+  } catch(e) { error(e); } },[error]);
+  useEffect(() => { void loadMeta(); }, [loadMeta]);
   useEffect(() => {
-    (async () => {
-      try { const g = await jget('/groups'); setGroups((Array.isArray(g) ? g : []) as GroupItem[]); } catch { /* ignore */ }
-      try { const p = await jget('/players'); setPlayers((Array.isArray(p) ? p : []) as PlayerItem[]); } catch { /* ignore */ }
-      try {
-        const a = await jget('/adapters');
-        if (Array.isArray(a)) setAccounts((a as { id: string; type: string; name: string; loginId?: string; loginName?: string; appId?: string }[])
-          .map((x) => {
-            const idPart = x.type === 'qq_official' ? (x.appId || x.loginId || x.id) : (x.loginId || x.id);
-            const nick = x.loginName || x.name;
-            return { id: String(x.id), platform: x.type,
-              label: `${platformLabel(x.type)} : ${nick}(${idPart})`, short: `${nick}(${idPart})` };
-          }));
-      } catch { /* ignore */ }
-    })();
-  }, []);
-
-  const save = async () => {
-    setSaving(true);
-    try { apply(await jsend('PUT', '/system/notice', { windows: wins, smtp, webhook })); toast({ title: t('common.save_success') }); }
-    catch (e) { toast({ title: (e as Error).message, variant: 'destructive' }); }
-    finally { setSaving(false); }
-  };
-  const sendTest = async () => {
-    setTesting(true);
-    try { await jsend('POST', '/system/notice/test'); toast({ title: t('noticeset.push_test_sent') }); }
-    catch (e) { toast({ title: (e as Error).message, variant: 'destructive' }); }
-    finally { setTesting(false); }
-  };
-  const loadAudit = useCallback(async () => {
-    setAuditLoading(true);
-    try { const d = await jget('/system/audit'); setAudit((d?.items || []) as AuditItem[]); }
-    catch (e) { toast({ title: (e as Error).message, variant: 'destructive' }); }
-    finally { setAuditLoading(false); }
-  }, [toast]);
+    if (!draft || !['group', 'user'].includes(targetKind)) return;
+    const abort = new AbortController(); setTargetLoading(true);
+    void apiClient.get<{ items: NoticeChannel[]; total: number }>(`/system/notice/targets?kind=${targetKind}&q=${encodeURIComponent(pickQuery)}&page=${pickPage}&pageSize=5`)
+      .then(r => { if (!abort.signal.aborted) setTargets(r.data); }).catch(e => { if (!abort.signal.aborted) error(e); })
+      .finally(() => { if (!abort.signal.aborted) setTargetLoading(false); });
+    return () => abort.abort();
+  }, [Boolean(draft), targetKind, pickQuery, pickPage, error]);
+  useEffect(() => { const corrected=noticePageCorrection(page,result.data?.page,result.loading,result.error);if(corrected!==undefined)setPage(corrected); }, [result.data, result.loading, result.error, page]);
+  const loadAudit = useCallback(async () => { try { const r = await apiClient.get<{ items: Audit[] }>('/system/audit'); setAudit(r.data.items); setAuditPage(1); } catch (e) { error(e); } }, [error]);
   useEffect(() => { if (tab === 'audit') void loadAudit(); }, [tab, loadAudit]);
-
-  // ── 事件目录按区域分组 ──
-  const byArea = useMemo(() => {
-    const m: Record<number, string[]> = { 1: [], 2: [], 4: [], 8: [] };
-    for (const c of catalog) if (m[c.area]) m[c.area].push(c.op);
-    return m;
-  }, [catalog]);
-  const evName = (op: string) => { const k = `noticeset.ev_${op}`; const v = t(k); return v === k ? op : v; };
-  const areaName = (a: number) => t(`noticeset.area_${a}`);
-  const areaOfLevel = (lv: number) => lv >= 8 ? 8 : lv >= 4 ? 4 : lv >= 2 ? 2 : 1;
-
-  const patchWin = (i: number, p: Partial<NoticeWindow>) => setWins((ws) => ws.map((w, idx) => (idx === i ? { ...w, ...p } : w)));
-  const toggleEvent = (i: number, op: string) => {
-    const evs = wins[i].events.includes(op) ? wins[i].events.filter((e) => e !== op) : [...wins[i].events, op];
-    patchWin(i, { events: evs });
+  const platforms = useMemo(() => [...new Set(meta.accounts.map(a => a.platform))], [meta.accounts]);
+  const accountName = (id: string) => { const a = meta.accounts.find(a => a.id === id); return a ? `${a.name || a.login_name} · ${a.login_id || a.id}` : id; };
+  const title = (r: NoticeRule) => r.name && r.name !== r.channels[0]?.chat_id ? r.name : channelTitle(r.channels[0], nm(r.channels[0]?.is_group ? 'group' : 'user'));
+  const sourceText = (r: NoticeRule) => r.source.mode === 'all' ? nm('all') : (r.source.mode === 'accounts' ? r.source.adapter_ids.map(accountName) : r.source.platforms.map(platformLabel)).join('、');
+  const shown = tourActive ? tourSamples.noticeWindows.map((w,i) => ({ ...emptyNoticeRule(), id:'sample-'+i, channels:[{kind:'chat' as const,platform:w.platform,chat_id:w.chat_id,is_group:w.is_group,name:w.name}],level_mask:w.level_mask })) : result.error ? [] : result.data?.items || [];
+  const areaName = (level: number) => t(`noticeset.area_${level >= 8 ? 8 : level >= 4 ? 4 : level >= 2 ? 2 : 1}`);
+  const areaBadgeCls = (level: number) => level >= 8 ? 'bg-red-500/15 text-red-600' : level >= 4 ? 'bg-amber-500/15 text-amber-600' : level >= 2 ? 'bg-blue-500/15 text-blue-600' : 'bg-muted text-muted-foreground';
+  const patch = (value: Partial<NoticeRule>) => setDraft(d => d ? { ...d, ...value } : d);
+  const patchChannel = (index: number, value: Partial<NoticeChannel>) => setDraft(d => d ? { ...d, channels: d.channels.map((ch, i) => i === index ? { ...ch, ...value } : ch) } : d);
+  const addChannel = (channel: NoticeChannel) => setDraft(d => !d || d.channels.some(ch => channelKey(ch) === channelKey(channel)) ? d : { ...d, channels: [...d.channels, channel] });
+  const save = async () => {
+    if (!draft) return;
+    if (!draft.channels.length) { error(nm('need_channel')); return; }
+    if (draft.source.mode !== 'all' && !(draft.source.mode === 'accounts' ? draft.source.adapter_ids : draft.source.platforms).length) { error(nm('need_source')); return; }
+    setBusy(true);
+    try { if (draft.id) await apiClient.put('/system/notice/rules/' + encodeURIComponent(draft.id), draft); else await apiClient.post('/system/notice/rules', draft);
+      setDraft(null); await result.load(); toast({ title: t('common.save_success') });
+    } catch (e) { error(e); } finally { setBusy(false); }
   };
-  const toggleArea = (i: number, area: number) => {
-    const ops = byArea[area] || [];
-    const allOn = ops.every((op) => wins[i].events.includes(op));
-    const evs = allOn ? wins[i].events.filter((e) => !ops.includes(e)) : Array.from(new Set([...wins[i].events, ...ops]));
-    patchWin(i, { events: evs });
+  const remove = async (r: NoticeRule) => {
+    if (!await dialogs.confirm({ title: nm('remove'), description: title(r), destructive: true })) return;
+    setBusy(true); try { await apiClient.delete('/system/notice/rules/' + encodeURIComponent(r.id!)); await result.load(); } catch (e) { error(e); } finally { setBusy(false); }
   };
-
-  // ── 目标选择器（群/玩家搜索）──
-  const pickResults = useMemo(() => {
-    const s = pick.trim().toLowerCase();
-    const gs = groups.filter((g) => !s || g.groupId.toLowerCase().includes(s) || (g.name || '').toLowerCase().includes(s)).slice(0, 6);
-    const ps = players.filter((p) => !s || p.userId.toLowerCase().includes(s) || (p.nickname || '').toLowerCase().includes(s)).slice(0, 6);
-    return { gs, ps };
-  }, [pick, groups, players]);
-  const addWindow = (platform: string, chatId: string, isGroup: boolean, name: string) => {
-    if (wins.some((w) => w.platform === platform && w.chat_id === chatId && (w.adapter_id || '') === '')) { toast({ title: t('noticeset.win_dup'), variant: 'destructive' }); return; }
-    setWins((ws) => [...ws, { platform, adapter_id: '', chat_id: chatId, is_group: isGroup, name, level_mask: 15, events: catalog.map((c) => c.op) }]);
-    setPicking(false); setPick('');
+  const test = async (r: NoticeRule) => {
+    if (!await dialogs.confirm({ title: t('noticeset.push_test'), description: nm('test_help') })) return;
+    setBusy(true); try { await apiClient.post('/system/notice/test', { id: r.id }); toast({ title: t('noticeset.push_test_sent') }); } catch (e) { error(e); } finally { setBusy(false); }
   };
-
-  const areaBadgeCls = (a: number) => a === 8 ? 'bg-red-500/15 text-red-600 dark:text-red-400'
-    : a === 4 ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
-    : a === 2 ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400' : 'bg-muted text-muted-foreground';
-
-  return (
-    <div className="space-y-6">
-      <PageHeader icon={Bell} title={t('noticeset.title')} description={t('noticeset.desc')} help={t('page_help.notices')} />
-
-      <Tabs value={tab} onValueChange={(value) => setTab(value as typeof tab)} className="space-y-5">
+  const icon = (ch: NoticeChannel, small = false) => ch.kind === 'chat'
+    ? <EntityAvatar kind={ch.is_group ? 'group' : 'user'} id={ch.chat_id || ''} platform={ch.platform || ''} className={small ? 'h-8 w-8' : undefined} />
+    : <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">{ch.kind === 'smtp' ? <Mail className="h-5 w-5" /> : <Webhook className="h-5 w-5" />}</span>;
+  const recipient = (ch: NoticeChannel) => channelTitle(ch, nm(ch.is_group ? 'group' : ch.kind === 'chat' ? 'user' : ch.kind === 'smtp' ? 'email' : 'webhook'));
+  return <div className="space-y-5">
+    {dialogs.node}
+    <PageHeader icon={Bell} title={t('noticeset.title')} description={nm('hint')} help={t('page_help.notices') + '\n\n' + nm('legacy_help') + '\n\n' + nm('delivery_help')}
+      actions={<div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => { void result.load();void loadMeta(); }} disabled={result.loading}><RefreshCw className="mr-2 h-4 w-4" />{t('common.refresh')}</Button>
+        <Button data-tour="notice-add" disabled={readOnly || busy} onClick={() => { setDraft(emptyNoticeRule()); setPick(''); }}><Plus className="mr-2 h-4 w-4" />{nm('add')}</Button></div>} />
+    {readOnly && <p className="text-sm text-muted-foreground">{nm('readonly')}</p>}
+    <Tabs value={tab} onValueChange={setTab} className="space-y-4">
       <TabsList variant="page" data-tour="notice-tabs" aria-label={t('noticeset.title')}>
-        <TabsTrigger value="windows">{t('noticeset.tab_windows')}</TabsTrigger>
-        <TabsTrigger value="push">{t('noticeset.tab_push')}</TabsTrigger>
-        <TabsTrigger value="audit">{t('noticeset.tab_audit')}</TabsTrigger>
+        <TabsTrigger value="windows">{nm('rules')}</TabsTrigger><TabsTrigger value="push">{t('noticeset.tab_push')}</TabsTrigger><TabsTrigger value="audit">{t('noticeset.tab_audit')}</TabsTrigger>
       </TabsList>
-      <TabsContent value={tab} className="mt-0">
-
-      {/* ══ 通知窗口 ══ */}
-      {tab === 'windows' && (
-        <div className="space-y-4" data-setting-anchor="notice-windows">
-          <div className="flex items-center gap-1.5">
-            <h2 className="text-sm font-medium">{t('noticeset.tab_windows')}</h2>
-            <FeatureHelp title={t('noticeset.tab_windows')} description={<>
-              <p>{t('settings.notice_desc')}</p>
-              <p>{t('noticeset.win_hint')}</p>
-              <p>{t('settings.notice_hint')}</p>
-            </>} />
-          </div>
-          {wins.length === 0 && <p className="text-sm text-muted-foreground">{t('noticeset.win_empty')}</p>}
-          {wins.map((w, i) => (
-            <Card key={`${w.platform}/${w.adapter_id || 'global'}/${w.chat_id}`}>
-              <CardContent className="py-3 space-y-3">
-                <div className="flex items-center gap-2">
-                  <Select value={w.adapter_id || '__global__'} onValueChange={(v) => patchWin(i, { adapter_id: v === '__global__' ? '' : v })}>
-                    <SelectTrigger className="h-7 w-56"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__global__">{t('noticeset.win_account_global')}</SelectItem>
-                      {accounts.map((a) => (
-                        <SelectItem key={a.id} value={a.id} className="pr-2">
-                          <span className="flex min-w-0 flex-1 items-center gap-1.5">
-                            <PlatformIcon platform={a.platform} className="h-3.5 w-3.5 shrink-0" />
-                            <span className="truncate">{a.short}</span>
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Badge variant="secondary">{w.is_group ? t('noticeset.win_group') : t('noticeset.win_user')}</Badge>
-                  <span className="text-sm font-medium">{w.name || w.chat_id}</span>
-                  <span className="font-mono text-xs text-muted-foreground">{w.chat_id}</span>
-                  <Button variant="ghost" size="sm" className="ml-auto h-7 w-7 p-0 text-destructive"
-                    onClick={() => setWins((ws) => ws.filter((_, idx) => idx !== i))}><Trash2 className="h-4 w-4" /></Button>
-                </div>
-                {AREAS.map((area) => (byArea[area] || []).length > 0 && (
-                  <div key={area} className="rounded-md border p-2 space-y-1.5">
-                    <label className="flex items-center gap-2 text-xs font-medium cursor-pointer select-none">
-                      <input type="checkbox" className="accent-primary"
-                        checked={(byArea[area] || []).every((op) => w.events.includes(op))}
-                        onChange={() => toggleArea(i, area)} />
-                      <span className={`rounded px-1.5 py-0.5 ${areaBadgeCls(area)}`}>{areaName(area)}</span>
-                    </label>
-                    <div className="flex flex-wrap gap-x-4 gap-y-1 pl-5">
-                      {(byArea[area] || []).map((op) => (
-                        <label key={op} className="flex items-center gap-1.5 text-xs cursor-pointer select-none">
-                          <input type="checkbox" className="accent-primary" checked={w.events.includes(op)} onChange={() => toggleEvent(i, op)} />
-                          {evName(op)}
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          ))}
-
-          {/* 添加窗口：从群/人员列表搜索勾选 */}
-          {picking ? (
-            <Card>
-              <CardContent className="py-3 space-y-2">
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input autoFocus className="pl-8 h-9" value={pick} placeholder={t('noticeset.win_pick_ph')} onChange={(e) => setPick(e.target.value)} />
-                </div>
-                {pickResults.gs.length > 0 && (
-                  <div className="space-y-1">
-                    <p className="text-[11px] text-muted-foreground">{t('noticeset.win_group')}</p>
-                    {pickResults.gs.map((g) => (
-                      <button key={g.platform + g.groupId} className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted text-left"
-                        onClick={() => addWindow(g.platform, g.groupId, true, g.name)}>
-                        <PlatformIcon platform={g.platform} />
-                        <Badge variant="secondary" className="shrink-0">{t('noticeset.win_group')}</Badge>
-                        <span>{g.name}</span><span className="font-mono text-xs text-muted-foreground">{g.groupId}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {pickResults.ps.length > 0 && (
-                  <div className="space-y-1">
-                    <p className="text-[11px] text-muted-foreground">{t('noticeset.win_user')}</p>
-                    {pickResults.ps.map((p) => (
-                      <button key={p.platform + p.userId} className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted text-left"
-                        onClick={() => addWindow(p.platform, p.userId, false, p.nickname)}>
-                        <PlatformIcon platform={p.platform} />
-                        <Badge variant="secondary" className="shrink-0">{t('noticeset.win_user')}</Badge>
-                        <span>{p.nickname || p.userId}</span><span className="font-mono text-xs text-muted-foreground">{p.userId}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {pickResults.gs.length === 0 && pickResults.ps.length === 0 && (
-                  <p className="text-xs text-muted-foreground py-2 text-center">{t('noticeset.win_pick_none')}</p>
-                )}
-                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setPicking(false); setPick(''); }}>{t('common.cancel')}</Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <Button data-tour="notice-add" variant="outline" size="sm" onClick={() => setPicking(true)}><Plus className="mr-1 h-4 w-4" />{t('noticeset.win_add')}</Button>
-          )}
-
-          <div data-tour="notice-save" className="flex justify-end"><Button onClick={save} disabled={saving}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{t('common.save')}</Button></div>
+      <TabsContent value="windows" className="space-y-4" data-setting-anchor="notice-windows">
+        <div className="flex flex-wrap items-center justify-between gap-3"><div className="relative min-w-0 flex-1 sm:max-w-md"><Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+          <Input aria-label={nm('search')} className="pl-9" placeholder={nm('search')} value={search} onChange={e => setSearch(e.target.value)} /></div>
+          <div className="flex gap-1"><FeatureHelp title={nm('rules')} description={nm('legacy_help')} />{(['card','list'] as const).map(v => <Button key={v} aria-label={nm(v === 'card' ? 'cards' : 'list')} aria-pressed={view === v} variant={view === v ? 'secondary' : 'ghost'} size="icon" onClick={() => { setView(v); try { localStorage.setItem('dice-notice-view',v); } catch { /* optional preference */ } }}>{v === 'card' ? <LayoutGrid className="h-4 w-4" /> : <List className="h-4 w-4" />}</Button>)}</div>
         </div>
-      )}
-
-      {/* ══ 第三方推送 ══ */}
-      {tab === 'push' && (
-        <div className="space-y-4">
-          <Card data-setting-anchor="notice-smtp">
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <Mail className="h-4 w-4" />{t('noticeset.push_smtp')}
-                <FeatureHelp title={t('noticeset.push_smtp')} description={<>
-                  <p>{t('noticeset.push_smtp_desc')}</p>
-                  <p>{t('noticeset.push_hint')}</p>
-                </>} />
-              </CardTitle>
-              <CardDescription>{t('noticeset.push_smtp_desc')}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label className="text-sm">{t('common.enabled')}</Label>
-                <Switch checked={smtp.enabled} onCheckedChange={(v) => setSmtp((p) => ({ ...p, enabled: v }))} />
-              </div>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                <div><Label className="text-xs">{t('noticeset.smtp_host')}</Label>
-                  <Input className="h-8 text-sm" value={smtp.host} placeholder="smtp.example.com" onChange={(e) => setSmtp((p) => ({ ...p, host: e.target.value }))} /></div>
-                <div className="flex items-end gap-3">
-                  <div className="flex-1"><Label className="text-xs">{t('noticeset.smtp_port')}</Label>
-                    <Input type="number" className="h-8 text-sm" value={smtp.port} onChange={(e) => setSmtp((p) => ({ ...p, port: Number(e.target.value) || 465 }))} /></div>
-                  <label className="flex items-center gap-1.5 text-xs pb-2 cursor-pointer select-none">
-                    <input type="checkbox" className="accent-primary" checked={smtp.ssl} onChange={(e) => setSmtp((p) => ({ ...p, ssl: e.target.checked }))} />
-                    SSL
-                  </label>
-                </div>
-                <div><Label className="text-xs">{t('noticeset.smtp_user')}</Label>
-                  <Input className="h-8 text-sm" value={smtp.user} onChange={(e) => setSmtp((p) => ({ ...p, user: e.target.value }))} /></div>
-                <div><Label className="text-xs">{t('noticeset.smtp_pass')}</Label>
-                  <Input type="password" className="h-8 text-sm" value={smtp.pass} onChange={(e) => setSmtp((p) => ({ ...p, pass: e.target.value }))} /></div>
-                <div><Label className="text-xs">{t('noticeset.smtp_from')}</Label>
-                  <Input className="h-8 text-sm" value={smtp.from} placeholder="bot@example.com" onChange={(e) => setSmtp((p) => ({ ...p, from: e.target.value }))} /></div>
-                <div><Label className="text-xs">{t('noticeset.smtp_to')}</Label>
-                  <Input className="h-8 text-sm" value={smtp.to} placeholder="me@example.com" onChange={(e) => setSmtp((p) => ({ ...p, to: e.target.value }))} /></div>
-              </div>
-              <div className="flex flex-wrap gap-3">
-                <span className="text-xs text-muted-foreground">{t('noticeset.push_areas')}</span>
-                {AREAS.map((a) => (
-                  <label key={a} className="flex items-center gap-1.5 text-xs cursor-pointer select-none">
-                    <input type="checkbox" className="accent-primary" checked={!!(smtp.level_mask & a)}
-                      onChange={() => setSmtp((p) => ({ ...p, level_mask: p.level_mask & a ? p.level_mask & ~a : p.level_mask | a }))} />
-                    {areaName(a)}
-                  </label>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card data-setting-anchor="notice-webhook">
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <Webhook className="h-4 w-4" />{t('noticeset.push_webhook')}
-                <FeatureHelp title={t('noticeset.push_webhook')} description={<>
-                  <p>{t('noticeset.push_webhook_desc')}</p>
-                  <p>{t('noticeset.push_hint')}</p>
-                </>} />
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label className="text-sm">{t('common.enabled')}</Label>
-                <Switch checked={webhook.enabled} onCheckedChange={(v) => setWebhook((p) => ({ ...p, enabled: v }))} />
-              </div>
-              <div><Label className="text-xs">{t('noticeset.webhook_url')}</Label>
-                <Input className="h-8 text-sm font-mono" value={webhook.url} placeholder="https://example.com/hook" onChange={(e) => setWebhook((p) => ({ ...p, url: e.target.value }))} /></div>
-              <div className="flex flex-wrap gap-3">
-                <span className="text-xs text-muted-foreground">{t('noticeset.push_areas')}</span>
-                {AREAS.map((a) => (
-                  <label key={a} className="flex items-center gap-1.5 text-xs cursor-pointer select-none">
-                    <input type="checkbox" className="accent-primary" checked={!!(webhook.level_mask & a)}
-                      onChange={() => setWebhook((p) => ({ ...p, level_mask: p.level_mask & a ? p.level_mask & ~a : p.level_mask | a }))} />
-                    {areaName(a)}
-                  </label>
-                ))}
-              </div>
-              <p className="text-[11px] text-muted-foreground font-mono">{'POST {"ts","level","op","msg","origin"}'}</p>
-            </CardContent>
-          </Card>
-
-          <div data-tour="notice-actions" className="flex items-center justify-end gap-2">
-            <Button variant="outline" onClick={sendTest} disabled={testing}>
-              {testing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}{t('noticeset.push_test')}
-            </Button>
-            <Button onClick={save} disabled={saving}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{t('common.save')}</Button>
-          </div>
-          <p className="text-[11px] text-muted-foreground">{t('noticeset.push_hint')}</p>
-        </div>
-      )}
-
-      {/* ══ 审计日志 ══ */}
-      {tab === 'audit' && (
-        <Card className="rt-section" data-setting-anchor="notice-audit">
-          <CardContent className="rt-section-content p-0">
-            <div className="rt-section-header flex items-center justify-between gap-3 p-3 border-b">
-              <div className="flex min-w-0 items-center gap-1.5">
-                <p className="text-xs text-muted-foreground">{t('noticeset.audit_hint')}</p>
-                <FeatureHelp title={t('noticeset.tab_audit')} description={<p>{t('noticeset.audit_hint')}</p>} />
-              </div>
-              <Button size="sm" variant="outline" onClick={loadAudit} disabled={auditLoading}>
-                <RefreshCw className={`mr-2 h-4 w-4 ${auditLoading ? 'animate-spin' : ''}`} />{t('common.refresh')}
-              </Button>
+        {result.error && <p role="alert" className="text-sm text-destructive">{t('common.load_fail')}</p>}
+        {result.loading && !tourActive ? <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin" /></div> : <div className={view === 'card' ? 'grid gap-4 md:grid-cols-2 xl:grid-cols-3' : 'space-y-3'}>
+          {shown.map(r => <Card key={r.id} className="min-w-0 shadow-none"><CardContent className={view === 'card' ? 'space-y-4 p-4' : 'grid items-center gap-4 p-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]'}>
+            <div className="flex items-start gap-3">{icon(r.channels[0])}<div className="min-w-0 flex-1"><p className="break-words font-medium">{title(r)}</p>
+              <p className="mt-1 break-all text-xs text-muted-foreground">{r.channels[0].kind === 'chat' ? `${r.name && r.name!==r.channels[0].chat_id && r.name!==recipient(r.channels[0]) ? recipient(r.channels[0])+' · ' : ''}${platformLabel(r.channels[0].platform || '')} · ${r.channels[0].chat_id}` : nm(r.channels[0].kind === 'smtp' ? 'email' : 'webhook')}</p>
+            </div><Badge variant={r.enabled ? 'secondary' : 'outline'} className="shrink-0">{nm(r.enabled ? 'active' : 'paused')}</Badge></div>
+            <div className="space-y-2 text-xs"><p className="break-words text-muted-foreground">{nm('source')}：{sourceText(r)}</p>
+              {r.channels.slice(1,3).map((ch,i) => <div key={i} className="flex min-w-0 items-center gap-2">{icon(ch,true)}<span className="min-w-0 truncate">{recipient(ch)}{ch.kind === 'chat' && <span className="ml-2 font-mono text-muted-foreground">{ch.chat_id}</span>}</span></div>)}
+              {r.channels.length>3 && <span className="text-muted-foreground">{nm('channels')} · +{r.channels.length-3}</span>}
+            </div><div className={'flex flex-wrap items-center gap-2 ' + (view === 'card' ? 'border-t pt-3' : '')}>
+              <Button size="sm" variant="outline" disabled={readOnly || busy} onClick={() => { setDraft(structuredClone(r)); setPick(''); }}><Pencil className="mr-1.5 h-3.5 w-3.5" />{t('common.edit')}</Button>
+              <Button size="sm" variant="ghost" disabled={readOnly || busy} onClick={() => void test(r)}><Send className="mr-1.5 h-3.5 w-3.5" />{t('noticeset.push_test')}</Button>
+              <Button size="icon" variant="ghost" className="ml-auto h-8 w-8 text-destructive" aria-label={t('common.delete')} disabled={readOnly || busy} onClick={() => void remove(r)}><Trash2 className="h-4 w-4" /></Button>
             </div>
-            {audit.length === 0 ? (
-              <p className="py-8 text-center text-sm text-muted-foreground flex items-center justify-center gap-2">
-                <ScrollText className="h-4 w-4" />{t('noticeset.audit_empty')}
-              </p>
-            ) : (
-              <div className="rt-frame overflow-x-auto"><table className="rt rt-record rt-with-status w-full text-sm">
-                <thead className="border-b text-xs text-muted-foreground">
-                  <tr>
-                    <th className="p-2 text-left whitespace-nowrap">{t('noticeset.audit_time')}</th>
-                    <th className="p-2 text-left whitespace-nowrap">{t('noticeset.audit_area')}</th>
-                    <th className="p-2 text-left whitespace-nowrap">{t('noticeset.audit_event')}</th>
-                    <th className="p-2 text-left whitespace-nowrap">{t('noticeset.audit_origin')}</th>
-                    <th className="p-2 text-left">{t('noticeset.audit_msg')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {audit.map((a, i) => (
-                    <tr key={i} className="border-b last:border-0 align-top">
-                      <td data-label={t('noticeset.audit_time')} className="p-2 font-mono text-xs text-muted-foreground whitespace-nowrap">{a.ts}</td>
-                      <td data-label={t('noticeset.audit_area')} className="rt-status p-2 whitespace-nowrap"><span className={`inline-flex shrink-0 whitespace-nowrap rounded px-1.5 py-0.5 text-xs ${areaBadgeCls(areaOfLevel(a.level))}`}>{areaName(areaOfLevel(a.level))}</span></td>
-                      <td data-label={t('noticeset.audit_event')} className="rt-title p-2 text-xs whitespace-nowrap">{a.op ? evName(a.op) : '—'}</td>
-                      <td data-label={t('noticeset.audit_origin')} className="p-2 font-mono text-xs text-muted-foreground whitespace-nowrap">{a.origin || '—'}</td>
-                      <td data-label={t('noticeset.audit_msg')} className="rt-body p-2 text-xs break-all">{a.msg}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table></div>
-            )}
-          </CardContent>
-        </Card>
-      )}
+          </CardContent></Card>)}
+          {!shown.length && !result.error && <p className="col-span-full py-14 text-center text-muted-foreground">{nm('empty')}</p>}
+        </div>}
+        <PaginationBar total={result.data?.total || 0} page={result.data?.page || page} pageSize={size} onPageChange={setPage} onPageSizeChange={s => { setSize(s); setPage(1); }} disabled={result.loading} />
       </TabsContent>
-      </Tabs>
-    </div>
-  );
+      <TabsContent value="push" className="space-y-4"><Card data-setting-anchor="notice-smtp"><CardHeader><CardTitle className="flex items-center gap-2 text-base"><Mail className="h-4 w-4" />{nm('shared')}<FeatureHelp title={t('noticeset.push_smtp')} description={nm('shared_help')} /></CardTitle></CardHeader>
+        <CardContent className="space-y-3"><p className="text-sm text-muted-foreground">{nm('shared_help')}</p><p className="text-sm">{meta.smtp_ready ? `${meta.smtp_host} · ${meta.smtp_from}` : nm('smtp_missing')}</p>
+          <Button asChild variant="outline"><a href="#/settings?focus=settings-identity-email">{nm('permissions')}</a></Button></CardContent></Card>
+        <Card data-setting-anchor="notice-webhook"><CardHeader><CardTitle className="flex items-center gap-2 text-base"><Webhook className="h-4 w-4" />{t('noticeset.push_webhook')}<FeatureHelp title={t('noticeset.push_webhook')} description={nm('destinations')} /></CardTitle></CardHeader><CardContent><p className="text-sm text-muted-foreground">{nm('destinations')}</p></CardContent></Card></TabsContent>
+      <TabsContent value="audit"><Card className="rt-section" data-setting-anchor="notice-audit"><CardContent className="rt-section-content p-0">
+        <div className="rt-section-header flex items-center justify-between gap-3 border-b p-3"><p className="text-xs text-muted-foreground">{t('noticeset.audit_hint')}</p><Button variant="outline" size="sm" onClick={() => void loadAudit()}><RefreshCw className="mr-2 h-4 w-4" />{t('common.refresh')}</Button></div>
+        <div className="rt-frame overflow-x-auto"><table className="rt rt-record rt-with-status w-full text-sm"><thead className="border-b text-xs text-muted-foreground"><tr>
+          {['time','area','event','origin','msg'].map(key=><th key={key} className="p-2 text-left">{t('noticeset.audit_'+key)}</th>)}
+        </tr></thead><tbody>{audit.slice((auditPage-1)*10,auditPage*10).map((a,i)=><tr key={i} className="border-b last:border-0 align-top">
+          <td data-label={t('noticeset.audit_time')} className="p-2 font-mono text-xs text-muted-foreground whitespace-nowrap">{a.ts}</td>
+          <td data-label={t('noticeset.audit_area')} className="rt-status p-2 whitespace-nowrap"><span className={`inline-flex shrink-0 whitespace-nowrap rounded px-1.5 py-0.5 text-xs ${areaBadgeCls(a.level)}`}>{areaName(a.level)}</span></td>
+          <td data-label={t('noticeset.audit_event')} className="rt-title p-2 text-xs whitespace-nowrap">{t('noticeset.ev_'+a.op,{defaultValue:a.op})}</td>
+          <td data-label={t('noticeset.audit_origin')} className="p-2 font-mono text-xs text-muted-foreground whitespace-nowrap">{a.origin || '—'}</td>
+          <td data-label={t('noticeset.audit_msg')} className="rt-body p-2 text-xs break-all">{a.msg}</td>
+        </tr>)}</tbody></table></div>
+        <PaginationBar total={audit.length} page={auditPage} pageSize={10} onPageChange={setAuditPage} fixedSize /></CardContent></Card></TabsContent>
+    </Tabs>
+    <Dialog open={draft !== null} onOpenChange={open => { if (!open && !busy) setDraft(null); }}><DialogContent className="max-w-3xl">
+      <DialogHeader><div className="flex flex-wrap items-center justify-between gap-3 pr-7"><DialogTitle>{nm(draft?.id ? 'edit' : 'add')}</DialogTitle>
+        <Button data-tour="notice-save" onClick={() => void save()} disabled={busy || readOnly}>{busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{t('common.save')}</Button></div>
+        <DialogDescription>{nm('destinations')}</DialogDescription></DialogHeader>
+      {draft && <DialogBody className="space-y-6">
+        <div className="flex items-end gap-4"><div className="min-w-0 flex-1 space-y-2"><Label htmlFor="notice-name">{nm('name')}</Label><Input id="notice-name" maxLength={80} value={draft.name} onChange={e => patch({ name:e.target.value })} /></div><div className="space-y-2"><Label>{t('common.enabled')}</Label><Switch className="block" checked={draft.enabled} onCheckedChange={enabled => patch({enabled})} /></div></div>
+        <section className="space-y-3"><Label>{nm('source')}</Label>
+          <Select value={draft.source.mode} onValueChange={mode => patch({source:{...draft.source,mode:mode as NoticeRule['source']['mode']}})}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{(['all','platforms','accounts'] as const).map(mode => <SelectItem key={mode} value={mode}>{nm(mode)}</SelectItem>)}</SelectContent></Select>
+          {draft.source.mode !== 'all' && <div className="grid gap-2 rounded-lg border p-3 sm:grid-cols-2">{(draft.source.mode === 'platforms' ? platforms.map(p => ({id:p,label:platformLabel(p)})) : meta.accounts.map(a=>({id:a.id,label:accountName(a.id)}))).map(a => <label key={a.id} className="flex items-center gap-2 text-sm"><input type="checkbox" className="accent-primary" checked={(draft.source.mode === 'platforms' ? draft.source.platforms : draft.source.adapter_ids).includes(a.id)} onChange={() => patch({source:{...draft.source,[draft.source.mode === 'platforms' ? 'platforms':'adapter_ids']:toggleSelection(draft.source.mode === 'platforms' ? draft.source.platforms:draft.source.adapter_ids,a.id)}})} />{a.label}</label>)}</div>}
+          <label className="flex items-center gap-2 text-xs text-muted-foreground"><input type="checkbox" className="accent-primary" checked={draft.source.include_system} onChange={e => patch({source:{...draft.source,include_system:e.target.checked}})} />{nm('system')}</label>
+        </section>
+        <section className="space-y-3"><div className="flex items-center gap-2"><Label>{nm('subscription')}</Label><FeatureHelp title={nm('subscription')} description={nm('legacy_help')} /></div>
+          <Select value={draft.subscription} onValueChange={value => patch({subscription:value as NoticeRule['subscription'], events:value==='events' ? meta.catalog.filter(e=>eventIsSelected(draft,e)).map(e=>e.op):draft.events})}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="levels">{nm('levels')}</SelectItem><SelectItem value="events">{nm('events')}</SelectItem></SelectContent></Select>
+          {draft.subscription === 'levels' ? <div className="grid grid-cols-2 gap-3 rounded-lg border p-3">{[1,2,4,8].map(area => <label key={area} className="flex items-center gap-2 text-sm"><input type="checkbox" className="accent-primary" checked={Boolean(draft.level_mask & area)} onChange={()=>patch({level_mask:draft.level_mask ^ area})} />{t('noticeset.area_'+area)}</label>)}</div>
+            : <div className="space-y-3 rounded-lg border p-3">{[1,2,4,8].map(area => <div key={area} className="space-y-2"><p className="text-xs font-medium text-muted-foreground">{t('noticeset.area_'+area)}</p><div className="grid gap-2 sm:grid-cols-2">{meta.catalog.filter(e=>e.area===area).map(e => <label key={e.op} className="flex items-center gap-2 text-sm"><input type="checkbox" className="accent-primary" checked={eventIsSelected(draft,e)} onChange={()=>setDraft(setEvent(draft,e.op,meta.catalog))} />{t('noticeset.ev_'+e.op,{defaultValue:e.op})}</label>)}</div></div>)}</div>}
+          {(draft.subscription === 'events' ? !draft.events.length : draft.level_mask === 0) && <p className="text-xs text-amber-600">{nm('no_events')}</p>}
+        </section>
+        <section className="space-y-3"><div className="flex items-center gap-2"><Label>{nm('channels')}</Label><FeatureHelp title={nm('channels')} description={nm('delivery_help')} /></div>
+          {draft.channels.map((ch,index) => <div key={channelKey(ch)+index} className="space-y-3 rounded-lg border p-3"><div className="flex items-center gap-3">{icon(ch,true)}<div className="min-w-0 flex-1"><p className="break-all text-sm font-medium">{recipient(ch)}</p>{ch.kind === 'chat' && <p className="break-all font-mono text-xs text-muted-foreground">{platformLabel(ch.platform || '')} · {ch.chat_id}</p>}</div><Button variant="ghost" size="icon" aria-label={t('common.delete')} onClick={()=>patch({channels:draft.channels.filter((_,i)=>i!==index)})}><Trash2 className="h-4 w-4" /></Button></div>
+            {ch.kind === 'chat' && <><Select value={ch.delivery || 'auto'} onValueChange={delivery=>patchChannel(index,{delivery:delivery as 'auto'|'selected',adapter_ids:ch.adapter_ids || []})}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="auto">{nm('auto')}</SelectItem><SelectItem value="selected">{nm('selected')}</SelectItem></SelectContent></Select>
+              {ch.delivery === 'selected' && <div className="grid gap-2 sm:grid-cols-2">{meta.accounts.filter(a=>a.platform===ch.platform).map(a=><label key={a.id} className="flex items-center gap-2 text-xs"><input type="checkbox" className="accent-primary" checked={ch.adapter_ids?.includes(a.id) || false} onChange={()=>patchChannel(index,{adapter_ids:toggleSelection(ch.adapter_ids || [],a.id)})} />{accountName(a.id)}</label>)}</div>}</>}
+            {ch.kind === 'smtp' && <><Input aria-label={nm('recipient')} value={ch.to || ''} onChange={e=>patchChannel(index,{to:e.target.value})} />
+              {ch.transport === 'legacy' ? <div className="space-y-2"><p className="text-xs text-muted-foreground">{nm('legacy_smtp')}</p><Button size="sm" variant="outline" onClick={()=>patchChannel(index,{transport:'shared'})}>{nm('shared')}</Button></div> : <p className="text-xs text-muted-foreground">{meta.smtp_ready ? nm('shared')+' · '+meta.smtp_host : nm('smtp_missing')}</p>}</>}
+            {ch.kind === 'webhook' && <Input aria-label="Webhook URL" value={ch.url || ''} onChange={e=>patchChannel(index,{url:e.target.value})} />}
+          </div>)}
+          <div className="space-y-3 rounded-lg border border-dashed p-3"><Select value={targetKind} onValueChange={value=>{setTargetKind(value);setPickPage(1);}}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{['group','user','email','webhook'].map(kind=><SelectItem key={kind} value={kind}>{nm(kind)}</SelectItem>)}</SelectContent></Select>
+            {['group','user'].includes(targetKind) ? <><Input placeholder={nm('search')} value={pick} onChange={e=>setPick(e.target.value)} />
+              {targetLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <div className="space-y-1">{targets.items.map(ch=><button type="button" key={channelKey(ch)} className="flex w-full items-center gap-3 rounded-md p-2 text-left hover:bg-muted" onClick={()=>addChannel(ch)}>{icon(ch,true)}<span className="min-w-0 flex-1 truncate text-sm">{recipient(ch)}<span className="ml-2 font-mono text-xs text-muted-foreground">{ch.chat_id}</span></span><Plus className="h-4 w-4" /></button>)}</div>}
+              <PaginationBar total={targets.total} page={pickPage} pageSize={5} onPageChange={setPickPage} fixedSize compact />
+              <details className="text-xs"><summary className="cursor-pointer text-muted-foreground">{nm('manual')}</summary><div className="mt-3 flex flex-wrap gap-2"><Select value={manualPlatform} onValueChange={setManualPlatform}><SelectTrigger className="w-40"><SelectValue /></SelectTrigger><SelectContent>{[...new Set([...platforms,manualPlatform].filter(Boolean))].map(p=><SelectItem key={p} value={p}>{platformLabel(p)}</SelectItem>)}</SelectContent></Select><Input className="min-w-0 flex-1" aria-label={nm('manual')} value={manualId} onChange={e=>setManualId(e.target.value)} /><Button variant="outline" disabled={!manualId.trim()} onClick={()=>{addChannel({kind:'chat',platform:manualPlatform,chat_id:manualId.trim(),is_group:targetKind==='group',delivery:'auto',adapter_ids:[]});setManualId('');}}><Plus className="h-4 w-4" /></Button></div></details>
+            </> : targetKind === 'email' ? <><p className="text-xs text-muted-foreground">{nm('shared_help')}</p><div className="flex gap-2"><Input className="min-w-0 flex-1" aria-label={nm('recipient')} placeholder="name@example.com" value={email} onChange={e=>setEmail(e.target.value)} /><Button variant="outline" aria-label={t('common.add')} disabled={!email.trim()} onClick={()=>{addChannel({kind:'smtp',to:email.trim(),transport:'shared'});setEmail('');}}><Plus className="h-4 w-4" /></Button></div></>
+              : <div className="flex gap-2"><Input className="min-w-0 flex-1" aria-label="Webhook URL" placeholder="https://example.com/hook" value={hook} onChange={e=>setHook(e.target.value)} /><Button variant="outline" aria-label={t('common.add')} disabled={!hook.trim()} onClick={()=>{addChannel({kind:'webhook',url:hook.trim()});setHook('');}}><Plus className="h-4 w-4" /></Button></div>}
+          </div>
+        </section>
+      </DialogBody>}
+    </DialogContent></Dialog>
+  </div>;
 };
-
 export default NoticeSettingsPage;

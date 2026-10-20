@@ -188,10 +188,9 @@ export const PAGE_TOURS: Readonly<Record<string, PageTourProfile>> = {
   ]),
   '/notice-settings': profile('noticeset.title', [
     step(heading, 'noticeset.title', 'overview', 'noticeset.desc'),
-    step('[data-tour="notice-tabs"]', 'noticeset.tab_windows', 'switch'),
-    step('[data-tour="notice-add"]', 'noticeset.win_add', 'create', 'noticeset.win_hint'),
-    step('[data-setting-anchor="notice-windows"]', 'noticeset.audit_event', 'configure', 'noticeset.win_hint'),
-    step('[data-tour="notice-save"]', 'common.save', 'save'),
+    step('[data-tour="notice-tabs"]', 'notice_manager.rules', 'switch'),
+    step('[data-tour="notice-add"]', 'notice_manager.add', 'create', 'notice_manager.destinations'),
+    step('[data-setting-anchor="notice-windows"]', 'notice_manager.source', 'configure', 'notice_manager.delivery_help'),
   ]),
   '/webui-settings': profile('webui.title', [
     step(heading, 'webui.title', 'overview', 'webui.desc'),

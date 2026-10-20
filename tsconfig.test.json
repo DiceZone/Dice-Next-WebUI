@@ -59,6 +59,8 @@
     "src/lib/update-error-notice.ts",
     "src/lib/system-update.ts",
     "src/lib/sso.ts",
+    "src/lib/notice-rules.ts",
+    "src/i18n/notice-manager.ts",
     "src/lib/api-client.ts",
     "src/lib/build-time.ts",
     "src/lib/onboarding.ts",

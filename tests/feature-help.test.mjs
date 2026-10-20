@@ -45,13 +45,15 @@ const compiled = await build({
       "import { botMessageCopy } from './src/i18n/bot-message';",
       "import { imageResourcesCopy } from './src/i18n/image-resources';",
       "import { resourceTransferCopy } from './src/i18n/resource-transfer';",
-      "export { imageResourcesCopy, resourceTransferCopy };",
+      "import { noticeManagerCopy } from './src/i18n/notice-manager';",
+      "export { imageResourcesCopy, resourceTransferCopy, noticeManagerCopy };",
       "import { HelpLabel } from './src/components/ui/help-label';",
       "export { uiRefresh, uiAudit, weightedTemplates, pageHelp, featureHelpCopy, availabilityCopy, runtimeLogsCopy, networkInfoCopy, outcomeReplies, legacyTemplates, shortcuts, legacyImport, qqOfficialEditorCopy, groupManagementCopy, botMessageCopy };",
       ...pageImports.map(({ component, file }) => `import { ${component} } from './src/pages/${file}';`),
       ...languages.map((language, index) => `import locale${index} from './src/i18n/locales/${language}.json';`),
       `const resources = { ${languages.map((language, index) => `'${language}': { translation: { ...locale${index}, ui_refresh: uiRefresh['${language}'], ui_audit: uiAudit['${language}'], weighted: weightedTemplates['${language}'], page_help: pageHelp['${language}'], feature_help: featureHelpCopy['${language}'], availability: availabilityCopy['${language}'], runtime_logs: runtimeLogsCopy['${language}'], network_info: networkInfoCopy['${language}'], outcome: outcomeReplies['${language}'], legacy_text: legacyTemplates['${language}'], shortcuts: shortcuts['${language}'], legacy_import: legacyImport['${language}'], qq_editor: qqOfficialEditorCopy['${language}'], group_management: groupManagementCopy['${language}'], bot_message: botMessageCopy['${language}'] } }`).join(', ')} };`,
       "for (const language of Object.keys(resources)) Object.assign(resources[language].translation, { image_resources: imageResourcesCopy[language], resource_transfer: resourceTransferCopy[language] });",
+      "for (const language of Object.keys(resources)) Object.assign(resources[language].translation, { notice_manager: noticeManagerCopy[language] });",
       "const i18n = createInstance(); i18n.init({ lng: 'zh-Hans', initImmediate: false, resources, interpolation: { escapeValue: false } });",
       `const pages = { ${pageImports.map(({ component }) => component).join(', ')}, settings: SettingsPage, webui: WebuiSettingsPage, cloud: CloudSettingsPage, notice: NoticeSettingsPage, schedules: SchedulesPage, ai: AiPage };`,
       "export const render = (page, language, tour = false) => {",
@@ -86,6 +88,7 @@ for (const language of languages) {
   messages[language].bot_message = module.exports.botMessageCopy[language];
   messages[language].image_resources = module.exports.imageResourcesCopy[language];
   messages[language].resource_transfer = module.exports.resourceTransferCopy[language];
+  messages[language].notice_manager = module.exports.noticeManagerCopy[language];
 }
 
 function renderPage(page, hash, language = 'zh-Hans', tour = false) {
@@ -177,7 +180,7 @@ test('other settings pages render named clickable help in all four languages, in
     ['settings', '#/settings', ['settings.expression_title', 'settings.message_format_title', 'settings.imgsend_title', 'settings.imghost_title', 'settings.respond_self', 'settings.quote_reply', 'settings.save_images']],
     ['webui', '#/webui-settings', ['workspace.width', 'settings.webpw_title', 'settings.server_title', 'settings.api_key_title', 'settings.theme_title', 'settings.log_title']],
     ['cloud', '#/cloud-services', ['cloud.keys_title', 'cloud.cards_title', 'settings.logsite_title', 'settings.heartbeat_title', 'settings.heartbeat_master_title']],
-    ['notice', '#/notice-settings', ['noticeset.tab_windows']],
+    ['notice', '#/notice-settings', ['notice_manager.rules']],
     ['notice', '#/notice-settings?tab=push', ['noticeset.push_smtp', 'noticeset.push_webhook']],
     ['schedules', '#/schedules', ['nav.schedules']],
     ['ai', '#/ai/polish', ['ai.polish']],
@@ -202,7 +205,7 @@ test('password, restart, timezone, public sharing and notification requirements 
       ['settings', '#/settings', ['settings.prefix_hint', 'settings.timezone_hint', 'settings.seg_enabled_desc', 'feature_help.segment_limits', 'feature_help.forward_scope', 'feature_help.auto_card_scope']],
       ['webui', '#/webui-settings', ['settings.webpw_desc', 'settings.webpw_hint', 'settings.server_hint', 'settings.restart_update_hint']],
       ['cloud', '#/cloud-services', ['cloud.keys_desc', 'cloud.key_warning', 'cloud.cards_privacy', 'settings.heartbeat_public_desc']],
-      ['notice', '#/notice-settings?tab=push', ['noticeset.push_smtp_desc', 'noticeset.push_hint']],
+      ['notice', '#/notice-settings?tab=push', ['notice_manager.shared_help', 'notice_manager.destinations']],
       ['notice', '#/notice-settings?tab=audit', ['noticeset.audit_hint']],
     ]) {
       const html = renderPage(page, hash, language);

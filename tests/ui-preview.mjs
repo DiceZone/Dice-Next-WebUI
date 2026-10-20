@@ -9,6 +9,7 @@ import { spawnSync } from 'node:child_process';
 import { statisticsPreview } from './statistics-preview-data.mjs';
 import { createQQOfficialPreview } from './qq-official-preview-data.mjs';
 import { createImageResourcesPreview } from './image-resources-preview.mjs';
+import { createNoticePreview } from './notice-preview.mjs';
 const imageResourcesPreview = createImageResourcesPreview();
 const qqOfficialPreview = createQQOfficialPreview();
 const trayModule = await transform(await readFile(new URL('../src/lib/tray-settings.ts', import.meta.url), 'utf8'), { loader: 'ts', format: 'esm' });
@@ -16,6 +17,7 @@ const { trayTextError, trayTooltip } = await import('data:text/javascript;base64
 
 const sampleModule = await transform(await readFile(new URL('../src/lib/tour-samples.ts', import.meta.url), 'utf8'), { loader: 'ts', format: 'esm' });
 const { tourSamples } = await import('data:text/javascript;base64,' + Buffer.from(sampleModule.code).toString('base64'));
+const noticePreview = createNoticePreview(tourSamples);
 const previewGroups = structuredClone(tourSamples.groups);
 previewGroups[1].accounts = [{ ...previewGroups[0].accounts[0], adapterId: 'preview-onebot', adapterName: '月海 · 预览', endpointId: previewGroups[1].groupId }];
 previewGroups.push({ ...structuredClone(previewGroups[1]), platform: 'qq_official', groupId: 'demo-official', name: '官方测试群 · 示例', accounts: [{ ...previewGroups[1].accounts[0], adapterId: 'preview-qq', adapterName: '星灯 · 预览', platform: 'qq_official', endpointId: 'demo-official' }] });
@@ -219,6 +221,7 @@ const server = await createServer({
             const text = Buffer.concat(chunks).toString(); body = text ? JSON.parse(text) : {};
           }
           if (path === '/statistics/overview' && req.method === 'GET') return reply(statisticsPreview(tourSamples.statistics, url.searchParams));
+          if (path.startsWith('/system/notice/')) { const notice = noticePreview(req.method, path, url, body); if (notice !== undefined) return reply(notice); }
           if (/^\/adapters\/[^/]+$/.test(path) && req.method === 'PUT') {
             const bot = state['/adapters'].find((item) => item.id === path.slice('/adapters/'.length));
             if (!bot) throw new Error('Preview bot not found');
