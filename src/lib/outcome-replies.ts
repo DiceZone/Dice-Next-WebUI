@@ -101,33 +101,3 @@ export function resolveOutcomeInheritance(
   }
   return resolveOutcomeText({ ...text, override: null }, index);
 }
-
-/** Representative values are display-only, not a second implementation of rules. */
-export function outcomePreviewArgs(
-  base: Record<string, string>, outcome: OutcomeMetadata | undefined, labels: Record<string, string>,
-): Record<string, string> {
-  if (!outcome) return base;
-  const { family, grade } = outcome;
-  const dnd = family === 'dnd_check' || family === 'death_save';
-  let result = ({ critical: 1, extreme: 10, hard: 25, regular: 50, failure: 80, fumble: 100, special: 10, tie: 80 } as Record<string, number>)[grade] ?? 42;
-  let rate = 60;
-  if (dnd) { result = ({ critical: 20, regular: 15, failure: 5, fumble: 1 } as Record<string, number>)[grade] ?? 15; rate = family === 'death_save' ? 10 : 15; }
-  if (family === 'growth') result = grade === 'regular' ? 70 : 42;
-  if (family === 'opposed') result = grade === 'regular' ? 10 : 80;
-  const passed = !['failure', 'fumble', 'tie'].includes(grade);
-  const level = labels[grade] ?? grade;
-  const roll = `${dnd ? '1D20' : '1D100'}=${result}`;
-  const args = { ...base, result: String(result), roll, res: roll, rate: String(rate), level, outcome: level,
-    san: String(rate), grade: passed ? labels.regular : level, loss: passed ? '0' : '3', final: String(rate - (passed ? 0 : 3)),
-    change: passed ? '1D10=5' : '', target: family === 'resist' ? String(rate) : '调查员', gid: base.group ?? '100000', receipt: level,
-    detail: `${roll}=${result} ${level}`, total: String(result), threshold: String(rate), mod: '0', turn: '1',
-    s: passed && grade !== 'critical' ? '1' : '0', f: grade === 'fumble' ? '2' : passed ? '0' : '1',
-    la: '侦查', lb: '隐匿', ra: String(result), rb: grade === 'regular' ? '80' : grade === 'failure' ? '10' : '80',
-    va: String(rate), vb: String(rate), lva: grade === 'regular' ? labels.extreme : labels.failure,
-    lvb: grade === 'failure' ? labels.extreme : labels.failure,
-  };
-  if (family === 'sanity') args.res = String(result);
-  if (family === 'psychology' || family === 'death_save') args.roll = String(result);
-  if (family === 'growth') { args.res = `${roll}/${rate}`; args.final = String(rate + (passed ? 5 : 0)); }
-  return args;
-}

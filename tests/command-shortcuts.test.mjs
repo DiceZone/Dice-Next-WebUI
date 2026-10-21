@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
-import { shortcutTemplatePreviewArgs } from '../.test-dist/lib/command-shortcuts.js';
+import { previewSimulation, readTemplateSimulation } from '../.test-dist/lib/template-simulation.js';
 import { shortcuts } from '../.test-dist/i18n/shortcuts.js';
 import { buildTextMetadata, filterAndSortTexts } from '../.test-dist/lib/command-text-catalog.js';
 
@@ -21,28 +21,12 @@ test('all locales name every shortcut reply and expose scope/security/migration 
   }
   const editor = readFileSync(new URL('../src/pages/commands-page.tsx', import.meta.url), 'utf8');
   assert.match(editor, /shortcuts.labels/); assert.match(editor, /shortcuts.help/);
-  assert.match(editor, /shortcutTemplatePreviewArgs/);
+  assert.match(editor, /previewSimulation/);
   const resources = readFileSync(new URL('../src/i18n/index.ts', import.meta.url), 'utf8');
   for (const locale of locales) assert.ok(resources.includes(locale.startsWith('zh')
     ? `shortcuts: shortcuts['${locale}']` : `shortcuts: shortcuts.${locale}`));
 });
 
-test('shortcut previews supply localized command/list/name without changing caller/global variables', () => {
-  const base = { name: '骰娘', nick: '玩家', group: '2000', user: '1000', source: 'unrelated' };
-  assert.equal(shortcutTemplatePreviewArgs(base, 'alias.added', 'en'), base);
-  assert.equal(shortcutTemplatePreviewArgs(base, 'dice.roll.result', 'en'), base);
-  for (const locale of locales) {
-    const preview = shortcutTemplatePreviewArgs(base, 'shortcut.trigger_prefix', locale);
-    assert.equal(preview.shortcut, shortcuts[locale].example_name);
-    assert.equal(preview.command, shortcuts[locale].example_command);
-    assert.equal(preview.source, shortcuts[locale].group);
-    assert.ok(preview.list.includes(`.&${preview.shortcut}`));
-    assert.equal(preview.name, base.name); assert.equal(preview.nick, base.nick);
-    assert.equal(preview.group, base.group); assert.equal(preview.user, base.user);
-  }
-  assert.equal(base.source, 'unrelated');
-  assert.equal(shortcutTemplatePreviewArgs(base, 'shortcut.list', 'unknown').source, shortcuts['zh-Hans'].group);
-});
 
 test('shortcut texts are searchable with distinct labels in Tools, not account permissions', () => {
   const metadata = buildTextMetadata([{ cmd: '.alias', title: '快捷指令', category: '工具',
@@ -62,13 +46,13 @@ test('production backend preview resolves shortcut variables and nested sample i
   for (const locale of locales) {
     const backend = JSON.parse(readFileSync(new URL(`${locale}.json`, backendDirectory), 'utf8'));
     assert.deepEqual(Object.keys(backend.shortcut).sort(), keys);
-    const args = shortcutTemplatePreviewArgs({ name: 'Dice', nick: 'Player' }, 'shortcut.added', locale);
-    const input = { locale, args, format: 'plain', variants: [{ text: 'NEVER', weight: 0 },
+    const input = { locale, simulation: previewSimulation('shortcut.added', 'shortcut.added', 11), format: 'plain', variants: [{ text: 'NEVER', weight: 0 },
       { text: backend.shortcut.added + ' {sample:{shortcut}|{shortcut}}', weight: 1 }] };
     const result = spawnSync(process.env.DICENEXT_TEST_RENDERER, [], { input: JSON.stringify(input), encoding: 'utf8', timeout: 5000 });
     assert.equal(result.status, 0, result.stderr);
     const output = JSON.parse(result.stdout);
     assert.equal(output.code, 0);
+    const { args } = readTemplateSimulation(output.data);
     assert.ok(output.data.onebot.includes(args.shortcut));
     assert.ok(output.data.onebot.includes(args.command));
     assert.ok(!output.data.onebot.includes('NEVER'));

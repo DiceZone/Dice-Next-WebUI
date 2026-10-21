@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { resolveOutcomeText, resolveOutcomeInheritance, outcomePreviewArgs } from '../.test-dist/lib/outcome-replies.js';
+import { resolveOutcomeText, resolveOutcomeInheritance } from '../.test-dist/lib/outcome-replies.js';
 import { outcomeReplies } from '../.test-dist/i18n/outcome-replies.js';
 import { writeTemplateVariants } from '../.test-dist/lib/weighted-templates.js';
 import { filterAndSortTexts } from '../.test-dist/lib/command-text-catalog.js';
@@ -45,21 +45,6 @@ test('unconfigured standard slots must not mask the command-specific SAN/growth 
   assert.equal(resolveOutcomeText(legacy, index(legacy)), undefined);
 });
 
-test('all grades preview the selected outcome rather than always showing success', () => {
-  const labels = outcomeReplies['zh-Hans'].grades;
-  const base = { nick: '测试', roll: '42', rate: '60', level: '成功', group: '100000' };
-  for (const grade of Object.keys(labels)) {
-    const args = outcomePreviewArgs(base, { family: 'standard', grade }, labels);
-    assert.equal(args.level, labels[grade]); assert.equal(args.outcome, labels[grade]);
-    assert.match(args.result, /^\d+$/);
-  }
-  assert.equal(outcomePreviewArgs(base, { family: 'growth', grade: 'regular' }, labels).result, '70');
-  assert.equal(outcomePreviewArgs(base, { family: 'death_save', grade: 'critical' }, labels).roll, '20');
-  assert.equal(outcomePreviewArgs(base, { family: 'death_save', grade: 'fumble' }, labels).f, '2');
-  assert.equal(outcomePreviewArgs(base, { family: 'dnd_check', grade: 'failure' }, labels).threshold, '15');
-  assert.equal(outcomePreviewArgs(base, { family: 'sanity', grade: 'failure' }, labels).res, '80');
-  assert.equal(outcomePreviewArgs(base, undefined, labels), base);
-});
 
 test('inherited text participates in search/sorting without mutating authored defaults', () => {
   const inherited = { ...bonus, group: 'dice', description: '奖励骰 · 成功', example: '.rb 60', categories: ['COC'], effective: { value: '继承的珍稀文案' } };
@@ -72,8 +57,8 @@ test('localized grades/families stay complete and editor preserves server-side w
   for (const locale of ['zh-Hans', 'zh-Hant', 'en', 'ja']) assert.deepEqual(leaves(outcomeReplies[locale]), leaves(outcomeReplies.en));
   const editor = readFileSync(new URL('../src/pages/commands-page.tsx', import.meta.url), 'utf8');
   assert.match(editor, /resolveOutcomeInheritance/);
-  assert.match(editor, /variants: previewVariants, args: previewArgs, format: previewFormat/);
-  assert.match(editor, /outcomePreviewArgs\(PREVIEW_VALUES, reply.outcome/);
+  assert.match(editor, /simulation: previewSimulation\(reply.key, previewKey, resample, reply.outcome\)/);
+  assert.doesNotMatch(editor, /PREVIEW_VALUES|outcomePreviewArgs|legacyTemplatePreviewArgs/);
   assert.match(editor, /reply.outcome && \(useInherited \|\| storedValue === ''\)/);
   assert.match(editor, /outcome.reset/);
   assert.match(editor, /!useInherited && <>/);

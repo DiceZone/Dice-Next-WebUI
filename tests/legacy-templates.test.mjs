@@ -5,7 +5,7 @@ import { spawnSync } from 'node:child_process';
 import { build } from 'esbuild';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
-import { legacyTemplatePreviewArgs, readLegacyTextReport, legacyTextCounts, legacyTextIssue, templateLocalNames } from '../.test-dist/lib/legacy-templates.js';
+import { readLegacyTextReport, legacyTextCounts, legacyTextIssue, templateLocalNames } from '../.test-dist/lib/legacy-templates.js';
 import { legacyTemplates } from '../.test-dist/i18n/legacy-templates.js';
 import { resolveOutcomeText } from '../.test-dist/lib/outcome-replies.js';
 
@@ -19,22 +19,6 @@ test('local template lint recognizes nested values without treating escaped or d
 });
 const standard = row('dice.outcome.standard.regular', '', { outcome: { family: 'standard', grade: 'regular' }, fallbackKeys: ['dice.check.result'] });
 const index = (...texts) => new Map(texts.map(text => [text.key, text]));
-const labels = { critical: 'CRIT', extreme: 'EXTREME', hard: 'HARD', regular: 'PASS', failure: 'FAIL', fumble: 'FUMBLE' };
-
-test('legacy preview keeps SAN rank/detail and growth labels separate from native arguments', () => {
-  const base = { nick: 'A', result: '42', res: '42', reason: 'example' };
-  assert.equal(legacyTemplatePreviewArgs(base, 'card.sc.result', labels), base);
-  const san = legacyTemplatePreviewArgs(base, 'dice.compat.sanity.result', labels);
-  assert.equal(san.rank, '2'); assert.equal(san.res, '1D100=50/60'); assert.equal(san.loss, '0');
-  const fumble = legacyTemplatePreviewArgs(base, 'dice.compat.sanity.result', labels, { family: 'sanity', grade: 'fumble' });
-  assert.equal(fumble.rank, '0'); assert.equal(fumble.loss, '6'); assert.equal(fumble.final, '54');
-  assert.equal(fumble.change, 'Max{1d6}=6');
-  const unchanged = legacyTemplatePreviewArgs(base, 'dice.compat.growth.unchanged', labels);
-  assert.equal(unchanged.res, '1D100=42/60 FAIL'); assert.equal(unchanged.change, ''); assert.equal(unchanged.final, '60');
-  const growth = legacyTemplatePreviewArgs(base, 'dice.compat.growth.success', labels);
-  assert.equal(growth.res, '1D100=70/60 PASS'); assert.equal(growth.final, '65');
-  assert.equal(legacyTemplatePreviewArgs(base, 'dice.compat.check.single.hard', labels).result, '25');
-});
 
 test('inherited check preview activates legacy slots only when configured, retaining full-template precedence', () => {
   const native = row('dice.check.result', 'NATIVE {roll} {level}');
@@ -88,7 +72,7 @@ test('localized copy and real editor/report wiring stay complete', () => {
   const read = path => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
   const editor = read('src/pages/commands-page.tsx');
   assert.match(editor, /locale: lang, personaId/); assert.match(editor, /reply\.legacyReferences/);
-  assert.match(editor, /reply\.legacyCompatibility \? \[\]/); assert.match(editor, /legacyTemplatePreviewArgs/);
+  assert.match(editor, /reply\.legacyCompatibility \? \[\]/); assert.match(editor, /previewSimulation/);
   const backup = read('src/pages/backup-page.tsx');
   assert.match(backup, /readLegacyTextReport\(d.customTextDetails\)/);
   assert.match(backup, /legacy\/texts\/upgrade-report/); assert.match(backup, /controller.abort\(\)/);

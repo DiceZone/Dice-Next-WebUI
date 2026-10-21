@@ -1,5 +1,3 @@
-import type { OutcomeMetadata } from './outcome-replies.js';
-
 /** Lint metadata only; the backend remains the sole template evaluator. */
 export function templateLocalNames(text: string): string[] {
   const names = new Set<string>();
@@ -28,31 +26,6 @@ export function templateLocalNames(text: string): string[] {
     }
   }
   return [...names];
-}
-
-/** Display-only examples. Rule evaluation and random rolls remain on the backend. */
-export function legacyTemplatePreviewArgs(
-  base: Record<string, string>, key: string, labels: Record<string, string>, outcome?: OutcomeMetadata,
-): Record<string, string> {
-  if (!key.startsWith('dice.compat.')) return base;
-  const grade = key.startsWith('dice.compat.check.single.') ? key.substring(key.lastIndexOf('.') + 1) : outcome?.grade ?? 'regular';
-  const rank = ({ fumble: 0, failure: 1, regular: 2, hard: 3, extreme: 4, critical: 5 } as Record<string, number>)[grade] ?? 2;
-  const result = ({ critical: 1, extreme: 10, hard: 25, regular: 50, failure: 80, fumble: 100 } as Record<string, number>)[grade] ?? 50;
-  const args = { ...base, rank: String(rank), result: String(result), roll: '1D100=' + result, res: '1D100=' + result,
-    rate: '60', level: labels[grade] ?? grade };
-  if (key.startsWith('dice.compat.sanity.')) {
-    const loss = rank >= 2 ? '0' : rank === 0 ? '6' : '3';
-    return { ...args, attr: '理智', san: '60', res: args.roll + '/60', loss,
-      change: loss === '0' ? '0' : rank === 0 ? 'Max{1d6}=6' : '1D6=3', final: String(60 - Number(loss)) };
-  }
-  if (key.startsWith('dice.compat.growth.')) {
-    const unchanged = key.endsWith('.unchanged'), passed = !unchanged && !key.endsWith('.failure');
-    const growthRoll = passed ? '70' : '42';
-    const level = labels[passed ? 'regular' : 'failure'] ?? (passed ? 'regular' : 'failure');
-    return { ...args, result: growthRoll, roll: '1D100=' + growthRoll, res: '1D100=' + growthRoll + '/60 ' + level, level,
-      change: unchanged ? '' : passed ? '1D10=5' : '-1', final: unchanged ? '60' : passed ? '65' : '59' };
-  }
-  return args;
 }
 
 export type LegacyTextStatus = 'active' | 'partial' | 'preserved' | 'conflict';

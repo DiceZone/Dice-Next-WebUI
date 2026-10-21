@@ -43,9 +43,10 @@ test('search and text sorting use actual variants rather than internal storage m
   assert.equal(filterAndSortTexts([row], WEIGHTED_TEMPLATE_PREFIX, '', { field: 'text', direction: 'asc' }).length, 0);
 });
 
-test('editor sends authored variants and arguments separately to the server, with resampling', () => {
+test('editor sends authored variants and command context separately to the server, with resampling', () => {
   const editor = readFileSync(new URL('../src/pages/commands-page.tsx', import.meta.url), 'utf8');
-  assert.match(editor, /JSON.stringify\(\{ variants: previewVariants, args: previewArgs, format: previewFormat/);
+  assert.match(editor, /JSON.stringify\(\{ variants: previewVariants,/);
+  assert.match(editor, /simulation: previewSimulation\(reply.key, previewKey, resample, reply.outcome\)/);
   assert.doesNotMatch(editor, /sampleReply|raw.split\('\|'\)/);
   assert.match(editor, /weighted.resample/);
   assert.match(editor, /WeightedTemplateEditor items=\{variants\}/);

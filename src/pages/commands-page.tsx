@@ -29,9 +29,9 @@ import { ResponsiveActions } from '@/components/ui/responsive-actions';
 import { VARIABLE_STYLES, variableStyleOf, restyleVariable, type VariableStyle } from '@/lib/template-variable-style';
 import { PREVIEW_PLATFORMS, readReplyPreview, previewMessages, isFormFeedVariable, type PreviewPlatform, type ReplyPreview } from '@/lib/reply-preview';
 import { Switch } from '@/components/ui/switch';
-import { resolveOutcomeText, resolveOutcomeInheritance, outcomePreviewArgs, type OutcomeText, type ResolvedOutcomeText } from '@/lib/outcome-replies';
-import { legacyTemplatePreviewArgs, templateLocalNames } from '@/lib/legacy-templates';
-import { shortcutTemplatePreviewArgs } from '@/lib/command-shortcuts';
+import { resolveOutcomeText, resolveOutcomeInheritance, type OutcomeText, type ResolvedOutcomeText } from '@/lib/outcome-replies';
+import { templateLocalNames } from '@/lib/legacy-templates';
+import { previewSimulation, readTemplateSimulation, type TemplateSimulation } from '@/lib/template-simulation';
 import { belongsInCommandTexts } from '@/lib/help-document';
 import { buildTextMetadata, commandCategory, COMMAND_CATEGORIES, filterAndSortTexts, type TextSort, type TextSortField } from '@/lib/command-text-catalog';
 
@@ -590,14 +590,6 @@ export const CommandsPage: React.FC = () => {
 };
 
 // ─── Edit modal ──────────────────────────────────────────────
-const PREVIEW_VALUES: Record<string, string> = {
-  nick: '测试玩家', name: '测试玩家', qqnick: '测试玩家', card: '调查员', pcname: '调查员',
-  qqnickw: '<测试玩家>', cardw: '<调查员>', pcnamew: '<调查员>', self: 'Dice!Next',
-  user: '10001', group: '100000', date: '2026-08-21', time: '20:00:00',
-  res: '1D100=42', expr: '1D100', result: '42', reason: '示例检定', turn: '3', attr: '侦查',
-  roll: '42', rate: '60', level: '成功', outcome: '成功', total: '18', mod: '+3', detail: '1D20=15+3=18',
-};
-
 const inlineMarkdown = (text: string, prefix: string): React.ReactNode[] => {
   const pattern = /(\*\*[^*\n]+\*\*|__[^_\n]+__|~~[^~\n]+~~|\*[^*\n]+\*|_[^_\n]+_|`[^`\n]+`|\[[^\]\n]+\]\([^)\n]+\))/g;
   const out: React.ReactNode[] = [];
@@ -647,12 +639,13 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
     setVariants(current => current.map((item, i) => i === activeIndex
       ? { ...item, text: typeof next === 'function' ? next(item.text) : next } : item));
   const storedValue = writeTemplateVariants(variants);
-  const [resample, setResample] = useState(0);
+  const [resample, setResample] = useState(() => crypto.getRandomValues(new Uint32Array(1))[0]);
   const [saving, setSaving] = useState(false);
   const [supportsWeighted, setSupportsWeighted] = useState(false);
   const [backendTooOld, setBackendTooOld] = useState(false);
   const [format, setFormat] = useState<ReplyFormat>(reply.override == null ? reply.defaultFormat : reply.format);
   const [preview, setPreview] = useState<ReplyPreview | null>(null);
+  const [simulation, setSimulation] = useState<TemplateSimulation | null>(null);
   const [previewPlatform, setPreviewPlatform] = useState<PreviewPlatform>('qq_group');
   const [previewStyle, setPreviewStyle] = useState('visual');
   const [previewPlain, setPreviewPlain] = useState(false);
@@ -665,11 +658,7 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
     : t('outcome.original');
   const inheritedLabel = t('outcome.inherited', { source: reply.inherited?.layer === 'global' && personaId > 0
     ? `${t('outcome.global')} · ${inheritedSource}` : inheritedSource });
-  const gradeLabels = Object.fromEntries(['critical', 'extreme', 'hard', 'regular', 'failure', 'fumble', 'special', 'tie']
-    .map(grade => [grade, t(`outcome.grades.${grade}`)]));
   const previewKey = useInherited ? reply.inherited?.key ?? reply.key : reply.key;
-  const previewArgs = shortcutTemplatePreviewArgs(legacyTemplatePreviewArgs(
-    outcomePreviewArgs(PREVIEW_VALUES, reply.outcome, gradeLabels), previewKey, gradeLabels, reply.outcome), previewKey, lang);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -680,23 +669,26 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
         const previewVariants = useInherited ? readTemplateVariants(reply.inherited?.value ?? '') : variants;
         const previewFormat = useInherited ? reply.inherited?.format ?? 'plain' : format;
         const r = await fetch('/api/templates/preview', { method: 'POST', signal: controller.signal,
-          headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ variants: previewVariants, args: previewArgs, format: previewFormat,
+          headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ variants: previewVariants,
+            simulation: previewSimulation(reply.key, previewKey, resample, reply.outcome), format: previewFormat,
             platform: previewPlatform, style: previewStyle, forcePlain: previewPlain, locale: lang, personaId }) });
         const j = await r.json();
         if (controller.signal.aborted) return;
-        if (j.code === 0 && j.data?.templateVersion !== 1) {
-          setBackendTooOld(true); throw new Error('Weighted template backend required');
+        const scenario = j.code === 0 ? readTemplateSimulation(j.data) : null;
+        if (j.code === 0 && (j.data?.templateVersion !== 1 || !scenario)) {
+          setBackendTooOld(true); throw new Error('Simulation preview backend required');
         }
         const next = j.code === 0 ? readReplyPreview(j.data) : null;
         if (!r.ok || !next) throw new Error('Preview unavailable');
         setSupportsWeighted(true); setBackendTooOld(false);
         setPreview(next);
-      } catch (e) { if ((e as Error).name !== 'AbortError' && !controller.signal.aborted) { setPreview(null); setPreviewFailed(true); } }
+        setSimulation(scenario);
+      } catch (e) { if ((e as Error).name !== 'AbortError' && !controller.signal.aborted) { setPreview(null); setSimulation(null); setPreviewFailed(true); } }
       finally { if (!controller.signal.aborted) setPreviewLoading(false); }
     }, 160);
     return () => { window.clearTimeout(timer); controller.abort(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storedValue, format, previewPlatform, previewStyle, previewPlain, resample, useInherited, reply.inherited, lang, personaId]);
+  }, [storedValue, format, previewPlatform, previewStyle, previewPlain, resample, useInherited, reply.inherited, reply.key, previewKey, lang, personaId]);
 
   // Command-specific vars (chips) vs global vars (behind the button).
   const exclusiveVars = reply.vars.filter((v) => !GLOBAL_SET.has(v.name) && !isFormFeedVariable(v.name));
@@ -802,7 +794,7 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
             <div className="flex flex-wrap items-center justify-between gap-3">
               <HelpLabel title={t('commands.preview_title')} description={<p>{t('commands.preview_hint')}</p>} labelClassName="text-sm font-medium" />
               <Button type="button" size="sm" variant="outline" disabled={useInherited ? !reply.inherited : !validWeights(variants)}
-                onClick={() => setResample(current => current + 1)}><RefreshCw className="mr-1 h-3.5 w-3.5" />{t('weighted.resample')}</Button>
+                onClick={() => setResample(current => (current + 1) >>> 0)}><RefreshCw className="mr-1 h-3.5 w-3.5" />{t('weighted.resample')}</Button>
               <TabsList aria-label={t('commands.preview_title')}>
                 <TabsTrigger value="display" className="px-2.5 text-xs">{t('commands.preview_display')}</TabsTrigger>
                 <TabsTrigger value="payload" className="px-2.5 text-xs">{t('commands.preview_payload')}</TabsTrigger>
@@ -821,7 +813,13 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
             <label className="mt-2 flex items-center gap-2 text-xs"><Switch checked={previewPlain} onCheckedChange={setPreviewPlain} />{t('commands.preview_force_plain')}</label>
             <p className="mt-2 text-[11px] text-muted-foreground">{t('feature_help.preview_note')}</p>
             <AsyncPreview loading={previewLoading} loadingLabel={t('common.loading')}
-              error={previewFailed ? t(backendTooOld ? 'weighted.backend_required' : 'commands.preview_unavailable') : undefined}>
+              error={previewFailed ? t(backendTooOld ? 'commands.preview_backend_required' : 'commands.preview_unavailable') : undefined}>
+              {simulation && <div className="mt-3 space-y-1 text-xs text-muted-foreground" data-preview-simulation>
+                <p>{t('commands.preview_scenario')} <code>{simulation.command}</code>
+                  {simulation.grade && <> · {t(`outcome.grades.${simulation.grade}`)}</>}</p>
+                {simulation.unresolved.length > 0 && <p role="status" className="text-amber-600">{t('commands.preview_unresolved', { vars: simulation.unresolved.map(name => `{${name}}`).join(' ') })}</p>}
+                {simulation.issues.length > 0 && <p role="status" className="text-amber-600">{t('commands.preview_syntax')} {simulation.issues.join('; ')}</p>}
+              </div>}
               {preview && <>
                 <TabsContent value="display" className="min-h-24 max-h-64 overflow-y-auto break-words rounded-md bg-background p-3 text-sm [overflow-wrap:anywhere] [scrollbar-gutter:stable]">
                   <div className="space-y-3">{previewMessages(preview).map((message, index) => <div key={index}
