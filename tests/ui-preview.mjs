@@ -2,7 +2,7 @@
 // no backend proxy, bot connection, filesystem writes or external requests.
 import { createServer } from 'vite';
 import react from '@vitejs/plugin-react';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { readFile } from 'node:fs/promises';
 import { transform } from 'esbuild';
 import { spawnSync } from 'node:child_process';
@@ -189,10 +189,11 @@ const listDecks = () => [...deckFiles].map(([filename, content], index) => {
   return { id: index + 1, filename, title: data._title?.[0] || filename, author: data._author?.[0], version: data._version?.[0], date: data._date?.[0], description: data._brief?.[0], entries: keys.filter((key) => !key.startsWith('_')), hidden_entries: keys.filter((key) => key.startsWith('_')) };
 });
 
+export async function startUiPreview(port = Number(process.env.DICENEXT_UI_PREVIEW_PORT || 5173)) {
 const server = await createServer({
   configFile: false,
   resolve: { alias: { '@': fileURLToPath(new URL('../src', import.meta.url)) } },
-  server: { host: '127.0.0.1', port: Number(process.env.DICENEXT_UI_PREVIEW_PORT || 5173), strictPort: true },
+  server: { host: '127.0.0.1', port, strictPort: true },
   plugins: [react(), {
     name: 'isolated-ui-preview',
     transformIndexHtml() {
@@ -463,4 +464,9 @@ const server = await createServer({
   }],
 });
 await server.listen();
-server.printUrls();
+return server;
+}
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const server = await startUiPreview();
+  server.printUrls();
+}

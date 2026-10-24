@@ -341,7 +341,7 @@ test('record cards have a deliberate identity hierarchy instead of stacked colum
     };
     visit(tree);
   }
-  assert.equal(records, 14); // Explicit group table view stays a horizontally scrollable table.
+  assert.equal(records, 13); // Group tables and notification audit deliberately keep horizontal scrolling.
   const css = fs.readFileSync(new URL('../src/index.css', import.meta.url), 'utf8');
   assert.match(css, /table\.rt\.rt-record tr\s*\{[^}]*display: grid;/);
   assert.match(css, /\.rt-footer\s*\{[^}]*grid-column: 1 \/ -1;[^}]*border-top:/);
@@ -425,11 +425,12 @@ test('every responsive table has an explicit mobile frame, section or compact-li
     const classes = (node) => ts.isJsxElement(node)
       ? (node.openingElement.attributes.properties.find(p => p.name?.getText(tree) === 'className')?.initializer?.text || '').split(' ') : [];
     const visit = (node) => {
-      if (ts.isJsxElement(node) && node.openingElement.tagName.getText(tree) === 'table' && classes(node).includes('rt')) {
+      const fixedAudit = ts.isJsxElement(node) && node.openingElement.attributes.properties.some(p => p.name?.getText(tree) === 'data-testid' && p.initializer?.text === 'notice-audit-table');
+      if (ts.isJsxElement(node) && node.openingElement.tagName.getText(tree) === 'table' && (classes(node).includes('rt') || fixedAudit)) {
         count++;
         let marked = classes(node).includes('rt-flat');
         for (let ancestor = node.parent; ancestor && !marked; ancestor = ancestor.parent)
-          marked = classes(ancestor).some(cls => cls === 'rt-frame' || cls === 'rt-section');
+          marked = classes(ancestor).some(cls => cls === 'rt-frame' || cls === 'rt-section' || (fixedAudit && cls === 'overflow-x-auto'));
         assert.ok(marked, 'Missing mobile container treatment: ' + file.pathname);
       }
       ts.forEachChild(node, visit);
@@ -966,9 +967,14 @@ test('shared tab panels and AI settings grids use the available container width'
 
 test('audit severity labels do not wrap or fragment when long messages compete for width', () => {
   const source = fs.readFileSync(new URL('../src/pages/notice-settings-page.tsx', import.meta.url), 'utf8');
-  assert.ok(source.includes('data-label={t(\'noticeset.audit_area\')} className="rt-status p-2 whitespace-nowrap"'));
-  assert.ok(source.includes('inline-flex shrink-0 whitespace-nowrap rounded px-1.5 py-0.5 text-xs'));
-  assert.ok(source.includes('data-label={t(\'noticeset.audit_msg\')} className="rt-body p-2 text-xs break-all"'));
+  assert.ok(source.includes('min-w-[960px] table-fixed'));
+  assert.ok(source.includes('h-10 whitespace-nowrap px-3 text-left'));
+  assert.ok(source.includes('inline-flex whitespace-nowrap rounded px-1.5 py-0.5 text-xs'));
+  assert.ok(source.includes('h-12 overflow-hidden px-3'));
+  assert.ok(source.includes('onClick={() => setAuditDetail(a)}'));
+  assert.ok(source.includes('whitespace-pre-wrap break-words'));
+  const css = fs.readFileSync(new URL('../src/index.css', import.meta.url), 'utf8');
+  assert.match(css, /th\s*\{\s*white-space: nowrap; word-break: normal;/);
 });
 
 test('compact pagination bounds page buttons without enumerating all pages', () => {

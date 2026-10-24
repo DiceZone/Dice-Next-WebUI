@@ -181,7 +181,6 @@ test('other settings pages render named clickable help in all four languages, in
     ['webui', '#/webui-settings', ['workspace.width', 'settings.webpw_title', 'settings.server_title', 'settings.api_key_title', 'settings.theme_title', 'settings.log_title']],
     ['cloud', '#/cloud-services', ['cloud.keys_title', 'cloud.cards_title', 'settings.logsite_title', 'settings.heartbeat_title', 'settings.heartbeat_master_title']],
     ['notice', '#/notice-settings', ['notice_manager.rules']],
-    ['notice', '#/notice-settings?tab=push', ['noticeset.push_smtp', 'noticeset.push_webhook']],
     ['schedules', '#/schedules', ['nav.schedules']],
     ['ai', '#/ai/polish', ['ai.polish']],
     ['ai', '#/ai/translate', ['ai.trans']],
@@ -198,6 +197,15 @@ test('other settings pages render named clickable help in all four languages, in
   }
 });
 
+test('notification destination help lives in the window editor rather than the removed push tab', () => {
+  const editor = read('src/components/notice-window-editor.tsx');
+  for (const binding of ["title={t('noticeset.push_smtp')} description={nm('shared_help')}", "title={t('noticeset.push_webhook')} description={nm('advanced_help')}", "{nm('destinations')}"])
+    assert.ok(editor.includes(binding), binding);
+  for (const language of languages) for (const key of ['notice_manager.shared_help', 'notice_manager.destinations', 'notice_manager.advanced_help'])
+    assert.ok(lookup(messages[language], key)?.length > 20, `${language}: ${key}`);
+  assert.ok(!read('src/pages/notice-settings-page.tsx').includes('<TabsTrigger value="push">'));
+});
+
 test('password, restart, timezone, public sharing and notification requirements remain visible', () => {
   for (const language of languages) {
     const locale = messages[language];
@@ -205,7 +213,7 @@ test('password, restart, timezone, public sharing and notification requirements 
       ['settings', '#/settings', ['settings.prefix_hint', 'settings.timezone_hint', 'settings.seg_enabled_desc', 'feature_help.segment_limits', 'feature_help.forward_scope', 'feature_help.auto_card_scope']],
       ['webui', '#/webui-settings', ['settings.webpw_desc', 'settings.webpw_hint', 'settings.server_hint', 'settings.restart_update_hint']],
       ['cloud', '#/cloud-services', ['cloud.keys_desc', 'cloud.key_warning', 'cloud.cards_privacy', 'settings.heartbeat_public_desc']],
-      ['notice', '#/notice-settings?tab=push', ['notice_manager.shared_help', 'notice_manager.destinations']],
+      ['notice', '#/notice-settings', ['notice_manager.hint']],
       ['notice', '#/notice-settings?tab=audit', ['noticeset.audit_hint']],
     ]) {
       const html = renderPage(page, hash, language);

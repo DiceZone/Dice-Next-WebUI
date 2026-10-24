@@ -331,8 +331,8 @@ export const SETTINGS_SEARCH_ENTRIES: SettingsSearchEntry[] = [
 
   e('notice-windows', '/notice-settings', 'nav.notice', 'noticeset.tab_windows', '通知窗口 群通知 私聊通知 event window update 更新结果 更新結果', 'noticeset.win_hint', true, 'windows'),
   e('settings-identity-email', '/settings', 'nav.settings', 'identitymail.title', 'QQ 邮箱 郵箱 绑定 綁定 验证 驗證 smtp email oauth', 'identitymail.desc'),
-  e('notice-smtp', '/notice-settings', 'nav.notice', 'noticeset.push_smtp', '邮件 郵件 email smtp ssl host port sender receiver push', 'noticeset.push_smtp_desc', false, 'push'),
-  e('notice-webhook', '/notice-settings', 'nav.notice', 'noticeset.push_webhook', 'webhook http callback 回调 回呼 推送 url', 'noticeset.push_webhook_desc', false, 'push'),
+  e('notice-smtp', '/notice-settings', 'nav.notice', 'noticeset.push_smtp', '邮件 郵件 email smtp ssl host port sender receiver push', 'noticeset.push_smtp_desc', false, 'windows'),
+  e('notice-webhook', '/notice-settings', 'nav.notice', 'noticeset.push_webhook', 'webhook http callback 回调 回呼 推送 url 企业微信 钉钉 飞书 自定义 请求 模板 variables json', 'noticeset.push_webhook_desc', false, 'windows'),
   e('notice-audit', '/notice-settings', 'nav.notice', 'noticeset.tab_audit', '审计 審計 审核 日志 日誌 audit operation history', 'noticeset.audit_hint', false, 'audit'),
 
   e('page-dashboard', '/', 'nav.dashboard', 'dashboard.title', '运行概览 運行概覽 dashboard overview status uptime 在线 在線 连接状态 連線狀態', 'dashboard.subtitle', true),

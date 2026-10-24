@@ -22,6 +22,7 @@
     "icons:generate": "node scripts/generate-app-icons.mjs",
     "dev:preview": "node tests/ui-preview.mjs",
     "test:tour-preview": "node tests/tour-preview.mjs",
+    "test:notice-browser": "playwright test --config playwright.notice.config.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -55,6 +56,7 @@
     "zustand": "^4.5.0"
   },
   "devDependencies": {
+    "@playwright/test": "1.64.1",
     "@tailwindcss/typography": "^0.5.0",
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",

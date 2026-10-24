@@ -3,6 +3,8 @@
 @tailwind utilities;
 
 @layer base {
+  /* Keep table headings readable; narrow tables should scroll, not stack letters. */
+  th { white-space: nowrap; word-break: normal; overflow-wrap: normal; }
   :root {
     /* ── shadcn/ui CSS Variables ──────────────────────── */
     --background: 0 0% 100%;

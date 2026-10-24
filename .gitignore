@@ -18,3 +18,5 @@ src/**/*.d.ts
 
 # Local Claude Code tooling config
 .claude/
+test-results/
+playwright-report/

@@ -1,3 +1,2 @@
-import React from 'react';
-export declare const NoticeSettingsPage: React.FC;
+export declare function NoticeSettingsPage(): import("react").JSX.Element;
 export default NoticeSettingsPage;
