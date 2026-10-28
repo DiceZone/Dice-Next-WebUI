@@ -46,6 +46,10 @@ const compiled = await build({
       "import { imageResourcesCopy } from './src/i18n/image-resources';",
       "import { resourceTransferCopy } from './src/i18n/resource-transfer';",
       "import { noticeManagerCopy } from './src/i18n/notice-manager';",
+      "import { webuiVersionsCopy } from './src/i18n/webui-versions';",
+      "export { webuiVersionsCopy };",
+      "import { mcpCopy } from './src/i18n/mcp';",
+      "export { mcpCopy };",
       "export { imageResourcesCopy, resourceTransferCopy, noticeManagerCopy };",
       "import { HelpLabel } from './src/components/ui/help-label';",
       "export { uiRefresh, uiAudit, weightedTemplates, pageHelp, featureHelpCopy, availabilityCopy, runtimeLogsCopy, networkInfoCopy, outcomeReplies, legacyTemplates, shortcuts, legacyImport, qqOfficialEditorCopy, groupManagementCopy, botMessageCopy };",
@@ -54,6 +58,8 @@ const compiled = await build({
       `const resources = { ${languages.map((language, index) => `'${language}': { translation: { ...locale${index}, ui_refresh: uiRefresh['${language}'], ui_audit: uiAudit['${language}'], weighted: weightedTemplates['${language}'], page_help: pageHelp['${language}'], feature_help: featureHelpCopy['${language}'], availability: availabilityCopy['${language}'], runtime_logs: runtimeLogsCopy['${language}'], network_info: networkInfoCopy['${language}'], outcome: outcomeReplies['${language}'], legacy_text: legacyTemplates['${language}'], shortcuts: shortcuts['${language}'], legacy_import: legacyImport['${language}'], qq_editor: qqOfficialEditorCopy['${language}'], group_management: groupManagementCopy['${language}'], bot_message: botMessageCopy['${language}'] } }`).join(', ')} };`,
       "for (const language of Object.keys(resources)) Object.assign(resources[language].translation, { image_resources: imageResourcesCopy[language], resource_transfer: resourceTransferCopy[language] });",
       "for (const language of Object.keys(resources)) Object.assign(resources[language].translation, { notice_manager: noticeManagerCopy[language] });",
+      "for (const language of Object.keys(resources)) Object.assign(resources[language].translation, { mcp: mcpCopy[language] });",
+      "for (const language of Object.keys(resources)) Object.assign(resources[language].translation, { webui_versions: webuiVersionsCopy[language] });",
       "const i18n = createInstance(); i18n.init({ lng: 'zh-Hans', initImmediate: false, resources, interpolation: { escapeValue: false } });",
       `const pages = { ${pageImports.map(({ component }) => component).join(', ')}, settings: SettingsPage, webui: WebuiSettingsPage, cloud: CloudSettingsPage, notice: NoticeSettingsPage, schedules: SchedulesPage, ai: AiPage };`,
       "export const render = (page, language, tour = false) => {",
@@ -89,6 +95,8 @@ for (const language of languages) {
   messages[language].image_resources = module.exports.imageResourcesCopy[language];
   messages[language].resource_transfer = module.exports.resourceTransferCopy[language];
   messages[language].notice_manager = module.exports.noticeManagerCopy[language];
+  messages[language].webui_versions = module.exports.webuiVersionsCopy[language];
+  messages[language].mcp = module.exports.mcpCopy[language];
 }
 
 function renderPage(page, hash, language = 'zh-Hans', tour = false) {
@@ -178,7 +186,7 @@ test('every PageHeader branch includes help, and page guides have the same compl
 test('other settings pages render named clickable help in all four languages, including disabled AI sections', () => {
   const cases = [
     ['settings', '#/settings', ['settings.expression_title', 'settings.message_format_title', 'settings.imgsend_title', 'settings.imghost_title', 'settings.respond_self', 'settings.quote_reply', 'settings.save_images']],
-    ['webui', '#/webui-settings', ['workspace.width', 'settings.webpw_title', 'settings.server_title', 'settings.api_key_title', 'settings.theme_title', 'settings.log_title']],
+    ['webui', '#/webui-settings', ['webui_versions.title', 'settings.webpw_title', 'settings.server_title', 'settings.api_key_title', 'settings.theme_title', 'settings.log_title']],
     ['cloud', '#/cloud-services', ['cloud.keys_title', 'cloud.cards_title', 'settings.logsite_title', 'settings.heartbeat_title', 'settings.heartbeat_master_title']],
     ['notice', '#/notice-settings', ['notice_manager.rules']],
     ['schedules', '#/schedules', ['nav.schedules']],

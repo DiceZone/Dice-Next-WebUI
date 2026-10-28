@@ -6,7 +6,8 @@
  */
 export type ConnectionMode = 'forward_ws' | 'reverse_ws' | 'http';
 export type AdapterStatus = 'connected' | 'disconnected' | 'connecting' | 'error' | 'timeout';
-export type AdapterType = 'onebot_v11' | 'milky' | 'qq_official' | 'discord' | 'kook';
+/** openopq = 内置登录（实验性）：由 Dice!Next 自行运行协议端，网页扫码登录。 */
+export type AdapterType = 'onebot_v11' | 'milky' | 'qq_official' | 'discord' | 'kook' | 'openopq';
 export interface Adapter {
     id: string;
     name: string;
@@ -18,6 +19,8 @@ export interface Adapter {
     appId?: string;
     appSecret?: string;
     qqNumber?: string;
+    /** 内置登录与协议端之间的连接方式 */
+    openopqTransport?: 'forward_ws' | 'reverse_ws';
     forceVerifyImageResource?: boolean;
     subscribeGroupMemberEvents?: boolean;
     autoAcknowledgeInteractions?: boolean;
@@ -45,6 +48,7 @@ export interface AdapterFormData {
     appId?: string;
     appSecret?: string;
     qqNumber?: string;
+    openopqTransport?: 'forward_ws' | 'reverse_ws';
     forceVerifyImageResource?: boolean;
     subscribeGroupMemberEvents?: boolean;
     autoAcknowledgeInteractions?: boolean;

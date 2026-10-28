@@ -11,8 +11,8 @@ const manifest = JSON.parse(await readFile(new URL('manifest.json', publicDir), 
 
 test('入口声明安装清单和 Apple 图标', async () => {
   const html = await readFile(htmlFile, 'utf8');
-  assert.match(html, /<link rel="manifest" href="\/manifest\.json"/);
-  assert.match(html, /<link rel="apple-touch-icon" href="\/icons\/apple-touch-icon\.png"/);
+  assert.match(html, /<link rel="manifest" href="(?:%BASE_URL%|\.\/)manifest\.json"/);
+  assert.match(html, /<link rel="apple-touch-icon" href="(?:%BASE_URL%|\.\/)icons\/apple-touch-icon\.png"/);
   assert.match(html, /name="theme-color"/);
 });
 

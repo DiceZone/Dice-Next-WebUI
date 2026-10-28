@@ -17,6 +17,7 @@ import { PaginationBar } from '@/components/ui/pagination-bar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { PlatformIcon } from '@/components/platform-icon';
+import { readBanlistEntries } from '@/lib/banlist-response';
 import { ShieldCheck, Plus, Trash2, RefreshCw, Bot, Search, Users } from 'lucide-react';
 
 interface BanEntry {
@@ -536,10 +537,14 @@ export const BanlistPage: React.FC = () => {
 
   const load = useCallback(async () => {
     setLoading(true);
-    try { const d = await jsend('GET', '/banlist'); setEntries(d.entries || []); }
+    try {
+      const rows = readBanlistEntries<BanEntry>(await jsend('GET', '/banlist'));
+      if (!rows) throw new Error(t('common.load_fail'));
+      setEntries(rows);
+    }
     catch (e) { toast({ title: (e as Error).message, variant: 'destructive' }); }
     finally { setLoading(false); }
-  }, [toast]);
+  }, [toast, t]);
   useEffect(() => { void load(); }, [load]);
 
   const addBot = async () => {

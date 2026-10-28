@@ -6,6 +6,8 @@ import { PageHeader } from '@/components/ui/page-header';
 import { StatCard } from '@/components/dashboard/stat-card';
 import { RecentLogs } from '@/components/dashboard/recent-logs';
 import { ServerInfo } from '@/components/dashboard/server-info';
+import { QuickActions } from '@/components/dashboard/quick-actions';
+import { Button } from '@/components/ui/button';
 import { zustandDashboardStore } from '@/store/dashboard-store';
 import { Clock, LayoutDashboard, MessagesSquare, PlugZap } from 'lucide-react';
 
@@ -19,7 +21,7 @@ function formatUptime(seconds: number): string {
 
 export const DashboardPage: React.FC = () => {
   const { t } = useTranslation();
-  const { stats: liveStats, loading, fetchStats } = zustandDashboardStore();
+  const { stats: liveStats, loading, error, fetchStats } = zustandDashboardStore();
   const stats = useTourValue(liveStats, tourSamples.dashboard);
 
   useEffect(() => {
@@ -31,6 +33,9 @@ export const DashboardPage: React.FC = () => {
   return (
     <div className="space-y-6">
       <PageHeader icon={LayoutDashboard} title={t('dashboard.title')} description={t('dashboard.subtitle')} help={t('page_help.dashboard')} />
+      {error && <div role="alert" className="flex items-center justify-between gap-3 rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-sm text-destructive">
+        {t('common.load_fail')}<Button type="button" variant="outline" size="sm" onClick={() => void fetchStats()}>{t('common.retry')}</Button>
+      </div>}
 
       {loading && !stats ? (
         <div data-tour="dashboard-summary" className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -48,7 +53,10 @@ export const DashboardPage: React.FC = () => {
       )}
 
       <div className="grid gap-4 lg:grid-cols-3 lg:items-stretch">
-        <div data-tour="dashboard-server" className="lg:col-span-1"><ServerInfo /></div>
+        <div className="space-y-4 lg:col-span-1">
+          <div data-tour="dashboard-server"><ServerInfo /></div>
+          <QuickActions onNavigate={(path) => { window.location.hash = path; }} />
+        </div>
         <div data-tour="dashboard-logs" className="lg:col-span-2"><RecentLogs logs={stats?.recent_logs ?? []} /></div>
       </div>
     </div>

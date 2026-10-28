@@ -7,6 +7,7 @@ import { zustandAppStore } from '@/store/app-store';
 import { useSystemUpdateStore } from '@/store/system-update-store';
 import { formatVersion, isUpdateBusy } from '@/lib/system-update';
 import { CircleHelp, Menu, Sun, Moon } from 'lucide-react';
+import buildVersion from '@/webui-version.json';
 
 interface HeaderProps {
   wsConnected?: boolean;
@@ -80,6 +81,7 @@ export const Header: React.FC<HeaderProps> = ({ wsConnected: _ws, onNavigate, to
         <span className="hidden text-sm font-medium text-muted-foreground xl:inline">
           {t('header.panel_title')}
         </span>
+        {buildVersion.preview && <span className="rounded border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">{t('webui_versions.preview')}</span>}
       </div>
 
       <div className="flex min-w-0 flex-1 justify-center sm:px-3 md:px-4">
@@ -95,7 +97,7 @@ export const Header: React.FC<HeaderProps> = ({ wsConnected: _ws, onNavigate, to
           aria-label={`${formatVersion(version)} · ${t(updateStatus?.updateAvailable ? 'about.version_new_available' : 'about.version_open')}`}
         >
           <span className="min-w-0 truncate font-mono">{formatVersion(version)}</span>
-          {updateStatus?.updateAvailable && <img src="/new.svg" alt="" className="h-3 w-6 shrink-0 sm:h-3.5 sm:w-8" />}
+          {updateStatus?.updateAvailable && <img src="./new.svg" alt="" className="h-3 w-6 shrink-0 sm:h-3.5 sm:w-8" />}
         </button>
 
         {/* Language switcher */}

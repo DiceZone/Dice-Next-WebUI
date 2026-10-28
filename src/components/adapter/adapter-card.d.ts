@@ -10,6 +10,7 @@ interface AdapterCardProps {
     onTestConnection: (id: string) => void;
     onShowReverseInfo?: (port: string) => void;
     onOfficialControls?: (id: string) => void;
+    onBuiltinLogin?: (adapter: Adapter) => void;
 }
 export declare const AdapterCard: React.FC<AdapterCardProps>;
 export default AdapterCard;

@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { AdapterCard } from '@/components/adapter/adapter-card';
 import { AdapterForm } from '@/components/adapter/adapter-form';
 import { ReverseWsInfo } from '@/components/adapter/reverse-ws-info';
+import { OpenOpqLogin } from '@/components/adapter/openopq-login';
 import { useServerNetworkInfo } from '@/hooks/use-server-network-info';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/ui/page-header';
@@ -25,6 +26,7 @@ export const AdaptersPage: React.FC = () => {
   const [formOpen, setFormOpen] = useState(false);
   const [editingAdapter, setEditingAdapter] = useState<Adapter | null>(null);
   const [reverseWsPort, setReverseWsPort] = useState<string | null>(null);
+  const [builtinLogin, setBuiltinLogin] = useState<{ id: string; name: string } | null>(null);
   const { network, refresh: refreshNetwork, readCache: readNetworkCache } = useServerNetworkInfo();
   useEffect(() => {
     if (!reverseWsPort) return;
@@ -44,7 +46,12 @@ export const AdaptersPage: React.FC = () => {
   }, [fetchAdapters]);
 
   const handleCreate = async (data: AdapterFormData) => {
-    try { await createAdapter(data); toast({ title: t('adapters.added') }); }
+    try {
+      const created = await createAdapter(data);
+      toast({ title: t('adapters.added') });
+      // 内置登录建好就直接进入扫码
+      if (created?.type === 'openopq') setBuiltinLogin({ id: created.id, name: created.name });
+    }
     catch (e) { toast({ title: t('adapters.add_fail'), variant: 'destructive' }); throw e; }
   };
   const handleUpdate = async (data: AdapterFormData) => {
@@ -106,7 +113,8 @@ export const AdaptersPage: React.FC = () => {
             <AdapterCard key={a.id} adapter={a} onConnect={handleToggle} onDisconnect={handleToggle} onReconnect={handleReconnect}
               onEdit={(a) => { setEditingAdapter(a); setFormOpen(true); }} onDelete={handleDelete} onTestConnection={handleTest}
               onOfficialControls={(id) => { window.location.hash = `/qq-official?adapter=${encodeURIComponent(id)}`; }}
-              onShowReverseInfo={a.connectionMode === 'reverse_ws' ? (port) => setReverseWsPort(port) : undefined} />
+              onShowReverseInfo={a.connectionMode === 'reverse_ws' ? (port) => setReverseWsPort(port) : undefined}
+              onBuiltinLogin={(a) => setBuiltinLogin({ id: a.id, name: a.name })} />
           ))}
         </div>
       )}
@@ -115,6 +123,7 @@ export const AdaptersPage: React.FC = () => {
         onSubmit={editingAdapter ? handleUpdate : handleCreate} adapter={editingAdapter} />
       <ReverseWsInfo open={!!reverseWsPort} onClose={() => setReverseWsPort(null)} port={reverseWsPort ?? ''}
         network={network} onRefresh={refreshNetwork} />
+      <OpenOpqLogin adapterId={builtinLogin?.id ?? null} adapterName={builtinLogin?.name} onClose={() => setBuiltinLogin(null)} />
     </div>
   );
 };

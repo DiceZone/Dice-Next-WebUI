@@ -279,6 +279,10 @@ const e = (
 // Common aliases are intentionally multilingual: protocol names and older Dice terms
 // remain searchable even when the administration language changes.
 export const SETTINGS_SEARCH_ENTRIES: SettingsSearchEntry[] = [
+  e('page-mcp', '/mcp', 'mcp.title', 'mcp.title', 'MCP AI 模型上下文协议 模型上下文協議 客户端 用戶端 连接 連線 独立凭据 授權 工具 权限 人物卡 Streamable HTTP token', 'mcp.desc', true),
+  e('mcp-grants', '/mcp', 'mcp.title', 'mcp.grants', 'MCP token 令牌 凭据 憑據 创建 建立 撤销 撤銷 失效 到期 过期 授权 授權 权限 人物卡 所属用户 所有者 最近调用 服务器时间', 'mcp.usage_hint'),
+  e('mcp-connection', '/mcp', 'mcp.title', 'mcp.self_check', 'MCP 连接 連線 自检 自檢 测试 诊断 token 凭据 憑據 握手 初始化 工具权限', 'mcp.self_check_hint'),
+  e('mcp-audit', '/mcp', 'mcp.title', 'mcp.audit', 'MCP 调用 呼叫 日志 日誌 审计 審計 audit history pagination', 'mcp.audit_hint'),
   e('qq-menu', '/qq-official', 'qq_editor.title', 'qq_editor.menu', '卡片与按钮 卡片 按钮 官方菜单与面板 QQ 官方 自定义菜单 全局菜单 二级菜单 开关 menu switch c2c cards buttons', 'qq_editor.menu_help'),
   e('qq-panels', '/qq-official', 'qq_editor.title', 'qq_editor.panels', '卡片与按钮 卡片 按钮 官方菜单与面板 QQ 官方 指令面板 关联对象 OpenID panel command group channel cards buttons', 'qq_editor.panel_help'),
   e('settings-master', '/settings', 'nav.settings', 'settings.master_title', 'master 主人 骰主 管理员 管理員 admin owner', 'settings.master_desc', true),
@@ -326,7 +330,7 @@ export const SETTINGS_SEARCH_ENTRIES: SettingsSearchEntry[] = [
   e('webui-password', '/webui-settings', 'nav.webui', 'settings.webpw_title', '密码 密碼 password login 登录 登入 auth trust device 30天', 'settings.webpw_desc', true),
   e('webui-server', '/webui-settings', 'nav.webui', 'settings.server_title', 'ip host port 端口 端口号 監聽 listen address 18088 server', 'settings.server_desc'),
   e('webui-theme', '/webui-settings', 'nav.webui', 'settings.theme_title', '主题 主題 theme dark light system 深色 浅色 淺色', 'settings.theme_desc'),
-  e('webui-content-width', '/webui-settings', 'nav.webui', 'workspace.width', '内容宽度 內容寬度 留白 经典 經典 新版 layout width classic modern', 'workspace.width_hint'),
+  e('webui-version', '/webui-settings', 'nav.webui', 'webui_versions.title', 'WebUI UI V1 V2 预览 預覽 preview 界面 介面 版本 切换 切換 新版', 'webui_versions.help'),
   e('webui-log', '/webui-settings', 'nav.webui', 'settings.log_title', '控制台日志 控制台日誌 运行日志 程序日志 记录级别 展示级别 调试 TRACE DEBUG INFO SUCCESS WARN ERROR msgID 插件日志 raw log 日志来源', 'runtime_logs.help'),
 
   e('notice-windows', '/notice-settings', 'nav.notice', 'noticeset.tab_windows', '通知窗口 群通知 私聊通知 event window update 更新结果 更新結果', 'noticeset.win_hint', true, 'windows'),
@@ -336,6 +340,7 @@ export const SETTINGS_SEARCH_ENTRIES: SettingsSearchEntry[] = [
   e('notice-audit', '/notice-settings', 'nav.notice', 'noticeset.tab_audit', '审计 審計 审核 日志 日誌 audit operation history', 'noticeset.audit_hint', false, 'audit'),
 
   e('page-dashboard', '/', 'nav.dashboard', 'dashboard.title', '运行概览 運行概覽 dashboard overview status uptime 在线 在線 连接状态 連線狀態', 'dashboard.subtitle', true),
+  e('dashboard-shortcuts', '/', 'nav.dashboard', 'dashboard_shortcuts.customize', '常用操作 快捷入口 排序 自定义 自訂 quick actions shortcuts', 'dashboard_shortcuts.description'),
   e('page-statistics', '/statistics', 'nav.statistics', 'statistics.title', '数据统计 數據統計 statistics analytics metrics report trend 活跃用户 活躍使用者 活跃群组 活躍群組 骰点分布 骰點分佈 在线粒度 在線粒度', 'statistics.subtitle', true),
   e('page-playground', '/playground', 'nav.playground', 'nav.playground', '指令测试 指令測試 测试台 測試台 playground sandbox debug message 调试 調試'),
   e('page-help', '/help', 'nav.help', 'helpdoc.title', '帮助文档 幫助文件 help docs documentation topic 规则速查 規則速查', 'helpdoc.desc'),

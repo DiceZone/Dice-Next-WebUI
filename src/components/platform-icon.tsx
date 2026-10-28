@@ -7,6 +7,7 @@ const PLATFORM_META: Record<string, { label: string; icon: string }> = {
   qq_official: { label: 'QQ 官方机器人', icon: '/platform-icons/qq-official.svg' },
   discord: { label: 'Discord', icon: '/platform-icons/discord.svg' },
   kook: { label: 'KOOK', icon: '/platform-icons/kook.svg' },
+  openopq: { label: 'QQ 内置登录', icon: '/platform-icons/onebot.svg' },
 };
 
 const PLATFORM_ALIASES: Record<string, string> = {

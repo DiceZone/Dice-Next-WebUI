@@ -29,6 +29,7 @@ import { BackupPage } from '@/pages/backup-page';
 import { LogsPage } from '@/pages/logs-page';
 import { StatisticsPage } from '@/pages/statistics-page';
 import { FilesPage } from '@/pages/files-page';
+import { McpPage } from '@/pages/mcp-page';
 
 /**
  * Route configuration and page component map.
@@ -37,6 +38,7 @@ import { FilesPage } from '@/pages/files-page';
  * via WebSocket proxy. This avoids server-side routing complications.
  */
 const ROUTES: Record<string, React.ComponentType> = {
+  '/mcp': McpPage,
   '/': DashboardPage,
   '/playground': PlaygroundPage,
   '/adapters': AdaptersPage,

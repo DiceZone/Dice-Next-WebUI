@@ -363,7 +363,7 @@ test('version entry replaces connection badge and sidebar placeholder, and uses 
   assert.ok(!header.includes('apiOnline'));
   assert.ok(header.includes("onNavigate('/about?focus=about-update')"));
   assert.ok(header.includes('formatVersion(version)'));
-  assert.ok(header.includes('updateStatus?.updateAvailable && <img src="/new.svg"'));
+  assert.ok(header.includes('updateStatus?.updateAvailable && <img src="./new.svg"'));
   const versionEntry = header.match(/<button\b[\s\S]*?<\/button>/)?.[0];
   assert.ok(versionEntry?.includes("onNavigate('/about?focus=about-update')"));
   assert.ok(versionEntry.includes('focus-visible:ring-2'));

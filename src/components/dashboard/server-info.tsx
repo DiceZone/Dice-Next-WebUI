@@ -97,7 +97,7 @@ export const ServerInfo: React.FC = () => {
   if (!info || !info.os) return null;
   const cpuKnown = info.cpu_load >= 0;
   const LOGOS = new Set(['windows', 'ubuntu', 'debian', 'centos', 'rocky', 'server']);
-  const logoSrc = `/os/${LOGOS.has(info.os_id) ? info.os_id : 'server'}.svg`;
+  const logoSrc = `./os/${LOGOS.has(info.os_id) ? info.os_id : 'server'}.svg`;
   const cpuDetail = [
     info.cpu_model,
     `${info.cpu_physical || info.cpu_cores} ${t('dashboard.physical')} · ${info.cpu_cores} ${t('dashboard.logical')}`,
@@ -112,7 +112,7 @@ export const ServerInfo: React.FC = () => {
       <CardContent className="space-y-5">
         <div className="flex items-center gap-3 rounded-lg border bg-muted/30 p-3">
           <img src={logoSrc} alt={info.os} className="h-9 w-9 shrink-0 object-contain"
-            onError={(e) => { const img = e.currentTarget; if (!img.src.endsWith('/os/server.svg')) img.src = '/os/server.svg'; }} />
+            onError={(e) => { const img = e.currentTarget; if (!img.src.endsWith('/os/server.svg')) img.src = './os/server.svg'; }} />
           <div className="min-w-0 text-sm font-medium truncate">{info.os}</div>
         </div>
 

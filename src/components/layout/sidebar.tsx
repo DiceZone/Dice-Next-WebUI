@@ -50,6 +50,7 @@ const NAV: Node[] = [
   { labelKey: 'nav.system', icon: Settings, children: [
     { labelKey: 'nav.settings', path: '/settings', icon: SlidersHorizontal },
     { labelKey: 'cloud.title', path: '/cloud-services', icon: Cloud },
+    { labelKey: 'mcp.title', path: '/mcp', icon: PlugZap },
     { labelKey: 'nav.notice', path: '/notice-settings', icon: Bell },
     { labelKey: 'nav.webui', path: '/webui-settings', icon: Monitor },
     { labelKey: 'nav.schedules', path: '/schedules', icon: Clock },
@@ -109,7 +110,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPath, onNavigate }) => 
         <div className={cn('flex h-14 items-center border-b px-3', sidebarCollapsed ? 'justify-center' : 'justify-between')}>
           {!sidebarCollapsed && (
             <div className="flex items-center gap-2 overflow-hidden">
-              <img src="/favicon.svg" alt="Dice!Next" className="h-7 w-7" />
+              <img src="./favicon.svg" alt="Dice!Next" className="h-7 w-7" />
               <span className="text-lg font-bold tracking-tight text-brand-600 whitespace-nowrap">Dice!Next</span>
             </div>
           )}
