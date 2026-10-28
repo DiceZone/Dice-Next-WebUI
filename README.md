@@ -61,6 +61,11 @@ WebUI 提供应用清单，可通过支持该功能的浏览器安装为独立�
 
 ## 与其他项目的关系
 
+浏览器回归测试固定使用仓库内的独立样例，不自动读取同级仓库，保证本地与 CI 的数据一致。
+`node tests/ui-preview.mjs` 可手动查看同一套样例；`npm run dev:preview` 则显式启用
+`--workspace`，在同级主程序与文档仓库可用时读取完整指令和文案。两种模式都不连接真实机器人，
+修改仅保留在预览进程内。
+
 本项目与 `Dice-Next`、`Dice-Next-Doc`、`onedice-cpp-lib` 放在同一工作区中开发。后端打包时通过 `DICENEXT_WEB_ROOT` 找到本项目的 `dist/`；若未设置该变量，则默认读取同级 `Dice-Next-WebUI`。
 
 ## 反馈
