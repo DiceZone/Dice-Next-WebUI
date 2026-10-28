@@ -27,7 +27,7 @@
     "test:groups": "tsc -p tsconfig.test.json && node --test tests/group-management.test.mjs tests/ai-settings.test.mjs",
     "test:reply-regex": "tsc -p tsconfig.test.json && node --test tests/reply-regex.test.mjs",
     "icons:generate": "node scripts/generate-app-icons.mjs",
-    "dev:preview": "node tests/ui-preview.mjs",
+    "dev:preview": "node tests/ui-preview.mjs --workspace",
     "test:tour-preview": "node tests/tour-preview.mjs",
     "test:notice-browser": "playwright test --config playwright.notice.config.mjs",
     "preview": "vite preview"

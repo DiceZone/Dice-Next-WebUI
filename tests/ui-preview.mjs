@@ -103,17 +103,19 @@ if (process.env.DICENEXT_UI_PREVIEW_PAGINATION === '1') {
 }
 const commandReply = { key: 'dice.roll.result', default: '**{nick}** 掷出了 {expr} = **{result}**', override: null, format: 'markdown', defaultFormat: 'markdown', vars: [{ name: 'expr', desc: '掷骰表达式' }, { name: 'result', desc: '掷骰结果' }] };
 const commandCategories = [
-  ['sc', 'COC', '理智检定'], ['br', 'BRP', 'BRP 检定'], ['dnd', 'DND', 'DND 检定'],
+  ['ra', 'COC', '技能检定'], ['sc', 'COC', '理智检定'], ['br', 'BRP', 'BRP 检定'], ['dnd', 'DND', 'DND 检定'],
   ['st', '人物卡', '属性管理'], ['draw', '牌堆', '抽取牌堆'], ['log', '跑团', '跑团日志'],
   ['jrrp', '娱乐', '今日人品'], ['bot', '互动', '骰娘互动'], ['ai', 'AI', 'AI 对话'],
   ['help', '工具', '帮助'], ['master', '权限', '骰主权限'], ['group', '管理', '群管理'], ['system', '系统', '系统状态'],
 ].map(([cmd, category, title]) => ({ cmd, title, category, sources: ['core'], example: `.${cmd}`, desc: `${title} · 本地预览样例`, replies: [] }));
-// In the multi-repository workspace, preview the complete real catalog and
-// default text. Only read source JSON; changes remain in these in-memory maps.
+// Browser fixtures always use the same standalone data, regardless of sibling
+// checkouts. Only the explicitly invoked --workspace preview reads real sources.
+const directPreview = !!process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 const previewLocales = new Map();
 const previewOutcomeFamilies = new Map();
 const previewLegacyKeys = new Map();
-let previewCatalog;
+let previewCatalog = null;
+if (directPreview && process.argv.includes('--workspace')) {
 try {
   previewCatalog = JSON.parse(await readFile(new URL('../../Dice-Next-Doc/commands.json', import.meta.url), 'utf8'));
   const legacyRegistry = await readFile(new URL('../../Dice-Next/server/src/storage/legacy_message_keys.h', import.meta.url), 'utf8');
@@ -140,6 +142,10 @@ try {
 } catch (error) {
   if (error.code !== 'ENOENT') throw error;
   previewCatalog = null; // The WebUI repository can still be previewed alone.
+  previewLocales.clear();
+  previewOutcomeFamilies.clear();
+  previewLegacyKeys.clear();
+}
 }
 const previewTextOverrides = new Map();
 const previewPersonaEntries = new Map();
@@ -480,10 +486,15 @@ const server = await createServer({
     },
   }],
 });
-await server.listen();
+try {
+  await server.listen();
+} catch (error) {
+  await server.close();
+  throw error;
+}
 return server;
 }
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (directPreview) {
   const server = await startUiPreview();
   server.printUrls();
 }
