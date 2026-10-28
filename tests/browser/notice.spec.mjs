@@ -17,7 +17,10 @@ async function fixture(page, options = {}) {
   });
   await page.goto('/#/notice-settings' + (options.query || ''));
   await page.getByRole('button', { name: /我用过 DiceNext/ }).click();
-  if (page.viewportSize().width < 1024) await page.getByRole('navigation').getByRole('button', { name: '通知设置', exact: true }).click();
+  if (page.viewportSize().width < 1024) {
+    await page.locator('#mobile-navigation-trigger').click();
+    await page.getByRole('navigation').getByRole('button', { name: '通知设置', exact: true }).click();
+  }
   await expect(page.getByRole('button', { name: '添加通知窗口', exact: true })).toBeEnabled();
   return { writes, errors };
 }

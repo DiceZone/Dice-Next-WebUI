@@ -1,0 +1,47 @@
+{
+	"$schema": "https://biomejs.dev/schemas/2.6.3/schema.json",
+	"vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+	"files": {
+		"includes": [
+			"**",
+			"!src/vendor/**",
+			"!src/**/*.d.ts",
+			"!dist/**",
+			"!.test-dist/**",
+			"!test-results/**",
+			"!.v2-*.json"
+		]
+	},
+	"formatter": { "enabled": false },
+	"assist": { "enabled": false },
+	"linter": {
+		"enabled": true,
+		"rules": {
+			"preset": "none",
+			"correctness": { "noUnusedImports": "error", "noUnreachable": "error" },
+			"suspicious": {
+				"noDebugger": "error",
+				"noDuplicateObjectKeys": "error",
+				"noDuplicateParameters": "error"
+			}
+		}
+	},
+	"css": { "parser": { "tailwindDirectives": true } },
+	"overrides": [
+		{
+			"includes": [
+				"src/lib/query-client.ts",
+				"src/lib/safe-navigation.ts",
+				"src/components/app-providers.tsx",
+				"tests/unit/**"
+			],
+			"formatter": {
+				"enabled": true,
+				"indentStyle": "space",
+				"indentWidth": 2,
+				"lineWidth": 110
+			},
+			"javascript": { "formatter": { "quoteStyle": "single" } }
+		}
+	]
+}

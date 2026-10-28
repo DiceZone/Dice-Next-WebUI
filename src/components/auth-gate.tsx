@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ADMIN_PASSWORD_MAX_LENGTH, isValidAdminPassword, sanitizeAdminPassword } from '@/lib/admin-password';
-import { isHttpsPanel, ssoStartUrl, takeSsoResult, type SsoLoginProvider } from '@/lib/sso';
+import { isHttpsPanel, ssoProviderLogo, ssoStartUrl, takeSsoResult, type SsoLoginProvider } from '@/lib/sso';
 
 /**
  * WebUI 登录门（C#34）。挂在 AppRouter 外层：
@@ -110,7 +110,7 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
         <form onSubmit={setup} className="relative w-full max-w-sm rounded-xl border bg-card/95 p-8 shadow-lg backdrop-blur-sm">
           <div className="mb-7 text-center">
-            <img src="/favicon.svg" alt="Dice!Next" className="mx-auto mb-4 h-16 w-16" />
+            <img src="./favicon.svg" alt="Dice!Next" className="mx-auto mb-4 h-16 w-16" />
             <h1 className="text-2xl font-bold tracking-tight">Dice!Next</h1>
             <p className="mt-0.5 text-sm font-medium text-muted-foreground">{t('auth.setup_title')}</p>
           </div>
@@ -171,7 +171,7 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
         <form onSubmit={changePassword} className="relative w-full max-w-sm rounded-xl border bg-card/95 p-8 shadow-lg backdrop-blur-sm">
           <div className="mb-7 text-center">
-            <img src="/favicon.svg" alt="Dice!Next" className="mx-auto mb-4 h-16 w-16" />
+            <img src="./favicon.svg" alt="Dice!Next" className="mx-auto mb-4 h-16 w-16" />
             <h1 className="text-2xl font-bold tracking-tight">Dice!Next</h1>
             <p className="mt-0.5 text-sm font-medium text-muted-foreground">{t('auth.change_title')}</p>
           </div>
@@ -231,7 +231,7 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
       <form onSubmit={login} className="relative w-full max-w-sm rounded-xl border bg-card/95 p-8 shadow-lg backdrop-blur-sm">
         <div className="mb-7 text-center">
-          <img src="/favicon.svg" alt="Dice!Next" className="mx-auto mb-4 h-16 w-16" />
+          <img src="./favicon.svg" alt="Dice!Next" className="mx-auto mb-4 h-16 w-16" />
           <h1 className="text-2xl font-bold tracking-tight">Dice!Next</h1>
           <p className="mt-0.5 text-sm font-medium text-muted-foreground">{t('header.panel_title')}</p>
         </div>
@@ -263,18 +263,21 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
             <div className="flex items-center gap-3 text-xs text-muted-foreground">
               <span className="h-px flex-1 bg-border" />{t('sso.login_divider')}<span className="h-px flex-1 bg-border" />
             </div>
-            {ssoProviders.map((provider) => (
-              <button
-                key={provider.id}
-                type="button"
-                disabled={!isHttpsPanel()}
-                onClick={() => { window.location.href = ssoStartUrl(provider.id); }}
-                className="flex w-full items-center justify-center gap-2 rounded-md border bg-background px-3 py-2 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
-              >
-                {provider.logo && <img src={provider.logo} alt="" className="h-4 w-4 rounded object-contain" />}
-                {t('sso.login_with', { name: provider.kind === 'bdc' ? t('sso.bdc_name') : provider.name })}
-              </button>
-            ))}
+            {ssoProviders.map((provider) => {
+              const logo = ssoProviderLogo(provider);
+              return (
+                <button
+                  key={provider.id}
+                  type="button"
+                  disabled={!isHttpsPanel()}
+                  onClick={() => { window.location.href = ssoStartUrl(provider.id); }}
+                  className="flex w-full items-center justify-center gap-2 rounded-md border bg-background px-3 py-2 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50"
+                >
+                  {logo && <img src={logo} alt="" aria-hidden="true" className="h-4 w-4 shrink-0 object-contain" />}
+                  {t('sso.login_with', { name: provider.kind === 'bdc' ? t('sso.bdc_name') : provider.name })}
+                </button>
+              );
+            })}
             {!isHttpsPanel() && <p className="text-xs text-muted-foreground">{t('sso.https_required')}</p>}
           </div>
         )}

@@ -23,6 +23,7 @@ import type { ReplyRule, ReplyFormData, MatchType } from '@/types/reply';
 import type { CausalRule } from '@/types/causal';
 import { emptyCausalRule } from '@/types/causal';
 import { PageHeader } from '@/components/ui/page-header';
+import { FeatureHelp } from '@/components/ui/feature-help';
 import { zustandAdapterStore } from '@/store/adapter-store';
 import { platformLabel } from '@/components/platform-icon';
 import { resolveReplyScope, replyScopeKey } from '@/lib/reply-scope';
@@ -147,10 +148,12 @@ export const RepliesPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {dlg.node}
-      <PageHeader icon={MessageSquareReply} title={t('replies.title')} description={t('replies.subtitle')} help={t('page_help.replies')} />
+      <PageHeader icon={MessageSquareReply} title={t('replies.title')} description={t('replies.subtitle')} help={t('page_help.replies')} actions={tab === 'replies' &&
+        <Button disabled={loading || !!error} onClick={() => { setEditingReply(null); setFormOpen(true); }}><Plus className="h-4 w-4" />{t('replies.add')}</Button>
+      } />
 
       {tab === 'replies' && <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-card p-4">
-        <label htmlFor="replies-scope" className="text-sm font-medium">{t('settings.scope_title')}</label>
+        <label htmlFor="replies-scope" className="text-sm font-medium">{t('settings.scope_title')}</label><FeatureHelp title={t('settings.scope_title')} description={t('replies.page_scope_hint')} />
         <Select value={scopeSelection} onValueChange={setScopeSelection} disabled={formOpen || pokeEditing}>
           <SelectTrigger id="replies-scope" className="w-full sm:w-80"><SelectValue /></SelectTrigger>
           <SelectContent>
@@ -163,7 +166,7 @@ export const RepliesPage: React.FC = () => {
             </SelectItem>)}
           </SelectContent>
         </Select>
-        <p className="w-full text-xs text-muted-foreground">{t('replies.page_scope_hint')}</p>
+        <div className="ml-auto flex flex-wrap gap-2"><PokeReplyButton scope={scope} scopeLabel={scopeLabel} onEditingChange={setPokeEditing} /><BroadcastBar render="button" /></div>
         {adaptersError && <div role="alert" className="flex flex-wrap items-center gap-2 text-sm text-destructive">
           {t('common.load_fail')}：{adaptersError}
           <Button variant="outline" size="sm" onClick={() => void fetchAdapters()}>{t('ui_refresh.retry')}</Button>
@@ -184,6 +187,8 @@ export const RepliesPage: React.FC = () => {
         <>
           {/* C#72：活动广播横幅（仅有待发广播时显示，单独一行）。 */}
           <BroadcastBar render="banner" />
+          <div className="grid items-start gap-6 2xl:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="min-w-0 space-y-4">
           {/* C#72：搜索框 + 添加回复 + 新增广播 同一横排。 */}
           <div data-tour="replies-toolbar" className="grid grid-cols-2 items-center gap-2 md:flex md:flex-wrap">
             <div className="relative col-span-2 min-w-0 md:flex-1">
@@ -212,9 +217,6 @@ export const RepliesPage: React.FC = () => {
                 <SelectItem value="disabled">{t('replies.filter_disabled')}</SelectItem>
               </SelectContent>
             </Select>
-            <Button className="shrink-0" disabled={loading || !!error} onClick={() => { setEditingReply(null); setFormOpen(true); }}><Plus className="mr-2 h-4 w-4" />{t('replies.add')}</Button>
-            <PokeReplyButton scope={scope} scopeLabel={scopeLabel} onEditingChange={setPokeEditing} />
-            <BroadcastBar render="button" />
           </div>
           <div data-tour="replies-list">{error ? (
             <div role="alert" className="space-y-2 rounded-lg border border-destructive/40 p-4">
@@ -226,7 +228,9 @@ export const RepliesPage: React.FC = () => {
           ) : (
             <ReplyTable replies={replies} onEdit={(r) => { setEditingReply(r); setFormOpen(true); }} onDelete={handleDelete} onToggle={handleToggle} filterText={filterText} matchTypeFilter={matchTypeFilter} statusFilter={statusFilter} />
           )}</div>
-          <div data-tour="replies-preview"><ReplyMatchPreview replies={replies} scope={scope} /></div>
+          </div>
+          <div data-tour="replies-preview" className="min-w-0 2xl:sticky 2xl:top-0"><ReplyMatchPreview replies={replies} scope={scope} /></div>
+          </div>
           <ReplyForm open={formOpen} onOpenChange={setFormOpen} onSubmit={editingReply ? handleUpdate : handleCreate} reply={editingReply}
             headerSlot={<p className="text-sm font-medium">{scopeLabel}</p>} />
         </>

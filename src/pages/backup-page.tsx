@@ -255,7 +255,7 @@ export const BackupPage: React.FC = () => {
   };
 
   const restoreStored = async (name: string, automatic: boolean) => {
-    if (!(await dlg.confirm({ title: t('backup.backup_restore_title'), description: `确定使用服务器中的备份「${name}」恢复吗？当前数据会在重启时被替换，并保留回滚副本。`, confirmText: t('common.ok') }))) return;
+    if (!(await dlg.confirm({ title: t('backup.backup_restore_title'), description: `确定使用服务器中的备份「${name}」恢复吗？当前数据会在重启时被替换，并保留回滚副本。\n${t('mcp.restore_backup_hint')}`, confirmText: t('common.ok') }))) return;
     setRestoring(true);
     try {
       const r = await fetch('/api/backup/restore-stored', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, automatic }) });
@@ -277,7 +277,7 @@ export const BackupPage: React.FC = () => {
 
   const stageRestore = async (file?: File) => {
     if (!file) return;
-    if (!(await dlg.confirm({ title: t('backup.backup_restore_title'), description: t('backup.restore_confirm'), confirmText: t('common.ok') }))) return;
+    if (!(await dlg.confirm({ title: t('backup.backup_restore_title'), description: `${t('backup.restore_confirm')}\n${t('mcp.restore_backup_hint')}`, confirmText: t('common.ok') }))) return;
     setRestoring(true);
     try {
       const r = await fetch('/api/backup/restore', { method: 'POST', headers: { 'Content-Type': 'application/zip' }, body: file });

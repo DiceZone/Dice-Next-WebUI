@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { create } from 'zustand';
+import { toast as notify } from 'sonner';
 
 export type ToastVariant = 'default' | 'destructive';
 
@@ -25,6 +26,9 @@ export const zustandToastStore = create<ToastState>()((set) => ({
   addToast: (toast) => {
     const id = `toast-${++toastId}`;
     set((s) => ({ toasts: [...s.toasts, { ...toast, id }] }));
+    const show = toast.variant === 'destructive' ? notify.error : notify;
+    show(toast.title, { id, description: toast.description, duration: 5000,
+      onDismiss: () => set((s) => ({ toasts: s.toasts.filter((item) => item.id !== id) })) });
     // Auto-remove after 5 seconds
     setTimeout(() => {
       set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) }));
@@ -33,10 +37,11 @@ export const zustandToastStore = create<ToastState>()((set) => ({
   },
 
   removeToast: (id) => {
+    notify.dismiss(id);
     set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) }));
   },
 
-  clearToasts: () => set({ toasts: [] }),
+  clearToasts: () => { notify.dismiss(); set({ toasts: [] }); },
 }));
 
 /**

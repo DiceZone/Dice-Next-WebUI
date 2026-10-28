@@ -16,10 +16,12 @@ import { ADMIN_PASSWORD_MAX_LENGTH, isValidAdminPassword, sanitizeAdminPassword 
 import { Monitor, Key, Eye, EyeOff, Copy, Palette, Terminal, Lock, Server, RefreshCw } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { SsoSettingsCard } from '@/components/settings/sso-settings-card';
+import { WebuiVersionCard } from '@/components/settings/webui-version-card';
+import { panelQueryClient } from '@/lib/query-client';
 
 export const WebuiSettingsPage: React.FC = () => {
   const { t } = useTranslation();
-  const { apiKey, setApiKey, theme, setTheme, contentWidth, setContentWidth } = zustandAppStore();
+  const { apiKey, setApiKey, theme, setTheme } = zustandAppStore();
   const toast = useToast();
   const [localApiKey, setLocalApiKey] = useTourState(apiKey ?? '', 'demo-api-key');
   const [showKey, setShowKey] = useTourState(false, false);
@@ -85,6 +87,7 @@ export const WebuiSettingsPage: React.FC = () => {
   };
 
   const handleLogout = async () => {
+    panelQueryClient.clear();
     try { await fetch('/api/auth/logout', { method: 'POST' }); } catch { /* ignore */ }
     window.location.reload();
   };
@@ -126,29 +129,7 @@ export const WebuiSettingsPage: React.FC = () => {
     <div className="space-y-6 max-w-3xl">
       <PageHeader icon={Monitor} title={t('webui.title')} description={t('webui.desc')} help={t('page_help.webui')} />
 
-      <Card data-setting-anchor="webui-content-width">
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            {t('workspace.width')}
-            <FeatureHelp title={t('workspace.width')} description={<>
-              <p>{t('workspace.width_hint')}</p>
-              <dl className="space-y-2">
-                {(['classic', 'modern'] as const).map((mode) => (
-                  <div key={mode}>
-                    <dt className="font-medium">{t(`workspace.${mode}`)}</dt>
-                    <dd>{t(`workspace.${mode}_hint`)}</dd>
-                  </div>
-                ))}
-              </dl>
-            </>} />
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-3 sm:grid-cols-2">
-          {(['classic', 'modern'] as const).map((mode) => <button key={mode} type="button" aria-pressed={contentWidth === mode} onClick={() => setContentWidth(mode)} className={`rounded-lg border p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${contentWidth === mode ? 'border-primary bg-primary/5' : 'hover:bg-muted/50'}`}>
-            <span className="block text-sm font-medium">{t(`workspace.${mode}`)}</span><span className="mt-1 block text-sm text-muted-foreground">{t(`workspace.${mode}_hint`)}</span>
-          </button>)}
-        </CardContent>
-      </Card>
+      <WebuiVersionCard />
 
       {/* API Key */}
       <Card data-setting-anchor="webui-api-key">

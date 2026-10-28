@@ -151,7 +151,7 @@ test('editors preserve drafts across tabs and failures and use styled controls, 
   assert.match(page, /AccountEditors key=\{adapter\.id\}/);
   assert.equal([...page.matchAll(/TabsContent forceMount/g)].length, 2);
   assert.match(page, /query\.set\('adapter', value\)/);
-  assert.match(readFileSync(new URL('../src/routes/index.tsx', import.meta.url), 'utf8'), /await confirmPageLeave\(\)/);
+  assert.match(readFileSync(new URL('../src/routes/index.tsx', import.meta.url), 'utf8'), /createNavigationBlocker\(confirmPageLeave\)/);
   for (const source of [menu, panels]) {
     assert.match(source, /useUnsavedChanges\(/); assert.match(source, /dlg\.confirm\(/);
     assert.match(source, /new Error\('conflict'\)/); assert.match(source, /EditorPreview/);
@@ -235,7 +235,7 @@ test('advanced replies is one parent with independent custom-reply and card/butt
   assert.deepEqual(Array.from(group.children, (child) => [child.labelKey, child.path]), [['nav.custom_replies', '/replies'], ['qq_editor.title', '/qq-official']]);
   assert.equal(active('/adapters', '/qq-official'), false);
   assert.equal(active('/qq-official', '/qq-official'), true);
-  assert.match(source, /setExpandedGroup\('nav\.replies'\)/);
+  assert.match(source, /setExpandedGroup\(active\.labelKey\)/);
   const adapters = readFileSync(new URL('../src/pages/adapters-page.tsx', import.meta.url), 'utf8');
   assert.doesNotMatch(adapters, /window\.location\.hash = '\/qq-official'/);
   assert.match(adapters, /onOfficialControls=/); // The account-scoped contextual shortcut remains.
@@ -249,6 +249,7 @@ test('new page names are localized without changing old URLs or removing officia
     assert.equal(qqOfficialEditorCopy[language].title, cards);
     assert.match(qqOfficialEditorCopy[language].subtitle, /QQ/);
   }
-  const routes = readFileSync(new URL('../src/routes/index.tsx', import.meta.url), 'utf8');
-  assert.match(routes, /'\/replies': RepliesPage/); assert.match(routes, /'\/qq-official': QQOfficialPage/);
+  const routes = JSON.parse(readFileSync(new URL('../src/routes/route-manifest.json', import.meta.url), 'utf8'));
+  assert.equal(routes.find((route) => route.path === '/replies').component, 'RepliesPage');
+  assert.equal(routes.find((route) => route.path === '/qq-official').component, 'QQOfficialPage');
 });

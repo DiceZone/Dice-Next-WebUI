@@ -14,7 +14,7 @@ import {
 import { ConnectionStatus } from '@/components/adapter/connection-status';
 import { cn } from '@/lib/utils';
 import { formatDateTime } from '@/lib/utils';
-import { Cloud, Info, MoreHorizontal, Plug, Unplug, Pencil, Trash2, Wifi, PlugZap, Network, ListTree } from 'lucide-react';
+import { Cloud, Info, MoreHorizontal, Plug, Unplug, Pencil, Trash2, Wifi, PlugZap, Network, ListTree, QrCode } from 'lucide-react';
 import type { Adapter } from '@/types/adapter';
 import { PlatformIcon, platformLabel } from '@/components/platform-icon';
 
@@ -28,6 +28,7 @@ interface AdapterCardProps {
   onTestConnection: (id: string) => void;
   onShowReverseInfo?: (port: string) => void;
   onOfficialControls?: (id: string) => void;
+  onBuiltinLogin?: (adapter: Adapter) => void;
 }
 
 const STATUS_LABEL_KEYS: Record<Adapter['status'], string> = {
@@ -55,6 +56,7 @@ export const AdapterCard: React.FC<AdapterCardProps> = ({
   onTestConnection,
   onShowReverseInfo,
   onOfficialControls,
+  onBuiltinLogin,
 }) => {
   // Backend reports connected / timeout / disconnected. An adapter that is enabled
   // but not (yet) connected is actively retrying → show it as 「连接中」(yellow). A
@@ -69,13 +71,17 @@ export const AdapterCard: React.FC<AdapterCardProps> = ({
   const isConnecting = effectiveStatus === 'connecting';
   const isTimeout = effectiveStatus === 'timeout';
   const displayName = isConnected && adapter.loginName ? adapter.loginName : adapter.name;
+  const builtin = adapter.type === 'openopq';
   const avatarQQ = adapter.type === 'qq_official' ? (adapter.qqNumber || '')
-    : adapter.type === 'onebot_v11' ? (adapter.loginId || '') : '';   // Discord/KOOK 无 QQ 头像
+    : adapter.type === 'onebot_v11' ? (adapter.loginId || '')
+      : builtin ? (adapter.loginId || adapter.qqNumber || '') : '';   // Discord/KOOK 无 QQ 头像
   const { t } = useTranslation();
   const [detailOpen, setDetailOpen] = React.useState(false);
   const identityLabel = adapter.type === 'qq_official' ? t('adapters.detail_app_id') : t('adapters.detail_bot_id');
   const identityValue = adapter.type === 'qq_official' ? adapter.appId : adapter.loginId;
-  const modeLabel = adapter.type === 'milky'
+  const modeLabel = builtin
+    ? t('adapters.detail_builtin')
+    : adapter.type === 'milky'
     ? t('adapters.milky_mode_ws')
     : adapter.type === 'qq_official'
     ? t('adapters.detail_official_gateway')
@@ -86,27 +92,27 @@ export const AdapterCard: React.FC<AdapterCardProps> = ({
         : adapter.connectionMode === 'http'
           ? t('adapters.mode_http')
           : t('adapters.mode_forward_ws');
-  const endpointValue = adapter.type === 'qq_official'
+  const endpointValue = adapter.type === 'qq_official' || builtin
     ? t('adapters.detail_managed_endpoint')
     : adapter.type === 'discord' || adapter.type === 'kook'
       ? t('adapters.detail_managed_endpoint')
       : adapter.endpoint || '—';
   const secondaryValue = adapter.type === 'milky'
     ? (adapter.endpoint || adapter.name)
-    : adapter.type === 'qq_official'
+    : adapter.type === 'qq_official' || builtin
       ? (adapter.qqNumber || adapter.name)
       : adapter.type === 'onebot_v11'
         ? (adapter.endpoint || adapter.name)
         : adapter.name;
 
   return (
-    <Card
+    <Card data-testid="adapter-card" data-adapter-id={adapter.id}
       className={cn(
-        'transition-all hover:shadow-md',
+        'flex h-full min-w-0 flex-col transition-colors hover:border-input',
       )}
     >
-      <CardContent className="p-4 md:p-5">
-        <div className="flex items-start justify-between">
+      <CardContent className="flex flex-1 flex-col gap-4 p-5">
+        <div className="flex min-w-0 items-start justify-between gap-4">
           <div className={cn('flex items-center gap-3 min-w-0', !adapter.enabled && 'opacity-50')}>
             {/* QQ avatar with connection status overlay */}
             <div className="relative shrink-0">
@@ -126,7 +132,8 @@ export const AdapterCard: React.FC<AdapterCardProps> = ({
             </div>
             {/* C#105：flex-1 给出确定宽度，超长名称 truncate 成省略号 */}
             <div className="min-w-0 flex-1">
-              <h3 className="font-semibold truncate">{displayName}</h3>
+              <h3 className="truncate font-semibold" title={displayName}>{displayName}</h3>
+              <p className={cn('mb-1 text-xs', isConnected ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground')}>{t(STATUS_LABEL_KEYS[effectiveStatus])}</p>
               <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                 <span className="inline-flex min-w-0 items-center gap-1.5">
                 <PlatformIcon platform={adapter.type} className="h-3.5 w-3.5" />
@@ -136,7 +143,9 @@ export const AdapterCard: React.FC<AdapterCardProps> = ({
               {/* 副信息行：OneBot=连接地址、官方机器人=真实QQ、其余=适配器名称；
                   没有可写内容时回退为适配器名称，避免空行导致卡片样式变形。 */}
               <p className="mt-1 truncate font-mono text-xs text-muted-foreground" title={secondaryValue}>
-                {adapter.type === 'qq_official'
+                {builtin
+                  ? `${t('adapters.type_openopq')} · QQ ${adapter.qqNumber || '—'}`
+                  : adapter.type === 'qq_official'
                   ? (adapter.qqNumber ? `${t('adapters.detail_real_qq')}: ${adapter.qqNumber}` : adapter.name)
                   : adapter.type === 'onebot_v11' || adapter.type === 'milky'
                     ? (adapter.endpoint ? `${adapter.connectionMode === 'reverse_ws' ? t('adapters.port') : t('adapters.address')}: ${adapter.endpoint}` : adapter.name)
@@ -147,7 +156,7 @@ export const AdapterCard: React.FC<AdapterCardProps> = ({
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
+              <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={t('common.more_actions')}>
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -170,7 +179,7 @@ export const AdapterCard: React.FC<AdapterCardProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+        <div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t pt-4">
           <Badge variant={adapter.heartApiKeyConfigured ? 'success' : 'warning'} className="gap-1.5 whitespace-nowrap text-[10px]">
             <Cloud className="h-3 w-3" />
             {adapter.heartApiKeyConfigured ? t('adapters.bdc_cloud_connected') : t('adapters.bdc_cloud_basic')}
@@ -179,9 +188,15 @@ export const AdapterCard: React.FC<AdapterCardProps> = ({
             <Button variant="outline" size="sm" onClick={() => setDetailOpen(true)}>
               <Info className="mr-1 h-3.5 w-3.5" />{t('adapters.detail_btn')}
             </Button>
-            {adapter.connectionMode === 'reverse_ws' && onShowReverseInfo && (
+            {builtin && onBuiltinLogin && (
+              <Button variant="outline" size="sm" onClick={() => onBuiltinLogin(adapter)}
+                >
+                <QrCode className="mr-1 h-3.5 w-3.5" />{t('adapters.openopq_login_btn')}
+              </Button>
+            )}
+            {adapter.connectionMode === 'reverse_ws' && !builtin && onShowReverseInfo && (
               <Button variant="outline" size="sm" onClick={() => onShowReverseInfo(adapter.endpoint)}
-                className="text-purple-600 border-purple-200 bg-purple-50 hover:bg-purple-100 hover:text-purple-700" title={t('adapters.reverse_title')}>
+                title={t('adapters.reverse_title')}>
                 <Network className="mr-1 h-3.5 w-3.5" />{t('adapters.reverse_btn')}
               </Button>
             )}
@@ -189,17 +204,17 @@ export const AdapterCard: React.FC<AdapterCardProps> = ({
               // C#38: timed-out (paused) adapter — offer a manual reconnect, labeled 「启用」
               // (not 「解除禁用」: it was never disabled, just paused after repeated failures).
               <Button variant="outline" size="sm" onClick={() => onReconnect(adapter.id)}
-                className="text-orange-600 border-orange-200 bg-orange-50 hover:bg-orange-100 hover:text-orange-700">
+                >
                 <Plug className="mr-1 h-3.5 w-3.5" />{t('common.enable')}
               </Button>
             ) : adapter.enabled ? (
               <Button variant="outline" size="sm" onClick={() => onDisconnect(adapter.id)}
-                className="text-red-600 border-red-200 bg-red-50 hover:bg-red-100 hover:text-red-700">
+                className="text-destructive">
                 <Unplug className="mr-1 h-3.5 w-3.5" />{t('common.disable')}
               </Button>
             ) : (
               <Button variant="outline" size="sm" onClick={() => onConnect(adapter.id)} disabled={isConnecting}
-                className="text-emerald-500 border-emerald-200 bg-emerald-50/60 hover:bg-emerald-100 hover:text-emerald-600">
+                >
                 <Plug className="mr-1 h-3.5 w-3.5" />
                 {isConnecting ? t('adapters.connecting') : t('common.undisable')}
               </Button>
@@ -221,7 +236,7 @@ export const AdapterCard: React.FC<AdapterCardProps> = ({
             <DetailRow label={t('adapters.name')}>{adapter.name}</DetailRow>
             {adapter.loginName && adapter.loginName !== adapter.name && <DetailRow label={t('adapters.detail_bot_name')}>{adapter.loginName}</DetailRow>}
             <DetailRow label={identityLabel} mono>{identityValue || '—'}</DetailRow>
-            {adapter.type === 'qq_official' && <DetailRow label={t('adapters.detail_real_qq')} mono>{adapter.qqNumber || '—'}</DetailRow>}
+            {(adapter.type === 'qq_official' || builtin) && <DetailRow label={builtin ? t('adapters.openopq_qq') : t('adapters.detail_real_qq')} mono>{adapter.qqNumber || '—'}</DetailRow>}
             <DetailRow label={t('adapters.detail_protocol')}>{modeLabel}</DetailRow>
             <DetailRow label={t('adapters.endpoint')} mono>{endpointValue}</DetailRow>
             {adapter.type === 'milky' && <DetailRow label={t('adapters.milky_event_endpoint')} mono>{adapter.eventEndpoint || '—'}</DetailRow>}

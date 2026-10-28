@@ -74,7 +74,7 @@ export const RecentLogs: React.FC<RecentLogsProps> = ({ logs }) => {
   };
   return (
     <Card className="flex h-full flex-col overflow-hidden">
-      <CardHeader className="pb-3 shrink-0 space-y-3">
+      <CardHeader className="shrink-0 gap-4 border-b">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <CardTitle className="flex items-center gap-2 text-base">{t('dashboard.recent_logs')}
             <FeatureHelp title={t('dashboard.recent_logs')} description={t('runtime_logs.help')} />
@@ -89,7 +89,7 @@ export const RecentLogs: React.FC<RecentLogsProps> = ({ logs }) => {
         </div>
         <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('runtime_logs.search')} aria-label={t('runtime_logs.search')} className="h-8 text-xs" />
       </CardHeader>
-      <CardContent className="relative flex-1 min-h-0 p-0">
+      <CardContent className="relative flex-1 min-h-64 p-0">
         <ScrollArea ref={scrollRef} onScroll={onScroll} tabIndex={0} role="region" aria-label={t('dashboard.recent_logs')} className="h-[400px] overscroll-contain scroll-auto lg:absolute lg:inset-0 lg:h-auto">
           <div ref={contentRef} className="min-h-full">
             {visible.length === 0 ? <div className="flex h-full items-center justify-center p-6 text-sm text-muted-foreground">{t(logs.length ? 'runtime_logs.empty' : 'dashboard.no_logs')}</div>

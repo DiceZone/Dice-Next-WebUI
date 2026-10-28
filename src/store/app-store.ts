@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { panelQueryClient } from '@/lib/query-client';
 
 /**
  * Global application state store.
@@ -56,6 +57,7 @@ export const zustandAppStore = create<AppState>()(
       setContentWidth: (contentWidth) => set({ contentWidth }),
 
       setApiKey: (key) => {
+        panelQueryClient.clear();
         if (key) {
           localStorage.setItem('dice-api-key', key);
         } else {

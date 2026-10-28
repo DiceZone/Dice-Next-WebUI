@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import apiClient from '@/lib/api-client';
 import type { DashboardStats, RecentLogEntry } from '@/types/dashboard';
-import { DEFAULT_DASHBOARD_STATS } from '@/types/dashboard';
 
 interface DashboardState {
   stats: DashboardStats | null;
@@ -25,9 +24,9 @@ export const zustandDashboardStore = create<DashboardState>()((set) => ({
     try {
       const res = await apiClient.get<DashboardStats>('/dashboard/stats');
       set({ stats: res.data, loading: false });
-    } catch {
-      // Fall back to defaults when API not available
-      set({ stats: { ...DEFAULT_DASHBOARD_STATS }, loading: false });
+    } catch (error) {
+      // Preserve the last real snapshot; never replace it with invented zeroes.
+      set({ loading: false, error: error instanceof Error ? error.message : '获取运行概览失败' });
     }
   },
 

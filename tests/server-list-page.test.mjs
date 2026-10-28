@@ -35,6 +35,9 @@ function harness() {
   const modules = {
     react, 'react/jsx-runtime':{ jsx,jsxs:jsx },
     '@/lib/request-gate':{ createRequestGate }, '@/lib/server-list-page':{ readServerListPage,serverListUrl },
+    // Deliberately bypass cache dedup here to retain worst-case out-of-order
+    // completions. Real Query dedup is tested by the V2 unit suite.
+    '@/lib/query-client': { panelKeys: { list: url => ['list', url] }, panelQueryClient: { fetchQuery: options => options.queryFn() } },
     '@/lib/api-client':{ apiClient:{ get:url => { const request=deferred(); requests.push({ url,...request }); return request.promise; } } },
     '@/components/onboarding/tour-data':{ useTourActive:() => touring, useTourValue:(live,sample) => touring ? sample : live, useTourState:(initial,sample) => { const [live,set]=react.useState(initial); return [touring ? sample : live,set]; } },
     '@/lib/tour-samples':{ tourSamples:{ gameLogs:[],sessions:page(1,2).items } },

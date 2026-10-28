@@ -1,7 +1,9 @@
 // Opt-in local preview of the real React pages. Data lives only in this process;
 // no backend proxy, bot connection, filesystem writes or external requests.
 import { createServer } from 'vite';
+import { createMcpPreview } from './mcp-preview.mjs';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { readFile } from 'node:fs/promises';
 import { transform } from 'esbuild';
@@ -74,6 +76,7 @@ const state = {
     settings: { autoCheck: true, intervalHours: 6, autoAction: 'notify', scheduledInstall: false, installTime: '04:00', source: 'auto', customMirror: '' },
   },
   '/dashboard/stats': { uptime_seconds: 3600, active_connections: 0, total_adapters: 2, total_commands: 0, total_rules: 0, active_sessions: 0, recent_logs: [] },
+  '/system/sysinfo': tourSamples.system,
   '/adapters': [{ id: 'preview-qq', name: '星灯 · 预览', type: 'qq_official', appId: 'preview', status: 'connected', enabled: false }, { id: 'preview-qq-two', name: '月海官方 · 预览', type: 'qq_official', appId: 'preview-two', status: 'connected', enabled: false }, { id: 'preview-onebot', name: '月海 · 预览', type: 'onebot_v11', loginId: '10000', enabled: false }],
   '/personas': [{ id: 1, name: '星灯', description: '本地预览人格', isBuiltin: false }, { id: 2, name: '月海', description: '本地预览人格', isBuiltin: false }],
   '/personas/active': { activeId: 0, globalId: 0, pool: [] },
@@ -190,11 +193,16 @@ const listDecks = () => [...deckFiles].map(([filename, content], index) => {
 });
 
 export async function startUiPreview(port = Number(process.env.DICENEXT_UI_PREVIEW_PORT || 5173)) {
+const mcpPreview = createMcpPreview();
+const currentUi = JSON.parse(await readFile(new URL('../src/webui-version.json', import.meta.url), 'utf8')).version;
+// A single-source dev preview cannot switch to a different built interface.
+// The dual-bundle fixture overrides this endpoint and tests both actual builds.
+const webuiVersion = { selected: currentUi, effective: currentUi, legacy: false, available: { v1: currentUi === 'v1', v2: currentUi === 'v2' } };
 const server = await createServer({
   configFile: false,
   resolve: { alias: { '@': fileURLToPath(new URL('../src', import.meta.url)) } },
   server: { host: '127.0.0.1', port, strictPort: true },
-  plugins: [react(), {
+  plugins: [react(), tailwindcss(), {
     name: 'isolated-ui-preview',
     transformIndexHtml() {
       return [{ tag: 'script', children: `if(!localStorage.getItem('dice-lang'))localStorage.setItem('dice-lang','zh-Hans');`, injectTo: 'head-prepend' },
@@ -221,6 +229,15 @@ const server = await createServer({
             const chunks = []; for await (const chunk of req) chunks.push(chunk);
             const text = Buffer.concat(chunks).toString(); body = text ? JSON.parse(text) : {};
           }
+          if (path === '/system/webui-version') {
+            if (req.method === 'PUT') {
+              if (body.version !== 'v1' && body.version !== 'v2') throw new Error('Invalid WebUI version');
+              if (!webuiVersion.available[body.version]) throw new Error('This UI is not included in the single-source preview');
+              webuiVersion.selected = body.version; webuiVersion.effective = body.version;
+            }
+            return reply(webuiVersion);
+          }
+          if (path === '/system/mcp' || path.startsWith('/system/mcp/')) return reply(mcpPreview(req.method, path, url, body, req.headers['x-dice-mcp-operation-id']));
           if (path === '/statistics/overview' && req.method === 'GET') return reply(statisticsPreview(tourSamples.statistics, url.searchParams));
           if (path.startsWith('/system/notice/')) { const notice = noticePreview(req.method, path, url, body); if (notice !== undefined) return reply(notice); }
           if (/^\/adapters\/[^/]+$/.test(path) && req.method === 'PUT') {

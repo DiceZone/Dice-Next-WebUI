@@ -28,19 +28,19 @@ interface PageHeaderProps {
  * pages keep their established title and toolbar layout.
  */
 export const PageHeader: React.FC<PageHeaderProps> = ({ title, description, help, helpTitle, icon: Icon, actions, className }) => (
-  <div className={cn('flex flex-wrap items-center justify-between gap-3', className)}>
-    <div className="min-w-0">
+  <div className={cn('v2-page-header flex flex-wrap items-start justify-between gap-x-6 gap-y-4', className)}>
+    <div className="min-w-0 flex-1 basis-64">
       <div className="flex items-center gap-2">
-        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-          {Icon && <Icon className="h-5 w-5 shrink-0" />}
+        <h1 className="flex min-w-0 items-center gap-3 text-2xl font-semibold leading-snug tracking-tight sm:text-[28px]">
+          {Icon && <Icon aria-hidden="true" className="hidden h-6 w-6 shrink-0 text-muted-foreground sm:block" />}
           {title}
         </h1>
         {help && (helpTitle || typeof title === 'string') && <FeatureHelp
           title={helpTitle || (title as string)} description={<div className="whitespace-pre-line">{help}</div>} />}
       </div>
-      {description && <p className="text-sm text-muted-foreground">{description}</p>}
+      {description && <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">{description}</p>}
     </div>
-    {actions && <div className="min-w-0 w-full md:w-auto">{actions}</div>}
+    {actions && <div className="min-w-0 w-full md:w-auto md:pt-1">{actions}</div>}
   </div>
 );
 

@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { App } from './App';
+import { AppProviders } from './components/app-providers';
 import './i18n'; // initialize i18next before the app renders
 // C#109：字体本地化（woff2 随包分发，不再从 Google Fonts CDN 拉取——部分地区无法访问）
 import '@fontsource/inter/400.css';
@@ -23,6 +24,6 @@ const root = ReactDOM.createRoot(rootElement);
 
 root.render(
   <React.StrictMode>
-    <App />
+    <AppProviders><App /></AppProviders>
   </React.StrictMode>
 );

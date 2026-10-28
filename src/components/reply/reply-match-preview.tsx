@@ -80,13 +80,13 @@ export const ReplyMatchPreview: React.FC<ReplyMatchPreviewProps> = ({ replies, s
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Textarea
             placeholder={t('replies.preview_ph')}
             value={testText}
             onChange={(e) => setTestText(e.target.value)}
             rows={2}
-            className="flex-1 min-w-0"
+            className="min-w-0 flex-[1_1_240px]"
           />
           <Input
             placeholder={t('replies.preview_group_ph')}

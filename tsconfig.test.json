@@ -11,6 +11,14 @@
     "tsBuildInfoFile": ".test-dist/tsconfig.test.tsbuildinfo"
   },
   "include": [
+    "src/lib/dashboard-shortcuts.ts",
+    "src/i18n/dashboard-shortcuts.ts",
+    "src/lib/webui-version.ts",
+    "src/lib/banlist-response.ts",
+    "src/lib/safe-navigation.ts",
+    "src/i18n/webui-versions.ts",
+    "src/lib/mcp.ts",
+    "src/i18n/mcp.ts",
     "src/lib/server-list-page.ts",
     "src/lib/bot-message.ts",
     "src/i18n/bot-message.ts",

@@ -363,11 +363,14 @@ test('version entry replaces connection badge and sidebar placeholder, and uses 
   assert.ok(!header.includes('apiOnline'));
   assert.ok(header.includes("onNavigate('/about?focus=about-update')"));
   assert.ok(header.includes('formatVersion(version)'));
-  assert.ok(header.includes('updateStatus?.updateAvailable && <img src="/new.svg"'));
+  assert.match(header, /updateStatus\?\.updateAvailable && <>.*<img src="\.\/new\.svg"/);
+  assert.ok(header.includes('bg-orange-500 sm:hidden'), 'compact screens keep an update indicator beside the full version');
+  assert.ok(!header.includes('truncate'), 'the version must never be ellipsized');
   const versionEntry = header.match(/<button\b[\s\S]*?<\/button>/)?.[0];
   assert.ok(versionEntry?.includes("onNavigate('/about?focus=about-update')"));
   assert.ok(versionEntry.includes('focus-visible:ring-2'));
-  assert.ok(!/variant=|\bborder\b|\bbg-/.test(versionEntry));
+  const buttonClasses = versionEntry.match(/className="([^"]*)"/)?.[1] || '';
+  assert.ok(buttonClasses && !/\bborder\b|\bbg-/.test(buttonClasses));
   assert.ok(!read('src/components/layout/sidebar.tsx').includes('v3.0.0 — Dice!Next'));
   const svg = read('public/new.svg');
   assert.ok(svg.includes('fill="#EE502F"'));

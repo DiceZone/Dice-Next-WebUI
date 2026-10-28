@@ -1,6 +1,23 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { panelBase, isHttpsPanel, ssoStartUrl, takeSsoResult } from '../.test-dist/lib/sso.js';
+import { readFile } from 'node:fs/promises';
+import { panelBase, isHttpsPanel, ssoProviderLogo, ssoStartUrl, takeSsoResult } from '../.test-dist/lib/sso.js';
+
+test('BDC login uses the bundled official icon without replacing custom OIDC logos', () => {
+  for (const logo of ['', 'https://example.invalid/old-bdc.svg']) {
+    assert.equal(ssoProviderLogo({ kind: 'bdc', logo }), './icons/dicezone-account.svg');
+  }
+  assert.equal(ssoProviderLogo({ kind: 'oidc', logo: '/api/provider-logo/1' }), '/api/provider-logo/1');
+  assert.equal(ssoProviderLogo({ kind: 'oidc', logo: '' }), '');
+});
+
+test('the official BDC icon is available locally without executable or external SVG content', async () => {
+  // Original artwork: https://account.dice.zone/favicon.svg
+  const svg = await readFile(new URL('../public/icons/dicezone-account.svg', import.meta.url), 'utf8');
+  assert.match(svg, /viewBox="0 0 163\.21 144\.61"/);
+  assert.equal((svg.match(/<polygon\b/g) || []).length, 10);
+  assert.doesNotMatch(svg, /<script\b|<foreignObject\b|\bon\w+\s*=|(?:href|url)\s*[=(]/i);
+});
 
 function withWindow(location, run) {
   const previous = globalThis.window;

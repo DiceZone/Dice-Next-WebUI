@@ -1,9 +1,20 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 import path from 'node:path';
+import { readFileSync } from 'node:fs';
 
 export default defineConfig({
-  plugins: [react()],
+  base: './',
+  plugins: [react(), tailwindcss(), {
+    name: 'third-party-notices',
+    generateBundle() {
+      for (const file of ['Tremor-LICENSE.txt', 'shadcn-LICENSE.txt', 'README.md']) {
+        this.emitFile({ type: 'asset', fileName: `licenses/${file}`,
+          source: readFileSync(new URL(`./THIRD_PARTY/${file}`, import.meta.url), 'utf8') });
+      }
+    },
+  }],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

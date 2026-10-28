@@ -29,16 +29,19 @@ export function ResponsiveActions({ actions, label, size = 'default', desktop }:
   const [menuOpen, setMenuOpen] = useState(false);
   useCloseOnWideScreen(() => setMenuOpen(false));
   if (!actions.length) return null;
+  // Long management toolbars remain a menu even on desktop; primary actions
+  // stay outside this component. A custom desktop renderer is preserved.
+  const collapseDesktop = actions.length >= 4 && !desktop;
   const run = (action: SecondaryAction) => { if (!action.disabled) void action.onAction(); };
   return <>
-    <div className="hidden flex-wrap items-center gap-2 md:flex" data-secondary-actions="desktop">
+    <div className={cn('hidden flex-wrap items-center gap-2', !collapseDesktop && 'md:flex')} data-secondary-actions="desktop">
       {desktop ?? actions.map((action) => <Button key={action.id} type="button" variant="outline" size={size}
         disabled={action.disabled} onClick={() => run(action)}
         className={action.destructive ? 'text-destructive hover:text-destructive' : undefined}>
         {action.icon && <action.icon className={cn('mr-2 h-4 w-4', action.iconClassName)} />}{action.label}
       </Button>)}
     </div>
-    <div className="md:hidden" data-secondary-actions="menu">
+    <div className={cn(!collapseDesktop && 'md:hidden')} data-secondary-actions="menu">
       <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
         <DropdownMenuTrigger asChild>
           <Button type="button" variant="outline" size={size} className="w-full" disabled={actions.every((action) => action.disabled)}

@@ -6,6 +6,7 @@ import ts from 'typescript';
 import { create } from 'zustand';
 import { createRequestGate } from '../.test-dist/lib/request-gate.js';
 import { confirmPageLeave, registerNavigationGuard } from '../.test-dist/lib/navigation-guard.js';
+import { createNavigationBlocker } from '../.test-dist/lib/safe-navigation.js';
 import { nextScheduleRun, scheduleToday, timezoneLabel } from '../.test-dist/lib/schedule-time.js';
 import { runBatch } from '../.test-dist/lib/batch-operation.js';
 import { canCopyDeckGroup, deckCopyFilename, deckFileKey } from '../.test-dist/lib/deck-document.js';
@@ -468,7 +469,8 @@ function replyStore(apiClient) {
     if (path === 'i18next') return { default: { t: (key) => key } };
     if (path === '@/lib/api-client') return { default: apiClient };
     if (path === '@/lib/reply-scope') return { globalReplyScope, replyScopeKey, replyScopeQuery };
-    throw new Error('Unexpected store dependency: ' + path);
+      if (path === '@/lib/query-client') return { panelKeys: { replies: (scope, target) => [scope, target] }, panelQueryClient: { fetchQuery: options => options.queryFn() } };
+      throw new Error('Unexpected store dependency: ' + path);
   } });
   return exports.zustandReplyStore;
 }
@@ -790,20 +792,15 @@ test('reply, causal and schedule deletion require confirmation', async () => {
 });
 
 test('browser Back keeps the editor mounted until confirmation and restores its URL on cancel', async () => {
+  // Actual browser Back is exercised in v2.spec.mjs; this checks the shared
+  // asynchronous blocker contract without depending on a removed hash listener.
   for (const accepted of [false, true]) {
-    const answer = deferred(); const writes = [], commits = [];
-    const ctx = { readHashRoute: () => ({ raw: '/help', path: '/help', query: '' }),
-      locationRef: { current: { raw: '/decks', path: '/decks', query: '' } }, navigating: { current: false },
-      confirmPageLeave: () => answer.promise, ROUTES: { '/help': true, '/decks': true },
-      setLocation: (value) => commits.push(value),
-      window: { history: { replaceState: (_s, _t, url) => writes.push(['replace', url]), pushState: (_s, _t, url) => writes.push(['push', url]) } },
-    };
-    const run = handler('routes/index.tsx', 'handleHashChange', ctx);
-    const pending = run(); assert.equal(commits.length, 0); assert.equal(writes.length, 0);
-    answer.resolve(accepted); await pending;
-    assert.equal(commits.length, accepted ? 1 : 0);
-    assert.deepEqual(writes, accepted ? [['replace', '#/help']] : [['push', '#/decks']]);
-    assert.equal(ctx.navigating.current, false);
+    const answer = deferred(); let settled = false;
+    const block = createNavigationBlocker(() => answer.promise);
+    const pending = block().then((value) => { settled = true; return value; });
+    await Promise.resolve(); assert.equal(settled, false);
+    assert.equal(await block(), true);
+    answer.resolve(accepted); assert.equal(await pending, !accepted);
   }
 });
 
@@ -882,11 +879,12 @@ test('schedule batch updates only enabled and reports partial failures', async (
   assert.deepEqual(selected, [2]); assert.equal(notice.title.ok, 1); assert.equal(notice.title.fail, 1);
 });
 
-test('workspace width defaults to modern, persists, and leaves classic page widths intact', () => {
+test('V2 uses its responsive workspace without deleting V1 legacy width preferences', () => {
   const store = fs.readFileSync(new URL('../src/store/app-store.ts', import.meta.url), 'utf8');
   const layout = fs.readFileSync(new URL('../src/components/layout/layout.tsx', import.meta.url), 'utf8');
   assert.ok(store.includes("contentWidth: 'modern'")); assert.ok(store.includes('contentWidth: state.contentWidth'));
-  assert.ok(layout.includes("contentWidth !== 'classic' && 'mx-auto w-full max-w-7xl [&>*]:max-w-none'"));
+  assert.ok(layout.includes('v2-workspace [&>*]:max-w-none'));
+  assert.ok(!layout.includes("contentWidth !== 'classic'"));
 });
 
 test('playground keeps a definite height in either width mode and scrolls only its chat', () => {
@@ -909,9 +907,9 @@ test('playground keeps a definite height in either width mode and scrolls only i
 test('toast entry points share a bounded portal independent of page width rules', () => {
   const toaster = fs.readFileSync(new URL('../src/components/ui/toaster.tsx', import.meta.url), 'utf8');
   const compatibility = fs.readFileSync(new URL('../src/components/ui/toast.tsx', import.meta.url), 'utf8');
-  assert.ok(toaster.includes('return createPortal('));
-  assert.ok(toaster.includes('document.body'));
-  assert.ok(toaster.includes('w-[calc(100%-2rem)] max-w-[388px]'));
+  assert.ok(toaster.includes('SonnerToaster'));
+  assert.ok(toaster.includes('mobileOffset={16}'));
+  assert.ok(toaster.includes('visibleToasts={4}'));
   assert.ok(toaster.includes('[overflow-wrap:anywhere]'));
   assert.ok(compatibility.includes("export { Toaster as ToastViewport } from './toaster'"));
 });

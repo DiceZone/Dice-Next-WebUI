@@ -23,6 +23,7 @@ import {
   Globe, Users, BookText, UserCheck, ArrowUpDown, ArrowUp, ArrowDown,
 } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
+import { useWideWorkspace } from '@/hooks/use-wide-workspace';
 import { FeatureHelp } from '@/components/ui/feature-help';
 import { HelpLabel } from '@/components/ui/help-label';
 import { ResponsiveActions } from '@/components/ui/responsive-actions';
@@ -60,6 +61,7 @@ const extractVars = (s: string): string[] =>
   [...s.matchAll(/\{([^{}]+)\}/g)].map((m) => m[1]);
 
 export const CommandsPage: React.FC = () => {
+  const wideWorkspace = useWideWorkspace();
   const { t } = useTranslation();
   const toast = useToast();
   const dlg = useDialogs(t);
@@ -340,8 +342,8 @@ export const CommandsPage: React.FC = () => {
       )}
 
       {/* category + special tabs */}
-      <Tabs value={cat} onValueChange={setCat} className="space-y-5">
-      <TabsList variant="page" data-tour="commands-filters" aria-label={t('commands.title')}>
+      <Tabs value={cat} onValueChange={setCat} orientation={wideWorkspace ? 'vertical' : 'horizontal'} className="grid items-start gap-5 xl:grid-cols-[150px_minmax(0,1fr)]">
+      <TabsList variant="page" className="v2-settings-nav sticky top-0 z-10" data-tour="commands-filters" aria-label={t('commands.title')}>
         {cats.map((c) => (
           <TabsTrigger key={c} value={c}>
             {tabLabel(c)}
@@ -349,7 +351,7 @@ export const CommandsPage: React.FC = () => {
         ))}
       </TabsList>
 
-      <TabsContent value={cat} data-tour="commands-list" className="mt-0">
+      <TabsContent value={cat} data-tour="commands-list" className="mt-0 min-w-0">
       {SPECIAL_TABS.includes(cat) ? (
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
@@ -527,7 +529,7 @@ export const CommandsPage: React.FC = () => {
                         </div>
                       </td>
                       <td data-label={t('commands.col_desc')} className="command-description p-2.5 text-muted-foreground w-full max-w-0">
-                        <div className="truncate" title={c.desc}>{c.desc}</div>
+                        <div className="min-w-[10rem] whitespace-normal break-words leading-relaxed line-clamp-2" title={c.desc}>{c.desc}</div>
                       </td>
                       <td data-label={t('commands.col_reply')} data-empty={c.replies.length === 0} className="command-actions p-2.5">
                         {c.replies.length === 0 ? <span className="text-xs text-muted-foreground">—</span>

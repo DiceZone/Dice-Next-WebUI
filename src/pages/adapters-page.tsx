@@ -5,10 +5,12 @@ import { useTranslation } from 'react-i18next';
 import { AdapterCard } from '@/components/adapter/adapter-card';
 import { AdapterForm } from '@/components/adapter/adapter-form';
 import { ReverseWsInfo } from '@/components/adapter/reverse-ws-info';
+import { OpenOpqLogin } from '@/components/adapter/openopq-login';
 import { useServerNetworkInfo } from '@/hooks/use-server-network-info';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/ui/page-header';
 import { zustandAdapterStore } from '@/store/adapter-store';
+import { navigatePanel } from '@/lib/panel-navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, PlugZap } from 'lucide-react';
 import type { Adapter, AdapterFormData } from '@/types/adapter';
@@ -25,6 +27,7 @@ export const AdaptersPage: React.FC = () => {
   const [formOpen, setFormOpen] = useState(false);
   const [editingAdapter, setEditingAdapter] = useState<Adapter | null>(null);
   const [reverseWsPort, setReverseWsPort] = useState<string | null>(null);
+  const [builtinLogin, setBuiltinLogin] = useState<{ id: string; name: string } | null>(null);
   const { network, refresh: refreshNetwork, readCache: readNetworkCache } = useServerNetworkInfo();
   useEffect(() => {
     if (!reverseWsPort) return;
@@ -44,7 +47,12 @@ export const AdaptersPage: React.FC = () => {
   }, [fetchAdapters]);
 
   const handleCreate = async (data: AdapterFormData) => {
-    try { await createAdapter(data); toast({ title: t('adapters.added') }); }
+    try {
+      const created = await createAdapter(data);
+      toast({ title: t('adapters.added') });
+      // 内置登录建好就直接进入扫码
+      if (created?.type === 'openopq') setBuiltinLogin({ id: created.id, name: created.name });
+    }
     catch (e) { toast({ title: t('adapters.add_fail'), variant: 'destructive' }); throw e; }
   };
   const handleUpdate = async (data: AdapterFormData) => {
@@ -88,7 +96,7 @@ export const AdaptersPage: React.FC = () => {
       )}
       <div data-tour="adapters-list">
       {loading && adapters.length === 0 ? (
-        <div className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(min(400px,100%),1fr))]">
+        <div className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(min(360px,100%),1fr))]">
           {[...Array(4)].map((_, i) => (<div key={i} className="h-48 animate-pulse rounded-lg bg-muted" />))}
         </div>
       ) : adapters.length === 0 ? (
@@ -101,12 +109,13 @@ export const AdaptersPage: React.FC = () => {
           </Button>
         </div>
       ) : (
-        <div className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(min(400px,100%),1fr))]">
+        <div className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(min(360px,100%),1fr))]">
           {adapters.map((a) => (
             <AdapterCard key={a.id} adapter={a} onConnect={handleToggle} onDisconnect={handleToggle} onReconnect={handleReconnect}
               onEdit={(a) => { setEditingAdapter(a); setFormOpen(true); }} onDelete={handleDelete} onTestConnection={handleTest}
-              onOfficialControls={(id) => { window.location.hash = `/qq-official?adapter=${encodeURIComponent(id)}`; }}
-              onShowReverseInfo={a.connectionMode === 'reverse_ws' ? (port) => setReverseWsPort(port) : undefined} />
+              onOfficialControls={(id) => { navigatePanel(`/qq-official?adapter=${encodeURIComponent(id)}`); }}
+              onShowReverseInfo={a.connectionMode === 'reverse_ws' ? (port) => setReverseWsPort(port) : undefined}
+              onBuiltinLogin={(a) => setBuiltinLogin({ id: a.id, name: a.name })} />
           ))}
         </div>
       )}
@@ -115,6 +124,7 @@ export const AdaptersPage: React.FC = () => {
         onSubmit={editingAdapter ? handleUpdate : handleCreate} adapter={editingAdapter} />
       <ReverseWsInfo open={!!reverseWsPort} onClose={() => setReverseWsPort(null)} port={reverseWsPort ?? ''}
         network={network} onRefresh={refreshNetwork} />
+      <OpenOpqLogin adapterId={builtinLogin?.id ?? null} adapterName={builtinLogin?.name} onClose={() => setBuiltinLogin(null)} />
     </div>
   );
 };

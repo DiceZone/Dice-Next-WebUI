@@ -1,166 +1,96 @@
-import React, { useState, useCallback } from 'react';
-import { confirmPageLeave } from '@/lib/navigation-guard';
+import React, { Suspense } from 'react';
+import { createHashHistory, createRootRoute, createRoute, createRouter, Outlet, RouterProvider, redirect, useBlocker, useLocation, useNavigate } from '@tanstack/react-router';
 import { Layout } from '@/components/layout/layout';
 import { Toaster } from '@/components/ui/toaster';
-import { DashboardPage } from '@/pages/dashboard-page';
-import { AdaptersPage } from '@/pages/adapters-page';
-import { QQOfficialPage } from '@/pages/qq-official-page';
-import { DiceRulesPage } from '@/pages/dice-rules-page';
-import { RepliesPage } from '@/pages/replies-page';
-import { DecksPage } from '@/pages/decks-page';
-import { GroupsPage } from '@/pages/groups-page';
-import { PlayersPage } from '@/pages/players-page';
-import { RoadmapPage } from '@/pages/roadmap-page';
-import { CommandsPage } from '@/pages/commands-page';
-import { HelpDocsPage } from '@/pages/help-docs-page';
-import { ModulesPage } from '@/pages/modules-page';
-import { RulesPage } from '@/pages/rules-page';
-import { BanlistPage } from '@/pages/banlist-page';
-import { SettingsPage } from '@/pages/settings-page';
-import { CloudSettingsPage } from '@/pages/cloud-settings-page';
+import { PageSkeleton } from '@/components/layout/page-skeleton';
+import { PageError } from '@/components/layout/page-error';
+import { confirmPageLeave } from '@/lib/navigation-guard';
+import { createNavigationBlocker } from '@/lib/safe-navigation';
 import { resolveSettingsRoute } from '@/lib/cloud-settings';
-import { WebuiSettingsPage } from '@/pages/webui-settings-page';
-import { NoticeSettingsPage } from '@/pages/notice-settings-page';
-import { AiPage } from '@/pages/ai-page';
-import { SchedulesPage } from '@/pages/schedules-page';
-import { PlaygroundPage } from '@/pages/playground-page';
-import { AboutPage } from '@/pages/about-page';
-import { BackupPage } from '@/pages/backup-page';
-import { LogsPage } from '@/pages/logs-page';
-import { StatisticsPage } from '@/pages/statistics-page';
-import { FilesPage } from '@/pages/files-page';
+import manifest from './route-manifest.json';
 
-/**
- * Route configuration and page component map.
- *
- * Uses a simple hash-based router since the app communicates
- * via WebSocket proxy. This avoids server-side routing complications.
- */
-const ROUTES: Record<string, React.ComponentType> = {
-  '/': DashboardPage,
-  '/playground': PlaygroundPage,
-  '/adapters': AdaptersPage,
-  '/qq-official': QQOfficialPage,
-  '/dice-rules': DiceRulesPage,
-  '/replies': RepliesPage,
-  '/decks': DecksPage,
-  '/groups': GroupsPage,
-  '/players': PlayersPage,
-  '/schedules': SchedulesPage,
-  '/roadmap': RoadmapPage,
-  '/commands': CommandsPage,
-  '/help': HelpDocsPage,
-  '/modules': ModulesPage,
-  '/rules': RulesPage,
-  '/permissions': BanlistPage,
-  '/banlist': BanlistPage,
-  '/settings': SettingsPage,
-  '/cloud-services': CloudSettingsPage,
-  '/ai': AiPage,
-  '/ai/chat': AiPage,
-  '/ai/npc': AiPage,
-  '/ai/polish': AiPage,
-  '/ai/translate': AiPage,
-  '/notice-settings': NoticeSettingsPage,
-  '/webui-settings': WebuiSettingsPage,
-  '/about': AboutPage,
-  '/backup': BackupPage,
-  '/logs': LogsPage,
-  '/statistics': StatisticsPage,
-  '/files': FilesPage,
-};
-
-const DEFAULT_ROUTE = '/';
-const NOT_FOUND_ROUTES = new Set<string>();
-let notifiedAboutNotFound = false;
-
-interface RouteLocation {
-  path: string;
-  query: string;
-  raw: string;
+const modules = import.meta.glob<Record<string, React.ComponentType>>('../pages/*-page.tsx');
+const pages = new Map<string, React.LazyExoticComponent<React.ComponentType>>();
+function getPage(file: string, component: string) {
+  if (!pages.has(file)) pages.set(file, React.lazy(async () => {
+    const module = await modules[`../pages/${file}.tsx`]();
+    return { default: module[component] };
+  }));
+  return pages.get(file)!;
 }
 
-const parseRoute = (value: string): RouteLocation => {
-  const source = value || DEFAULT_ROUTE;
-  const queryAt = source.indexOf('?');
-  const path = (queryAt >= 0 ? source.slice(0, queryAt) : source) || DEFAULT_ROUTE;
-  const query = queryAt >= 0 ? source.slice(queryAt + 1) : '';
-  const resolved = resolveSettingsRoute(path, query);
-  return { ...resolved, raw: resolved.query ? `${resolved.path}?${resolved.query}` : resolved.path };
-};
-
-const readHashRoute = () => parseRoute(window.location.hash.slice(1) || DEFAULT_ROUTE);
-
-export const AppRouter: React.FC = () => {
-  const [location, setLocation] = useState<RouteLocation>(() => {
-    const initial = readHashRoute();
-    return initial.path in ROUTES ? initial : parseRoute(DEFAULT_ROUTE);
-  });
-
-  const locationRef = React.useRef(location);
-  locationRef.current = location;
-  const navigating = React.useRef(false);
-  const navigate = useCallback(async (destination: string) => {
-    const requested = parseRoute(destination);
-    const next = requested.path in ROUTES ? requested : parseRoute(DEFAULT_ROUTE);
-    if (next.raw === locationRef.current.raw || navigating.current) return;
-    navigating.current = true;
-    try {
-      if (!await confirmPageLeave()) return;
-      if (window.location.hash.slice(1) !== next.raw) window.location.hash = next.raw;
-      locationRef.current = next;
-      setLocation((current) => current.raw === next.raw ? current : next);
-    } finally { navigating.current = false; }
-  }, []);
-
+// Keep scope IDs such as "00123" as strings, not JSON-coerced numbers.
+function parseSearch(search: string): Record<string, string> {
+  return Object.fromEntries(new URLSearchParams(search));
+}
+function stringifySearch(search: Record<string, unknown>) {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(search)) if (value !== undefined) params.set(key, String(value));
+  return params.size ? '?' + params.toString() : '';
+}
+const navigationBlocker = createNavigationBlocker(confirmPageLeave);
+function RootLayout() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  useBlocker({ shouldBlockFn: navigationBlocker, enableBeforeUnload: false });
+  const go = React.useCallback((destination: string) => {
+    if (!destination.startsWith('/') || destination.startsWith('//')) return;
+    const url = new URL(destination, 'https://panel.invalid');
+    const resolved = resolveSettingsRoute(url.pathname, url.search.slice(1));
+    void navigate({ to: resolved.path, search: parseSearch(resolved.query) });
+  }, [navigate]);
   React.useEffect(() => {
-    const handleHashChange = async () => {
-      const next = readHashRoute();
-      if (next.raw === locationRef.current.raw) return;
-      // Do not unmount the editor before it has approved leaving. On cancellation
-      // push its route back, rather than overwriting the destination history entry.
-      if (navigating.current) {
-        window.history.pushState(null, '', '#' + locationRef.current.raw);
-        return;
-      }
-      navigating.current = true;
-      try {
-        if (!await confirmPageLeave()) {
-          window.history.pushState(null, '', '#' + locationRef.current.raw);
-          return;
-        }
-        if (next.path in ROUTES) {
-          window.history.replaceState(null, '', '#' + next.raw);
-          locationRef.current = next;
-          setLocation(next);
-        } else {
-          if (!NOT_FOUND_ROUTES.has(next.path) && !notifiedAboutNotFound) {
-            notifiedAboutNotFound = true;
-            console.warn(`Unknown route: "${next.path}", redirecting to ${DEFAULT_ROUTE}`);
-            NOT_FOUND_ROUTES.add(next.path);
-          }
-          const fallback = parseRoute(DEFAULT_ROUTE);
-          window.history.replaceState(null, '', '#' + fallback.raw);
-          locationRef.current = fallback;
-          setLocation(fallback);
-        }
-      } finally { navigating.current = false; }
+    const onNavigate = (event: Event) => go(String((event as CustomEvent).detail || ''));
+    const onAnchor = (event: MouseEvent) => {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const anchor = event.target instanceof Element ? event.target.closest<HTMLAnchorElement>('a[href^="#/"]') : null;
+      if (!anchor || anchor.hasAttribute('download') || (anchor.target && anchor.target !== '_self')) return;
+      event.preventDefault(); go(anchor.getAttribute('href')!.slice(1));
     };
-
-    window.addEventListener('hashchange', handleHashChange);
-    if (!window.location.hash) window.location.hash = DEFAULT_ROUTE;
-    return () => window.removeEventListener('hashchange', handleHashChange);
-  }, []);
-
-  const PageComponent = ROUTES[location.path] || ROUTES[DEFAULT_ROUTE];
-  const searchTarget = new URLSearchParams(location.query).get('focus') || undefined;
-
-  return (
-    <Layout currentPath={location.path} onNavigate={navigate} searchTarget={searchTarget}>
-      <PageComponent key={location.raw} />
-      <Toaster />
-    </Layout>
-  );
+    window.addEventListener('panel:navigate', onNavigate);
+    document.addEventListener('click', onAnchor);
+    return () => { window.removeEventListener('panel:navigate', onNavigate); document.removeEventListener('click', onAnchor); };
+  }, [go]);
+  return <Layout currentPath={location.pathname} onNavigate={go}
+    searchTarget={String(location.search.focus || '') || undefined}>
+    <Suspense fallback={<PageSkeleton />}><Outlet /></Suspense>
+    <Toaster />
+  </Layout>;
+}
+function NotFoundPage() {
+  const navigate = useNavigate();
+  React.useEffect(() => { void navigate({ to: '/', replace: true }); }, [navigate]);
+  return <PageSkeleton />;
+}
+const root = createRootRoute({ component: RootLayout, notFoundComponent: NotFoundPage,
+  beforeLoad: ({ location }) => {
+    const normalized = resolveSettingsRoute(location.pathname, location.searchStr.slice(1));
+    if (normalized.path !== location.pathname) throw redirect({ to: normalized.path,
+      search: parseSearch(normalized.query), replace: true });
+  } });
+const routes = manifest.map(({ path, file, component }) => {
+  const Page = getPage(file, component);
+  return createRoute({ getParentRoute: () => root, path,
+    validateSearch: (value) => value as Record<string, string>,
+    component: () => <Page /> });
+});
+function makeRouter() {
+  const history = createHashHistory();
+  const raw = window.location.hash.slice(1) || '/';
+  const url = new URL(raw.startsWith('/') ? raw : '/', 'https://panel.invalid');
+  const normalized = resolveSettingsRoute(url.pathname, url.search.slice(1));
+  const path = manifest.some((item) => item.path === normalized.path) ? normalized.path : '/';
+  const href = path + (normalized.query ? '?' + normalized.query : '');
+  if (raw !== href) history.replace(href, undefined, { ignoreBlocker: true });
+  return createRouter({ routeTree: root.addChildren(routes), history, parseSearch, stringifySearch, defaultErrorComponent: PageError,
+    defaultPreload: false, defaultPendingComponent: PageSkeleton, defaultPendingMinMs: 0 });
+}
+let panelRouter: ReturnType<typeof makeRouter> | undefined;
+export const AppRouter: React.FC = () => {
+  // StrictMode replays effects: destroying history in an effect cleanup would
+  // permanently remove hash/Back listeners on the immediately remounted view.
+  const [router] = React.useState(() => panelRouter ??= makeRouter());
+  return <RouterProvider router={router} />;
 };
-
+if (import.meta.hot) import.meta.hot.dispose(() => { panelRouter?.history.destroy(); });
 export default AppRouter;

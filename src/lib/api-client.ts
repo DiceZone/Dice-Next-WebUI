@@ -11,6 +11,8 @@
  *   { "code": 0, "message": "success", "data": { ... } }
  */
 
+import { panelQueryClient } from './query-client.js';
+
 export interface ApiResponse<T = unknown> {
   code: number;
   message: string;
@@ -60,10 +62,12 @@ function getApiKey(): string | null {
 }
 
 function setApiKey(key: string): void {
+  panelQueryClient.clear();
   localStorage.setItem('dice-api-key', key);
 }
 
 function clearApiKey(): void {
+  panelQueryClient.clear();
   localStorage.removeItem('dice-api-key');
 }
 
@@ -114,6 +118,7 @@ async function request<T>(
 
     // Check HTTP-level errors
     if (!response.ok) {
+      if (response.status === 401) panelQueryClient.clear();
       const message =
         typeof rawBody === 'object' && rawBody !== null && 'message' in rawBody
           ? String((rawBody as Record<string, unknown>).message)

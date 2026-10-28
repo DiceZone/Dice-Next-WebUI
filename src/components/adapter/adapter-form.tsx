@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { Label } from '@/components/ui/label';
 import { FeatureHelp } from '@/components/ui/feature-help';
 import { HelpLabel } from '@/components/ui/help-label';
@@ -34,7 +35,7 @@ function normalizeUrl(raw: string): string {
 
 const adapterFormSchema = z.object({
   name: z.string().min(1).max(50),
-  type: z.enum(['onebot_v11', 'milky', 'qq_official', 'discord', 'kook'] as const),
+  type: z.enum(['onebot_v11', 'milky', 'qq_official', 'discord', 'kook', 'openopq'] as const),
   // OneBot uses forward/reverse WebSocket; Milky currently uses forward WebSocket.
   connectionMode: z.enum(['forward_ws', 'reverse_ws', 'http'] as const).optional(),
   endpoint: z.string().optional(),
@@ -43,6 +44,7 @@ const adapterFormSchema = z.object({
   appId: z.string().optional(),
   appSecret: z.string().optional(),
   qqNumber: z.string().regex(/^\d{0,12}$/, 'QQ 号只能由最多 12 位数字组成').optional(),
+  openopqTransport: z.enum(['forward_ws', 'reverse_ws']).optional().default('forward_ws'),
   forceVerifyImageResource: z.boolean().optional().default(false),
   subscribeGroupMemberEvents: z.boolean().optional().default(false),
   autoAcknowledgeInteractions: z.boolean().optional().default(true),
@@ -54,6 +56,7 @@ const adapterFormSchema = z.object({
 });
 
 type FormValues = z.infer<typeof adapterFormSchema>;
+type FormInput = z.input<typeof adapterFormSchema>;
 type FormMode = NonNullable<FormValues['connectionMode']>;
 
 function initialConnectionMode(adapter?: Adapter | null): FormMode | undefined {
@@ -78,7 +81,7 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
   const [qrSaving, setQrSaving] = React.useState(false);
   const qrPollingRef = React.useRef(false);
 
-  const { register, handleSubmit, setValue, watch, getValues, reset, setError, clearErrors, formState: { errors, isSubmitting } } = useForm<FormValues>({
+  const form = useForm<FormInput, unknown, FormValues>({
     resolver: zodResolver(adapterFormSchema),
     defaultValues: {
       name: adapter?.name ?? '',
@@ -90,6 +93,7 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
       appId: adapter?.appId ?? '',
       appSecret: '',
       qqNumber: adapter?.qqNumber ?? '',
+      openopqTransport: adapter?.openopqTransport ?? 'forward_ws',
       forceVerifyImageResource: adapter?.forceVerifyImageResource ?? false,
       subscribeGroupMemberEvents: adapter?.subscribeGroupMemberEvents ?? false,
       autoAcknowledgeInteractions: adapter?.autoAcknowledgeInteractions ?? true,
@@ -100,6 +104,7 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
       enabled: adapter?.enabled ?? true,
     },
   });
+  const { register, handleSubmit, setValue, watch, getValues, reset, setError, clearErrors, formState: { errors, isSubmitting } } = form;
 
   React.useEffect(() => {
     if (open) {
@@ -113,6 +118,7 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
         appId: adapter?.appId ?? '',
         appSecret: '',
         qqNumber: adapter?.qqNumber ?? '',
+        openopqTransport: adapter?.openopqTransport ?? 'forward_ws',
         forceVerifyImageResource: adapter?.forceVerifyImageResource ?? false,
         subscribeGroupMemberEvents: adapter?.subscribeGroupMemberEvents ?? false,
         autoAcknowledgeInteractions: adapter?.autoAcknowledgeInteractions ?? true,
@@ -142,6 +148,25 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
     else data.heartApiKey = heartApiKey;
     delete (data as Partial<FormValues>).clearHeartApiKey;
 
+    if (data.type === 'openopq') {
+      // 内置登录必须带骰子之间的 Key：新增时必填，编辑时留空 = 保持原 Key，不能清空。
+      const qq = (data.qqNumber ?? '').trim();
+      if (!/^[1-9]\d{4,11}$/.test(qq)) {
+        setError('qqNumber', { message: t('adapters.openopq_qq_error') });
+        return;
+      }
+      if ((!isEdit || data.heartApiKey !== undefined) && !/^bdc_[A-Za-z0-9_-]{8,252}$/.test(data.heartApiKey ?? '')) {
+        setError('heartApiKey', { message: t('adapters.openopq_key_required') });
+        return;
+      }
+      data.qqNumber = qq;
+      data.connectionMode = 'reverse_ws';
+      data.endpoint = '';
+      delete (data as Partial<FormValues>).accessToken;
+      await onSubmit(data as AdapterFormData);
+      onOpenChange(false);
+      return;
+    }
     if (data.type === 'milky') {
       const endpoint = (data.endpoint ?? '').trim();
       const eventEndpoint = (data.eventEndpoint ?? '').trim();
@@ -262,6 +287,7 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
   const official = type === 'qq_official';
   const milky = type === 'milky';
   const tokenBot = type === 'discord' || type === 'kook';   // 仅需 Bot Token 的平台
+  const builtin = type === 'openopq';
   const isReverse = mode === 'reverse_ws';
   const modeChosen = mode === 'forward_ws' || mode === 'reverse_ws';   // C#54: gate later fields
   // Label: "连接地址" for forward/http, "端口" for reverse
@@ -281,22 +307,23 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
               {type === 'milky' && <p>{t('adapters.milky_hint')}</p>}
               {type === 'discord' && <p>{t('adapters.discord_hint')}</p>}
               {type === 'kook' && <p>{t('adapters.kook_hint')}</p>}
+              {builtin && <p>{t('adapters.openopq_hint')}</p>}
             </>} />
           </DialogTitle>
           <DialogDescription className="sr-only">{isEdit ? t('adapters.edit_subtitle') : t('adapters.add_subtitle')}</DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit(async (data) => {
+        <Form {...form}><form onSubmit={handleSubmit(async (data) => {
           if (qrBusy) return;
           try { await handleFormSubmit(data); }
           catch (error) { setError('root', { message: error instanceof Error ? error.message : t('common.save_fail') }); }
         })} className="space-y-4" autoComplete="off">
           {errors.root && <p role="alert" className="text-sm text-destructive">{errors.root.message}</p>}
           <fieldset disabled={isSubmitting || qrSaving} className="min-w-0 space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">{t('adapters.name')}</Label>
-            <Input id="name" placeholder={t('adapters.name_placeholder')} {...register('name')} />
-            {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
-          </div>
+          <FormField control={form.control} name="name" render={({ field }) => <FormItem>
+            <FormLabel>{t('adapters.name')}</FormLabel>
+            <FormControl><Input placeholder={t('adapters.name_placeholder')} {...field} /></FormControl>
+            <FormMessage />
+          </FormItem>} />
           <div className="space-y-2">
             <Label htmlFor="type">{t('adapters.type_label')}</Label>
             {/* C#55: 编辑时不允许修改适配器平台 */}
@@ -315,10 +342,28 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
                 <SelectItem value="qq_official"><span className="inline-flex items-center gap-2"><PlatformIcon platform="qq_official" />QQ 官方机器人 2.0</span></SelectItem>
                 <SelectItem value="discord"><span className="inline-flex items-center gap-2"><PlatformIcon platform="discord" />Discord</span></SelectItem>
                 <SelectItem value="kook"><span className="inline-flex items-center gap-2"><PlatformIcon platform="kook" />KOOK</span></SelectItem>
+                <SelectItem value="openopq"><span className="inline-flex items-center gap-2"><PlatformIcon platform="openopq" />{t('adapters.type_openopq')}</span></SelectItem>
               </SelectContent>
             </Select>
           </div>
-          {milky ? <>
+          {builtin ? <>
+           <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-400">{t('adapters.openopq_hint')}</div>
+           <div className="space-y-2">
+             <Label htmlFor="qqNumber">{t('adapters.openopq_qq')}</Label>
+             <Input id="qqNumber" inputMode="numeric" autoComplete="off" placeholder="123456789" {...register('qqNumber')} />
+             {errors.qqNumber && <p className="text-xs text-destructive">{errors.qqNumber.message}</p>}
+           </div>
+           <div className="space-y-2">
+             <HelpLabel htmlFor="openopqTransport" title={t('adapters.openopq_transport')} description={<p>{t('adapters.openopq_transport_hint')}</p>} />
+             <Select value={watch('openopqTransport') ?? 'forward_ws'} onValueChange={(v) => setValue('openopqTransport', v as FormValues['openopqTransport'])}>
+               <SelectTrigger id="openopqTransport"><SelectValue /></SelectTrigger>
+               <SelectContent>
+                 <SelectItem value="forward_ws">{t('adapters.openopq_transport_forward')}</SelectItem>
+                 <SelectItem value="reverse_ws">{t('adapters.openopq_transport_reverse')}</SelectItem>
+               </SelectContent>
+             </Select>
+           </div>
+          </> : milky ? <>
            <div className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">{t('adapters.milky_hint')}</div>
            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
              <div className="space-y-2"><Label htmlFor="endpoint">{t('adapters.milky_endpoint')}</Label><Input id="endpoint" inputMode="url" autoComplete="off" placeholder={endpointPlaceholder} {...register('endpoint')} />{errors.endpoint && <p className="text-xs text-destructive">{errors.endpoint.message}</p>}</div>
@@ -434,7 +479,7 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
             <div className="flex items-start gap-2">
               <KeyRound className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
               <div className="min-w-0">
-                <HelpLabel htmlFor="heartApiKey" title={t('adapters.heart_api_key')} description={<p>{t('adapters.heart_api_key_desc')}</p>} />
+                <HelpLabel htmlFor="heartApiKey" title={builtin && !isEdit ? `${t('adapters.heart_api_key')}（${t('adapters.openopq_key_mandatory')}）` : t('adapters.heart_api_key')} description={<p>{t('adapters.heart_api_key_desc')}</p>} />
               </div>
             </div>
             <Input
@@ -447,6 +492,7 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
                 : t('adapters.heart_api_key_unset')}
               {...register('heartApiKey')}
             />
+            {errors.heartApiKey && <p className="text-xs text-destructive">{errors.heartApiKey.message}</p>}
             <div className="flex flex-wrap items-center justify-between gap-3">
               <a
                 href="https://account.dice.zone/dashboard/bindings"
@@ -457,7 +503,7 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
                 {t('adapters.heart_api_key_link')}
                 <ExternalLink className="h-3 w-3" />
               </a>
-              {isEdit && adapter?.heartApiKeyConfigured && (
+              {isEdit && adapter?.heartApiKeyConfigured && !builtin && (
                 <label className="flex items-center gap-2 text-xs text-muted-foreground">
                   <Switch
                     checked={watch('clearHeartApiKey')}
@@ -470,10 +516,10 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
           </section>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>{t('common.cancel')}</Button>
-            <Button type="submit" disabled={qrBusy || isSubmitting || (!official && !milky && !tokenBot && !modeChosen)}>{isSubmitting || qrSaving ? t('common.saving') : isEdit ? t('adapters.save_edit') : t('adapters.add')}</Button>
+            <Button type="submit" disabled={qrBusy || isSubmitting || (!official && !milky && !tokenBot && !builtin && !modeChosen)}>{isSubmitting || qrSaving ? t('common.saving') : isEdit ? t('adapters.save_edit') : t('adapters.add')}</Button>
           </DialogFooter>
           </fieldset>
-        </form>
+        </form></Form>
       </DialogContent>
     </Dialog>
   );
