@@ -354,6 +354,7 @@ export const SETTINGS_SEARCH_ENTRIES: SettingsSearchEntry[] = [
   e('page-commands', '/commands', 'nav.commands', 'commands.title', '指令 命令 command alias enable disable reply text', 'commands.subtitle'),
   e('page-modules', '/modules', 'nav.modules', 'modules.title', '插件 plugin js javascript lua module extension config', 'modules.subtitle'),
   e('page-rules', '/rules', 'nav.rules', 'rules.title', '规则 規則 rule coc dnd dice system bundle', 'rules.desc'),
+  e('rules-coc7r', '/rules', 'nav.rules', 'coc7r_ui.title', 'coc7r Keeper Companion CHA23197-H 安抚 安撫 震惊 理智 SAN Changed 专长 專長', 'coc7r_ui.help'),
   e('page-dice-rules', '/dice-rules', 'nav.dice_rules', 'nav.dice_rules', '骰子规则 骰子規則 dice rule expression roll default sides', 'dice.subtitle'),
   e('page-decks', '/decks', 'nav.decks', 'decks.title', '牌堆 deck draw 抽取 upload', 'decks.subtitle'),
   e('page-files', '/files', 'nav.data_mgmt', 'image_resources.title', '文件管理 檔案管理 图片 圖片 资源 資源 上传 上傳 预览 預覽 文件夹 資料夾 复制图片代码 複製圖片代碼 image resources files asset upload preview folder copy code move rename recycle bin deck plugin', 'image_resources.help'),
