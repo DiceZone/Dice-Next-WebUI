@@ -1,4 +1,14 @@
 {
+  "coc7r_ui": {
+    "title": "coc7r · Keeper Companion",
+    "scope": "Pack defaults. Group settings made with .coc7r options take precedence. Existing skill totals are preserved; cards are never converted automatically.",
+    "help": "Activate with .set coc7r; return to core rules with .set coc7.\nRevised creation, skills, movement and SAN are enabled by default. Reassure fumbles/failed pushes use 1D4 from p.22 for now; p.94 conflicts.\nSwitching leaves existing cards untouched. Attribute allocation, chapters, rest, backstory and narrative decisions require player/Keeper confirmation.",
+    "bases": "Attribute-derived skill bases",
+    "specialties": "Combat specialization floors",
+    "take5": "Successful improvement +5",
+    "test_hint": "Use Command Test with the relevant group to test native commands. The template tester below only evaluates custom rule-pack templates.",
+    "search": "coc7r Keeper Companion Reassure Shock Changed SAN sanity creation skills specialties improvement movement"
+  },
   "workspace": {
     "auto_view": "Auto (split / cards)",
     "width": "Content width",

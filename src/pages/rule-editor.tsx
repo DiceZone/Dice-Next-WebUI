@@ -13,87 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Trash2, FlaskConical } from 'lucide-react';
 
-// 表单内部表示（便于编辑），与规则包 JSON 双向转换。
-// h 仅用于 customCmds（自定义指令的帮助文字，对应 add 值的 {output,help} 对象形式）。
-interface KV { k: string; v: string; h?: string; }
-interface PackForm {
-  name: string; fullName: string; version: string; author: string;
-  setKeys: string; diceSides: string; successBuiltin: string;
-  alias: KV[];      // k=规范名, v=别名(逗号分隔)
-  defaults: KV[];   // k=属性, v=默认值
-  computed: KV[];   // k=属性, v=公式
-  entries: KV[];    // k=词条, v=解释
-  disableCmds: string;   // 逗号分隔
-  cmdAlias: KV[];   // k=输入词, v=目标指令
-  customCmds: KV[]; // k=指令名, v=输出模板（含 {表达式} DSL）
-}
-
-const emptyForm = (): PackForm => ({
-  name: '', fullName: '', version: '1.0', author: '', setKeys: '', diceSides: '100', successBuiltin: 'coc7',
-  alias: [], defaults: [], computed: [], entries: [], disableCmds: '', cmdAlias: [], customCmds: [],
-});
-
-function jsonToForm(j: Record<string, unknown>): PackForm {
-  const f = emptyForm();
-  f.name = (j.name as string) || ''; f.fullName = (j.fullName as string) || '';
-  f.version = (j.version as string) || '1.0'; f.author = (j.author as string) || '';
-  const set = (j.set as Record<string, unknown>) || {};
-  f.diceSides = String((set.diceSides as number) ?? 100);
-  f.setKeys = Array.isArray(set.keys) ? (set.keys as string[]).join(', ') : '';
-  const succ = (j.successLevels as Record<string, unknown>) || {};
-  f.successBuiltin = (succ.builtin as string) || '';
-  const objToKV = (o: unknown, joinArr = false): KV[] =>
-    o && typeof o === 'object' ? Object.entries(o as Record<string, unknown>).map(([k, v]) =>
-      ({ k, v: joinArr && Array.isArray(v) ? (v as string[]).join(', ') : String(v) })) : [];
-  f.alias = objToKV(j.alias, true);
-  f.defaults = objToKV(j.defaults);
-  f.computed = objToKV(j.computed);
-  f.entries = objToKV(j.entries);
-  const cmds = (j.commands as Record<string, unknown>) || {};
-  f.disableCmds = Array.isArray(cmds.disable) ? (cmds.disable as string[]).join(', ') : '';
-  f.cmdAlias = objToKV(cmds.alias);
-  // commands.add 值可为字符串(=模板) 或 {output, help} 对象；对象形式保留 help。
-  if (cmds.add && typeof cmds.add === 'object')
-    f.customCmds = Object.entries(cmds.add as Record<string, unknown>).map(([k, v]) =>
-      typeof v === 'string'
-        ? { k, v }
-        : { k, v: String((v as Record<string, unknown>)?.output ?? ''), h: String((v as Record<string, unknown>)?.help ?? '') });
-  return f;
-}
-
-function formToJson(f: PackForm): Record<string, unknown> {
-  const splitList = (s: string) => s.split(/[,，]/).map((x) => x.trim()).filter(Boolean);
-  const kvObj = (rows: KV[], asInt = false) => {
-    const o: Record<string, unknown> = {};
-    for (const r of rows) if (r.k.trim()) o[r.k.trim()] = asInt ? (parseInt(r.v, 10) || 0) : r.v;
-    return o;
-  };
-  const aliasObj: Record<string, string[]> = {};
-  for (const r of f.alias) if (r.k.trim()) aliasObj[r.k.trim()] = splitList(r.v);
-  const j: Record<string, unknown> = {
-    name: f.name.trim(), fullName: f.fullName.trim() || f.name.trim(), version: f.version.trim(),
-    set: { diceSides: parseInt(f.diceSides, 10) || 100, keys: splitList(f.setKeys) },
-  };
-  if (f.author.trim()) j.author = f.author.trim();
-  if (f.successBuiltin) j.successLevels = { builtin: f.successBuiltin };
-  if (Object.keys(aliasObj).length) j.alias = aliasObj;
-  if (f.defaults.length) j.defaults = kvObj(f.defaults, true);
-  if (f.computed.length) j.computed = kvObj(f.computed);
-  if (f.entries.length) j.entries = kvObj(f.entries);
-  const disable = splitList(f.disableCmds);
-  const cmdAlias = kvObj(f.cmdAlias);
-  // 自定义指令：有帮助文字→写 {output,help} 对象，否则写纯字符串模板（保持简洁/向后兼容）。
-  const customCmds: Record<string, unknown> = {};
-  for (const r of f.customCmds)
-    if (r.k.trim()) customCmds[r.k.trim()] = r.h && r.h.trim() ? { output: r.v, help: r.h.trim() } : r.v;
-  if (disable.length || Object.keys(cmdAlias).length || Object.keys(customCmds).length)
-    j.commands = {
-      ...(disable.length ? { disable } : {}),
-      ...(Object.keys(cmdAlias).length ? { alias: cmdAlias } : {}),
-      ...(Object.keys(customCmds).length ? { add: customCmds } : {}),
-    };
-  return j;
-}
+import { emptyForm, jsonToForm, formToJson, type KV, type PackForm } from '@/lib/rule-pack-form';
+import { Switch } from '@/components/ui/switch';
 
 interface Props { file: string | null; onClose: () => void; onSaved: () => void; }
 
@@ -244,6 +165,21 @@ export const RuleEditor: React.FC<Props> = ({ file, onClose, onSaved }) => {
           <Textarea className="font-mono text-xs h-[60vh]" value={raw} onChange={(e) => setRaw(e.target.value)} spellCheck={false} />
         ) : (
           <div className="space-y-4 py-1">
+            {form.mechanics === 'keeper-companion-2026' && (
+              <section className="space-y-3 rounded-lg border p-4" aria-label={t('coc7r_ui.title')}>
+                <HelpLabel title={t('coc7r_ui.title')} description={<p className="whitespace-pre-line">{t('coc7r_ui.help')}</p>} />
+                <p className="text-sm text-muted-foreground">{t('coc7r_ui.scope')}</p>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {(['bases', 'specialties', 'take5'] as const).map(key => (
+                    <label key={key} className="flex items-center justify-between gap-3 rounded-md border p-3 text-sm">
+                      <span>{t('coc7r_ui.' + key)}</span>
+                      <Switch checked={!!form.options[key]} onCheckedChange={checked => setForm(f => ({ ...f, options: { ...f.options, [key]: checked } }))} />
+                    </label>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">{t('coc7r_ui.test_hint')}</p>
+              </section>
+            )}
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <div><Label className="text-xs">{t('ruleed.name')}</Label><Input className="h-8 text-sm" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="coc7" /></div>
               <div><Label className="text-xs">{t('ruleed.full_name')}</Label><Input className="h-8 text-sm" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} /></div>

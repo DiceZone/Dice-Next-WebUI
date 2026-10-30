@@ -11,6 +11,7 @@
     "tsBuildInfoFile": ".test-dist/tsconfig.test.tsbuildinfo"
   },
   "include": [
+    "src/lib/rule-pack-form.ts",
     "src/lib/dashboard-shortcuts.ts",
     "src/i18n/dashboard-shortcuts.ts",
     "src/lib/webui-version.ts",
