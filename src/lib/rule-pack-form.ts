@@ -16,6 +16,13 @@ export interface PackForm {
   customCmds: KV[]; // k=指令名, v=输出模板（含 {表达式} DSL）
 }
 
+// Keeper Companion modules: each is a separate switch. A pack saved before a
+// module existed has no key for it, and the server then applies these defaults.
+export const COC7R_OPTIONS = [
+  ['creation', true], ['skills', true], ['movement', true], ['sanity', true],
+  ['bases', false], ['specialties', false], ['take5', false],
+] as const;
+
 export const emptyForm = (): PackForm => ({
   original: {}, mechanics: '', options: {},
   name: '', fullName: '', version: '1.0', author: '', setKeys: '', diceSides: '100', successBuiltin: 'coc7',

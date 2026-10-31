@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Trash2, FlaskConical } from 'lucide-react';
 
-import { emptyForm, jsonToForm, formToJson, type KV, type PackForm } from '@/lib/rule-pack-form';
+import { COC7R_OPTIONS, emptyForm, jsonToForm, formToJson, type KV, type PackForm } from '@/lib/rule-pack-form';
 import { Switch } from '@/components/ui/switch';
 
 interface Props { file: string | null; onClose: () => void; onSaved: () => void; }
@@ -170,10 +170,10 @@ export const RuleEditor: React.FC<Props> = ({ file, onClose, onSaved }) => {
                 <HelpLabel title={t('coc7r_ui.title')} description={<p className="whitespace-pre-line">{t('coc7r_ui.help')}</p>} />
                 <p className="text-sm text-muted-foreground">{t('coc7r_ui.scope')}</p>
                 <div className="grid gap-3 sm:grid-cols-3">
-                  {(['bases', 'specialties', 'take5'] as const).map(key => (
+                  {COC7R_OPTIONS.map(([key, fallback]) => (
                     <label key={key} className="flex items-center justify-between gap-3 rounded-md border p-3 text-sm">
                       <span>{t('coc7r_ui.' + key)}</span>
-                      <Switch checked={!!form.options[key]} onCheckedChange={checked => setForm(f => ({ ...f, options: { ...f.options, [key]: checked } }))} />
+                      <Switch checked={form.options[key] ?? fallback} onCheckedChange={checked => setForm(f => ({ ...f, options: { ...f.options, [key]: checked } }))} />
                     </label>
                   ))}
                 </div>
