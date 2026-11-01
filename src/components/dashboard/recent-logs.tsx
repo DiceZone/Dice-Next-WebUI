@@ -89,7 +89,7 @@ export const RecentLogs: React.FC<RecentLogsProps> = ({ logs }) => {
         </div>
         <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('runtime_logs.search')} aria-label={t('runtime_logs.search')} className="h-8 text-xs" />
       </CardHeader>
-      <CardContent className="relative flex-1 min-h-0 p-0">
+      <CardContent className="relative min-h-[400px] flex-1 p-0">
         <ScrollArea ref={scrollRef} onScroll={onScroll} tabIndex={0} role="region" aria-label={t('dashboard.recent_logs')} className="h-[400px] overscroll-contain scroll-auto lg:absolute lg:inset-0 lg:h-auto">
           <div ref={contentRef} className="min-h-full">
             {visible.length === 0 ? <div className="flex h-full items-center justify-center p-6 text-sm text-muted-foreground">{t(logs.length ? 'runtime_logs.empty' : 'dashboard.no_logs')}</div>

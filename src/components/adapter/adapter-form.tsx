@@ -49,6 +49,7 @@ const adapterFormSchema = z.object({
   autoAcknowledgeInteractions: z.boolean().optional().default(true),
   qqRichReplies: z.enum(['off', 'markdown', 'math']).default('off'),
   qqInteractions: z.enum(['off', 'links', 'buttons']).default('links'),
+  qqReceiveMode: z.enum(['gateway', 'webhook']).default('gateway'),
   heartApiKey: z.string().optional(),
   clearHeartApiKey: z.boolean().optional().default(false),
   enabled: z.boolean().optional().default(true),
@@ -97,6 +98,7 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
       autoAcknowledgeInteractions: adapter?.autoAcknowledgeInteractions ?? true,
       qqRichReplies: adapter?.qqRichReplies ?? 'off',
       qqInteractions: adapter?.qqInteractions ?? 'links',
+      qqReceiveMode: adapter?.qqReceiveMode === 'webhook' ? 'webhook' : 'gateway',
       heartApiKey: '',
       clearHeartApiKey: false,
       enabled: adapter?.enabled ?? true,
@@ -121,6 +123,7 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
         autoAcknowledgeInteractions: adapter?.autoAcknowledgeInteractions ?? true,
         qqRichReplies: adapter?.qqRichReplies ?? 'off',
         qqInteractions: adapter?.qqInteractions ?? 'links',
+      qqReceiveMode: adapter?.qqReceiveMode === 'webhook' ? 'webhook' : 'gateway',
         heartApiKey: '',
         clearHeartApiKey: false,
         enabled: adapter?.enabled ?? true,
@@ -262,7 +265,7 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
           const current = getValues();
           const name = current.name.trim() || `QQ 官方机器人 ${result.data.appId}`;
           setValue('name', name);
-          await onSubmit({ name, type: 'qq_official', connectionMode: 'forward_ws', endpoint: '', accessToken: '', appId: result.data.appId, appSecret: result.data.appSecret, heartApiKey: current.heartApiKey?.trim(), forceVerifyImageResource: current.forceVerifyImageResource, subscribeGroupMemberEvents: current.subscribeGroupMemberEvents, autoAcknowledgeInteractions: current.autoAcknowledgeInteractions, qqRichReplies: current.qqRichReplies, qqInteractions: current.qqInteractions, enabled: current.enabled ?? true });
+          await onSubmit({ name, type: 'qq_official', connectionMode: 'forward_ws', endpoint: '', accessToken: '', appId: result.data.appId, appSecret: result.data.appSecret, qqReceiveMode: current.qqReceiveMode === 'webhook' ? 'webhook' : 'gateway', heartApiKey: current.heartApiKey?.trim(), forceVerifyImageResource: current.forceVerifyImageResource, subscribeGroupMemberEvents: current.subscribeGroupMemberEvents, autoAcknowledgeInteractions: current.autoAcknowledgeInteractions, qqRichReplies: current.qqRichReplies, qqInteractions: current.qqInteractions, enabled: current.enabled ?? true });
           setQrSaving(false); setQrBusy(false);
           toast({ title: 'QQ 官方机器人已添加，正在连接' }); onOpenChange(false); return;
         }
@@ -377,7 +380,20 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
              {errors.accessToken && <p className="text-xs text-destructive">{errors.accessToken.message}</p>}
            </div>
           </> : official ? <>
-          <div className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">QQ 官方机器人使用官方 Gateway WebSocket，不使用 OneBot 或 Webhook。可填写 AppID 与 AppSecret，也可用扫码登录自动添加连接。</div>
+          <div className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">QQ 官方机器人走 QQ 开放平台 API v2，不使用 OneBot。事件可以用 Gateway WebSocket 接收，也可以用 Webhook 回调。可填写 AppID 与 AppSecret，也可用扫码登录自动添加连接。</div>
+          <div className="space-y-2">
+            <Label htmlFor="qqReceiveMode">事件接收</Label>
+            <Select value={watch('qqReceiveMode') ?? 'gateway'} onValueChange={(v) => setValue('qqReceiveMode', v as FormValues['qqReceiveMode'])}>
+              <SelectTrigger id="qqReceiveMode"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="gateway">Gateway WebSocket</SelectItem>
+                <SelectItem value="webhook">Webhook</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">{watch('qqReceiveMode') === 'webhook'
+              ? '在 QQ 开放平台填写回调地址 https://你的域名/qq-official/webhook。允许的端口只有 80、443、8080、8443。同一个 AppID 只应有一个 Webhook 适配器。发送消息仍使用 Access Token。'
+              : 'Gateway 由骰子主动连接 QQ。改成 Webhook 后，QQ 会把事件推送到 /qq-official/webhook。'}</p>
+          </div>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(230px,0.9fr)_minmax(0,1.1fr)]">
             <section className="flex min-h-[278px] flex-col rounded-lg border bg-muted/20 p-4">
               <div className="flex items-center gap-2 text-sm font-medium"><QrCode className="h-4 w-4" />扫码登录</div>

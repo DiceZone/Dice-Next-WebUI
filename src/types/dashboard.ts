@@ -12,6 +12,14 @@ export interface DashboardStats {
   uptime_seconds: number;
   /** Number of adapters currently connected. */
   active_connections: number;
+  /** Distinct player profiles known to this bot. */
+  player_count?: number;
+  /** Distinct groups that are still present in group settings. */
+  group_count?: number;
+  /** Game logs currently recording (status active). */
+  active_logs?: number;
+  /** All game logs, including paused and finished ones. */
+  total_logs?: number;
   /** Total number of configured adapters (for the "connected / total" display). */
   total_adapters: number;
   /** Commands handled since the process started. */
@@ -72,6 +80,10 @@ export interface RecentLogEntry {
 export const DEFAULT_DASHBOARD_STATS: DashboardStats = {
   uptime_seconds: 0,
   active_connections: 0,
+  player_count: 0,
+  group_count: 0,
+  active_logs: 0,
+  total_logs: 0,
   total_adapters: 0,
   total_commands: 0,
   total_rules: 0,

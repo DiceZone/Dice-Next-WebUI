@@ -49,7 +49,7 @@ const system: SystemInfo = {
   disks: [{ path: '/opt/dice-next/data/dice.db', mount: '/', label: '示例磁盘', fs: 'ext4', model: '', total_gb: 80, used_gb: 16, load: 20 }],
 };
 const dashboard: DashboardStats = {
-  uptime_seconds: 93600, active_connections: 1, total_adapters: 1, total_commands: 128,
+  uptime_seconds: 93600, active_connections: 1, player_count: 2, group_count: 1, active_logs: 1, total_logs: 3, total_adapters: 1, total_commands: 128,
   total_rules: 2, active_sessions: 1,
   recent_logs: [
     { id: 'demo-log-1', timestamp: date, level: 'info', module: 'dice', message: `${nickname}：.ra 侦查 60 → 1D100=32 / 60，成功` },

@@ -1,5 +1,5 @@
 export const SHORTCUT_STORAGE_KEY = 'dice-next:dashboard-shortcuts';
-export const MAX_SHORTCUTS = 6;
+export const MAX_SHORTCUTS = 8;
 export const SHORTCUT_OPTIONS = [
   ['/', 'nav.dashboard'], ['/statistics', 'nav.statistics'], ['/playground', 'nav.playground'],
   ['/adapters', 'nav.adapters'], ['/replies', 'nav.custom_replies'], ['/qq-official', 'qq_editor.title'],
