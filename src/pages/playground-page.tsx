@@ -9,6 +9,7 @@ import { FeatureHelp } from '@/components/ui/feature-help';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PlatformIcon } from '@/components/platform-icon';
 import { cn } from '@/lib/utils';
+import { MarkdownExample } from '@/components/reply/markdown-example';
 
 /**
  * Playground — a chat-style test page for trying bot commands without QQ.
@@ -19,6 +20,8 @@ interface ChatItem {
   role: 'user' | 'bot';
   text: string;
   empty?: boolean;
+  /** Rich-text reply (Discord/KOOK card): render the Markdown instead of its source. */
+  markdown?: boolean;
 }
 
 const QUICK_COMMANDS = ['.r', '.r3d6+2', '.ra 侦查 60', '.coc', '.dnd', '.help'];
@@ -65,7 +68,7 @@ export const PlaygroundPage: React.FC = () => {
       if (data.error) {
         setItems((prev) => [...prev, { role: 'bot', text: '⚠ ' + data.error }]);
       } else if (data.reply) {
-        setItems((prev) => [...prev, { role: 'bot', text: data.reply }]);
+        setItems((prev) => [...prev, { role: 'bot', text: data.reply, markdown: data.markdown === true }]);
       } else {
         setItems((prev) => [...prev, { role: 'bot', text: t('playground.no_reply'), empty: true }]);
       }
@@ -137,7 +140,7 @@ export const PlaygroundPage: React.FC = () => {
                 item.empty && 'italic text-muted-foreground'
               )}
             >
-              {item.text}
+              {item.markdown ? <MarkdownExample text={item.text} enabled /> : item.text}
             </div>
           </div>
         ))}

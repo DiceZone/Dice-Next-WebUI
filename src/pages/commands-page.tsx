@@ -29,6 +29,7 @@ import { ResponsiveActions } from '@/components/ui/responsive-actions';
 import { VARIABLE_STYLES, variableStyleOf, restyleVariable, type VariableStyle } from '@/lib/template-variable-style';
 import { PREVIEW_PLATFORMS, readReplyPreview, previewMessages, isFormFeedVariable, type PreviewPlatform, type ReplyPreview } from '@/lib/reply-preview';
 import { Switch } from '@/components/ui/switch';
+import { MarkdownExample } from '@/components/reply/markdown-example';
 import { resolveOutcomeText, resolveOutcomeInheritance, type OutcomeText, type ResolvedOutcomeText } from '@/lib/outcome-replies';
 import { templateLocalNames } from '@/lib/legacy-templates';
 import { previewSimulation, readTemplateSimulation, type TemplateSimulation } from '@/lib/template-simulation';
@@ -592,43 +593,6 @@ export const CommandsPage: React.FC = () => {
 };
 
 // ─── Edit modal ──────────────────────────────────────────────
-const inlineMarkdown = (text: string, prefix: string): React.ReactNode[] => {
-  const pattern = /(\*\*[^*\n]+\*\*|__[^_\n]+__|~~[^~\n]+~~|\*[^*\n]+\*|_[^_\n]+_|`[^`\n]+`|\[[^\]\n]+\]\([^)\n]+\))/g;
-  const out: React.ReactNode[] = [];
-  let last = 0, index = 0;
-  for (const match of text.matchAll(pattern)) {
-    const start = match.index ?? 0;
-    if (start > last) out.push(text.slice(last, start));
-    const token = match[0];
-    const key = `${prefix}-${index++}`;
-    if ((token.startsWith('**') && token.endsWith('**')) || (token.startsWith('__') && token.endsWith('__')))
-      out.push(<strong key={key}>{token.slice(2, -2)}</strong>);
-    else if ((token.startsWith('*') && token.endsWith('*')) || (token.startsWith('_') && token.endsWith('_')))
-      out.push(<em key={key}>{token.slice(1, -1)}</em>);
-    else if (token.startsWith('~~')) out.push(<del key={key}>{token.slice(2, -2)}</del>);
-    else if (token.startsWith('`')) out.push(<code key={key} className="rounded bg-muted px-1 py-0.5 font-mono text-[0.9em]">{token.slice(1, -1)}</code>);
-    else {
-      const parsed = token.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
-      out.push(parsed ? <a key={key} href={parsed[2]} className="text-primary underline" target="_blank" rel="noreferrer">{parsed[1]}</a> : token);
-    }
-    last = start + token.length;
-  }
-  if (last < text.length) out.push(text.slice(last));
-  return out;
-};
-
-const MarkdownExample: React.FC<{ text: string; enabled: boolean }> = ({ text, enabled }) => {
-  if (!enabled) return <div className="whitespace-pre-wrap break-words">{text}</div>;
-  return <div className="space-y-1 break-words">{text.split(/\r?\n/).map((line, i) => {
-    const heading = line.match(/^(#{1,6})\s+(.*)$/);
-    if (heading) return <div key={i} className="font-bold" style={{ fontSize: `${Math.max(1, 1.45 - heading[1].length * 0.08)}rem` }}>{inlineMarkdown(heading[2], `h${i}`)}</div>;
-    if (/^>\s?/.test(line)) return <blockquote key={i} className="border-l-2 border-primary/40 pl-3 text-muted-foreground">{inlineMarkdown(line.replace(/^>\s?/, ''), `q${i}`)}</blockquote>;
-    if (/^[-+*]\s+/.test(line)) return <div key={i} className="flex gap-2"><span>•</span><span>{inlineMarkdown(line.replace(/^[-+*]\s+/, ''), `l${i}`)}</span></div>;
-    if (!line) return <div key={i} className="h-2" />;
-    return <div key={i}>{inlineMarkdown(line, `p${i}`)}</div>;
-  })}</div>;
-};
-
 const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string; reply: Reply; personaId: number; onClose: () => void; onSaved: (key: string, value: string | null, format: ReplyFormat) => void }>
   = ({ lang, cmd, description, reply, personaId, onClose, onSaved }) => {
   const { t } = useTranslation();
