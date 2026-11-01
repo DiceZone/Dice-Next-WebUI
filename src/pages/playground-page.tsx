@@ -93,12 +93,12 @@ export const PlaygroundPage: React.FC = () => {
         <div className="flex flex-col gap-1">
           <label className="text-xs text-muted-foreground">{t('playground.platform')}</label>
           <Select value={platform} onValueChange={(v) => setPlatform(v)}>
-            <SelectTrigger className="h-9 w-44"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="h-9 w-56 shrink-0"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="onebot_v11"><span className="flex items-center gap-2"><PlatformIcon platform="onebot_v11" />QQ (OneBot v11)</span></SelectItem>
-              <SelectItem value="qq_official"><span className="flex items-center gap-2"><PlatformIcon platform="qq_official" />QQ 官方机器人</span></SelectItem>
-              <SelectItem value="discord"><span className="flex items-center gap-2"><PlatformIcon platform="discord" />Discord</span></SelectItem>
-              <SelectItem value="kook"><span className="flex items-center gap-2"><PlatformIcon platform="kook" />KOOK</span></SelectItem>
+              <SelectItem value="onebot_v11"><span className="inline-flex items-center gap-2 whitespace-nowrap"><PlatformIcon platform="onebot_v11" />QQ (OneBot v11)</span></SelectItem>
+              <SelectItem value="qq_official"><span className="inline-flex items-center gap-2 whitespace-nowrap"><PlatformIcon platform="qq_official" />QQ 官方机器人</span></SelectItem>
+              <SelectItem value="discord"><span className="inline-flex items-center gap-2 whitespace-nowrap"><PlatformIcon platform="discord" />Discord</span></SelectItem>
+              <SelectItem value="kook"><span className="inline-flex items-center gap-2 whitespace-nowrap"><PlatformIcon platform="kook" />KOOK</span></SelectItem>
             </SelectContent>
           </Select>
         </div>
