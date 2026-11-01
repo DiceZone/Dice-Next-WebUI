@@ -109,7 +109,7 @@ test('dashboard keeps separate metrics and server/actions left of internally scr
   await page.evaluate(() => localStorage.setItem('dice-next:dashboard-shortcuts', JSON.stringify(['/playground', '/replies', '/settings', '/help', '/decks', '/groups'])));
   await page.reload();
   await expect(page.locator('[data-tour="dashboard-server"] img')).toBeVisible();
-  await expect(page.locator('[data-tour="dashboard-summary"] .v2-metric')).toHaveCount(3);
+  await expect(page.locator('[data-tour="dashboard-summary"] .v2-metric')).toHaveCount(6);
   await expect(page.getByTestId('dashboard-shortcuts').getByRole('button')).toHaveCount(6);
   expect(await page.locator('main').evaluate(main => {
     const server = main.querySelector('[data-tour="dashboard-server"]').getBoundingClientRect();

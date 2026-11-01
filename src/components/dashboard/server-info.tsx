@@ -27,7 +27,7 @@ function loadColor(pct: number): string {
 /** Tiny dependency-free area sparkline. Values are 0–100. */
 const Sparkline: React.FC<{ data: number[]; className?: string; tall?: boolean }> = ({ data, className, tall }) => {
   const w = 100, h = 20;
-  if (data.length < 2) return <div className={tall ? 'min-h-16 flex-1' : 'h-5'} />;
+  if (data.length < 2) return <div className={tall ? 'min-h-5 flex-1' : 'h-5'} />;
   const step = w / (HISTORY - 1);
   const pts = data.map((v, i) => {
     const x = (i + (HISTORY - data.length)) * step;
@@ -38,7 +38,7 @@ const Sparkline: React.FC<{ data: number[]; className?: string; tall?: boolean }
   const first = pts[0].split(',')[0];
   const last = pts[pts.length - 1].split(',')[0];
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className={cn('w-full', tall ? 'h-full min-h-16 flex-1' : 'h-5', className)}>
+    <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className={cn('w-full', tall ? 'h-full min-h-5 flex-1' : 'h-5', className)}>
       <polygon points={`${first},${h} ${line} ${last},${h}`} fill="currentColor" className="opacity-15" />
       <polyline points={line} fill="none" stroke="currentColor" strokeWidth={1.5}
         strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
@@ -52,7 +52,7 @@ const ResourceMeter: React.FC<{ icon: LucideIcon; label: string; pct: number; de
   const clamped = Math.min(100, Math.max(0, pct));
   const color = loadColor(clamped);
   return (
-    <div className={cn('min-w-0 space-y-2', tall && 'flex h-full min-h-[10.5rem] flex-col')}>
+    <div className={cn('min-w-0 space-y-2', tall && 'flex h-full flex-col')}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm font-medium"><Icon className="h-4 w-4 text-muted-foreground" />{label}</div>
         <div className="text-sm font-semibold tabular-nums">{Math.round(clamped)}%</div>
@@ -114,7 +114,7 @@ export const ServerInfo: React.FC = () => {
           <span className="truncate">{info.os}</span>
         </div>
       </CardHeader>
-      <CardContent className="grid min-h-0 flex-1 grid-cols-2 gap-3 p-4 pt-0 lg:grid-rows-[minmax(10.5rem,1fr)_auto]">
+      <CardContent className="grid min-h-0 flex-1 grid-cols-2 gap-3 p-4 pt-0 lg:grid-rows-[minmax(0,1fr)_auto]">
         <ResourceMeter tall icon={Cpu} label={t('dashboard.cpu')} pct={cpuKnown ? info.cpu_load : 0}
           detail={cpuDetail} history={cpuHistory} />
         <ResourceMeter tall icon={MemoryStick} label={t('dashboard.memory')} pct={info.mem_load}
