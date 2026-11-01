@@ -237,8 +237,8 @@ test('compact header keeps navigation, search and account controls separate', as
 test('hash search links keep literal query values and Back works', async ({ page }) => {
   await page.goto('/#/settings?tab=cloud&focus=cloud-cards');
   await expect(page).toHaveURL(/#\/cloud-services/);
-  await page.goto('/#/webui-settings?focus=webui-version');
-  await expect(page.locator('[data-setting-anchor="webui-version"]')).toBeVisible();
+  await page.goto('/#/webui-settings?focus=webui-api-key');
+  await expect(page.locator('[data-setting-anchor="webui-api-key"]')).toBeVisible();
   await page.goBack(); await expect(page).toHaveURL(/#\/cloud-services/);
 });
 test('browser Back does not discard a draft until its async guard approves', async ({ page }) => {

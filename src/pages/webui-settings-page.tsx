@@ -16,7 +16,6 @@ import { ADMIN_PASSWORD_MAX_LENGTH, isValidAdminPassword, sanitizeAdminPassword 
 import { Monitor, Key, Eye, EyeOff, Copy, Palette, Terminal, Lock, Server, RefreshCw } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { SsoSettingsCard } from '@/components/settings/sso-settings-card';
-import { WebuiVersionCard } from '@/components/settings/webui-version-card';
 import { panelQueryClient } from '@/lib/query-client';
 
 export const WebuiSettingsPage: React.FC = () => {
@@ -128,8 +127,6 @@ export const WebuiSettingsPage: React.FC = () => {
   return (
     <div className="space-y-6 max-w-3xl">
       <PageHeader icon={Monitor} title={t('webui.title')} description={t('webui.desc')} help={t('page_help.webui')} />
-
-      <WebuiVersionCard />
 
       {/* API Key */}
       <Card data-setting-anchor="webui-api-key">

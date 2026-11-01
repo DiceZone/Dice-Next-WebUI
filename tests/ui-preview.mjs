@@ -200,10 +200,6 @@ const listDecks = () => [...deckFiles].map(([filename, content], index) => {
 
 export async function startUiPreview(port = Number(process.env.DICENEXT_UI_PREVIEW_PORT || 5173)) {
 const mcpPreview = createMcpPreview();
-const currentUi = JSON.parse(await readFile(new URL('../src/webui-version.json', import.meta.url), 'utf8')).version;
-// A single-source dev preview cannot switch to a different built interface.
-// The dual-bundle fixture overrides this endpoint and tests both actual builds.
-const webuiVersion = { selected: currentUi, effective: currentUi, legacy: false, available: { v1: currentUi === 'v1', v2: currentUi === 'v2' } };
 const server = await createServer({
   configFile: false,
   resolve: { alias: { '@': fileURLToPath(new URL('../src', import.meta.url)) } },
@@ -234,14 +230,6 @@ const server = await createServer({
           if (req.method !== 'GET') {
             const chunks = []; for await (const chunk of req) chunks.push(chunk);
             const text = Buffer.concat(chunks).toString(); body = text ? JSON.parse(text) : {};
-          }
-          if (path === '/system/webui-version') {
-            if (req.method === 'PUT') {
-              if (body.version !== 'v1' && body.version !== 'v2') throw new Error('Invalid WebUI version');
-              if (!webuiVersion.available[body.version]) throw new Error('This UI is not included in the single-source preview');
-              webuiVersion.selected = body.version; webuiVersion.effective = body.version;
-            }
-            return reply(webuiVersion);
           }
           if (path === '/system/mcp' || path.startsWith('/system/mcp/')) return reply(mcpPreview(req.method, path, url, body, req.headers['x-dice-mcp-operation-id']));
           if (path === '/statistics/overview' && req.method === 'GET') return reply(statisticsPreview(tourSamples.statistics, url.searchParams));

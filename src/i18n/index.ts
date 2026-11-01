@@ -24,7 +24,6 @@ import { helpLibraryCopy } from './help-library';
 import { imageResourcesCopy } from './image-resources';
 import { resourceTransferCopy } from './resource-transfer';
 import { noticeManagerCopy } from './notice-manager';
-import { webuiVersionsCopy } from './webui-versions';
 import { v2Copy } from './v2';
 import { mcpCopy } from './mcp';
 import { dashboardShortcutsCopy } from './dashboard-shortcuts';
@@ -70,10 +69,6 @@ for (const [language, bundle] of Object.entries(dashboardShortcutsCopy)) {
 for (const [language, bundle] of Object.entries(v2Copy)) {
   const resource = language === 'zh-Hans' ? zhHans : language === 'zh-Hant' ? zhHant : language === 'ja' ? ja : en;
   Object.assign(resource, { v2: bundle });
-}
-for (const [language, bundle] of Object.entries(webuiVersionsCopy)) {
-  const resource = language === 'zh-Hans' ? zhHans : language === 'zh-Hant' ? zhHant : language === 'ja' ? ja : en;
-  Object.assign(resource, { webui_versions: bundle });
 }
 for (const [language, bundle] of Object.entries(mcpCopy)) {
   const resource = language === 'zh-Hans' ? zhHans : language === 'zh-Hant' ? zhHant : language === 'ja' ? ja : en;

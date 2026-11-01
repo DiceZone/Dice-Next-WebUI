@@ -1,7 +1,7 @@
-# V2（预览版）
+# WebUI 开发约定（原 V2）
 
-本分支为新版 WebUI 的独立实现，首个可用预览版已完成技术栈、公共主题和页面框架迁移。
-保留 V1 的业务入口及权限；双版本切换、独立资源和预览标记已接入。V2 仍不是正式版，V1 保留为默认选项。
+2026-11-02 起，原 V2 成为唯一的 WebUI，维护于 `main`；版本切换已移除。旧 V1 存档在 `v1-webui` 分支，不再维护。
+以下保留 V2 改版期间确立的视觉与开发约定。
 
 2026-10-26 用户认可第二轮整体风格，并要求继续调整宽度、首页布局、主题色与移动导航。第三轮调整仍待审阅，V2 仍为预览版。
 
@@ -36,8 +36,5 @@
 `npm run test:notice-browser`、`npm run test:mcp-browser`。本地也可用 `PLAYWRIGHT_CHANNEL=chrome` 或 `msedge` 使用已安装浏览器；CI 使用 Playwright 管理的 Chromium。
 `npm run dev:preview` 仅连接内存示例数据，不能据此认定真实适配器联调完成；`npm run dev` 才使用 Vite 的后端代理。
 
-主工作树为 `../Dice-Next-WebUI`，V2 工作树为 `../Dice-Next-WebUI-v2`。
-提交功能时必须同步两个分支，直到骰主确认 V2 正式替代并删除 V1。
+主工作树为 `../Dice-Next-WebUI`（`main`）。
 详见本仓库 `AGENTS.md` 和主程序仓库 `docs/webui-versions.md`。
-
-MCP / OpenOPQ 前端与 V1 保持功能一致；2026-10-28 用户已授权两项功能与双版本 UI 一并提交和发布。后续改动仍须同步两套 UI，不得把预览分支直接合并覆盖 V1。
