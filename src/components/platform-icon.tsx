@@ -1,7 +1,8 @@
 import type { ImgHTMLAttributes } from 'react';
 import { cn } from '@/lib/utils';
 
-const platformIcon = (name: string) => `${import.meta.env.BASE_URL}platform-icons/${name}`;
+// Vite base 固定为 './'。这里写死相对路径，避免 Node 把组件当脚本执行时碰到 import.meta。
+const platformIcon = (name: string) => `./platform-icons/${name}`;
 
 const PLATFORM_META: Record<string, { label: string; icon: string }> = {
   onebot_v11: { label: 'QQ / OneBot', icon: platformIcon('onebot.svg') },
