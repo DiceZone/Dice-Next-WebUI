@@ -30,12 +30,35 @@ describe('release notes shown on the about page', () => {
 
   it('accepts only the five newest published Dice!Next releases', () => {
     const parsed = recentReleaseNotes([
-      { draft: true, tag_name: 'v3.0.0-beta.957', html_url: 'https://github.com/DiceZone/Dice-Next/releases/tag/v3.0.0-beta.957', body: 'draft' },
-      { tag_name: 'v3.0.0-beta.961', html_url: 'https://github.com/DiceZone/Dice-Next/releases/tag/v3.0.0-beta.961', published_at: '2026-11-01T09:54:37Z', body: sample },
-      { tag_name: 'v2.7.0', html_url: 'https://github.com/Dice-Developer-Team/Dice/releases/tag/v2.7.0', body: '原版' },
+      {
+        draft: true,
+        tag_name: 'v3.0.0-beta.957',
+        html_url: 'https://github.com/DiceZone/Dice-Next/releases/tag/v3.0.0-beta.957',
+        body: 'draft',
+      },
+      {
+        tag_name: 'v3.0.0-beta.961',
+        html_url: 'https://github.com/DiceZone/Dice-Next/releases/tag/v3.0.0-beta.961',
+        published_at: '2026-11-01T09:54:37Z',
+        body: sample,
+      },
+      {
+        tag_name: 'v2.7.0',
+        html_url: 'https://github.com/Dice-Developer-Team/Dice/releases/tag/v2.7.0',
+        body: '原版',
+      },
       { tag_name: 'not-a-release', html_url: 'javascript:alert(1)', body: 'bad' },
-      { tag_name: 'v3.0.0-beta.960', html_url: 'https://evil.example/DiceZone/Dice-Next/releases/tag/v3.0.0-beta.960', body: 'mirror' },
-      { tag_name: 'v3.0.0', html_url: 'https://github.com/DiceZone/Dice-Next/releases/tag/v3.0.0?extra=1', published_at: '2026-06-01T00:00:00Z', body: '' },
+      {
+        tag_name: 'v3.0.0-beta.960',
+        html_url: 'https://evil.example/DiceZone/Dice-Next/releases/tag/v3.0.0-beta.960',
+        body: 'mirror',
+      },
+      {
+        tag_name: 'v3.0.0',
+        html_url: 'https://github.com/DiceZone/Dice-Next/releases/tag/v3.0.0?extra=1',
+        published_at: '2026-06-01T00:00:00Z',
+        body: '',
+      },
     ]);
     expect(parsed.map((item) => item.tag)).toEqual(['v3.0.0-beta.961']);
     expect(parsed[0].url).toBe('https://github.com/DiceZone/Dice-Next/releases/tag/v3.0.0-beta.961');
