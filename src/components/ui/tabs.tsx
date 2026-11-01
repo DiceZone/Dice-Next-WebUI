@@ -53,7 +53,7 @@ const TabsList = React.forwardRef<
     className={cn(
       'group/tabs inline-flex h-auto max-w-full flex-wrap items-center gap-1 rounded-lg p-1 text-muted-foreground',
       variant === 'page'
-        ? 'h-[42px] w-fit flex-nowrap justify-start overflow-x-auto overflow-y-hidden rounded-lg border bg-card p-1 shadow-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
+        ? 'h-[42px] w-fit flex-nowrap justify-start overflow-x-auto overflow-y-hidden rounded-lg bg-muted p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
         : 'justify-start bg-muted/70',
       collapse ? 'hidden md:inline-flex' : className
     )}

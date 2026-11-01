@@ -131,7 +131,7 @@ export const GlobalSettingsSearch: React.FC<GlobalSettingsSearchProps> = ({ onNa
       <DialogTrigger asChild>
         <button
           type="button"
-          className="hidden h-9 w-full max-w-xl items-center gap-2 rounded-lg border bg-muted/35 px-3 text-sm text-muted-foreground shadow-sm transition-colors hover:border-primary/35 hover:bg-muted/65 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:flex"
+          className="hidden h-9 w-full max-w-xl items-center gap-2 rounded-md border border-transparent bg-muted/70 px-3 text-sm text-muted-foreground transition-colors hover:border-input hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:flex"
           aria-label={t('global_search.open')}
         >
           <Search className="h-4 w-4 shrink-0" />

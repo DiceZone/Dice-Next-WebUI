@@ -330,7 +330,6 @@ export const SETTINGS_SEARCH_ENTRIES: SettingsSearchEntry[] = [
   e('webui-password', '/webui-settings', 'nav.webui', 'settings.webpw_title', '密码 密碼 password login 登录 登入 auth trust device 30天', 'settings.webpw_desc', true),
   e('webui-server', '/webui-settings', 'nav.webui', 'settings.server_title', 'ip host port 端口 端口号 監聽 listen address 18088 server', 'settings.server_desc'),
   e('webui-theme', '/webui-settings', 'nav.webui', 'settings.theme_title', '主题 主題 theme dark light system 深色 浅色 淺色', 'settings.theme_desc'),
-  e('webui-version', '/webui-settings', 'nav.webui', 'webui_versions.title', 'WebUI UI V1 V2 预览 預覽 preview 界面 介面 版本 切换 切換 新版', 'webui_versions.help'),
   e('webui-log', '/webui-settings', 'nav.webui', 'settings.log_title', '控制台日志 控制台日誌 运行日志 程序日志 记录级别 展示级别 调试 TRACE DEBUG INFO SUCCESS WARN ERROR msgID 插件日志 raw log 日志来源', 'runtime_logs.help'),
 
   e('notice-windows', '/notice-settings', 'nav.notice', 'noticeset.tab_windows', '通知窗口 群通知 私聊通知 event window update 更新结果 更新結果', 'noticeset.win_hint', true, 'windows'),

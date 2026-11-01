@@ -38,7 +38,7 @@ test('independent cloud page excludes image hosting while basic settings retain 
   const original = globalThis.window;
   try {
     for (const hash of ['#/cloud-services', '#/settings?tab=cloud', '#/settings?focus=settings-heartbeat']) {
-      globalThis.window = { location: { hash } };
+      globalThis.window = Object.assign(new EventTarget(), { location: { hash } });
       const [path, query = ''] = hash.slice(1).split('?');
       const html = ui.render(resolveSettingsRoute(path, query).path === '/cloud-services');
       for (const id of CLOUD_SETTING_IDS) assert.ok(html.includes('data-setting-anchor="' + id + '"'), id);
@@ -52,7 +52,7 @@ test('independent cloud page excludes image hosting while basic settings retain 
         assert.ok(select.includes('tabindex="-1"'));
       }
     }
-    globalThis.window = { location: { hash: '#/settings' } };
+    globalThis.window = Object.assign(new EventTarget(), { location: { hash: '#/settings' } });
     const html = ui.render();
     assert.ok(html.includes('data-setting-anchor="settings-master"'));
     assert.ok(html.includes('data-setting-anchor="settings-image-host"'));

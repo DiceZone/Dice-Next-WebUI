@@ -12,11 +12,8 @@ const languages = ['zh-Hans', 'zh-Hant', 'en', 'ja'];
 const messages = Object.fromEntries(languages.map((language) => [language, JSON.parse(read(`src/i18n/locales/${language}.json`))]));
 const lookup = (locale, key) => key.split('.').reduce((value, part) => value?.[part], locale);
 const escapeHtml = (value) => value.replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#x27;' })[character]);
-const routeSource = read('src/routes/index.tsx');
-const pageImports = [...routeSource.matchAll(/import\s+\{\s*(\w+Page)\s*\}\s+from\s+'@\/pages\/([^']+)'/g)]
-  .map(([, component, file]) => ({ component, file }));
-const routes = [...routeSource.slice(routeSource.indexOf('const ROUTES:'), routeSource.indexOf('const DEFAULT_ROUTE'))
-  .matchAll(/'([^']+)': (\w+Page)/g)].map(([, path, component]) => ({ path, component }));
+const routes = JSON.parse(read('src/routes/route-manifest.json'));
+const pageImports = [...new Map(routes.map(({ component, file }) => [component, { component, file }])).values()];
 
 // Exercise the actual React pages, Radix triggers and translations in memory.
 // Effects do not run during server rendering, so this never calls a bot API.
@@ -46,8 +43,6 @@ const compiled = await build({
       "import { imageResourcesCopy } from './src/i18n/image-resources';",
       "import { resourceTransferCopy } from './src/i18n/resource-transfer';",
       "import { noticeManagerCopy } from './src/i18n/notice-manager';",
-      "import { webuiVersionsCopy } from './src/i18n/webui-versions';",
-      "export { webuiVersionsCopy };",
       "import { mcpCopy } from './src/i18n/mcp';",
       "export { mcpCopy };",
       "export { imageResourcesCopy, resourceTransferCopy, noticeManagerCopy };",
@@ -59,7 +54,6 @@ const compiled = await build({
       "for (const language of Object.keys(resources)) Object.assign(resources[language].translation, { image_resources: imageResourcesCopy[language], resource_transfer: resourceTransferCopy[language] });",
       "for (const language of Object.keys(resources)) Object.assign(resources[language].translation, { notice_manager: noticeManagerCopy[language] });",
       "for (const language of Object.keys(resources)) Object.assign(resources[language].translation, { mcp: mcpCopy[language] });",
-      "for (const language of Object.keys(resources)) Object.assign(resources[language].translation, { webui_versions: webuiVersionsCopy[language] });",
       "const i18n = createInstance(); i18n.init({ lng: 'zh-Hans', initImmediate: false, resources, interpolation: { escapeValue: false } });",
       `const pages = { ${pageImports.map(({ component }) => component).join(', ')}, settings: SettingsPage, webui: WebuiSettingsPage, cloud: CloudSettingsPage, notice: NoticeSettingsPage, schedules: SchedulesPage, ai: AiPage };`,
       "export const render = (page, language, tour = false) => {",
@@ -95,13 +89,15 @@ for (const language of languages) {
   messages[language].image_resources = module.exports.imageResourcesCopy[language];
   messages[language].resource_transfer = module.exports.resourceTransferCopy[language];
   messages[language].notice_manager = module.exports.noticeManagerCopy[language];
-  messages[language].webui_versions = module.exports.webuiVersionsCopy[language];
   messages[language].mcp = module.exports.mcpCopy[language];
 }
 
 function renderPage(page, hash, language = 'zh-Hans', tour = false) {
   const original = globalThis.window;
-  globalThis.window = { location: { hash }, matchMedia: () => ({ matches: true }) };
+  globalThis.window = Object.assign(new EventTarget(), {
+    location: { hash },
+    matchMedia: () => ({ matches: true, addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {} }),
+  });
   try { return module.exports.render(page, language, tour); }
   finally {
     if (original === undefined) delete globalThis.window;
@@ -186,7 +182,7 @@ test('every PageHeader branch includes help, and page guides have the same compl
 test('other settings pages render named clickable help in all four languages, including disabled AI sections', () => {
   const cases = [
     ['settings', '#/settings', ['settings.expression_title', 'settings.message_format_title', 'settings.imgsend_title', 'settings.imghost_title', 'settings.respond_self', 'settings.quote_reply', 'settings.save_images']],
-    ['webui', '#/webui-settings', ['webui_versions.title', 'settings.webpw_title', 'settings.server_title', 'settings.api_key_title', 'settings.theme_title', 'settings.log_title']],
+    ['webui', '#/webui-settings', ['settings.webpw_title', 'settings.server_title', 'settings.api_key_title', 'settings.theme_title', 'settings.log_title']],
     ['cloud', '#/cloud-services', ['cloud.keys_title', 'cloud.cards_title', 'settings.logsite_title', 'settings.heartbeat_title', 'settings.heartbeat_master_title']],
     ['notice', '#/notice-settings', ['notice_manager.rules']],
     ['schedules', '#/schedules', ['nav.schedules']],
@@ -438,7 +434,7 @@ test('statistics defaults to seven days in both live and tutorial views, so five
   for (const language of languages) {
     const html = renderPage('StatisticsPage', '#/statistics', language, true);
     const datePicker = html.split(`aria-label="${escapeHtml(messages[language].statistics.date_range)}"`)[1]?.split('</div>')[0];
-    const selected = [...datePicker.matchAll(/<button\b([^>]*)>([\s\S]*?)<\/button>/g)].filter(([, attributes]) => attributes.includes('bg-background text-foreground'));
+    const selected = [...datePicker.matchAll(/<button\b([^>]*)>([\s\S]*?)<\/button>/g)].filter(([, attributes]) => attributes.includes('aria-pressed="true"'));
     assert.equal(selected.length, 1, `${language}: one default date range`);
     assert.ok(selected[0][2].includes('7'), `${language}: seven-day range selected`);
   }

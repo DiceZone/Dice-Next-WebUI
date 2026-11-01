@@ -1,11 +1,16 @@
 // 第三方登录：后台地址、发起授权与回调结果。
-import { panelRoot } from './webui-version.js';
 
 export interface SsoLoginProvider { id: string; kind: 'bdc' | 'oidc'; name: string; logo: string; }
 
 /** BDC uses its bundled official mark; relative paths retain the active UI directory. */
 export function ssoProviderLogo(provider: Pick<SsoLoginProvider, 'kind' | 'logo'>): string {
   return provider.kind === 'bdc' ? './icons/dicezone-account.svg' : provider.logo;
+}
+
+/** Strip only our own entry path, never a reverse proxy's prefix. Old /v1/ and
+ *  /v2/ bookmarks are redirected by the server, but a stale tab may still be there. */
+function panelRoot(pathname: string): string {
+  return pathname.replace(/index\.html$/, '').replace(/\/(?:v1|v2)\/?$/, '/').replace(/\/+$/, '');
 }
 
 /** 浏览器所在的后台根地址（含反代路径前缀，不带结尾斜杠）。 */

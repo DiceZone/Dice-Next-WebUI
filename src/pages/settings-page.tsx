@@ -1203,7 +1203,7 @@ export const SettingsPage: React.FC = () => {
   );
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 pb-6">
+    <div className="space-y-7 pb-6">
       <PageHeader icon={SlidersHorizontal} title={t('settings.title')} description={t('settings.subtitle')} help={t('page_help.settings')} />
       <SettingsWorkspace scope={scopeSelector}>
       {!scopedReady && <div role="status" className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">

@@ -42,7 +42,12 @@ test('editor dialogs use a viewport-bounded, content-independent height, without
   // duration-200 also sets transition-duration; do not implicitly transition
   // every dimension when the viewport changes (e.g. a mobile keyboard opens).
   assert.match(editor.props.className, /transition-none/);
-  assert.match(editor.props.className, /data-\[state=open\]:animate-in/);
+  assert.match(editor.props.className, /v2-dialog/);
+  assert.doesNotMatch(editor.props.className, /slide-in-from-left|slide-out-to-left/);
+  const css = read('src/index.css');
+  assert.match(css, /\.v2-dialog\[data-state="open"\].*v2-dialog-enter/);
+  assert.match(css, /\.v2-dialog\[data-state="closed"\].*v2-dialog-exit/);
+  assert.match(css, /@keyframes v2-dialog-enter.*translateY\(-16px\)/);
   // The search workspace can use a smaller bounded height via the same API.
   const search = content({ layout: 'editor', className: 'h-[min(80dvh,40rem)]' });
   assert.match(search.props.className, /h-\[min\(80dvh,40rem\)\]/);

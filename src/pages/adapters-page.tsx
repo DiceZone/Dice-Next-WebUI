@@ -10,6 +10,7 @@ import { useServerNetworkInfo } from '@/hooks/use-server-network-info';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/ui/page-header';
 import { zustandAdapterStore } from '@/store/adapter-store';
+import { navigatePanel } from '@/lib/panel-navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, PlugZap } from 'lucide-react';
 import type { Adapter, AdapterFormData } from '@/types/adapter';
@@ -95,7 +96,7 @@ export const AdaptersPage: React.FC = () => {
       )}
       <div data-tour="adapters-list">
       {loading && adapters.length === 0 ? (
-        <div className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(min(400px,100%),1fr))]">
+        <div className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(min(360px,100%),1fr))]">
           {[...Array(4)].map((_, i) => (<div key={i} className="h-48 animate-pulse rounded-lg bg-muted" />))}
         </div>
       ) : adapters.length === 0 ? (
@@ -108,11 +109,11 @@ export const AdaptersPage: React.FC = () => {
           </Button>
         </div>
       ) : (
-        <div className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(min(400px,100%),1fr))]">
+        <div className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(min(360px,100%),1fr))]">
           {adapters.map((a) => (
             <AdapterCard key={a.id} adapter={a} onConnect={handleToggle} onDisconnect={handleToggle} onReconnect={handleReconnect}
               onEdit={(a) => { setEditingAdapter(a); setFormOpen(true); }} onDelete={handleDelete} onTestConnection={handleTest}
-              onOfficialControls={(id) => { window.location.hash = `/qq-official?adapter=${encodeURIComponent(id)}`; }}
+              onOfficialControls={(id) => { navigatePanel(`/qq-official?adapter=${encodeURIComponent(id)}`); }}
               onShowReverseInfo={a.connectionMode === 'reverse_ws' ? (port) => setReverseWsPort(port) : undefined}
               onBuiltinLogin={(a) => setBuiltinLogin({ id: a.id, name: a.name })} />
           ))}

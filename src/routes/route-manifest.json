@@ -1,0 +1,162 @@
+[
+  {
+    "path": "/mcp",
+    "component": "McpPage",
+    "file": "mcp-page"
+  },
+  {
+    "path": "/",
+    "component": "DashboardPage",
+    "file": "dashboard-page"
+  },
+  {
+    "path": "/playground",
+    "component": "PlaygroundPage",
+    "file": "playground-page"
+  },
+  {
+    "path": "/adapters",
+    "component": "AdaptersPage",
+    "file": "adapters-page"
+  },
+  {
+    "path": "/qq-official",
+    "component": "QQOfficialPage",
+    "file": "qq-official-page"
+  },
+  {
+    "path": "/dice-rules",
+    "component": "DiceRulesPage",
+    "file": "dice-rules-page"
+  },
+  {
+    "path": "/replies",
+    "component": "RepliesPage",
+    "file": "replies-page"
+  },
+  {
+    "path": "/decks",
+    "component": "DecksPage",
+    "file": "decks-page"
+  },
+  {
+    "path": "/groups",
+    "component": "GroupsPage",
+    "file": "groups-page"
+  },
+  {
+    "path": "/players",
+    "component": "PlayersPage",
+    "file": "players-page"
+  },
+  {
+    "path": "/schedules",
+    "component": "SchedulesPage",
+    "file": "schedules-page"
+  },
+  {
+    "path": "/roadmap",
+    "component": "RoadmapPage",
+    "file": "roadmap-page"
+  },
+  {
+    "path": "/commands",
+    "component": "CommandsPage",
+    "file": "commands-page"
+  },
+  {
+    "path": "/help",
+    "component": "HelpDocsPage",
+    "file": "help-docs-page"
+  },
+  {
+    "path": "/modules",
+    "component": "ModulesPage",
+    "file": "modules-page"
+  },
+  {
+    "path": "/rules",
+    "component": "RulesPage",
+    "file": "rules-page"
+  },
+  {
+    "path": "/permissions",
+    "component": "BanlistPage",
+    "file": "banlist-page"
+  },
+  {
+    "path": "/banlist",
+    "component": "BanlistPage",
+    "file": "banlist-page"
+  },
+  {
+    "path": "/settings",
+    "component": "SettingsPage",
+    "file": "settings-page"
+  },
+  {
+    "path": "/cloud-services",
+    "component": "CloudSettingsPage",
+    "file": "cloud-settings-page"
+  },
+  {
+    "path": "/ai",
+    "component": "AiPage",
+    "file": "ai-page"
+  },
+  {
+    "path": "/ai/chat",
+    "component": "AiPage",
+    "file": "ai-page"
+  },
+  {
+    "path": "/ai/npc",
+    "component": "AiPage",
+    "file": "ai-page"
+  },
+  {
+    "path": "/ai/polish",
+    "component": "AiPage",
+    "file": "ai-page"
+  },
+  {
+    "path": "/ai/translate",
+    "component": "AiPage",
+    "file": "ai-page"
+  },
+  {
+    "path": "/notice-settings",
+    "component": "NoticeSettingsPage",
+    "file": "notice-settings-page"
+  },
+  {
+    "path": "/webui-settings",
+    "component": "WebuiSettingsPage",
+    "file": "webui-settings-page"
+  },
+  {
+    "path": "/about",
+    "component": "AboutPage",
+    "file": "about-page"
+  },
+  {
+    "path": "/backup",
+    "component": "BackupPage",
+    "file": "backup-page"
+  },
+  {
+    "path": "/logs",
+    "component": "LogsPage",
+    "file": "logs-page"
+  },
+  {
+    "path": "/statistics",
+    "component": "StatisticsPage",
+    "file": "statistics-page"
+  },
+  {
+    "path": "/files",
+    "component": "FilesPage",
+    "file": "files-page"
+  }
+]

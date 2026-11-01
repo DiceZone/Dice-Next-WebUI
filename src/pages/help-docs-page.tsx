@@ -5,7 +5,6 @@ import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/ui/page-header';
 import { FeatureHelp } from '@/components/ui/feature-help';
 import { ResponsiveActions } from '@/components/ui/responsive-actions';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PaginationBar } from '@/components/ui/pagination-bar';
 import { Badge } from '@/components/ui/badge';
@@ -163,10 +162,8 @@ export const HelpDocsPage: React.FC = () => {
     finally { if (count) refresh(); setBusy(false); }
   };
 
-  return <div className="space-y-6 min-w-0">
-    <PageHeader icon={HelpCircle} title={t('helpdoc.title')} description={t('helpdoc.desc')} help={`${t('page_help.help_docs')}\n\n${t('help_library.custom_hint')}\n\n${t('help_library.export_hint')}`} />
-    <Card><CardContent data-tour="help-toolbar" className="flex flex-wrap items-center gap-2 p-4">
-      <div className="relative min-w-0 flex-[1_1_100%] md:flex-1"><Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" /><Input className="pl-9" aria-label={t('helpdoc.search')} placeholder={t('helpdoc.search')} value={query} onChange={(e) => setQuery(e.target.value)} /></div>
+  return <div className="space-y-7 min-w-0">
+    <PageHeader icon={HelpCircle} title={t('helpdoc.title')} description={t('helpdoc.desc')} help={`${t('page_help.help_docs')}\n\n${t('help_library.custom_hint')}\n\n${t('help_library.export_hint')}`} actions={<div data-tour="help-toolbar" className="flex flex-wrap items-center gap-2">
       <ResponsiveActions actions={[
         { id: 'refresh', label: t('common.refresh'), icon: RefreshCw, disabled: busy || loading || tour, onAction: refresh },
         { id: 'export', label: t('helpdoc.export'), icon: Download, disabled: busy || tour, onAction: exportDocs },
@@ -174,34 +171,37 @@ export const HelpDocsPage: React.FC = () => {
       ]} />
       <input ref={importRef} type="file" accept=".json,.md,.txt" className="hidden" onChange={importDocs} />
       <Button disabled={busy || tour} onClick={() => setEdit({ mode: 'new', name: '', content: '', initial: '', locale: i18n.language, format: 'plain', initialFormat: 'plain' })}><Plus className="mr-2 h-4 w-4" />{t('helpdoc.new')}</Button>
-    </CardContent></Card>
+    </div>} />
     {error && !tour && <div role="alert" className="flex flex-wrap items-center gap-3 rounded-xl border border-destructive/30 p-4 text-sm text-destructive">{error}<Button variant="outline" onClick={refresh}>{t('ui_refresh.retry')}</Button></div>}
-    <div data-tour="help-content" className="grid items-start gap-5 lg:grid-cols-[minmax(240px,0.8fr)_minmax(0,2fr)]" aria-busy={loading && !tour}>
-      <Card className="min-w-0 overflow-hidden">
-        <div className="space-y-3 border-b p-4"><div className="flex items-center justify-between gap-2"><h2 className="text-sm font-semibold">{t('ui_refresh.help_library')}</h2><Badge variant="secondary">{total}</Badge></div>
+    <div data-tour="help-content" className="grid overflow-hidden rounded-xl border bg-card lg:grid-cols-[300px_minmax(0,1fr)]" aria-busy={loading && !tour}>
+      <section aria-label={t('v2.help_catalog')} className="min-w-0 border-b bg-muted/20 lg:border-r lg:border-b-0">
+        <div className="space-y-3 border-b p-4"><div className="flex items-center justify-between gap-2"><h2 className="text-xs font-semibold text-muted-foreground">{t('ui_refresh.help_library')}</h2><span className="text-xs tabular-nums text-muted-foreground">{total}</span></div>
+          <div className="relative"><Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" /><Input className="bg-card pl-9" aria-label={t('helpdoc.search')} placeholder={t('helpdoc.search')} value={query} onChange={(e) => setQuery(e.target.value)} /></div>
+          <div className="grid grid-cols-2 gap-2 lg:grid-cols-1">
           <Select value={kind || '__all__'} onValueChange={(value) => { setKind(value === '__all__' ? '' : value as HelpKind); setSource(''); setPage(1); }}><SelectTrigger aria-label={t('help_library.kind')}><SelectValue /></SelectTrigger><SelectContent><SelectItem value="__all__">{t('help_library.all')}</SelectItem>{HELP_KINDS.map(value => <SelectItem key={value} value={value}>{t('help_library.kinds.' + value)}</SelectItem>)}</SelectContent></Select>
           <Select value={source || '__all__'} onValueChange={(value) => { setSource(value === '__all__' ? '' : value); setPage(1); }}><SelectTrigger aria-label={t('ui_refresh.help_source')}><SelectValue /></SelectTrigger><SelectContent><SelectItem value="__all__">{t('ui_refresh.help_all_sources')}</SelectItem>{source && !groups.some((group) => group.source === source) && <SelectItem value={source}>{sourceLabel(source, kind || undefined)} · 0</SelectItem>}{groups.map((group) => <SelectItem key={group.source} value={group.source}>{sourceLabel(group.source, group.kind)} · {group.count}</SelectItem>)}</SelectContent></Select>
+          </div>
         </div>
-        <div className="max-h-[36vh] overflow-y-auto p-2 lg:max-h-[65vh]">
-          {entries.map((entry) => <button key={entryId(entry)} type="button" aria-pressed={entry === selected} onClick={() => setSelectedId(entryId(entry))} className={`mb-1 flex w-full gap-3 rounded-lg border p-3 text-left transition-colors ${entry === selected ? 'border-primary/20 bg-primary/10' : 'border-transparent hover:bg-muted/70'}`}>
-            <FileText className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" /><span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium">{entry.key}</span><span className="mt-1 block truncate text-xs text-muted-foreground">{sourceLabel(entry.source, entry.kind)}</span><span className="mt-1 block truncate text-xs text-muted-foreground">{entry.content}</span></span>{!canEdit(entry) && <Lock className="mt-1 h-3 w-3 shrink-0 text-muted-foreground" />}
+        <div className="max-h-[30vh] overflow-y-auto p-2 lg:h-[52vh] lg:max-h-none">
+          {entries.map((entry) => <button key={entryId(entry)} type="button" aria-pressed={entry === selected} onClick={() => setSelectedId(entryId(entry))} className={`mb-0.5 flex w-full gap-3 rounded-md p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring ${entry === selected ? 'bg-primary/10 text-primary' : 'hover:bg-muted'}`}>
+            <FileText className="mt-0.5 h-4 w-4 shrink-0 opacity-60" /><span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium">{entry.key}</span><span className="mt-1 block truncate text-xs text-muted-foreground">{sourceLabel(entry.source, entry.kind)}</span></span>{!canEdit(entry) && <Lock className="mt-1 h-3 w-3 shrink-0 text-muted-foreground" />}
           </button>)}
           {!entries.length && <p className="p-6 text-center text-sm text-muted-foreground">{t(loading && !tour ? 'common.loading' : 'helpdoc.empty')}</p>}
         </div>
         {pageCount > 1 && <div className="border-t p-3"><PaginationBar total={total} page={page} pageSize={PAGE_SIZE} onPageChange={setPage} disabled={loading} fixedSize compact /></div>}
-      </Card>
-      <Card className="min-w-0 overflow-hidden">{selected ? <>
-        <div className="space-y-4 border-b p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><h2 className="break-words text-xl font-semibold">{selected.key}</h2><p className="mt-2 break-words text-xs text-muted-foreground">{sourceLabel(selected.source, selected.kind)}</p>{selected.contentLocale && <p className="mt-1 text-xs text-muted-foreground">{t('help_library.language', { locale: selected.contentLocale })}</p>}</div><div className="flex flex-wrap gap-2"><Badge variant={canEdit(selected) ? 'secondary' : 'outline'}>{t(canEdit(selected) ? 'ui_refresh.help_editable' : 'ui_refresh.help_readonly')}</Badge>{selected.source === 'builtin' && selected.customized && <Badge variant="outline">{t('help_library.customized')}</Badge>}</div></div>
-          <div className="flex flex-wrap gap-2">{canEdit(selected) && <Button disabled={busy || tour || loading || !!error} onClick={() => setEdit({ mode: selected.source === 'builtin' ? 'builtin' : selected.source === 'custom' ? 'custom' : 'file', name: selected.source.startsWith('file:') ? selected.source.slice(5) : selected.key, content: selected.content, initial: selected.content, i18nKey: selected.i18nKey,
+      </section>
+      <article className="min-w-0 overflow-hidden">{selected ? <>
+        <div className="space-y-5 border-b p-5 sm:p-7"><div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><p className="mb-3 break-words text-xs text-muted-foreground">{sourceLabel(selected.source, selected.kind)}</p><h2 className="break-words text-2xl font-semibold tracking-tight">{selected.key}</h2>{selected.contentLocale && <p className="mt-2 text-xs text-muted-foreground">{t('help_library.language', { locale: selected.contentLocale })}</p>}</div><div className="flex flex-wrap gap-2"><Badge variant={canEdit(selected) ? 'secondary' : 'outline'}>{t(canEdit(selected) ? 'ui_refresh.help_editable' : 'ui_refresh.help_readonly')}</Badge>{selected.source === 'builtin' && selected.customized && <Badge variant="outline">{t('help_library.customized')}</Badge>}</div></div>
+          <div className="flex flex-wrap gap-2">{canEdit(selected) && <Button size="sm" disabled={busy || tour || loading || !!error} onClick={() => setEdit({ mode: selected.source === 'builtin' ? 'builtin' : selected.source === 'custom' ? 'custom' : 'file', name: selected.source.startsWith('file:') ? selected.source.slice(5) : selected.key, content: selected.content, initial: selected.content, i18nKey: selected.i18nKey,
             locale: selected.locale || i18n.language, format: selected.format || 'plain', initialFormat: selected.format || 'plain' })}><Pencil className="mr-2 h-4 w-4" />{t('helpdoc.edit')}</Button>}
-            <Button variant="outline" onClick={() => download(selected.key.replace(/[\\/]/g, '_') + '.md', selected.content)}><Download className="mr-2 h-4 w-4" />{t('ui_refresh.help_download')}</Button>
-            {canEdit(selected) && <Button variant="ghost" disabled={busy || tour || loading || !!error} onClick={() => removeOrReset(selected)}>{selected.source === 'builtin' ? <RotateCcw className="mr-2 h-4 w-4" /> : <Trash2 className="mr-2 h-4 w-4" />}{t(selected.source === 'builtin' ? 'helpdoc.reset' : 'common.delete')}</Button>}
+            <Button size="sm" variant="outline" onClick={() => download(selected.key.replace(/[\\/]/g, '_') + '.md', selected.content)}><Download className="mr-2 h-4 w-4" />{t('ui_refresh.help_download')}</Button>
+            {canEdit(selected) && <Button size="sm" variant="ghost" disabled={busy || tour || loading || !!error} onClick={() => removeOrReset(selected)}>{selected.source === 'builtin' ? <RotateCcw className="mr-2 h-4 w-4" /> : <Trash2 className="mr-2 h-4 w-4" />}{t(selected.source === 'builtin' ? 'helpdoc.reset' : 'common.delete')}</Button>}
           </div>
         </div>
         {!canEdit(selected) && <p className="border-b bg-muted/30 px-5 py-3 text-xs leading-relaxed text-muted-foreground">{t('help_library.readonly')}</p>}
         {(selected.shadowed || !selected.content) && <p role="status" className="border-b bg-muted/30 px-5 py-3 text-sm text-muted-foreground">{t(selected.shadowed ? 'ui_audit.help_shadowed' : 'ui_audit.help_empty')}</p>}
-        <pre className="max-h-[65vh] overflow-y-auto whitespace-pre-wrap break-words p-5 font-sans text-sm leading-7">{selected.content}</pre>
-      </> : <div className="flex min-h-64 flex-col items-center justify-center gap-3 p-6 text-muted-foreground"><FileText className="h-8 w-8" /><p className="text-sm">{t('helpdoc.empty')}</p></div>}</Card>
+        <div className="max-h-[65vh] overflow-y-auto p-5 sm:p-7"><pre className="max-w-[78ch] whitespace-pre-wrap break-words font-sans text-sm leading-8">{selected.content}</pre></div>
+      </> : <div className="flex min-h-64 flex-col items-center justify-center gap-3 p-6 text-muted-foreground"><FileText className="h-8 w-8" /><p className="text-sm">{t('helpdoc.empty')}</p></div>}</article>
     </div>
     <Dialog open={!!edit} onOpenChange={(open) => { if (!open) void closeEditor(); }}>
       {edit && <DialogContent layout="editor" className="max-w-4xl"><DialogHeader><DialogTitle className="flex items-center gap-1.5 pr-6">{t(edit.mode === 'new' ? 'helpdoc.new' : 'helpdoc.edit')}

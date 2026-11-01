@@ -8,6 +8,7 @@ import { QQMenuEditor } from '@/components/adapter/qq-menu-editor';
 import { QQPanelEditor } from '@/components/adapter/qq-panel-editor';
 import { EditorError } from '@/components/adapter/qq-editor-shared';
 import { zustandAdapterStore } from '@/store/adapter-store';
+import { navigatePanel } from '@/lib/panel-navigation';
 import type { Adapter } from '@/types/adapter';
 
 function AccountEditors({ adapter, onBusy }: { adapter: Adapter; onBusy: (busy: boolean) => void }) {
@@ -47,7 +48,7 @@ export function QQOfficialPage() {
       <Select value={adapter?.id ?? ''} disabled={busy || !official.length} onValueChange={(value) => {
         // AppRouter asks the registered draft guards before switching accounts.
         const query = new URLSearchParams(window.location.hash.split('?')[1] || '');
-        query.set('adapter', value); window.location.hash = `/qq-official?${query}`;
+        query.set('adapter', value); navigatePanel(`/qq-official?${query}`);
       }}>
         <SelectTrigger className="w-full min-w-0 sm:w-80" aria-label={t('qq_editor.account')}><SelectValue placeholder={t('qq_editor.account')} /></SelectTrigger>
         <SelectContent>{official.map((account) => <SelectItem key={account.id} value={account.id}>{account.name} · {account.appId || account.id}</SelectItem>)}</SelectContent>

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { SlidersHorizontal, Users, MessageSquare, Image, ShieldCheck, Wrench } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useTourActive } from '@/components/onboarding/tour-data';
+import { useWideWorkspace } from '@/hooks/use-wide-workspace';
 
 const sections = [
   ['basic', 'settings.sec_basic', SlidersHorizontal],
@@ -20,6 +21,7 @@ export function SettingsWorkspace({ children, scope }: { children: React.ReactNo
   const touring = useTourActive();
   const [liveActive, setLiveActive] = React.useState('basic');
   const [tourActive, setTourActive] = React.useState('basic');
+  const wide = useWideWorkspace();
   const active = touring ? tourActive : liveActive;
   const setActive = touring ? setTourActive : setLiveActive;
   const root = React.useRef<HTMLDivElement>(null);
@@ -34,17 +36,16 @@ export function SettingsWorkspace({ children, scope }: { children: React.ReactNo
     return () => window.removeEventListener('settings:reveal', reveal);
   }, [setActive]);
   return <div ref={root}>
-    <Tabs value={active} onValueChange={(value) => {
+    <Tabs value={active} orientation={wide ? 'vertical' : 'horizontal'} onValueChange={(value) => {
       setActive(value);
       root.current?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
-    }} className="space-y-5">
-      <TabsList variant="page" className="sticky top-0 z-20" aria-label={t('settings.title')}>
+    }} className="grid items-start gap-6 xl:grid-cols-[180px_minmax(0,1fr)]">
+      <TabsList variant="page" className="v2-settings-nav sticky top-0 z-20" aria-label={t('settings.title')}>
         {sections.map(([value, label, Icon]) => <TabsTrigger key={value} value={value}>
           <Icon className="h-4 w-4 shrink-0" />{t(label)}
         </TabsTrigger>)}
       </TabsList>
-      {scope}
-      {children}
+      <div className="min-w-0 space-y-6">{scope}{children}</div>
     </Tabs>
   </div>;
 }

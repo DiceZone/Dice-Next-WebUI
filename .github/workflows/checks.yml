@@ -16,7 +16,7 @@ jobs:
   check:
     name: Frontend tests, types and build
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
         with:
@@ -31,8 +31,21 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run lint
+      - run: npm run quality
       - run: npm run build
+      - name: Install browser for V2 regressions
+        run: npx playwright install --with-deps chromium
+      - run: npm run test:v2-browser
+      - run: npm run test:notice-browser
+      - run: npm run test:mcp-browser
       - name: Check installable app assets
-        run: node --test tests/pwa.test.mjs
+        run: node --test tests/pwa.test.mjs tests/v2-build.test.mjs
         env:
           PWA_TEST_DIST: '1'
+      - name: Upload browser diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v2-browser-diagnostics
+          path: test-results
+          if-no-files-found: ignore

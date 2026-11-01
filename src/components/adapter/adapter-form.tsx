@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { Label } from '@/components/ui/label';
 import { FeatureHelp } from '@/components/ui/feature-help';
 import { HelpLabel } from '@/components/ui/help-label';
@@ -56,6 +57,7 @@ const adapterFormSchema = z.object({
 });
 
 type FormValues = z.infer<typeof adapterFormSchema>;
+type FormInput = z.input<typeof adapterFormSchema>;
 type FormMode = NonNullable<FormValues['connectionMode']>;
 
 function initialConnectionMode(adapter?: Adapter | null): FormMode | undefined {
@@ -80,7 +82,7 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
   const [qrSaving, setQrSaving] = React.useState(false);
   const qrPollingRef = React.useRef(false);
 
-  const { register, handleSubmit, setValue, watch, getValues, reset, setError, clearErrors, formState: { errors, isSubmitting } } = useForm<FormValues>({
+  const form = useForm<FormInput, unknown, FormValues>({
     resolver: zodResolver(adapterFormSchema),
     defaultValues: {
       name: adapter?.name ?? '',
@@ -104,6 +106,7 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
       enabled: adapter?.enabled ?? true,
     },
   });
+  const { register, handleSubmit, setValue, watch, getValues, reset, setError, clearErrors, formState: { errors, isSubmitting } } = form;
 
   React.useEffect(() => {
     if (open) {
@@ -312,18 +315,18 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
           </DialogTitle>
           <DialogDescription className="sr-only">{isEdit ? t('adapters.edit_subtitle') : t('adapters.add_subtitle')}</DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit(async (data) => {
+        <Form {...form}><form onSubmit={handleSubmit(async (data) => {
           if (qrBusy) return;
           try { await handleFormSubmit(data); }
           catch (error) { setError('root', { message: error instanceof Error ? error.message : t('common.save_fail') }); }
         })} className="space-y-4" autoComplete="off">
           {errors.root && <p role="alert" className="text-sm text-destructive">{errors.root.message}</p>}
           <fieldset disabled={isSubmitting || qrSaving} className="min-w-0 space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">{t('adapters.name')}</Label>
-            <Input id="name" placeholder={t('adapters.name_placeholder')} {...register('name')} />
-            {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
-          </div>
+          <FormField control={form.control} name="name" render={({ field }) => <FormItem>
+            <FormLabel>{t('adapters.name')}</FormLabel>
+            <FormControl><Input placeholder={t('adapters.name_placeholder')} {...field} /></FormControl>
+            <FormMessage />
+          </FormItem>} />
           <div className="space-y-2">
             <Label htmlFor="type">{t('adapters.type_label')}</Label>
             {/* C#55: 编辑时不允许修改适配器平台 */}
@@ -532,7 +535,7 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
             <Button type="submit" disabled={qrBusy || isSubmitting || (!official && !milky && !tokenBot && !builtin && !modeChosen)}>{isSubmitting || qrSaving ? t('common.saving') : isEdit ? t('adapters.save_edit') : t('adapters.add')}</Button>
           </DialogFooter>
           </fieldset>
-        </form>
+        </form></Form>
       </DialogContent>
     </Dialog>
   );

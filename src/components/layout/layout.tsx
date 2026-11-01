@@ -24,7 +24,8 @@ export const Layout: React.FC<LayoutProps> = ({
   wsConnected = false,
   searchTarget,
 }) => {
-  const { sidebarCollapsed, contentWidth } = zustandAppStore();
+  const { sidebarCollapsed } = zustandAppStore();
+  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
   const [tourReplayToken, setTourReplayToken] = React.useState(0);
   // Held here rather than read inside the tour so that answering the welcome
   // question starts the current page's tour immediately.
@@ -91,10 +92,13 @@ export const Layout: React.FC<LayoutProps> = ({
 
   return (
     <TourDataContext.Provider value={showingSamples}>
-    <div ref={shellRef} className="flex h-screen overflow-hidden bg-background" data-tour-sample={showingSamples || undefined}>
-      <Sidebar currentPath={currentPath} onNavigate={onNavigate} />
+    <div ref={shellRef} className="v2-shell flex h-dvh overflow-hidden bg-background" data-tour-sample={showingSamples || undefined}>
+      <Sidebar currentPath={currentPath} onNavigate={onNavigate} mobileMenuOpen={mobileMenuOpen} onMobileMenuChange={setMobileMenuOpen} />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header
+          currentPath={currentPath}
+          mobileMenuOpen={mobileMenuOpen}
+          onMobileMenuChange={setMobileMenuOpen}
           wsConnected={wsConnected}
           onNavigate={onNavigate}
           tourAvailable={tourAvailable}
@@ -103,13 +107,14 @@ export const Layout: React.FC<LayoutProps> = ({
         <main
           data-tour="page-content"
           className={cn(
-            'flex-1 overflow-y-auto overflow-x-hidden bg-muted/25 p-4 md:p-6',
+            'v2-main flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 xl:p-9',
+            currentPath === '/' && 'xl:py-6',
             sidebarCollapsed ? 'lg:ml-0' : 'ml-0'
           )}
         >
           {/* Chat pages need a definite height through the width wrapper.
               Keep short viewports scrollable so controls cannot crowd out chat. */}
-          <div className={cn('min-w-0', currentPath === '/playground' && 'h-full min-h-[32rem]', contentWidth !== 'classic' && 'mx-auto w-full max-w-7xl [&>*]:max-w-none')} data-content-width={contentWidth}>
+          <div className={cn('v2-workspace [&>*]:max-w-none', currentPath === '/' && 'lg:min-h-full lg:flex lg:flex-col', currentPath === '/playground' && 'h-full min-h-[32rem]')}>
             {children}
           </div>
         </main>

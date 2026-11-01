@@ -282,7 +282,7 @@
     "backup_auto_body": "Choose a schedule, retention period, and included content, then save. The server will create and prune backups on that schedule.",
     "backup_archives_title": "Saved backups",
     "backup_archives_body": "Download, restore, or delete server backups here. Restoring overwrites selected content, so verify the source and creation time first.",
-    "replay_hint": "To see this again, use the question-mark button in the top bar to replay the current page tour."
+    "replay_hint": "Replay this page tour using the question-mark button in the top bar, or More actions on narrow screens."
   },
   "global_search": {
     "open": "Open global search",

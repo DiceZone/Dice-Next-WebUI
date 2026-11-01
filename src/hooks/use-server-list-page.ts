@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiClient } from '@/lib/api-client';
 import { createRequestGate } from '@/lib/request-gate';
 import { readServerListPage, type ServerListPage } from '@/lib/server-list-page';
+import { panelQueryClient, panelKeys } from '@/lib/query-client';
 
 export function useServerListPage<T>(url: string) {
   const [state, setState] = useState<{ data: ServerListPage<T> | null; url: string; loading: boolean; error: boolean }>({
@@ -19,7 +20,8 @@ export function useServerListPage<T>(url: string) {
     const current = gate.start();
     setState((old) => ({ ...old, url, loading: true, error: false }));
     try {
-      const result = await apiClient.get<unknown>(url);
+      const result = await panelQueryClient.fetchQuery({ queryKey: panelKeys.list(url),
+        queryFn: () => apiClient.get<unknown>(url), staleTime: 0 });
       const data = readServerListPage<T>(result.data);
       if (current()) setState({ data, url, loading: false, error: false });
     } catch {

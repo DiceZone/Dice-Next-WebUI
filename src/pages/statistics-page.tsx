@@ -14,6 +14,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { panelQueryClient, panelKeys } from '@/lib/query-client';
+import { apiClient } from '@/lib/api-client';
+import { LineChart } from '@/vendor/tremor/components/LineChart/LineChart';
 
 interface AdapterOption {
   id: string;
@@ -76,7 +79,6 @@ interface StatisticsData {
 }
 
 const number = (value: number) => value.toLocaleString();
-const compact = (value: number) => Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 }).format(value);
 const percent = (value: number) => value.toFixed(value >= 99 ? 2 : 1) + '%';
 
 const platformLabel = (platform: string) => ({
@@ -95,7 +97,6 @@ const commandLabel = (command: string) => ({
   other: 'Other',
 }[command] || '.' + command);
 
-const shortDate = (value: string) => value.length >= 10 ? value.slice(5, 10).replace('-', '/') : value;
 const lastUsed = (value: string) => value ? value.slice(0, 10) : '—';
 export const StatisticsPage: React.FC = () => {
   const { t } = useTranslation();
@@ -133,9 +134,9 @@ export const StatisticsPage: React.FC = () => {
         const params = new URLSearchParams({ days: String(days), granularity });
         if (platform) params.set('platform', platform);
         if (adapter) params.set('adapter', adapter);
-        const response = await fetch('/api/statistics/overview?' + params.toString());
-        const payload = await response.json();
-        if (!response.ok || payload.code !== 0) throw new Error(payload.message || response.statusText);
+        const payload = await panelQueryClient.fetchQuery({
+          queryKey: panelKeys.statistics(days, platform, adapter, granularity),
+          queryFn: () => apiClient.get<StatisticsData>('/statistics/overview?' + params.toString()), staleTime: 0 });
         if (!active) return;
         setData(payload.data);
         setError('');
@@ -173,38 +174,40 @@ export const StatisticsPage: React.FC = () => {
   if (!data) return <div className="space-y-4">{header}<p className="text-sm text-destructive">{t('statistics.load_failed')}: {error}</p></div>;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
         {header}
         {loading && <span className="mt-2 text-xs text-muted-foreground">{t('statistics.refreshing')}</span>}
       </div>
 
-      <Card data-tour="statistics-filters">
-        <CardContent className="flex flex-wrap items-center gap-3 p-3">
-          <div className="inline-flex rounded-lg bg-muted p-1" aria-label={t('statistics.date_range')}>
+      <section data-tour="statistics-filters" aria-label={t('v2.filter_scope')} className="rounded-xl border bg-card">
+        <div className="grid items-end gap-4 p-5 sm:grid-cols-2 xl:grid-cols-[minmax(260px,1fr)_minmax(160px,0.7fr)_minmax(220px,1fr)]">
+          <div className="space-y-2 sm:col-span-2 xl:col-span-1"><p className="text-xs font-medium text-muted-foreground">{t('statistics.date_range')}</p><div className="inline-flex max-w-full rounded-lg bg-muted p-1" aria-label={t('statistics.date_range')}>
             {[7, 30, 90].map((value) => (
               <Button key={value} type="button" variant="ghost" size="sm"
-                className={cn('h-8 px-3 text-xs', days === value && 'bg-background text-foreground shadow-sm hover:bg-background')}
+                aria-pressed={days === value} className={cn('h-8 px-4 text-xs', days === value && 'bg-card text-foreground shadow-sm hover:bg-card')}
                 onClick={() => selectDays(value)}>
                 {t('statistics.days', { count: value })}
               </Button>
             ))}
-          </div>
+          </div></div>
 
+          <div className="min-w-0 space-y-2"><p className="text-xs font-medium text-muted-foreground">{t('statistics.platform_filter')}</p>
           <Select value={platform || '__all_platforms__'}
             onValueChange={(value) => selectPlatform(value === '__all_platforms__' ? '' : value)}>
-            <SelectTrigger aria-label={t('statistics.platform_filter')} className="h-10 w-40">
+            <SelectTrigger aria-label={t('statistics.platform_filter')} className="h-10 w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="__all_platforms__">{t('statistics.all_platforms')}</SelectItem>
               {data.filters.platforms.map((item) => <SelectItem key={item} value={item}>{platformLabel(item)}</SelectItem>)}
             </SelectContent>
-          </Select>
+          </Select></div>
 
+          <div className="min-w-0 space-y-2"><p className="text-xs font-medium text-muted-foreground">{t('statistics.adapter_filter')}</p>
           <Select value={adapter || '__all_adapters__'}
             onValueChange={(value) => setAdapter(value === '__all_adapters__' ? '' : value)}>
-            <SelectTrigger aria-label={t('statistics.adapter_filter')} className="h-10 w-56">
+            <SelectTrigger aria-label={t('statistics.adapter_filter')} className="h-10 w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -213,18 +216,17 @@ export const StatisticsPage: React.FC = () => {
                 <SelectItem key={item.id} value={item.id}>{item.name || item.id} · {platformLabel(item.platform)}</SelectItem>
               ))}
             </SelectContent>
-          </Select>
-
-          <div className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
-            <CalendarDays className="h-4 w-4" />
+          </Select></div>
+        </div>
+          <div className="flex items-center gap-2 border-t px-5 py-2.5 text-[11px] text-muted-foreground">
+            <CalendarDays className="h-3.5 w-3.5 shrink-0" />
             <span>{t('statistics.scope_collection_note')}</span>
           </div>
-        </CardContent>
-      </Card>
+      </section>
 
       {error && <div className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">{error}</div>}
 
-      <div data-tour="statistics-summary" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <div data-tour="statistics-summary" className="grid overflow-hidden rounded-xl border bg-card grid-cols-2 divide-y sm:grid-cols-3 xl:grid-cols-5 xl:divide-y-0 [&>div+div]:border-l [&>div]:border-border">
         <Summary icon={MessagesSquare} label={t('statistics.commands')} value={number(data.summary.total_commands)}
           foot={t('statistics.selected_period')} />
         <Summary icon={Dices} label={t('statistics.rolls')} value={number(data.summary.total_rolls)}
@@ -237,6 +239,7 @@ export const StatisticsPage: React.FC = () => {
           foot={data.summary.adapter_online + ' / ' + data.summary.adapter_total + ' ' + t('statistics.online')} />
       </div>
 
+      <div className="grid gap-6 2xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
       <Card data-tour="statistics-trend">
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-base">
@@ -246,6 +249,11 @@ export const StatisticsPage: React.FC = () => {
         </CardHeader>
         <CardContent><DailyTrend rows={data.daily_usage} /></CardContent>
       </Card>
+      <Card>
+        <CardHeader><CardTitle>{t('statistics.usage_hours')}</CardTitle></CardHeader>
+        <CardContent><HourChart rows={data.usage_by_hour} /></CardContent>
+      </Card>
+      </div>
 
       <Card data-tour="statistics-online" data-setting-anchor="statistics-online">
         <CardHeader className="flex flex-col gap-3 pb-3 sm:flex-row sm:items-start sm:justify-between">
@@ -269,7 +277,7 @@ export const StatisticsPage: React.FC = () => {
           granularity={data.filters.granularity || granularity} timezoneMinutes={timezone} /></CardContent>
       </Card>
 
-      <div className="grid gap-4 xl:grid-cols-3">
+      <div className="grid gap-6 xl:grid-cols-3">
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-base">{adapter || platform ? t('statistics.adapter_comparison') : t('statistics.platform_comparison')}</CardTitle></CardHeader>
           <CardContent><ScopeComparison rows={data.scope_comparison} /></CardContent>
@@ -284,17 +292,11 @@ export const StatisticsPage: React.FC = () => {
         </Card>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-2">
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-base">{t('statistics.usage_hours')}</CardTitle></CardHeader>
-          <CardContent><HourChart rows={data.usage_by_hour} /></CardContent>
-        </Card>
+      <div className="grid gap-6 xl:grid-cols-2">
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-base">{t('statistics.check_results')}</CardTitle></CardHeader>
           <CardContent><ResultChart rows={data.check_results} /></CardContent>
         </Card>
-      </div>
-
       <Card>
         <CardHeader className="pb-2"><CardTitle className="text-base">{t('statistics.face_distribution')}</CardTitle></CardHeader>
         <CardContent>
@@ -303,8 +305,9 @@ export const StatisticsPage: React.FC = () => {
             : <Empty />}
         </CardContent>
       </Card>
+      </div>
 
-      <div className="grid gap-4 xl:grid-cols-2">
+      <div className="grid gap-6 xl:grid-cols-2">
         <RankingCard title={t('statistics.top_groups')} kind="group" rows={data.top_groups} />
         <RankingCard title={t('statistics.top_users')} kind="user" rows={data.top_users} />
       </div>
@@ -318,67 +321,36 @@ function Summary({ icon: Icon, label, value, foot }: {
   value: string;
   foot: string;
 }) {
-  return <Card><CardContent className="p-4">
+  return <div className="v2-metric">
     <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
       <span>{label}</span>
-      <span className="rounded-md bg-primary/10 p-1.5 text-primary"><Icon className="h-4 w-4" /></span>
+      <Icon className="h-4 w-4 shrink-0" />
     </div>
-    <p className="mt-2 text-2xl font-semibold tracking-tight tabular-nums">{value}</p>
-    <p className="mt-1 truncate text-[11px] text-muted-foreground">{foot}</p>
-  </CardContent></Card>;
+    <p className="v2-metric-value mt-3">{value}</p>
+    <p className="mt-2 text-xs text-muted-foreground">{foot}</p>
+  </div>;
 }
 
 function DailyTrend({ rows }: { rows: StatisticsData['daily_usage'] }) {
   const { t } = useTranslation();
-  const width = Math.max(720, rows.length * 34 + 70);
-  const height = 270;
-  const left = 46;
-  const right = 14;
-  const top = 15;
-  const bottom = 218;
-  const plotWidth = width - left - right;
-  const maxValue = Math.max(1, ...rows.flatMap((row) => [row.commands, row.rolls]));
-  const y = (value: number) => bottom - (value / maxValue) * (bottom - top);
-  const step = plotWidth / Math.max(1, rows.length);
-  const barWidth = Math.min(12, step * 0.34);
-
+  const commands = t('statistics.commands'), rolls = t('statistics.rolls');
+  const chartRows = rows.map((row) => ({ date: row.date, [commands]: row.commands, [rolls]: row.rolls }));
   return <div>
-    <div className="overflow-x-auto pb-2">
-      <svg role="img" aria-label={t('statistics.daily_trend')} viewBox={'0 0 ' + width + ' ' + height}
-        style={{ width: width + 'px', minWidth: '100%', height: height + 'px' }}>
-        {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
-          const value = maxValue * (1 - ratio);
-          const py = top + (bottom - top) * ratio;
-          return <g key={ratio}>
-            <line x1={left} y1={py} x2={width - right} y2={py} className="stroke-border" />
-            <text x={left - 8} y={py + 4} textAnchor="end" className="fill-muted-foreground text-[10px]">{compact(value)}</text>
-          </g>;
-        })}
-        {rows.map((row, index) => {
-          const center = left + step * index + step / 2;
-          return <g key={row.date}>
-            <rect x={center - barWidth - 1} y={y(row.commands)} width={barWidth}
-              height={Math.max(0, bottom - y(row.commands))} rx="2" className="fill-primary/80">
-              <title>{row.date + ' · ' + row.commands.toLocaleString() + ' ' + t('statistics.commands')}</title>
-            </rect>
-            <rect x={center + 1} y={y(row.rolls)} width={barWidth}
-              height={Math.max(0, bottom - y(row.rolls))} rx="2" className="fill-cyan-500/75">
-              <title>{row.date + ' · ' + row.rolls.toLocaleString() + ' ' + t('statistics.rolls')}</title>
-            </rect>
-            <text transform={'translate(' + (center + 3) + ' ' + (bottom + 11) + ') rotate(-55)'}
-              textAnchor="end" className="fill-muted-foreground text-[9px]">{shortDate(row.date)}</text>
-          </g>;
-        })}
-      </svg>
+    <div className="overflow-x-auto pb-2" data-testid="v2-daily-trend">
+      <div style={{ width: Math.max(720, rows.length * 98 + 80), minWidth: '100%' }}>
+        <LineChart role="img" aria-label={t('statistics.daily_trend')} className="h-72"
+          data={chartRows} index="date" categories={[commands, rolls]} colors={['violet', 'cyan']}
+          valueFormatter={(value) => number(value)} showLegend={false} tickGap={0} intervalType={0}
+          connectNulls={false} showTooltip showXAxis showYAxis />
+      </div>
     </div>
     <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
-      <Legend color="bg-primary" label={t('statistics.commands')} />
-      <Legend color="bg-cyan-500" label={t('statistics.rolls')} />
+      <Legend color="bg-primary" label={commands} />
+      <Legend color="bg-cyan-500" label={rolls} />
       <span className="ml-auto">{t('statistics.all_dates_shown', { count: rows.length })}</span>
     </div>
   </div>;
 }
-
 function ScopeComparison({ rows }: { rows: StatisticsData['scope_comparison'] }) {
   const { t } = useTranslation();
   const max = Math.max(1, ...rows.map((row) => row.commands));

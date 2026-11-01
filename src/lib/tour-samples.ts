@@ -34,7 +34,10 @@ const players = [
   { platform, userId, nickname, trustLevel: 4, cmdCount: 86, favor: 12, lastCmdAt: date, createdAt: date },
   { platform, userId: 'demo-player-2', nickname: '阿洛 · 示例', trustLevel: 1, cmdCount: 42, favor: 5, lastCmdAt: date, createdAt: date },
 ];
-const masters = [{ platform, id: userId, nickname }];
+const masters = [
+  { platform, id: userId, nickname },
+  { platform: 'qq_official', id: '14280C4E205945D1BE70562E4B703ABC', nickname: '希亚' },
+];
 const replies: ReplyRule[] = [
   { id: '-1', matchType: 'keyword', matchContent: '开团啦', replyContent: '调查员们，请带好人物卡，故事即将开始！',
     conditions: [{ type: 'keyword', content: '开团啦' }], logic: 'and', results: ['调查员们，请带好人物卡，故事即将开始！'],

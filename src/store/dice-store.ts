@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import apiClient from '@/lib/api-client';
 import type { DiceRules } from '@/types/dice';
 import { DEFAULT_DICE_RULES } from '@/types/dice';
+import { panelQueryClient, panelKeys } from '@/lib/query-client';
 
 interface DiceState {
   rules: DiceRules | null;
@@ -27,7 +28,8 @@ export const zustandDiceStore = create<DiceState>()((set) => ({
   fetchRules: async () => {
     set({ loading: true, error: null });
     try {
-      const res = await apiClient.get<DiceRules>('/dice/rules');
+      const res = await panelQueryClient.fetchQuery({ queryKey: panelKeys.diceRules,
+        queryFn: () => apiClient.get<DiceRules>('/dice/rules'), staleTime: 0 });
       set({ rules: res.data, loading: false });
     } catch {
       // Fall back to defaults if API not available

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import apiClient from '@/lib/api-client';
 import type { Adapter, AdapterFormData } from '@/types/adapter';
+import { panelQueryClient, panelKeys } from '@/lib/query-client';
 
 interface AdapterState {
   adapters: Adapter[];
@@ -25,7 +26,8 @@ export const zustandAdapterStore = create<AdapterState>()((set, get) => ({
   fetchAdapters: async () => {
     set({ loading: true, error: null });
     try {
-      const res = await apiClient.get<Adapter[]>('/adapters');
+      const res = await panelQueryClient.fetchQuery({ queryKey: panelKeys.adapters,
+        queryFn: () => apiClient.get<Adapter[]>('/adapters'), staleTime: 0 });
       set({ adapters: res.data, loading: false });
     } catch (err) {
       const message = err instanceof Error ? err.message : '获取适配器列表失败';

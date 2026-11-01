@@ -3,6 +3,7 @@ import i18n from 'i18next';
 import apiClient from '@/lib/api-client';
 import type { ReplyRule, ReplyFormData } from '@/types/reply';
 import { globalReplyScope, replyScopeKey, replyScopeQuery, type ReplySettingsScope } from '@/lib/reply-scope';
+import { panelQueryClient, panelKeys } from '@/lib/query-client';
 
 interface ReplyState {
   replies: ReplyRule[];
@@ -34,7 +35,8 @@ export const zustandReplyStore = create<ReplyState>()((set, get) => {
       const changed = !currentScope(scope);
       set({ scope, loading: true, error: null, ...(changed ? { replies: [] } : {}) });
       try {
-        const res = await apiClient.get<ReplyRule[]>('/replies?' + replyScopeQuery(scope));
+        const res = await panelQueryClient.fetchQuery({ queryKey: panelKeys.replies(scope.scope, scope.target),
+          queryFn: () => apiClient.get<ReplyRule[]>('/replies?' + replyScopeQuery(scope)), staleTime: 0 });
         const acknowledged = (res as typeof res & { replyScope?: Pick<ReplySettingsScope, 'scope' | 'target'> }).replyScope;
         // Old servers ignore query/body scope fields. Refuse scoped editing even
         // when an empty legacy list looks valid, rather than save a global rule.

@@ -19,7 +19,10 @@ async function fixture(page, overrides = {}) {
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('/#/mcp');
   await page.getByRole('button', { name: /我用过 DiceNext/ }).click();
-  if (page.viewportSize().width < 1024) await page.getByRole('navigation').getByRole('button', { name: 'MCP 服务', exact: true }).click();
+  if (page.viewportSize().width < 1024) {
+    await page.locator('#mobile-navigation-trigger').click();
+    await page.getByRole('navigation').getByRole('button', { name: 'MCP 服务', exact: true }).click();
+  }
   await expect(page.getByRole('heading', { name: 'MCP 服务', exact: true })).toBeVisible();
   await expect(page.getByTestId(`mcp-grant-${firstId}`)).toBeVisible();
   return { requests, errors };

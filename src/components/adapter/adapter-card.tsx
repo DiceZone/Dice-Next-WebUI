@@ -106,13 +106,13 @@ export const AdapterCard: React.FC<AdapterCardProps> = ({
         : adapter.name;
 
   return (
-    <Card
+    <Card data-testid="adapter-card" data-adapter-id={adapter.id}
       className={cn(
-        'transition-all hover:shadow-md',
+        'flex h-full min-w-0 flex-col transition-colors hover:border-input',
       )}
     >
-      <CardContent className="p-4 md:p-5">
-        <div className="flex items-start justify-between">
+      <CardContent className="flex flex-1 flex-col gap-4 p-5">
+        <div className="flex min-w-0 items-start justify-between gap-4">
           <div className={cn('flex items-center gap-3 min-w-0', !adapter.enabled && 'opacity-50')}>
             {/* QQ avatar with connection status overlay */}
             <div className="relative shrink-0">
@@ -132,7 +132,8 @@ export const AdapterCard: React.FC<AdapterCardProps> = ({
             </div>
             {/* C#105：flex-1 给出确定宽度，超长名称 truncate 成省略号 */}
             <div className="min-w-0 flex-1">
-              <h3 className="font-semibold truncate">{displayName}</h3>
+              <h3 className="truncate font-semibold" title={displayName}>{displayName}</h3>
+              <p className={cn('mb-1 text-xs', isConnected ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground')}>{t(STATUS_LABEL_KEYS[effectiveStatus])}</p>
               <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                 <span className="inline-flex min-w-0 items-center gap-1.5">
                 <PlatformIcon platform={adapter.type} className="h-3.5 w-3.5" />
@@ -178,7 +179,7 @@ export const AdapterCard: React.FC<AdapterCardProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+        <div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t pt-4">
           <Badge variant={adapter.heartApiKeyConfigured ? 'success' : 'warning'} className="gap-1.5 whitespace-nowrap text-[10px]">
             <Cloud className="h-3 w-3" />
             {adapter.heartApiKeyConfigured ? t('adapters.bdc_cloud_connected') : t('adapters.bdc_cloud_basic')}
@@ -189,13 +190,13 @@ export const AdapterCard: React.FC<AdapterCardProps> = ({
             </Button>
             {builtin && onBuiltinLogin && (
               <Button variant="outline" size="sm" onClick={() => onBuiltinLogin(adapter)}
-                className="text-sky-600 border-sky-200 bg-sky-50 hover:bg-sky-100 hover:text-sky-700">
+                >
                 <QrCode className="mr-1 h-3.5 w-3.5" />{t('adapters.openopq_login_btn')}
               </Button>
             )}
             {adapter.connectionMode === 'reverse_ws' && !builtin && onShowReverseInfo && (
               <Button variant="outline" size="sm" onClick={() => onShowReverseInfo(adapter.endpoint)}
-                className="text-purple-600 border-purple-200 bg-purple-50 hover:bg-purple-100 hover:text-purple-700" title={t('adapters.reverse_title')}>
+                title={t('adapters.reverse_title')}>
                 <Network className="mr-1 h-3.5 w-3.5" />{t('adapters.reverse_btn')}
               </Button>
             )}
@@ -203,17 +204,17 @@ export const AdapterCard: React.FC<AdapterCardProps> = ({
               // C#38: timed-out (paused) adapter — offer a manual reconnect, labeled 「启用」
               // (not 「解除禁用」: it was never disabled, just paused after repeated failures).
               <Button variant="outline" size="sm" onClick={() => onReconnect(adapter.id)}
-                className="text-orange-600 border-orange-200 bg-orange-50 hover:bg-orange-100 hover:text-orange-700">
+                >
                 <Plug className="mr-1 h-3.5 w-3.5" />{t('common.enable')}
               </Button>
             ) : adapter.enabled ? (
               <Button variant="outline" size="sm" onClick={() => onDisconnect(adapter.id)}
-                className="text-red-600 border-red-200 bg-red-50 hover:bg-red-100 hover:text-red-700">
+                className="text-destructive">
                 <Unplug className="mr-1 h-3.5 w-3.5" />{t('common.disable')}
               </Button>
             ) : (
               <Button variant="outline" size="sm" onClick={() => onConnect(adapter.id)} disabled={isConnecting}
-                className="text-emerald-500 border-emerald-200 bg-emerald-50/60 hover:bg-emerald-100 hover:text-emerald-600">
+                >
                 <Plug className="mr-1 h-3.5 w-3.5" />
                 {isConnecting ? t('adapters.connecting') : t('common.undisable')}
               </Button>

@@ -1,76 +1,40 @@
-import { useMemo, useState } from 'react';
-import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { CalendarDays } from 'lucide-react';
+import { format, parse, isValid } from 'date-fns';
+import { enUS, ja, zhCN, zhTW } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 
 const pad = (value: number) => String(value).padStart(2, '0');
-const toDateValue = (date: Date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-
+// Date-only form fields are server wall-calendar values, NOT UTC instants.
+// Never serialize through toISOString(), which shifts dates across timezones.
 const parseDateValue = (value: string) => {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-  if (!match) return null;
-  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
-  return toDateValue(date) === value ? date : null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return undefined;
+  const date = parse(value, 'yyyy-MM-dd', new Date());
+  return isValid(date) && format(date, 'yyyy-MM-dd') === value ? date : undefined;
 };
 
 export function DatePicker({ value, onValueChange, label, placeholder, className }: {
-  value: string;
-  onValueChange: (value: string) => void;
-  label: string;
-  placeholder?: string;
-  className?: string;
+  value: string; onValueChange: (value: string) => void; label: string; placeholder?: string; className?: string;
 }) {
+  const { i18n } = useTranslation();
   const selected = parseDateValue(value);
   const [open, setOpen] = useState(false);
-  const [view, setView] = useState(() => selected || new Date());
-  const year = view.getFullYear();
-  const month = view.getMonth();
-  const firstWeekday = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const cells = Array.from({ length: firstWeekday + daysInMonth }, (_, index) => (
-    index < firstWeekday ? null : index - firstWeekday + 1
-  ));
-  const weekdayLabels = useMemo(() => Array.from({ length: 7 }, (_, day) => (
-    new Intl.DateTimeFormat(undefined, { weekday: 'narrow' }).format(new Date(2026, 7, 30 + day))
-  )), []);
-  const monthLabel = new Intl.DateTimeFormat(undefined, { year: 'numeric', month: 'long' }).format(view);
-
-  const changeOpen = (next: boolean) => {
-    if (next) setView(selected || new Date());
-    setOpen(next);
-  };
-
-  return <Dialog open={open} onOpenChange={changeOpen}>
-    <Button type="button" variant="outline" onClick={() => changeOpen(true)}
+  const locale = i18n.language === 'zh-Hant' ? zhTW : i18n.language.startsWith('zh') ? zhCN
+    : i18n.language.startsWith('ja') ? ja : enUS;
+  return <Dialog open={open} onOpenChange={setOpen}>
+    <Button type="button" variant="outline" aria-label={label} onClick={() => setOpen(true)}
       className={cn('h-10 w-full justify-between px-3 font-normal', !value && 'text-muted-foreground', className)}>
       <span>{value || placeholder || label}</span><CalendarDays className="h-4 w-4 opacity-60" />
     </Button>
     <DialogContent className="max-w-sm">
       <DialogHeader><DialogTitle>{label}</DialogTitle></DialogHeader>
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <Button type="button" variant="ghost" size="icon" onClick={() => setView(new Date(year, month - 1, 1))}>
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <span className="text-sm font-medium">{monthLabel}</span>
-          <Button type="button" variant="ghost" size="icon" onClick={() => setView(new Date(year, month + 1, 1))}>
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-        <div className="grid grid-cols-7 gap-1 text-center">
-          {weekdayLabels.map((day, index) => <span key={index} className="py-1 text-xs text-muted-foreground">{day}</span>)}
-          {cells.map((day, index) => day == null ? <span key={'blank-' + index} /> : (() => {
-            const candidate = toDateValue(new Date(year, month, day));
-            const active = candidate === value;
-            return <Button key={candidate} type="button" size="sm" variant={active ? 'default' : 'ghost'}
-              className="h-9 w-full p-0" onClick={() => { onValueChange(candidate); setOpen(false); }}>
-              {day}
-            </Button>;
-          })())}
-        </div>
-      </div>
+      <Calendar mode="single" locale={locale} selected={selected} defaultMonth={selected} autoFocus
+        className="mx-auto" onSelect={(date) => { if (!date) return; onValueChange(format(date, 'yyyy-MM-dd')); setOpen(false); }} />
     </DialogContent>
   </Dialog>;
 }
