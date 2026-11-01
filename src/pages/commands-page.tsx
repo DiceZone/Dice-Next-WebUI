@@ -59,6 +59,8 @@ const GLOBAL_SET = new Set(GLOBAL_VARS);
 
 const extractVars = (s: string): string[] =>
   [...s.matchAll(/\{([^{}]+)\}/g)].map((m) => m[1]);
+// [[bar:HP|{hp}|{hpmax}]] reads the character card when the reply is sent.
+const varsOutsideBars = (s: string): string[] => extractVars(s.replace(/\[\[bar:[\s\S]*?\]\]/g, ''));
 
 export const CommandsPage: React.FC = () => {
   const wideWorkspace = useWideWorkspace();
@@ -697,8 +699,9 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
   const allowed = new Set([...reply.vars.map((v) => v.name), ...GLOBAL_VARS, ...(reply.legacyReferences ?? []),
     ...templateLocalNames(variants.map(item => item.text).join('\n')), 'uid', 'gid', 'selfId', 'user.trust', 'user.favor', 'game.pls', 'game.gms',
     'list_all_deck', 'list_extern_deck', 'list_extern_order', 'list_reply_deck', 'list_dice_sister']);
-  const used = extractVars(variants.map(item => item.text).join('\n'));
-  const unknown = [...new Set(used.filter((u) => !allowed.has(u) && !isFormFeedVariable(u) && !u.includes('|') && !u.includes(':')))];
+  const joined = variants.map(item => item.text).join('\n');
+  const used = extractVars(joined);
+  const unknown = [...new Set(varsOutsideBars(joined).filter((u) => !allowed.has(u) && !isFormFeedVariable(u) && !u.includes('|') && !u.includes(':')))];
   const missing = reply.outcome || reply.legacyCompatibility ? [] : exclusiveVars.map((v) => v.name).filter((n) => !used.includes(n));
   const styledVars = [...new Set(used.filter((name) => allowed.has(name) && !isFormFeedVariable(name)))];
   const applyVariableStyle = (name: string, style: VariableStyle) => {
