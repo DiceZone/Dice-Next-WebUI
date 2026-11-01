@@ -1225,17 +1225,17 @@ export const SettingsPage: React.FC = () => {
           {masters.length > 0 && (
             <div className="space-y-1">
               {masters.map((m) => (
-                <div key={`${m.platform}/${m.adapter_id || ''}/${m.id}`} className="flex items-center justify-between rounded border p-2.5">
-                  <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center gap-1.5 rounded bg-muted px-2 py-0.5 text-xs font-medium"><PlatformIcon platform={m.platform} className="h-3.5 w-3.5" />{masterPlatLabel(m.platform)}</span>
+                <div key={`${m.platform}/${m.adapter_id || ''}/${m.id}`} className="flex items-center justify-between gap-2 rounded border p-2.5">
+                  <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+                    <span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded bg-muted px-2 py-0.5 text-xs font-medium"><PlatformIcon platform={m.platform} className="h-3.5 w-3.5 shrink-0" />{masterPlatLabel(m.platform)}</span>
                     {m.adapter_id ? (
-                      <span className="inline-flex items-center gap-1.5 rounded bg-muted px-2 py-0.5 text-xs font-medium">{masterAccountLabel(masterAccounts.find((a) => a.id === m.adapter_id)) || m.adapter_id}</span>
+                      <span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded bg-muted px-2 py-0.5 text-xs font-medium">{masterAccountLabel(masterAccounts.find((a) => a.id === m.adapter_id)) || m.adapter_id}</span>
                     ) : (
-                      <span className="inline-flex items-center gap-1.5 rounded bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">{t('settings.master_all_accounts')}</span>
+                      <span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">{t('settings.master_all_accounts')}</span>
                     )}
-                    <span className="font-mono text-sm">{m.nickname ? `${m.nickname}(${m.id})` : m.id}</span>
+                    <span className="min-w-0 break-all font-mono text-sm">{m.nickname ? `${m.nickname}(${m.id})` : m.id}</span>
                   </div>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => delMaster(m)}><Trash2 className="h-4 w-4" /></Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-destructive" onClick={() => delMaster(m)}><Trash2 className="h-4 w-4" /></Button>
                 </div>
               ))}
             </div>

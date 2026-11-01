@@ -16,6 +16,7 @@ import { apiClient, ApiTimeoutError } from '@/lib/api-client';
 import { formatVersion, formatScheduledInstallAt, updateTimezoneLabel, isUpdateBusy, type UpdateAction, type UpdateSource, type UpdateSettings, type UpdateStatus } from '@/lib/system-update';
 import { useSystemUpdateStore } from '@/store/system-update-store';
 import { formatBuildTimeUtc8 } from '@/lib/build-time';
+import { RECENT_RELEASES_URL, recentReleaseNotes, type ReleaseNote } from '@/lib/release-changelog';
 import { useDialogs } from '@/hooks/use-dialogs';
 import { PageHeader } from '@/components/ui/page-header';
 import {
@@ -608,30 +609,7 @@ export const AboutPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">{t('about.changelog_title')}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4 text-sm text-muted-foreground">
-          <div>
-            <p className="font-medium text-foreground">{t('about.v3_title')}</p>
-            <ul className="list-disc pl-5 mt-1 space-y-1">
-              {(t('about.v3_items', { returnObjects: true }) as string[]).map((item, i) => (
-                <li key={i}>{item}</li>
-              ))}
-            </ul>
-          </div>
-          <Separator />
-          <div>
-            <p className="font-medium text-foreground">{t('about.v2_title')}</p>
-            <ul className="list-disc pl-5 mt-1 space-y-1">
-              {(t('about.v2_items', { returnObjects: true }) as string[]).map((item, i) => (
-                <li key={i}>{item}</li>
-              ))}
-            </ul>
-          </div>
-        </CardContent>
-      </Card>
+      <ReleaseChangelog />
 
       <Card>
         <CardHeader>
@@ -672,6 +650,76 @@ export const AboutPage: React.FC = () => {
     </div>
   );
 };
+
+const RELEASES_PAGE = 'https://github.com/DiceZone/Dice-Next/releases';
+
+function ReleaseChangelog() {
+  const { t } = useTranslation();
+  const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [notes, setNotes] = useState<ReleaseNote[]>([]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch(RECENT_RELEASES_URL, {
+      signal: controller.signal,
+      headers: { Accept: 'application/vnd.github+json' },
+    })
+      .then(async (response) => {
+        if (!response.ok) throw new Error(String(response.status));
+        return response.json() as Promise<unknown>;
+      })
+      .then((payload) => {
+        const parsed = recentReleaseNotes(payload);
+        if (parsed.length === 0) throw new Error('empty');
+        setNotes(parsed);
+        setState('ready');
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === 'AbortError') return;
+        setState('error');
+      });
+    return () => controller.abort();
+  }, []);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">{t('about.changelog_title')}</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4 text-sm text-muted-foreground">
+        <p>{t('about.changelog_recent')}</p>
+        {state === 'loading' && <p>{t('about.changelog_loading')}</p>}
+        {state === 'error' && (
+          <p>
+            {t('about.changelog_unavailable')}{' '}
+            <a className="text-primary hover:underline" href={RELEASES_PAGE} target="_blank" rel="noopener noreferrer">
+              {t('about.changelog_all')}
+            </a>
+          </p>
+        )}
+        {state === 'ready' && notes.map((release, index) => (
+          <div key={release.tag}>
+            {index > 0 && <Separator className="mb-4" />}
+            <p className="font-medium text-foreground">
+              <a className="hover:underline" href={release.url} target="_blank" rel="noopener noreferrer">
+                {release.tag}
+              </a>
+              {release.publishedOn && <span className="ml-2 font-normal text-muted-foreground">{release.publishedOn}</span>}
+            </p>
+            <p className="mt-1 whitespace-pre-wrap">{release.notes || t('about.changelog_no_detail')}</p>
+          </div>
+        ))}
+        {state === 'ready' && (
+          <p>
+            <a className="text-primary hover:underline" href={RELEASES_PAGE} target="_blank" rel="noopener noreferrer">
+              {t('about.changelog_all')}
+            </a>
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 // Beta testers — nickname shown, QQ used to load the avatar.
 const TESTERS: { name: string; qq: string }[] = [

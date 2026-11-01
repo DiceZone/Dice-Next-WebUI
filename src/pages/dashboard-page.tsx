@@ -12,7 +12,7 @@ import { panelQueryClient, panelKeys } from '@/lib/query-client';
 import { apiClient } from '@/lib/api-client';
 import type { DashboardStats } from '@/types/dashboard';
 import { Button } from '@/components/ui/button';
-import { Clock, LayoutDashboard, MessagesSquare, PlugZap } from 'lucide-react';
+import { Clock, LayoutDashboard, MessagesSquare, PlugZap, Scroll, Users, UsersRound } from 'lucide-react';
 import { navigatePanel } from '@/lib/panel-navigation';
 
 function formatUptime(seconds: number): string {
@@ -41,26 +41,30 @@ export const DashboardPage: React.FC = () => {
       </div>}
 
       {loading && !stats ? (
-        <div data-tour="dashboard-summary" className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          {[...Array(3)].map((_, i) => (
+        <div data-tour="dashboard-summary" className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6 sm:gap-4">
+          {[...Array(6)].map((_, i) => (
             <div key={i} className="h-24 animate-pulse rounded-lg bg-muted" />
           ))}
         </div>
       ) : (
-        <section data-tour="dashboard-summary" aria-label={t('dashboard.title')} className="grid shrink-0 grid-cols-3 gap-2 sm:gap-4">
+        <section data-tour="dashboard-summary" aria-label={t('dashboard.title')} className="grid shrink-0 grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-4 xl:grid-cols-6">
           <StatCard icon={PlugZap} label={t('dashboard.online_adapters')}
             value={`${stats?.active_connections ?? 0} / ${stats?.total_adapters ?? 0}`} />
+          <StatCard icon={Users} label={t('dashboard.user_count')} value={stats?.player_count ?? 0} />
+          <StatCard icon={UsersRound} label={t('dashboard.group_count')} value={stats?.group_count ?? 0} />
+          <StatCard icon={Scroll} label={t('dashboard.log_count')}
+            value={`${stats?.active_logs ?? 0} / ${stats?.total_logs ?? 0}`} />
           <StatCard icon={MessagesSquare} label={t('dashboard.total_commands')} value={stats?.total_commands ?? 0} />
           <StatCard icon={Clock} label={t('dashboard.uptime')} value={stats ? formatUptime(stats.uptime_seconds) : '--'} />
         </section>
       )}
 
-      <div className="grid min-w-0 flex-1 gap-4 lg:grid-cols-[minmax(300px,0.85fr)_minmax(0,1.65fr)]">
-        <div className="min-w-0 space-y-4">
-          <div data-tour="dashboard-server"><ServerInfo /></div>
+      <div className="grid min-w-0 flex-1 items-stretch gap-4 lg:grid-cols-[minmax(300px,0.85fr)_minmax(0,1.65fr)]">
+        <div className="flex min-w-0 flex-col gap-4 lg:h-full">
+          <div data-tour="dashboard-server" className="flex min-h-0 flex-1 flex-col"><ServerInfo /></div>
           <QuickActions onNavigate={navigatePanel} />
         </div>
-        <div data-tour="dashboard-logs" className="min-w-0"><RecentLogs logs={stats?.recent_logs ?? []} /></div>
+        <div data-tour="dashboard-logs" className="min-w-0 lg:h-full"><RecentLogs logs={stats?.recent_logs ?? []} /></div>
       </div>
     </div>
   );

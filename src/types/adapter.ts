@@ -28,6 +28,8 @@ export interface Adapter {
   autoAcknowledgeInteractions?: boolean;
   qqRichReplies?: 'off' | 'markdown' | 'math';
   qqInteractions?: 'off' | 'links' | 'buttons';
+  /** 官方机器人收事件的方式。缺省按 Gateway。 */
+  qqReceiveMode?: 'gateway' | 'webhook';
   personaSelection?: 'all' | 'selected' | 'none';
   selectablePersonaIds?: number[];
   defaultPersonaId?: number;
@@ -57,6 +59,8 @@ export interface AdapterFormData {
   autoAcknowledgeInteractions?: boolean;
   qqRichReplies?: 'off' | 'markdown' | 'math';
   qqInteractions?: 'off' | 'links' | 'buttons';
+  /** 官方机器人收事件的方式。缺省按 Gateway。 */
+  qqReceiveMode?: 'gateway' | 'webhook';
   personaSelection?: 'all' | 'selected' | 'none';
   selectablePersonaIds?: number[];
   defaultPersonaId?: number;

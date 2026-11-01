@@ -25,9 +25,9 @@ function loadColor(pct: number): string {
 }
 
 /** Tiny dependency-free area sparkline. Values are 0–100. */
-const Sparkline: React.FC<{ data: number[]; className?: string }> = ({ data, className }) => {
+const Sparkline: React.FC<{ data: number[]; className?: string; tall?: boolean }> = ({ data, className, tall }) => {
   const w = 100, h = 20;
-  if (data.length < 2) return <div className="h-5" />;
+  if (data.length < 2) return <div className={tall ? 'min-h-16 flex-1' : 'h-5'} />;
   const step = w / (HISTORY - 1);
   const pts = data.map((v, i) => {
     const x = (i + (HISTORY - data.length)) * step;
@@ -38,7 +38,7 @@ const Sparkline: React.FC<{ data: number[]; className?: string }> = ({ data, cla
   const first = pts[0].split(',')[0];
   const last = pts[pts.length - 1].split(',')[0];
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className={cn('h-5 w-full', className)}>
+    <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className={cn('w-full', tall ? 'h-full min-h-16 flex-1' : 'h-5', className)}>
       <polygon points={`${first},${h} ${line} ${last},${h}`} fill="currentColor" className="opacity-15" />
       <polyline points={line} fill="none" stroke="currentColor" strokeWidth={1.5}
         strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
@@ -47,12 +47,12 @@ const Sparkline: React.FC<{ data: number[]; className?: string }> = ({ data, cla
 };
 
 /** One resource: header row (icon + label + %), detail, progress bar, curve. */
-const ResourceMeter: React.FC<{ icon: LucideIcon; label: string; pct: number; detail: string; history: number[] }>
-  = ({ icon: Icon, label, pct, detail, history }) => {
+const ResourceMeter: React.FC<{ icon: LucideIcon; label: string; pct: number; detail: string; history: number[]; tall?: boolean }>
+  = ({ icon: Icon, label, pct, detail, history, tall }) => {
   const clamped = Math.min(100, Math.max(0, pct));
   const color = loadColor(clamped);
   return (
-    <div className="min-w-0 space-y-2">
+    <div className={cn('min-w-0 space-y-2', tall && 'flex h-full min-h-[10.5rem] flex-col')}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm font-medium"><Icon className="h-4 w-4 text-muted-foreground" />{label}</div>
         <div className="text-sm font-semibold tabular-nums">{Math.round(clamped)}%</div>
@@ -61,7 +61,7 @@ const ResourceMeter: React.FC<{ icon: LucideIcon; label: string; pct: number; de
       <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
         <div className={cn('h-full rounded-full bg-current transition-all', color)} style={{ width: `${clamped}%` }} />
       </div>
-      <Sparkline data={history} className={color} />
+      <Sparkline data={history} tall={tall} className={cn(color, tall && 'mt-auto')} />
     </div>
   );
 };
@@ -105,8 +105,8 @@ export const ServerInfo: React.FC = () => {
   ].filter(Boolean).join(' · ');
 
   return (
-    <Card>
-      <CardHeader className="flex-row flex-wrap items-center justify-between gap-3 p-4 pb-3">
+    <Card className="flex h-full min-h-0 flex-col">
+      <CardHeader className="flex shrink-0 flex-row flex-wrap items-center justify-between gap-3 p-4 pb-3">
         <CardTitle className="text-sm flex items-center gap-2"><Server className="h-4 w-4 text-muted-foreground" />{t('dashboard.server_info')}</CardTitle>
         <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
           <img src={logoSrc} alt="" className="h-4 w-4 shrink-0 object-contain"
@@ -114,10 +114,10 @@ export const ServerInfo: React.FC = () => {
           <span className="truncate">{info.os}</span>
         </div>
       </CardHeader>
-      <CardContent className="grid grid-cols-2 gap-3 p-4 pt-0">
-        <ResourceMeter icon={Cpu} label={t('dashboard.cpu')} pct={cpuKnown ? info.cpu_load : 0}
+      <CardContent className="grid min-h-0 flex-1 grid-cols-2 gap-3 p-4 pt-0 lg:grid-rows-[minmax(10.5rem,1fr)_auto]">
+        <ResourceMeter tall icon={Cpu} label={t('dashboard.cpu')} pct={cpuKnown ? info.cpu_load : 0}
           detail={cpuDetail} history={cpuHistory} />
-        <ResourceMeter icon={MemoryStick} label={t('dashboard.memory')} pct={info.mem_load}
+        <ResourceMeter tall icon={MemoryStick} label={t('dashboard.memory')} pct={info.mem_load}
           detail={`${fmtMB(info.mem_used_mb)} / ${fmtMB(info.mem_total_mb)}${info.mem_speed_mhz ? ` · ${info.mem_speed_mhz} MHz` : ''}`}
           history={memHistory} />
 

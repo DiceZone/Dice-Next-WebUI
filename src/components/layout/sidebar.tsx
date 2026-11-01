@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -104,6 +104,23 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPath, onNavigate, mobil
     if (active && isGroup(active)) setExpandedGroup(active.labelKey);
   }, [currentPath]);
 
+  const mobileNavRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (!mobile || !mobileMenuOpen) return;
+    let second = 0;
+    const first = requestAnimationFrame(() => {
+      second = requestAnimationFrame(() => {
+        const nav = mobileNavRef.current;
+        const current = nav?.querySelector<HTMLElement>('[aria-current="page"]');
+        if (!nav || !current) return;
+        const navBox = nav.getBoundingClientRect();
+        const itemBox = current.getBoundingClientRect();
+        nav.scrollTop = Math.max(0, nav.scrollTop + (itemBox.top - navBox.top) - (navBox.height - itemBox.height) / 2);
+      });
+    });
+    return () => { cancelAnimationFrame(first); cancelAnimationFrame(second); };
+  }, [mobile, mobileMenuOpen, currentPath]);
+
   const go = (path: string) => {
     onNavigate(path);
     if (window.innerWidth < 1024) onMobileMenuChange(false);
@@ -133,7 +150,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPath, onNavigate, mobil
               <DialogPrimitive.Title className="flex items-center gap-2"><img src="./favicon.svg" alt="" className="h-7 w-7" /><BrandWordmark /><span className="sr-only">{t('header.panel_title')}</span></DialogPrimitive.Title>
               <DialogPrimitive.Close asChild><Button variant="ghost" size="icon" aria-label={t('common.close')}><X className="h-5 w-5" /></Button></DialogPrimitive.Close>
             </div>
-            <nav aria-label={t('header.panel_title')} className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-4 py-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+            <nav ref={mobileNavRef} aria-label={t('header.panel_title')} className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-4 py-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
               {[
                 { labelKey: 'v2.navigation.workspace', children: NAV.filter((node): node is Leaf => !isGroup(node) && !['/roadmap', '/about'].includes(node.path)) },
                 ...NAV.filter(isGroup),

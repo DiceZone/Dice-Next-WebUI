@@ -1,13 +1,15 @@
 import type { ImgHTMLAttributes } from 'react';
 import { cn } from '@/lib/utils';
 
+const platformIcon = (name: string) => `${import.meta.env.BASE_URL}platform-icons/${name}`;
+
 const PLATFORM_META: Record<string, { label: string; icon: string }> = {
-  onebot_v11: { label: 'QQ / OneBot', icon: '/platform-icons/onebot.svg' },
-  milky: { label: 'Milky', icon: '/platform-icons/milky.svg' },
-  qq_official: { label: 'QQ 官方机器人', icon: '/platform-icons/qq-official.svg' },
-  discord: { label: 'Discord', icon: '/platform-icons/discord.svg' },
-  kook: { label: 'KOOK', icon: '/platform-icons/kook.svg' },
-  openopq: { label: 'QQ 内置登录', icon: '/platform-icons/onebot.svg' },
+  onebot_v11: { label: 'QQ / OneBot', icon: platformIcon('onebot.svg') },
+  milky: { label: 'Milky', icon: platformIcon('milky.svg') },
+  qq_official: { label: 'QQ 官方机器人', icon: platformIcon('qq-official.svg') },
+  discord: { label: 'Discord', icon: platformIcon('discord.svg') },
+  kook: { label: 'KOOK', icon: platformIcon('kook.svg') },
+  openopq: { label: 'QQ 内置登录', icon: platformIcon('onebot.svg') },
 };
 
 const PLATFORM_ALIASES: Record<string, string> = {
