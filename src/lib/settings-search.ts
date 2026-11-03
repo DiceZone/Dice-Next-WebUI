@@ -305,6 +305,7 @@ export const SETTINGS_SEARCH_ENTRIES: SettingsSearchEntry[] = [
   e('settings-segment-length', '/settings', 'nav.settings', 'settings.seg_len', '分段长度 分段長度 segment length', 'settings.seg_len_desc'),
   e('settings-nick-wrap', '/settings', 'nav.settings', 'settings.nick_wrap', '昵称括号 暱稱括號 nickname wrapper name format', 'settings.nick_wrap_desc'),
   e('settings-message-format', '/settings', 'nav.settings', 'settings.message_format_title', 'markdown md 富文本 富卡片 传统文本 傳統文本 plain card message format qq官方', 'settings.message_format_desc_global', true),
+  e('settings-qq-sn', '/settings', 'nav.settings', 'qq_sn.title', 'sn setsn 名片 状态 狀態 红色小字 紅色小字 引用 quote 普通文字 自定义格式 自訂格式 QQ官方 san hp dex 顶部 頂部', 'qq_sn.help'),
   e('settings-bot-message', '/settings', 'nav.settings', 'bot_message.title', 'BotMsg bot .bot 附加说明 附加說明 页眉 頁首 页脚 頁尾 版本信息 版本資訊 strBotMsg strBotHeader introduction footer header', 'bot_message.description'),
   e('settings-response-switches', '/settings', 'nav.settings', 'settings.sec_reply', '响应开关 響應開關 静默 靜默 silent jrrp me deck draw send help bot off'),
   e('settings-deck-display', '/settings', 'nav.settings', 'global_search.deck_display_title', '牌堆显示 牌堆顯示 deck display hide underscore metadata author title 元数据 元資料', 'global_search.deck_display_desc'),

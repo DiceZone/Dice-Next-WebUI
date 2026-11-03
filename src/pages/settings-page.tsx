@@ -1,4 +1,5 @@
 import { CleanupSettingsCard } from '@/components/settings/cleanup-settings-card';
+import { SnBannerPreview, snBannerStyles, normalizeSnStyle, validSnTemplate, SN_FORMULA_EXAMPLE, type SnBannerStyle } from '@/components/settings/sn-banner-preview';
 import { useTourState, useTourActive } from '@/components/onboarding/tour-data';
 import { useRequestGate } from '@/hooks/use-request-gate';
 import { tourSamples } from '@/lib/tour-samples';
@@ -210,6 +211,81 @@ const BotMessageCard: React.FC<ScopedCardProps> = (scopeProps) => {
             <RotateCcw className="mr-1.5 h-3.5 w-3.5" />{t('settings.scope_reset')}
           </Button>}
           <Button size="sm" onClick={() => void save()} disabled={scopeUnavailable(scopeProps)}>{t('common.save')}</Button>
+        </div>
+      </CardContent>
+    </fieldset>
+  </Card>;
+};
+
+const SnBannerCard: React.FC<ScopedCardProps> = (scopeProps) => {
+  const { t } = useTranslation();
+  const toast = useToast();
+  const [mode, setMode] = useTourState<SnBannerStyle>('small_red', 'small_red');
+  const [template, setTemplate] = useTourState('> {sn}', '> {sn}');
+  const [overridden, setOverridden] = useTourState(false, false);
+  const [saving, setSaving] = React.useState(false);
+  const gate = useRequestGate(scopedQuery(scopeProps));
+  const saveLock = React.useRef(false);
+  const id = React.useId();
+  const apply = (data: any) => {
+    setMode(normalizeSnStyle(data.values?.qq_sn_banner));
+    setTemplate(typeof data.values?.qq_sn_template === 'string' ? data.values.qq_sn_template : '> {sn}');
+    setOverridden(['qq_sn_banner', 'qq_sn_template'].some(key => Object.prototype.hasOwnProperty.call(data.overrides || {}, key)));
+  };
+  const { ready, status } = useScopedLoader(scopeProps, apply);
+  const valid = validSnTemplate(template);
+  const save = async (reset = false) => {
+    if (!ready || scopeUnavailable(scopeProps) || saveLock.current || (!reset && !valid)) return;
+    saveLock.current = true; setSaving(true);
+    const current = gate.start();
+    try {
+      const data = await putJson('/system/global', scopedBody(scopeProps,
+        reset ? {} : { qq_sn_banner: mode, qq_sn_template: template },
+        reset ? ['qq_sn_banner', 'qq_sn_template'] : undefined));
+      if (current()) { apply(data); toast({ title: t('common.save_success') }); }
+    } catch (e) {
+      if (current()) toast({ title: (e as Error).message, variant: 'destructive' });
+    } finally { saveLock.current = false; if (current()) setSaving(false); }
+  };
+  return <Card data-setting-anchor="settings-qq-sn">
+    <CardHeader>
+      <CardTitle className="flex items-center gap-2 text-base">{t('qq_sn.title')}
+        <FeatureHelp title={t('qq_sn.title')} description={<><p>{t('qq_sn.help')}</p><p>{t('qq_sn.fallback')}</p></>} />
+      </CardTitle>
+      <CardDescription>{t('qq_sn.description')}</CardDescription>
+    </CardHeader>
+    {status}
+    <fieldset disabled={!ready || saving} className="min-w-0">
+      <CardContent className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor={`${id}-mode`}>{t('qq_sn.mode')}</Label>
+          <Select value={mode} disabled={!ready || saving || scopeUnavailable(scopeProps)} onValueChange={v => setMode(normalizeSnStyle(v))}>
+            <SelectTrigger id={`${id}-mode`}><SelectValue /></SelectTrigger>
+            <SelectContent>{snBannerStyles.map(style => <SelectItem key={style} value={style}>{t(`qq_sn.${style}`)}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+        {(mode === 'custom' || !valid) && <div className="space-y-2">
+          <Label htmlFor={`${id}-template`}>{t('qq_sn.template')}</Label>
+          <Textarea id={`${id}-template`} rows={3} className="font-mono text-sm" value={template}
+            onChange={e => setTemplate(e.target.value)} aria-invalid={!valid} aria-describedby={`${id}-help`} />
+          <p id={`${id}-help`} className="text-xs text-muted-foreground">{t('qq_sn.template_help')}</p>
+          {!valid && <p role="alert" className="text-sm text-destructive">{t('qq_sn.invalid')}</p>}
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" onClick={() => setTemplate('> {sn}')}>{t('qq_sn.example_quote')}</Button>
+            <Button size="sm" variant="outline" onClick={() => setTemplate(SN_FORMULA_EXAMPLE)}>{t('qq_sn.example_math')}</Button>
+          </div>
+        </div>}
+        <div className="space-y-2">
+          <Label>{t('qq_sn.preview')}</Label>
+          <SnBannerPreview mode={mode} template={template} sample={t('qq_sn.sample')} reply={t('qq_sn.sample_reply')} />
+          <p className="text-xs text-muted-foreground">{t('qq_sn.preview_hint')}</p>
+        </div>
+        <p className="text-xs text-muted-foreground">{t('qq_sn.fallback')}</p>
+        <div className="flex flex-wrap justify-end gap-2">
+          {scopeProps.scope !== 'global' && overridden && <Button size="sm" variant="outline" onClick={() => void save(true)}>
+            <RotateCcw className="mr-1.5 h-3.5 w-3.5" />{t('settings.scope_reset')}
+          </Button>}
+          <Button size="sm" disabled={!valid || scopeUnavailable(scopeProps)} onClick={() => void save()}>{t('common.save')}</Button>
         </div>
       </CardContent>
     </fieldset>
@@ -1555,6 +1631,7 @@ export const SettingsPage: React.FC = () => {
         overridden={settingsScope !== 'global' && Object.prototype.hasOwnProperty.call(globalOverrides, 'message_format')}
         onReset={() => void resetGlobalScope(['message_format'])} />
       <BotMessageCard key={`BotMessageCard:${scopeKey}`} {...currentScopeProps} />
+      <SnBannerCard key={`SnBannerCard:${scopeKey}`} {...currentScopeProps} />
       {renderGlobalGroup('响应开关')}
       {renderGlobalGroup('牌堆 / 显示')}
       </SettingsPanel>

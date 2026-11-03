@@ -2654,5 +2654,26 @@
     "error_forbidden": "This account has no access to this panel.",
     "error_unbound": "This account is not bound to this panel.",
     "error_save": "Cannot save the sign-in state. Check write permission for the config directory."
+  },
+  "qq_sn": {
+    "title": "Official QQ SN status line",
+    "description": "Show character status above official QQ replies after a player enables .sn.",
+    "help": "Players use .sn or /sn in a group to enable their status line, and .sn off to disable it. .setsn sets group attributes; .sn {nick} SAN{san} sets personal content. These settings change presentation without opting everyone in. Account overrides platform, which overrides global. Saves apply without restarting. Other platforms still update group cards.",
+    "mode": "Display format",
+    "small_red": "Small red text",
+    "quote": "Quote",
+    "plain": "Plain text",
+    "custom": "Custom format",
+    "off": "Hide status line",
+    "template": "Custom Markdown format",
+    "template_help": "Insert {sn} for Markdown-escaped status text. Inside a formula, use {sn_tex} within \\text{…} to escape formula characters in names. Include at least one placeholder; maximum 2048 UTF-8 bytes. Switching presets keeps your custom format.",
+    "example_quote": "Insert quote example",
+    "example_math": "Insert formula example",
+    "invalid": "Include {sn} or {sn_tex} and keep the format within 2048 UTF-8 bytes.",
+    "preview": "Appearance preview",
+    "sample": "Shia SAN50 HP0/0 DEX0",
+    "sample_reply": "Shia rolls: D100=50",
+    "preview_hint": "Sample data; real status comes from the active character. Final Markdown and formula rendering depends on the QQ client.",
+    "fallback": "Styles require Markdown. Traditional text, .bot text plain, or a rejected formatted send uses plain status text instead of formula code."
   }
 }

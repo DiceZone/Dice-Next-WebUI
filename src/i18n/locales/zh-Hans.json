@@ -2611,5 +2611,26 @@
     "error_forbidden": "该账号没有本后台的登录权限。",
     "error_unbound": "该账号尚未绑定本后台。",
     "error_save": "无法保存登录状态，请检查 config 目录的写入权限。"
+  },
+  "qq_sn": {
+    "title": "QQ 官方 SN 状态行",
+    "description": "玩家启用 .sn 后，在 QQ 官方回复顶部显示人物卡状态。",
+    "help": "群内用 .sn 或 /sn 开启自己的状态行，.sn off 关闭；.setsn 配置群默认属性，.sn {nick} SAN{san} 可设置个人内容。这里只控制外观，不会自动为所有玩家开启。按账号 > 适配器类型 > 全局生效，保存后无需重启。其他平台仍按原规则修改群名片。",
+    "mode": "显示格式",
+    "small_red": "红色小字",
+    "quote": "引用",
+    "plain": "普通文字",
+    "custom": "自定义格式",
+    "off": "关闭状态行",
+    "template": "自定义 Markdown 格式",
+    "template_help": "用 {sn} 插入状态文字，自动转义 Markdown。公式内使用 {sn_tex}，放在 \\text{…} 中；它会转义昵称中的公式字符。至少包含一个占位符，最多 2048 字节。切换预设不会清除自定义格式。",
+    "example_quote": "插入引用示例",
+    "example_math": "插入公式示例",
+    "invalid": "请填写包含 {sn} 或 {sn_tex} 的格式，且不超过 2048 字节。",
+    "preview": "外观预览",
+    "sample": "希亚 SAN50 HP0/0 DEX0",
+    "sample_reply": "希亚 掷骰：D100=50",
+    "preview_hint": "示例数据，实际状态来自当前人物卡。公式与 Markdown 的最终显示以 QQ 客户端为准。",
+    "fallback": "红色小字和引用等样式需要 Markdown。传统文本方案、.bot text plain 或格式发送被拒绝时，会退回普通状态文字，不发送公式代码。"
   }
 }

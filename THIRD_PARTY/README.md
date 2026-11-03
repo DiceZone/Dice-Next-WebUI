@@ -1,5 +1,9 @@
 # Vendored frontend source
 
+- KaTeX 0.16.47 is installed through npm for the on-demand SN custom-formula
+  preview (MathML only, `trust: false`). MIT, see KaTeX-LICENSE.txt.
+  Source: https://github.com/KaTeX/KaTeX
+
 - Tremor Raw LineChart and its local helpers: https://github.com/tremorlabs/tremor
   commit `ca4d588f47820ff3d514d37fa4ee08a4222dec11`, Apache-2.0 (including upstream notices in Tremor-LICENSE.txt).
   Modification: Remix arrow icons use equivalent existing Lucide icons. Integration

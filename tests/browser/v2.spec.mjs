@@ -2,6 +2,67 @@ import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 const manifest = JSON.parse(readFileSync(new URL('../../src/routes/route-manifest.json', import.meta.url)));
 
+test('official SN presets and custom format persist with scoped overrides', async ({ page }) => {
+  const global = { qq_sn_banner: 'small_red', qq_sn_template: '> {sn}' };
+  const scoped = {};
+  const writes = [];
+  await page.route('**/api/system/global**', async route => {
+    const body = route.request().method() === 'PUT' ? route.request().postDataJSON() : null;
+    const query = new URL(route.request().url()).searchParams;
+    const scope = body?.scope || query.get('scope') || 'global';
+    const target = body?.target || query.get('target') || '';
+    const key = `${scope}:${target}`;
+    const overrides = scope === 'global' ? global : (scoped[key] ??= {});
+    if (body) {
+      writes.push(body);
+      Object.assign(overrides, body.values);
+      for (const clear of body.clear || []) delete overrides[clear];
+    }
+    await route.fulfill({ json: { code: 0, data: {
+      values: { message_format: 'standard', ...global, ...overrides },
+      overrides: scope === 'global' ? {} : overrides,
+    } } });
+  });
+  await page.goto('/#/settings?focus=settings-qq-sn');
+  const card = page.locator('[data-setting-anchor="settings-qq-sn"]');
+  await expect(card).toBeVisible();
+  const choose = async label => {
+    await card.getByRole('combobox').click();
+    await page.getByRole('option', { name: label, exact: true }).click();
+  };
+  await expect(card.getByRole('combobox')).toContainText('红色小字');
+  await choose('引用');
+  await expect(card.locator('blockquote')).toContainText('SAN50');
+  await choose('自定义格式');
+  const input = card.getByRole('textbox');
+  await input.fill('**{sn}**');
+  await expect(card.getByTestId('sn-banner-preview').locator('strong')).toContainText('SAN50');
+  await choose('普通文字');
+  await choose('自定义格式');
+  await expect(input).toHaveValue('**{sn}**');
+  expect(writes).toHaveLength(0);
+  await card.getByRole('button', { name: '保存', exact: true }).click();
+  await expect.poll(() => writes.length).toBe(1);
+  await page.reload();
+  await expect(input).toHaveValue('**{sn}**');
+  await input.fill('没有变量');
+  await expect(card.getByRole('button', { name: '保存', exact: true })).toBeDisabled();
+  await card.getByRole('button', { name: '插入公式示例' }).click();
+  await expect(card.getByRole('math')).toBeVisible();
+  const scope = page.locator('[data-setting-anchor="settings-scope"]');
+  await scope.getByRole('button', { name: '分适配器', exact: true }).click();
+  await scope.getByRole('combobox').click();
+  await page.getByRole('option', { name: /QQ 官方/ }).click();
+  await choose('关闭状态行');
+  await card.getByRole('button', { name: '保存', exact: true }).click();
+  await expect.poll(() => writes.length).toBe(2);
+  expect(writes[1]).toMatchObject({ scope: 'adapter', target: 'qq_official', values: { qq_sn_banner: 'off' } });
+  await card.getByRole('button', { name: /恢复继承|恢复为继承|恢复上级/ }).click();
+  await expect(card.getByRole('combobox')).toContainText('自定义格式');
+  await expect(input).toHaveValue('**{sn}**');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
 test('settings scope switches never duplicate reply or media cards', async ({ page }) => {
   const errors = [];
   page.on('console', event => { if (event.type() === 'error') errors.push(event.text()); });

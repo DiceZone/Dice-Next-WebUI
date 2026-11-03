@@ -22,7 +22,10 @@ const inlineMarkdown = (text: string, prefix: string): React.ReactNode[] => {
     else if (token.startsWith('`')) out.push(<code key={key} className="rounded bg-muted px-1 py-0.5 font-mono text-[0.9em]">{token.slice(1, -1)}</code>);
     else {
       const parsed = token.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
-      out.push(parsed ? <a key={key} href={parsed[2]} className="text-primary underline" target="_blank" rel="noreferrer">{unescapeMarkdown(parsed[1])}</a> : token);
+      // Preview text may contain custom templates. Never turn javascript:/data:
+      // or other executable protocols into clickable links.
+      const safe = parsed && /^(?:https?:\/\/|#)/i.test(parsed[2].trim());
+      out.push(parsed && safe ? <a key={key} href={parsed[2]} className="text-primary underline" target="_blank" rel="noreferrer">{unescapeMarkdown(parsed[1])}</a> : token);
     }
     last = start + token.length;
   }

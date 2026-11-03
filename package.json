@@ -54,6 +54,7 @@
     "clsx": "^2.1.0",
     "date-fns": "4.4.0",
     "i18next": "^23.11.5",
+    "katex": "0.16.47",
     "lucide-react": "^0.400.0",
     "motion": "14.6.0",
     "qrcode.react": "^4.2.0",
