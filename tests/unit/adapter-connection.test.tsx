@@ -3,7 +3,11 @@ import userEvent from '@testing-library/user-event';
 import { createInstance } from 'i18next';
 import { I18nextProvider } from 'react-i18next';
 import { describe, expect, it, vi } from 'vitest';
-import { adapterConnectionKey, officialWebhookUrl } from '../../src/lib/adapter-connection';
+import {
+  adapterConnectionKey,
+  officialWebhookUrl,
+  officialWebhookNeedsPublicUrl,
+} from '../../src/lib/adapter-connection';
 import { AdapterCard } from '../../src/components/adapter/adapter-card';
 import type { Adapter } from '../../src/types/adapter';
 import english from '../../src/i18n/locales/en.json';
@@ -21,6 +25,20 @@ const official: Adapter = {
   createdAt: '',
 };
 describe('Adapter connection details', () => {
+  it.each([
+    ['http://dice.example/', true],
+    ['http://127.0.0.1:18088/', true],
+    ['https://127.2.3.4/', true],
+    ['https://localhost/', true],
+    ['https://bot.localhost./', true],
+    ['https://[::1]/', true],
+    ['https://192.168.1.1/', true],
+    ['https://8.8.8.8/', true],
+    ['https://dice.example/bot/#/adapters', false],
+    ['https://localhost.example/', false],
+  ])('warns about unsuitable callback access at %s', (url, warning) => {
+    expect(officialWebhookNeedsPublicUrl(url)).toBe(warning);
+  });
   it.each([
     ['https://dice.example/#/adapters', 'https://dice.example/qq-official/webhook'],
     ['https://dice.example/bot/index.html?x=1#/adapters', 'https://dice.example/bot/qq-official/webhook'],
@@ -64,6 +82,7 @@ describe('Adapter connection details', () => {
     await user.click(screen.getByRole('button', { name: english.adapters.reverse_btn }));
     const address = screen.getByTestId('webhook-url').textContent!;
     expect(address).toBe(officialWebhookUrl(document.baseURI));
+    expect(screen.getByRole('alert')).toHaveTextContent(english.adapters.webhook_public_required);
     await user.click(screen.getByRole('button', { name: english.adapters.copy_callback }));
     expect(await navigator.clipboard.readText()).toBe(address);
   });

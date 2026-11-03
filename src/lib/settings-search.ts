@@ -350,6 +350,7 @@ export const SETTINGS_SEARCH_ENTRIES: SettingsSearchEntry[] = [
   e('page-webui', '/webui-settings', 'nav.webui', 'webui.title', 'webui 设置 設定 panel server login auth password port theme', 'webui.desc'),
   e('page-notice', '/notice-settings', 'nav.notice', 'noticeset.title', '通知设置 通知設定 notice notification smtp webhook audit window', 'noticeset.desc'),
   e('page-adapters', '/adapters', 'nav.adapters', 'adapters.title', '平台连接 平台連線 adapter onebot milky websocket webhook http qq official discord kook 账号 帳號 回调 回呼 扫码 AppID AppSecret 高级选项 反向 主动 被动', 'adapters.official_help', true),
+  e('adapters-webhook-https', '/adapters', 'nav.adapters', 'adapters.receive_mode', 'QQ Webhook HTTPS TLS 公网 公網 域名 網域 证书 憑證 localhost 回调 回呼', 'adapters.webhook_public_required', true),
   e('page-replies', '/replies', 'nav.custom_replies', 'replies.title', '高级回复 進階回覆 自定义回复 自訂回覆 回复 回覆 advanced custom reply template text markdown variables 自定义 自訂', 'replies.subtitle'),
   e('page-commands', '/commands', 'nav.commands', 'commands.title', '指令 命令 command alias enable disable reply text', 'commands.subtitle'),
   e('page-modules', '/modules', 'nav.modules', 'modules.title', '插件 plugin js javascript lua module extension config', 'modules.subtitle'),

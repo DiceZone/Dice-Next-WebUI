@@ -2,6 +2,23 @@ import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 const manifest = JSON.parse(readFileSync(new URL('../../src/routes/route-manifest.json', import.meta.url)));
 
+test('official webhook warns on local HTTP access without blocking the editor', async ({ page }) => {
+  await page.goto('/#/adapters');
+  const card = page.getByTestId('adapter-card').first();
+  await card.getByRole('button', { name: '更多操作', exact: true }).click();
+  await page.getByRole('menuitem', { name: '编辑', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.locator('#qqReceiveMode').click();
+  await page.getByRole('option', { name: 'Webhook', exact: true }).click();
+  await expect(dialog.getByRole('alert')).toContainText('公网 IP');
+  await expect(dialog.getByRole('alert')).toContainText('TLS');
+  await expect(dialog.getByRole('alert')).toContainText('WebSocket');
+  expect(await dialog.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+  await dialog.locator('#qqReceiveMode').click();
+  await page.getByRole('option', { name: 'WebSocket', exact: true }).click();
+  await expect(dialog.getByRole('alert')).toHaveCount(0);
+});
+
 test('official SN presets and custom format persist with scoped overrides', async ({ page }) => {
   const global = { qq_sn_banner: 'small_red', qq_sn_template: '> {sn}' };
   const scoped = {};

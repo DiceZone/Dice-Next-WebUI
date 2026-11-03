@@ -500,6 +500,7 @@
     "transport_websocket": "WebSocket",
     "official_help": "WebSocket 由骰子主動連線 QQ；Webhook 由 QQ 向骰子推送事件。",
     "webhook_help": "將下方回呼網址填入 QQ 開放平台的 Webhook 設定，並啟用此適配器。同一個 AppID 僅設定一個 Webhook 適配器。",
+    "webhook_public_required": "目前透過本機位址、IP 或 HTTP 存取面板，此網址不能直接用於 QQ Webhook。回呼伺服器必須有公網 IP，並為網域設定有效的 TLS 憑證，使用公網可存取的 HTTPS 網域網址；否則請選擇 WebSocket。若已設定反向代理，請從該 HTTPS 網域開啟面板後複製回呼網址。",
     "webhook_reachability": "網址按目前存取網域與部署路徑產生。請使用 QQ 可存取的公網網址；本機或內網網址不能直接用於回呼。反向代理須將此路徑轉送至骰子服務。",
     "websocket_help": "骰子主動建立 WebSocket 連線，無需填寫回呼網址。請確保伺服器能存取 QQ 開放平台。",
     "official_credentials_required": "請填寫 AppID 和 AppSecret，或切換到掃碼登入。",

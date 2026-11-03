@@ -19,6 +19,7 @@ import type { Adapter, AdapterFormData, AdapterType } from '@/types/adapter';
 import { PlatformIcon } from '@/components/platform-icon';
 import apiClient from '@/lib/api-client';
 import { officialWebhookUrl } from '@/lib/adapter-connection';
+import { OfficialWebhookWarning } from './official-webhook-warning';
 
 /** Auto-correct URL to proper ws:// or wss:// format */
 function normalizeUrl(raw: string): string {
@@ -407,6 +408,7 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
             </Select>
             {watch('qqReceiveMode') === 'webhook' && <div className="space-y-2 rounded-md bg-muted/30 p-3 text-xs">
               <p>{t('adapters.webhook_help')}</p>
+              <OfficialWebhookWarning />
               <code className="block select-text break-all">{officialWebhookUrl(document.baseURI)}</code>
             </div>}
           </div>

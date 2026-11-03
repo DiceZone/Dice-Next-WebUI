@@ -500,6 +500,7 @@
     "transport_websocket": "WebSocket",
     "official_help": "WebSocket connects from the bot to QQ; Webhook lets QQ deliver events to the bot.",
     "webhook_help": "Enter this callback URL in QQ Open Platform Webhook settings and enable the adapter. Configure only one Webhook adapter per AppID.",
+    "webhook_public_required": "You are accessing the panel through a local address, an IP address or HTTP. This URL cannot be used directly for QQ Webhook. The callback server needs a public IP and a domain with a valid TLS certificate, accessible over public HTTPS; otherwise choose WebSocket. If you have a reverse proxy, open the panel through its HTTPS domain before copying the callback URL.",
     "webhook_reachability": "Generated from the current domain and deployment path. Use a public address reachable by QQ, not localhost or a private address. Your reverse proxy must forward this path to the bot service.",
     "websocket_help": "The bot opens an outbound WebSocket connection. No callback URL is required. Ensure the server can reach QQ Open Platform.",
     "official_credentials_required": "Enter AppID and AppSecret, or switch to QR login.",

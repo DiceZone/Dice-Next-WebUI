@@ -500,6 +500,7 @@
     "transport_websocket": "WebSocket",
     "official_help": "WebSocket 由骰子主动连接 QQ；Webhook 由 QQ 向骰子推送事件。",
     "webhook_help": "将下方回调地址填写到 QQ 开放平台的 Webhook 配置，并启用此适配器。同一个 AppID 仅配置一个 Webhook 适配器。",
+    "webhook_public_required": "当前通过本机地址、IP 或 HTTP 访问面板，此地址不能直接用于 QQ Webhook。回调服务器必须有公网 IP，并为域名配置有效的 TLS 证书，使用公网可访问的 HTTPS 域名地址；否则请选择 WebSocket。若已配置反向代理，请从该 HTTPS 域名打开面板后复制回调地址。",
     "webhook_reachability": "地址按当前访问域名和部署路径生成。请使用 QQ 可访问的公网地址；本机或内网地址不能直接用于回调。反向代理须将此路径转发到骰子服务。",
     "websocket_help": "骰子主动建立 WebSocket 连接，无需填写回调地址。请确保服务器能访问 QQ 开放平台。",
     "official_credentials_required": "请填写 AppID 和 AppSecret，或切换到扫码登录。",

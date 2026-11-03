@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { officialWebhookUrl } from '@/lib/adapter-connection';
 import type { Adapter } from '@/types/adapter';
+import { OfficialWebhookWarning } from './official-webhook-warning';
 
 export function OfficialConnectionInfo({ adapter, onClose }: { adapter: Adapter | null; onClose: () => void }) {
   const { t } = useTranslation();
@@ -16,6 +17,7 @@ export function OfficialConnectionInfo({ adapter, onClose }: { adapter: Adapter 
       <DialogHeader><DialogTitle>{t('adapters.connection_mode')}</DialogTitle><DialogDescription>{adapter?.name} · {adapter?.qqReceiveMode === 'webhook' ? 'Webhook' : 'WebSocket'}</DialogDescription></DialogHeader>
       {adapter?.qqReceiveMode === 'webhook' ? <div className="space-y-4">
         <p className="text-sm text-muted-foreground">{t('adapters.webhook_help')}</p>
+        <OfficialWebhookWarning />
         <div className="flex min-w-0 items-center gap-2 rounded-lg border bg-muted/30 p-3">
           <code className="min-w-0 flex-1 break-all text-sm select-text" data-testid="webhook-url">{address}</code>
           <Button variant="ghost" size="icon" aria-label={t('adapters.copy_callback')} onClick={async () => {

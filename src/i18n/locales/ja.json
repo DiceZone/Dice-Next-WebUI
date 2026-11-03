@@ -500,6 +500,7 @@
     "transport_websocket": "WebSocket",
     "official_help": "WebSocket はボットから QQ に接続し、Webhook は QQ からイベントを受信します。",
     "webhook_help": "このコールバック URL を QQ Open Platform の Webhook 設定に入力し、アダプターを有効にしてください。同じ AppID には Webhook アダプターを 1 つだけ設定します。",
+    "webhook_public_required": "現在、ローカルアドレス、IP アドレスまたは HTTP でパネルにアクセスしています。この URL は QQ Webhook に直接使用できません。コールバックサーバーには公開 IP と有効な TLS 証明書を設定したドメインが必要で、公開 HTTPS で到達できる必要があります。それ以外は WebSocket を選択してください。リバースプロキシを設定済みの場合、その HTTPS ドメインからパネルを開いて URL をコピーしてください。",
     "webhook_reachability": "現在のドメインと配置パスから生成します。QQ から到達できる公開 URL を使用してください。ローカル URL は使用できません。リバースプロキシはこのパスをボットへ転送する必要があります。",
     "websocket_help": "ボットが WebSocket 接続を開始します。コールバック URL は不要です。QQ Open Platform に接続できることを確認してください。",
     "official_credentials_required": "AppID と AppSecret を入力するか、QR ログインに切り替えてください。",

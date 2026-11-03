@@ -60,6 +60,7 @@ describe('Adapter editor', () => {
       await waitFor(() => expect(submit).toHaveBeenCalledTimes(1));
       expect(close).toHaveBeenCalledWith(false);
       if (type === 'qq_official') {
+        expect(screen.getByRole('alert')).toHaveTextContent(english.adapters.webhook_public_required);
         expect(submit.mock.calls[0][0]).toMatchObject({
           qqReceiveMode: 'webhook',
           qqRichReplies: 'off',
