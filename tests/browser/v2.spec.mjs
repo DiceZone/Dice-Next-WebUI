@@ -2,6 +2,71 @@ import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 const manifest = JSON.parse(readFileSync(new URL('../../src/routes/route-manifest.json', import.meta.url)));
 
+test('settings scope switches never duplicate reply or media cards', async ({ page }) => {
+  const errors = [];
+  page.on('console', event => { if (event.type() === 'error') errors.push(event.text()); });
+  await page.goto('/#/settings?focus=settings-message-format');
+  const scope = page.locator('[data-setting-anchor="settings-scope"]');
+  const format = page.locator('[data-setting-anchor="settings-message-format"]');
+  await expect(format).toBeVisible();
+  for (let cycle = 0; cycle < 4; cycle++) {
+    for (const name of ['分适配器', '分账号', '全局']) {
+      await scope.getByRole('button', { name, exact: true }).click();
+      await expect(scope.getByRole('button', { name, exact: true })).toHaveAttribute('aria-pressed', 'true');
+      await expect(format).toHaveCount(1);
+      await expect(page.locator('[data-setting-anchor="settings-bot-message"]')).toHaveCount(1);
+    }
+  }
+  expect(errors.filter(text => /same key|Encountered two children/.test(text))).toEqual([]);
+  await expect(format).toBeVisible();
+});
+
+test('server information loads visibly and keeps actual curve samples across navigation', async ({ page }) => {
+  let release;
+  const held = new Promise(done => { release = done; });
+  let count = 0;
+  await page.route('**/api/system/sysinfo', async route => {
+    const response = await route.fetch();
+    const body = await response.json();
+    body.data.cpu_load = 20 + (++count);
+    if (count === 1) await held;
+    await route.fulfill({ json: body });
+  });
+  await page.goto('/#/');
+  const server = page.locator('[data-tour="dashboard-server"]');
+  await expect(server.getByRole('status')).toBeVisible();
+  release();
+  const curve = server.locator('svg[viewBox="0 0 100 20"] polyline').first();
+  await expect.poll(async () => (await curve.getAttribute('points'))?.split(' ').length).toBeGreaterThanOrEqual(2);
+  const oldPoints = await curve.getAttribute('points');
+  await page.evaluate(() => { location.hash = '/settings'; });
+  await expect(page.locator('[data-setting-anchor="settings-scope"]')).toBeVisible();
+  await page.evaluate(() => { location.hash = '/'; });
+  await expect(curve).toBeVisible();
+  expect((await curve.getAttribute('points')).split(' ').length).toBeGreaterThanOrEqual(oldPoints.split(' ').length);
+  await expect(server.getByRole('status')).toHaveCount(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+test('random source selection saves explicitly and survives a page reload', async ({ page }) => {
+  let source = 'system', saves = 0;
+  await page.route('**/api/system/random-source', async route => {
+    if (route.request().method() === 'PUT') { source = route.request().postDataJSON().source; saves++; }
+    await route.fulfill({ json: { code: 0, data: { source } } });
+  });
+  await page.goto('/#/dice-rules?focus=dice-random-source');
+  const card = page.locator('[data-setting-anchor="dice-random-source"]');
+  await expect(card.getByRole('combobox')).toContainText('操作系统安全随机');
+  await card.getByRole('combobox').click();
+  await page.getByRole('option', { name: 'OpenSSL 安全随机', exact: true }).click();
+  expect(saves).toBe(0);
+  await card.getByRole('button', { name: '保存', exact: true }).click();
+  await expect.poll(() => saves).toBe(1);
+  await page.reload();
+  await expect(card.getByRole('combobox')).toContainText('OpenSSL');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
 test('mobile top bar keeps theme, languages and page tour in the more menu', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 740 });
   await page.goto('/#/');
@@ -163,6 +228,41 @@ test('dialog enters from above without moving horizontally; reduced motion is ho
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.getByRole('button', { name: '自定义常用操作', exact: true }).click();
   expect(await page.getByRole('dialog').evaluate(el => parseFloat(getComputedStyle(el).animationDuration))).toBeLessThan(0.001);
+});
+
+test('cleanup settings separate retention from platform actions and persist group inactivity', async ({ page }) => {
+  let settings = { days: 0, groupDays: 0, userRecordDays: 0, groupRecordDays: 0, groupLimit: 20, maxGroupSize: 0 }, saves = 0;
+  await page.route('**/api/system/friend-clean', async route => {
+    if (route.request().method() === 'PUT') { settings = route.request().postDataJSON(); saves++; }
+    await route.fulfill({ json: { code: 0, data: settings } });
+  });
+  await page.goto('/#/settings?tab=advanced&focus=settings-friend-clean');
+  const card = page.locator('[data-setting-anchor="settings-friend-clean"]');
+  await expect(card.getByText('本地记录保留', { exact: true })).toBeVisible();
+  await expect(card.getByText('平台清理操作', { exact: true })).toBeVisible();
+  await card.locator('#cleanup-groupDays').fill('45');
+  await card.locator('#cleanup-userRecordDays').fill('180');
+  await card.getByRole('button', { name: '保存', exact: true }).click();
+  await expect.poll(() => saves).toBe(1);
+  await page.reload();
+  await expect(card.locator('#cleanup-groupDays')).toHaveValue('45');
+  await expect(card.locator('#cleanup-userRecordDays')).toHaveValue('180');
+  await expect(card.locator('#cleanup-days')).toHaveValue('0');
+});
+
+test('dialog and editable inputs use a white light surface and retain a dark surface', async ({ page }, info) => {
+  await page.goto('/#/replies');
+  await page.getByRole('button', { name: '添加回复', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+  const input = dialog.locator('textarea').first();
+  await expect(input).toBeEditable();
+  const surfaces = await dialog.evaluate(el => [getComputedStyle(el).backgroundColor,
+    getComputedStyle(el.querySelector('textarea')).backgroundColor]);
+  if (info.project.name === 'dark') {
+    expect(surfaces[0]).not.toBe('rgb(255, 255, 255)');
+    expect(surfaces[1]).toBe(surfaces[0]);
+  } else expect(surfaces).toEqual(['rgb(255, 255, 255)', 'rgb(255, 255, 255)']);
 });
 test.beforeEach(async ({ page }, info) => {
   await page.addInitScript((theme) => {

@@ -11,11 +11,11 @@ const module = { exports: {} };
 vm.runInNewContext(compiled, { module, exports: module.exports });
 
 test('official event switches keep safe defaults in schemas and edit/reset values', () => {
-  assert.match(form, /subscribeGroupMemberEvents: z\.boolean\(\)\.optional\(\)\.default\(false\)/);
+  assert.match(form, /subscribeGroupMemberEvents: z\.boolean\(\)\.optional\(\)\.default\(true\)/);
   assert.match(form, /autoAcknowledgeInteractions: z\.boolean\(\)\.optional\(\)\.default\(true\)/);
   for (const field of ['subscribeGroupMemberEvents', 'autoAcknowledgeInteractions']) {
     assert.equal([...form.matchAll(new RegExp(`${field}: adapter\\?\\.${field}`, 'g'))].length, 2);
-    assert.match(form, new RegExp(`${field}: current\\.${field}`));
+    assert.match(form, /handleFormSubmit\(adapterFormSchema\.parse/);
   }
 });
 
@@ -33,5 +33,5 @@ test('all supported languages explain subscription permissions and callback owne
     }
   }
   assert.match(copy['zh-Hans'].autoAcknowledgeInteractions_desc, /不会把回调数据自动当成指令执行/);
-  assert.match(copy['zh-Hans'].subscribeGroupMemberEvents_desc, /默认关闭/);
+  assert.match(copy['zh-Hans'].subscribeGroupMemberEvents_desc, /新建时默认开启/);
 });

@@ -14,6 +14,7 @@ import { navigatePanel } from '@/lib/panel-navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, PlugZap } from 'lucide-react';
 import type { Adapter, AdapterFormData } from '@/types/adapter';
+import { OfficialConnectionInfo } from '@/components/adapter/official-connection-info';
 
 export const AdaptersPage: React.FC = () => {
   const { t } = useTranslation();
@@ -26,6 +27,7 @@ export const AdaptersPage: React.FC = () => {
   const toast = useToast();
   const [formOpen, setFormOpen] = useState(false);
   const [editingAdapter, setEditingAdapter] = useState<Adapter | null>(null);
+  const [newWebhook, setNewWebhook] = useState<Adapter | null>(null);
   const [reverseWsPort, setReverseWsPort] = useState<string | null>(null);
   const [builtinLogin, setBuiltinLogin] = useState<{ id: string; name: string } | null>(null);
   const { network, refresh: refreshNetwork, readCache: readNetworkCache } = useServerNetworkInfo();
@@ -52,6 +54,7 @@ export const AdaptersPage: React.FC = () => {
       toast({ title: t('adapters.added') });
       // 内置登录建好就直接进入扫码
       if (created?.type === 'openopq') setBuiltinLogin({ id: created.id, name: created.name });
+      if (created?.type === 'qq_official' && created.qqReceiveMode === 'webhook') setNewWebhook(created);
     }
     catch (e) { toast({ title: t('adapters.add_fail'), variant: 'destructive' }); throw e; }
   };
@@ -122,6 +125,7 @@ export const AdaptersPage: React.FC = () => {
       </div>
       <AdapterForm open={formOpen} onOpenChange={setFormOpen}
         onSubmit={editingAdapter ? handleUpdate : handleCreate} adapter={editingAdapter} />
+      <OfficialConnectionInfo adapter={!formOpen ? newWebhook : null} onClose={() => setNewWebhook(null)} />
       <ReverseWsInfo open={!!reverseWsPort} onClose={() => setReverseWsPort(null)} port={reverseWsPort ?? ''}
         network={network} onRefresh={refreshNetwork} />
       <OpenOpqLogin adapterId={builtinLogin?.id ?? null} adapterName={builtinLogin?.name} onClose={() => setBuiltinLogin(null)} />

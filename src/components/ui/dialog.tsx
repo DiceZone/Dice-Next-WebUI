@@ -57,7 +57,7 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        'v2-dialog fixed left-[50%] top-[50%] z-50 grid max-h-[calc(100dvh-2rem)] min-w-0 w-[calc(100%-2rem)] max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 overflow-y-auto rounded-lg border bg-background p-6 shadow-lg [scrollbar-gutter:stable] transition-none',
+        'v2-dialog fixed left-[50%] top-[50%] z-50 grid max-h-[calc(100dvh-2rem)] min-w-0 w-[calc(100%-2rem)] max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 overflow-y-auto rounded-lg border bg-card p-6 shadow-lg [scrollbar-gutter:stable] transition-none',
         // Dynamic previews, validation and filtered lists must not repeatedly
         // resize/recenter the window while typing. Only editors opt in; small
         // prompts and confirmation dialogs still size naturally to content.

@@ -1,3 +1,4 @@
+import { CleanupSettingsCard } from '@/components/settings/cleanup-settings-card';
 import { useTourState, useTourActive } from '@/components/onboarding/tour-data';
 import { useRequestGate } from '@/hooks/use-request-gate';
 import { tourSamples } from '@/lib/tour-samples';
@@ -22,7 +23,6 @@ import {
   Image, Type, Server, Clock, Layers3, RotateCcw,
   ArrowUp, ArrowDown,
 } from 'lucide-react';
-import { apiClient } from '@/lib/api-client';
 import { IdentityEmailSettings } from '@/components/identity-email-settings';
 import { TraySettingsCard } from '@/components/tray-settings';
 import { PlatformIcon, platformLabel } from '@/components/platform-icon';
@@ -653,7 +653,7 @@ export const SettingsPage: React.FC = () => {
   const [expressionSources, setExpressionSources] = useTourState<Record<string, string>>({}, {});
   const [savingExpression, setSavingExpression] = useTourState(false, false);
   // — Prefixes —
-  const [prefixes, setPrefixes] = useTourState<string[]>([], ['.', '。']);
+  const [prefixes, setPrefixes] = useTourState<string[]>([], ['.', '。', '!', '！', '/']);
   const [savingPrefix, setSavingPrefix] = useTourState(false, false);
   // — Timezone (server/timezone_minutes; null = follow system) —
   const [tzMinutes, setTzMinutes] = useTourState<number | null>(null, null);
@@ -1507,12 +1507,12 @@ export const SettingsPage: React.FC = () => {
       </fieldset>
 
       {/* 用户群 */}
-      <UserGroupCard key={scopeKey} {...currentScopeProps}
+      <UserGroupCard key={`UserGroupCard:${scopeKey}`} {...currentScopeProps}
         overridden={settingsScope !== 'global' && ['user_group', 'user_group_enforce', 'user_group_invite'].some((key) => Object.prototype.hasOwnProperty.call(globalOverrides, key))}
         onReset={() => void resetGlobalScope(['user_group', 'user_group_enforce', 'user_group_invite'])} />
       {renderGlobalGroup('事件响应')}
       {/* 自动清理好友与群聊 */}
-      <FriendCleanCard />
+      <CleanupSettingsCard />
       </SettingsPanel>
       <SettingsPanel value="reply">
       <SectionHeading>{t('settings.sec_reply')}</SectionHeading>
@@ -1551,10 +1551,10 @@ export const SettingsPage: React.FC = () => {
         </SettingRow>
       </SettingGroup>
 
-      <MessageFormatCard key={scopeKey} {...currentScopeProps}
+      <MessageFormatCard key={`MessageFormatCard:${scopeKey}`} {...currentScopeProps}
         overridden={settingsScope !== 'global' && Object.prototype.hasOwnProperty.call(globalOverrides, 'message_format')}
         onReset={() => void resetGlobalScope(['message_format'])} />
-      <BotMessageCard key={scopeKey} {...currentScopeProps} />
+      <BotMessageCard key={`BotMessageCard:${scopeKey}`} {...currentScopeProps} />
       {renderGlobalGroup('响应开关')}
       {renderGlobalGroup('牌堆 / 显示')}
       </SettingsPanel>
@@ -1567,16 +1567,16 @@ export const SettingsPage: React.FC = () => {
       </SettingGroup>
 
       {/* 图片发送方式 */}
-      <ImageSendCard key={scopeKey} {...currentScopeProps}
+      <ImageSendCard key={`ImageSendCard:${scopeKey}`} {...currentScopeProps}
         overridden={settingsScope !== 'global' && Object.prototype.hasOwnProperty.call(globalOverrides, 'image_send')}
         onReset={() => void resetGlobalScope(['image_send'])} />
 
       {/* 图床 */}
-      <ImageHostCard key={scopeKey} {...currentScopeProps}
+      <ImageHostCard key={`ImageHostCard:${scopeKey}`} {...currentScopeProps}
         overridden={settingsScope !== 'global' && Object.prototype.hasOwnProperty.call(globalOverrides, 'image_host')}
         onReset={() => void resetGlobalScope(['image_host'])} />
       {/* 聊天记录保留期 */}
-      <ChatRetentionCard key={scopeKey} {...currentScopeProps}
+      <ChatRetentionCard key={`ChatRetentionCard:${scopeKey}`} {...currentScopeProps}
         overridden={settingsScope !== 'global' && ['chat_retention_days', 'chat_persist'].some((key) => Object.prototype.hasOwnProperty.call(globalOverrides, key))}
         onReset={() => void resetGlobalScope(['chat_retention_days', 'chat_persist'])} />
       </SettingsPanel>
@@ -1699,70 +1699,6 @@ const ChatRetentionCard: React.FC<ScopedCardProps> = (scopeProps) => {
         </div>
       </CardContent>
       </fieldset>
-    </Card>
-  );
-};
-
-// ── C#52: 自动清理好友与群聊 ─────────────────────────────────────
-const FriendCleanCard: React.FC = () => {
-  const { t } = useTranslation();
-  const toast = useToast();
-  const [days, setDays] = useTourState(0, 0);
-  const [groupLimit, setGroupLimit] = useTourState(20, 20);
-  const [maxGroupSize, setMaxGroupSize] = useTourState(0, 0);
-  const [saving, setSaving] = useTourState(false, false);
-  useEffect(() => {
-    (async () => {
-      try {
-        const d = await apiClient.get<{ days: number; groupLimit: number; maxGroupSize: number }>('/system/friend-clean');
-        setDays(d.data.days ?? 0);
-        setGroupLimit(d.data.groupLimit ?? 20);
-        setMaxGroupSize(d.data.maxGroupSize ?? 0);
-      }
-      catch { /* ignore */ }
-    })();
-  }, []);
-  const save = async () => {
-    setSaving(true);
-    try {
-      const d = await apiClient.put<{ days: number; groupLimit: number; maxGroupSize: number }>('/system/friend-clean', { days, groupLimit, maxGroupSize });
-      setDays(d.data.days); setGroupLimit(d.data.groupLimit); setMaxGroupSize(d.data.maxGroupSize);
-      toast({ title: t('common.save_success') });
-    }
-    catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
-    finally { setSaving(false); }
-  };
-  return (
-    <Card data-setting-anchor="settings-friend-clean">
-      <CardHeader>
-        <CardTitle className="text-base flex items-center gap-1.5">{t('friendclean.title')}
-          <FeatureHelp title={t('friendclean.title')} description={<><p>{t('friendclean.desc')}</p><p>{t('friendclean.hint')}</p></>} />
-        </CardTitle>
-        <CardDescription>{t('friendclean.desc')}</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <div className="space-y-1">
-            <Label className="text-xs">{t('friendclean.days')}</Label>
-            <Input type="number" min={0} max={3650} className="h-9"
-              value={days} onChange={(e) => setDays(Math.max(0, parseInt(e.target.value) || 0))} />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">{t('friendclean.group_limit')}</Label>
-            <Input type="number" min={0} max={10000} className="h-9"
-              value={groupLimit} onChange={(e) => setGroupLimit(Math.max(0, parseInt(e.target.value) || 0))} />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">{t('friendclean.max_group_size')}</Label>
-            <Input type="number" min={0} max={100000} className="h-9"
-              value={maxGroupSize} onChange={(e) => setMaxGroupSize(Math.max(0, parseInt(e.target.value) || 0))} />
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-xs text-muted-foreground">{t('friendclean.hint')}</p>
-          <Button size="sm" onClick={save} disabled={saving}>{t('common.save')}</Button>
-        </div>
-      </CardContent>
     </Card>
   );
 };

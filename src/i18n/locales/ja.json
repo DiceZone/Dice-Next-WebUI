@@ -421,6 +421,7 @@
     "phase_up_to_date": "最新版"
   },
   "common": {
+    "retry": "再試行",
     "refresh": "更新",
     "back": "戻る",
     "download": "ダウンロード",
@@ -467,6 +468,7 @@
     "ok": "OK"
   },
   "dashboard": {
+    "cached_snapshot": "前回のキャッシュを表示中",
     "physical": "物理コア",
     "logical": "論理コア",
     "total_commands": "応答コマンド数",
@@ -492,6 +494,27 @@
     "no_logs": "ログなし"
   },
   "adapters": {
+    "copy_callback": "コールバック URL をコピー",
+    "receive_mode": "イベント受信方式",
+    "transport_webhook": "Webhook",
+    "transport_websocket": "WebSocket",
+    "official_help": "WebSocket はボットから QQ に接続し、Webhook は QQ からイベントを受信します。",
+    "webhook_help": "このコールバック URL を QQ Open Platform の Webhook 設定に入力し、アダプターを有効にしてください。同じ AppID には Webhook アダプターを 1 つだけ設定します。",
+    "webhook_reachability": "現在のドメインと配置パスから生成します。QQ から到達できる公開 URL を使用してください。ローカル URL は使用できません。リバースプロキシはこのパスをボットへ転送する必要があります。",
+    "websocket_help": "ボットが WebSocket 接続を開始します。コールバック URL は不要です。QQ Open Platform に接続できることを確認してください。",
+    "official_credentials_required": "AppID と AppSecret を入力するか、QR ログインに切り替えてください。",
+    "qr_label": "QQ 公式ボットのログイン QR コード",
+    "qr_loading": "QR コードを取得中…",
+    "qr_start": "QR コードでログイン",
+    "qr_switch": "QR ログインに切り替え",
+    "qr_hint": "スマートフォンの QQ で読み取ると、認証後に保存して接続します。",
+    "manual_input": "手動入力：",
+    "and": " と ",
+    "advanced_options": "詳細設定",
+    "validation_failed": "保存できません。入力を確認してください：",
+    "qr_saved": "QQ 公式ボットを保存しました",
+    "qr_failed": "QQ 公式 QR ログインに失敗しました",
+    "qr_error": "QR ログインを開始できません。もう一度お試しください。",
     "openopq_transport": "接続方式",
     "openopq_transport_hint": "Dice!Next とプロトコルクライアントの接続方式です。現在配布中のクライアントは正方向 WebSocket のみ対応しています。逆方向 WebSocket はクライアント側の対応が必要です。",
     "openopq_transport_forward": "正方向 WebSocket（既定）",
@@ -618,8 +641,8 @@
     "detail_enabled": "有効状態",
     "detail_created": "作成日時",
     "detail_internal_id": "内部アダプター ID",
-    "detail_official_gateway": "QQ公式 Gateway WebSocket",
-    "detail_gateway": "Gateway WebSocket",
+    "detail_official_gateway": "WebSocket",
+    "detail_gateway": "WebSocket",
     "detail_managed_endpoint": "プラットフォームにより自動管理",
     "detail_bdc_cloud": "BDC クラウドサービス",
     "bdc_cloud_connected": "BDC クラウド接続済み",
@@ -627,6 +650,11 @@
     "bdc_cloud_disconnected": "BDC クラウド未接続"
   },
   "dice": {
+    "random_title": "ダイスの乱数源",
+    "random_system": "OS の安全な乱数（既定）",
+    "random_openssl": "OpenSSL の安全な乱数",
+    "random_hint": "Dice!Next・OneDice・DiceScript のダイスに全体適用され、保存後すぐに反映されます。",
+    "random_help": "既定では OS の安全な乱数 API を使用し、エンジンごとに大きな乱数状態を保持しません。OpenSSL は独自の安全な生成器を使います。いずれも物理雑音を直接読むハードウェア真性乱数とは異なります。取得失敗時はロールを中止し、通常の疑似乱数に切り替えません。プラグイン独自の乱数、日替わり運勢、プレビュー例には適用されません。",
     "title": "ダイスルール",
     "subtitle": "各TRPGシステムのダイスロールルールを設定",
     "reset_default": "既定に戻す",
@@ -1576,7 +1604,7 @@
     "timezone_auto": "システムに従う",
     "timezone_hint": "保存後すぐに反映されます。時刻はUTCで保存され、表示・アップロード時にこのタイムゾーンで変換されます。",
     "prefix_title": "コマンド接頭辞",
-    "prefix_desc": "コマンドを示す接頭辞（例 . 。 ! ！）。メッセージはこのいずれかで始まるとコマンドとして扱われます。",
+    "prefix_desc": "コマンドを示す接頭辞（例 . 。 ! ！ /）。メッセージはこのいずれかで始まるとコマンドとして扱われます。",
     "prefix_add": "接頭辞を追加",
     "prefix_hint": "接頭辞は1文字を推奨；最低1つは残してください。",
     "approval_title": "友達 / グループ招待の承認",
@@ -1929,6 +1957,7 @@
     "delete_confirm": "ヘルプ文書「{{name}}」を削除しますか？"
   },
   "commands": {
+    "status_bar_help": "QQ 公式のグループで .sn または /sn を実行すると、以後の返信の先頭に現在のキャラクター状態を表示します。.sn off で解除でき、全体設定の切替は不要です。他の対応プラットフォームでは実際のグループ表示名を更新します。特定のロール文面に属性を追加する場合は、編集画面の「詳細設定」から「ステータスバーを挿入」を選び、[[bar:HP|{hp}|{hpmax}]] を追加します。送信時に現在のキャラクター値を読み取ります。",
     "title": "コマンド一覧",
     "subtitle": "例付きの全コマンド；ロール返信文はここでカスタマイズ可能（変数対応、ワンクリックでリセット）。",
     "compat_note": "OlivaDice（青果）と SealDice（海豹）のコマンド形式に完全互換。",
@@ -2549,12 +2578,26 @@
     "hint": "OneBot には標準のグループ招待カード API がないため、案内は個別チャットのテキスト（グループ番号入り）で送信されます。"
   },
   "friendclean": {
-    "title": "友達とグループの自動整理",
-    "desc": "長期間利用のない友達を削除し、ブラックリストとグループ規模の規則に従って自動退出します。",
-    "days": "友達の非アクティブ日数",
-    "group_limit": "1回の退出上限",
-    "max_group_size": "最大グループ人数",
-    "hint": "0 は対応する制限を無効にします。12時間ごとに確認し、マスターと信頼ユーザーは友達整理の対象外です。"
+    "title": "フレンド・グループ・ローカル記録の自動整理",
+    "desc": "ローカル記録の保持期間とプラットフォーム操作は個別設定です。既定では無効。0 以外の期限や人数上限で有効になります。",
+    "days": "フレンドのコマンド未使用期間（日）",
+    "group_limit": "1 回で退出する最大グループ数（件）",
+    "max_group_size": "この人数を超えたグループを退出（人）",
+    "hint": "全体設定。起動約 5～6 分後に初回、その後 12 時間ごとに確認。管理者・信頼/許可ユーザー、許可/整理免除/無視グループ、記録中のログがあるグループを保護。定期タスクは独立しています。",
+    "records": "ローカル記録の保持",
+    "records_hint": "管理一覧の資料のみを整理し、フレンド削除やグループ退出は行いません。キャラクター、セッションログ、グループルール・権限は保持。新しいメッセージで再登録します。",
+    "user_record_days": "非アクティブなユーザー記録の保持（日）",
+    "user_record_hint": "0 = 無効。最終受信時刻を使い、不明な場合はコマンド・登録時刻を参照。プロフィール内の名前、好感度、カウンターも削除します。",
+    "group_record_days": "非アクティブなグループ記録の保持（日）",
+    "group_record_hint": "0 = 無効。最終メッセージ・コマンド時刻を使用し、設定を保持して一覧資料を整理。信頼できる活動時刻がない記録は対象外です。",
+    "platform_actions": "プラットフォーム操作",
+    "actions_hint": "以下は実際にフレンドを削除・グループを退出します。対応 API がある接続済みアダプターのみで実行します。",
+    "days_hint": "0 = 削除しない。保護対象外で期限を超えたフレンドのみ。コマンド記録がなければ登録時刻を使用し、不明な場合は対象外です。",
+    "group_days": "グループのコマンド未使用期間（日）",
+    "group_days_hint": "0 = 非アクティブによる退出なし。このボットアカウントが受信したコマンド時刻を使用し、通常会話は含みません。記録なしは対象外です。",
+    "max_size_hint": "0 = 人数による退出なし。メンバー数が設定値を超えた場合に退出。ボットが参加できるグループ数ではありません。",
+    "group_limit_hint": "0 = 件数無制限であり、無効ではありません。上限に達した残りは次回の確認に回します。",
+    "migration": "旧 Dice の InactiveUserLine / InactiveGroupLine はローカル保持期限、GroupClearLimit は 1 回の退出上限として移行。保持期限からフレンド削除・退出を有効にはしません。既存の移行済み定期タスクは変更しません。"
   },
   "sso": {
     "title": "外部アカウントでのログイン",

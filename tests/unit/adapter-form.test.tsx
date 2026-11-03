@@ -19,13 +19,13 @@ const adapter: Adapter = {
   heartApiKeyConfigured: true,
 };
 
-async function editor(submit = vi.fn(async () => {})) {
+async function editor(submit = vi.fn(async () => {}), fixture: Adapter = adapter) {
   const i18n = createInstance();
   await i18n.init({ lng: 'en', resources: { en: { translation: english } } });
   const close = vi.fn();
   render(
     <I18nextProvider i18n={i18n}>
-      <AdapterForm open adapter={adapter} onOpenChange={close} onSubmit={submit} />
+      <AdapterForm open adapter={fixture} onOpenChange={close} onSubmit={submit} />
     </I18nextProvider>,
   );
   return {
@@ -36,7 +36,67 @@ async function editor(submit = vi.fn(async () => {})) {
   };
 }
 
-describe('V2 real adapter editor', () => {
+describe('Adapter editor', () => {
+  it.each(['onebot_v11', 'milky', 'qq_official', 'discord', 'kook'] as const)(
+    'saves %s with the empty OpenOPQ transport returned by the API',
+    async (type) => {
+      const { user, save, submit, close } = await editor(
+        vi.fn(async () => {}),
+        {
+          ...adapter,
+          type,
+          openopqTransport: '' as Adapter['openopqTransport'],
+          appId: '123456',
+          qqReceiveMode: 'webhook',
+          endpoint: type === 'milky' ? 'http://localhost:3000' : adapter.endpoint,
+          eventEndpoint: 'ws://localhost:3000/event',
+          qqRichReplies: 'off',
+          qqInteractions: 'links',
+          subscribeGroupMemberEvents: false,
+          autoAcknowledgeInteractions: false,
+        },
+      );
+      await user.click(save);
+      await waitFor(() => expect(submit).toHaveBeenCalledTimes(1));
+      expect(close).toHaveBeenCalledWith(false);
+      if (type === 'qq_official') {
+        expect(submit.mock.calls[0][0]).toMatchObject({
+          qqReceiveMode: 'webhook',
+          qqRichReplies: 'off',
+          qqInteractions: 'links',
+          subscribeGroupMemberEvents: false,
+          autoAcknowledgeInteractions: false,
+        });
+        expect(submit.mock.calls[0][0]).not.toHaveProperty('qqNumber');
+        expect(submit.mock.calls[0][0]).not.toHaveProperty('appSecret');
+      }
+    },
+  );
+  it('keeps advanced settings collapsed and switches between credentials and a square QR area', async () => {
+    const { user, save, submit } = await editor(
+      vi.fn(async () => {}),
+      { ...adapter, type: 'qq_official', appId: '123456' },
+    );
+    expect(screen.queryByRole('switch', { name: /./ })).not.toHaveAttribute('id', 'forceVerifyImageResource');
+    const advanced = screen.getByRole('button', { name: english.adapters.advanced_options });
+    expect(advanced).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByLabelText('qqNumber')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: english.adapters.qr_switch }));
+    expect(screen.queryByLabelText('AppID')).not.toBeInTheDocument();
+    expect(document.querySelector('.aspect-square')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Manually enter/ }));
+    expect(screen.getByLabelText('AppID')).toHaveValue('123456');
+    await user.click(advanced);
+    expect(advanced).toHaveAttribute('aria-expanded', 'true');
+    await user.click(save);
+    await waitFor(() => expect(submit).toHaveBeenCalledTimes(1));
+    expect(submit.mock.calls[0][0]).toMatchObject({
+      qqRichReplies: 'markdown',
+      qqInteractions: 'buttons',
+      subscribeGroupMemberEvents: true,
+      autoAcknowledgeInteractions: true,
+    });
+  });
   it('submits defaults without clearing an existing private key', async () => {
     const { user, save, submit, close } = await editor();
     await user.click(save);

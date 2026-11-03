@@ -1,5 +1,10 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { useTourState, useTourValue } from '@/components/onboarding/tour-data';
+import React from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useTourActive, useTourValue } from '@/components/onboarding/tour-data';
+import { panelQueryClient } from '@/lib/query-client';
+import { appendServerInfo, type ServerInfoHistory } from '@/lib/server-info-history';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
 import { tourSamples } from '@/lib/tour-samples';
 import { useTranslation } from 'react-i18next';
 import { Cpu, MemoryStick, HardDrive, Server } from 'lucide-react';
@@ -27,7 +32,7 @@ function loadColor(pct: number): string {
 /** Tiny dependency-free area sparkline. Values are 0–100. */
 const Sparkline: React.FC<{ data: number[]; className?: string; tall?: boolean }> = ({ data, className, tall }) => {
   const w = 100, h = 20;
-  if (data.length < 2) return <div className={tall ? 'min-h-5 flex-1' : 'h-5'} />;
+  if (!data.length) return <div className={tall ? 'min-h-5 flex-1' : 'h-5'} />;
   const step = w / (HISTORY - 1);
   const pts = data.map((v, i) => {
     const x = (i + (HISTORY - data.length)) * step;
@@ -38,24 +43,28 @@ const Sparkline: React.FC<{ data: number[]; className?: string; tall?: boolean }
   const first = pts[0].split(',')[0];
   const last = pts[pts.length - 1].split(',')[0];
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className={cn('w-full', tall ? 'h-full min-h-5 flex-1' : 'h-5', className)}>
+    <div className={cn('relative w-full', tall ? 'min-h-5 flex-1' : 'h-5', className)}>
+    <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
       <polygon points={`${first},${h} ${line} ${last},${h}`} fill="currentColor" className="opacity-15" />
       <polyline points={line} fill="none" stroke="currentColor" strokeWidth={1.5}
         strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+      {data.length === 1 && <circle cx={100} cy={h - data[0] / 100 * h} r={1.5} fill="currentColor" />}
     </svg>
+    </div>
   );
 };
 
 /** One resource: header row (icon + label + %), detail, progress bar, curve. */
 const ResourceMeter: React.FC<{ icon: LucideIcon; label: string; pct: number; detail: string; history: number[]; tall?: boolean }>
   = ({ icon: Icon, label, pct, detail, history, tall }) => {
-  const clamped = Math.min(100, Math.max(0, pct));
-  const color = loadColor(clamped);
+  const known = Number.isFinite(pct) && pct >= 0;
+  const clamped = known ? Math.min(100, pct) : 0;
+  const color = known ? loadColor(clamped) : 'text-muted-foreground';
   return (
     <div className={cn('min-w-0 space-y-2', tall && 'flex h-full flex-col')}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm font-medium"><Icon className="h-4 w-4 text-muted-foreground" />{label}</div>
-        <div className="text-sm font-semibold tabular-nums">{Math.round(clamped)}%</div>
+        <div className="text-sm font-semibold tabular-nums">{known ? `${Math.round(clamped)}%` : '—'}</div>
       </div>
       <div className="truncate text-xs text-muted-foreground" title={detail}>{detail}</div>
       <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
@@ -68,34 +77,26 @@ const ResourceMeter: React.FC<{ icon: LucideIcon; label: string; pct: number; de
 
 export const ServerInfo: React.FC = () => {
   const { t } = useTranslation();
-  const [info, setInfo] = useTourState<SystemInfo | null>(null, tourSamples.system);
-  const cpuHist = useRef<number[]>([]);
-  const memHist = useRef<number[]>([]);
-  const cpuHistory = useTourValue(cpuHist.current, tourSamples.cpuHistory);
-  const memHistory = useTourValue(memHist.current, tourSamples.memHistory);
-  const [, force] = useState(0);
+  const touring = useTourActive();
+  const query = useQuery({
+    queryKey: ['panel', 'server-info-history'], enabled: !touring,
+    queryFn: async () => {
+      const { data } = await apiClient.get<SystemInfo>('/system/sysinfo');
+      if (!data?.os || !Array.isArray(data.disks)) throw new Error('Invalid server information');
+      return appendServerInfo(panelQueryClient.getQueryData<ServerInfoHistory>(['panel', 'server-info-history']), data);
+    },
+    staleTime: POLL_MS, gcTime: typeof document === 'undefined' ? 0 : 30 * 60_000, refetchInterval: POLL_MS,
+  }, panelQueryClient);
+  const info = useTourValue(query.data?.info ?? null, tourSamples.system);
+  const cpuHistory = useTourValue(query.data?.cpu ?? [], tourSamples.cpuHistory);
+  const memHistory = useTourValue(query.data?.memory ?? [], tourSamples.memHistory);
 
-  useEffect(() => {
-    let alive = true;
-    const tick = async () => {
-      try {
-        const res = await apiClient.get<SystemInfo>('/system/sysinfo');
-        if (!alive) return;
-        const d = res.data;
-        setInfo(d);
-        const cpu = d.cpu_load < 0 ? 0 : d.cpu_load;
-        cpuHist.current = [...cpuHist.current, cpu].slice(-HISTORY);
-        memHist.current = [...memHist.current, d.mem_load].slice(-HISTORY);
-        force((n) => n + 1);
-      } catch { /* keep last snapshot */ }
-    };
-    void tick();
-    const id = setInterval(tick, POLL_MS);
-    return () => { alive = false; clearInterval(id); };
-  }, []);
-
-  if (!info || !info.os) return null;
-  const cpuKnown = info.cpu_load >= 0;
+  if (!info) return <Card className="h-full min-h-64 p-4" aria-busy={query.isPending}>
+    <CardTitle className="mb-4 text-sm">{t('dashboard.server_info')}</CardTitle>
+    {query.isError ? <div role="alert" className="space-y-3 text-sm text-destructive">{t('common.load_fail')}
+      <Button variant="outline" size="sm" onClick={() => void query.refetch()}>{t('common.retry')}</Button></div>
+      : <div role="status" aria-label={t('common.loading')} className="space-y-5"><div className="grid grid-cols-2 gap-4"><Skeleton className="h-28" /><Skeleton className="h-28" /></div><Skeleton className="h-12" /></div>}
+  </Card>;
   const LOGOS = new Set(['windows', 'ubuntu', 'debian', 'centos', 'rocky', 'server']);
   const logoSrc = `./os/${LOGOS.has(info.os_id) ? info.os_id : 'server'}.svg`;
   const cpuDetail = [
@@ -115,7 +116,8 @@ export const ServerInfo: React.FC = () => {
         </div>
       </CardHeader>
       <CardContent className="grid min-h-0 flex-1 grid-cols-2 gap-3 p-4 pt-0 lg:grid-rows-[minmax(0,1fr)_auto]">
-        <ResourceMeter tall icon={Cpu} label={t('dashboard.cpu')} pct={cpuKnown ? info.cpu_load : 0}
+        {!touring && query.isError && <p role="status" className="col-span-2 text-xs text-amber-600">{t('common.load_fail')} · {t('dashboard.cached_snapshot')}</p>}
+        <ResourceMeter tall icon={Cpu} label={t('dashboard.cpu')} pct={info.cpu_load}
           detail={cpuDetail} history={cpuHistory} />
         <ResourceMeter tall icon={MemoryStick} label={t('dashboard.memory')} pct={info.mem_load}
           detail={`${fmtMB(info.mem_used_mb)} / ${fmtMB(info.mem_total_mb)}${info.mem_speed_mhz ? ` · ${info.mem_speed_mhz} MHz` : ''}`}

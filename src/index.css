@@ -153,6 +153,8 @@
    separately so neither enter nor exit can overwrite the dialog's centering. */
 @keyframes v2-dialog-enter { from { opacity: 0; transform: translateY(-16px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes v2-dialog-exit { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-16px); } }
+/* Form controls inherit the dialog surface, not the gray page canvas. */
+.v2-dialog { --background: var(--card); }
 .v2-dialog[data-state="open"] { animation: v2-dialog-enter 180ms ease-out both; }
 .v2-dialog[data-state="closed"] { animation: v2-dialog-exit 140ms ease-in both; }
 @keyframes v2-menu-enter { from { opacity: 0; transform: translateY(-24px); } to { opacity: 1; transform: translateY(0); } }
@@ -161,6 +163,9 @@
 .v2-mobile-menu[data-state="closed"] { animation: v2-menu-exit 160ms ease-in both; }
 .v2-shell table thead { background-color: hsl(var(--muted) / .55); }
 .v2-shell table { background-color: hsl(var(--card)); }
+/* Opacity only: data arriving must not move controls or change layout. */
+@keyframes panel-content-enter { from { opacity: 0; } to { opacity: 1; } }
+.v2-card, .v2-shell main > *, .v2-shell tbody tr { animation: panel-content-enter 180ms ease-out; }
 .v2-shell table th { font-size: .75rem; font-weight: 600; letter-spacing: .015em; }
 .v2-shell table td { line-height: 1.6; }
 .v2-shell [data-responsive-tabs] { margin-bottom: .25rem; }

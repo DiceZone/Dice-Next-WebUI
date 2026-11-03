@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { DICE_RULE_GROUPS } from '@/types/dice';
 import type { DiceRules } from '@/types/dice';
 import { PageHeader } from '@/components/ui/page-header';
+import { RandomSourceCard } from '@/components/dice/random-source-card';
 
 export const DiceRulesPage: React.FC = () => {
   const { t } = useTranslation();
@@ -44,6 +45,7 @@ export const DiceRulesPage: React.FC = () => {
           <Button variant="outline" onClick={handleReset}>{t('dice.reset_default')}</Button>
           <Button onClick={handleSave} disabled={saving}>{saving ? t('common.saving') : t('dice.save_rules')}</Button>
         </div>} />
+      <RandomSourceCard />
       {localRules && (
         <div data-tour="dice-rule-groups">
           <Accordion type="multiple" value={accordionValue} onValueChange={setAccordionValue}>

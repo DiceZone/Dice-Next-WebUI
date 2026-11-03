@@ -54,7 +54,7 @@ test('BotMsg editor is discoverable in system settings and keeps scope/reset and
   assert.ok(card.includes('botMessageValues(message, header)'));
   assert.ok(card.includes("reset ? ['bot_msg', 'bot_header'] : undefined"));
   assert.ok(card.includes('saveLock.current')); assert.ok(card.includes('if (current())'));
-  assert.ok(source.includes('<BotMessageCard key={scopeKey} {...currentScopeProps} />'));
+  assert.ok(source.includes('<BotMessageCard key={`BotMessageCard:${scopeKey}`} {...currentScopeProps} />'));
   assert.equal(card.includes('changeLanguage('), false);
   for (const key of ['version', 'compiler', 'expression_order', 'default_locale']) assert.equal(card.includes(`\"${key}\"`), false);
 });

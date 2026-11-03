@@ -303,9 +303,9 @@ export const CommandsPage: React.FC = () => {
   );
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5" data-setting-anchor="commands-status-bar">
       {dlg.node}
-      <PageHeader icon={BookText} title={t('commands.title')} help={`${t('page_help.commands')}\n\n${t('commands.compat_note')}`}
+      <PageHeader icon={BookText} title={t('commands.title')} help={`${t('page_help.commands')}\n\n${t('commands.compat_note')}\n\n${t('commands.status_bar_help')}`}
         description={t('commands.subtitle')}
         actions={<div data-tour="commands-toolbar" className="grid grid-cols-2 items-center gap-2 md:flex md:flex-wrap">
           {/* persona being edited (default = global). Switching shows that persona's reply text. */}
@@ -822,7 +822,7 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
           </button>
           <ImageResourcePicker directory={personaId > 0 ? `text/persona-${personaId}` : 'text/default'} disabled={saving}
             className="h-7 border-dashed px-2 text-xs" onSelect={(entry) => insertRaw(entry.code)}>{t('commands.insert_image')}</ImageResourcePicker>
-          <button onClick={() => insertRaw('[[bar:HP|6|10]]')}
+          <button onClick={() => insertRaw('[[bar:HP|{hp}|{hpmax}]]')}
             className="inline-flex items-center gap-1 rounded border border-dashed px-2 py-1 text-xs hover:bg-muted transition-colors">
             {t('commands.insert_status_bar')}
           </button>

@@ -77,19 +77,20 @@ const state = {
   },
   '/dashboard/stats': { uptime_seconds: 3600, active_connections: 0, total_adapters: 2, total_commands: 0, total_rules: 0, active_sessions: 0, recent_logs: [] },
   '/system/sysinfo': tourSamples.system,
+  '/system/random-source': { source: 'system' },
   '/adapters': [{ id: 'preview-qq', name: '星灯 · 预览', type: 'qq_official', appId: 'preview', status: 'connected', enabled: false }, { id: 'preview-qq-two', name: '月海官方 · 预览', type: 'qq_official', appId: 'preview-two', status: 'connected', enabled: false }, { id: 'preview-onebot', name: '月海 · 预览', type: 'onebot_v11', loginId: '10000', enabled: false }],
   '/personas': [{ id: 1, name: '星灯', description: '本地预览人格', isBuiltin: false }, { id: 2, name: '月海', description: '本地预览人格', isBuiltin: false }],
   '/personas/active': { activeId: 0, globalId: 0, pool: [] },
   '/masters': { items: [{ platform: 'onebot_v11', id: '10001', nickname: '示例骰主' }], master_inherit: true },
-  '/system/prefixes': { prefixes: ['.', '。'] }, '/system/timezone': { offset_minutes: 480, effective_offset_minutes: 480 },
+  '/system/prefixes': { prefixes: ['.', '。', '!', '！', '/'] }, '/system/timezone': { offset_minutes: 480, effective_offset_minutes: 480 },
   '/system/global': { values: { message_format: 'standard', respond_group: true, respond_private: true, save_log_images: false, chat_retention_days: 7 }, overrides: {}, sources: {} },
   '/system/expression-engine': { mode: 'enhanced', order: ['dicemaid', 'sealdice', 'dicepp'], overrides: {}, sources: {} },
   '/system/events': { friend_policy: 'manual', group_invite_policy: 'whitelist', group_invite_reject_blacklist: true, welcome_min_delay: 2, welcome_min_cooldown: 30, overrides: {}, sources: {} },
-  '/system/censor': { enabled: false, rules: [] }, '/system/friend-clean': { days: 0, groupLimit: 0, maxGroupSize: 0 },
+  '/system/censor': { enabled: false, rules: [] }, '/system/friend-clean': { days: 0, groupDays: 0, userRecordDays: 0, groupRecordDays: 0, groupLimit: 20, maxGroupSize: 0 },
   '/system/identity-email': { enabled: false, host: '', port: 465, ssl: true, user: '', from: '', password_configured: false },
   '/system/nick-wrap': { prefix: '<', suffix: '>' }, '/system/reply-segment': { enabled: true, len: 600 },
 };
-const writable = new Set(['/system/prefixes', '/system/timezone', '/system/plugin-verify', '/system/js-fetch', '/system/autostart', '/system/quote-reply', '/system/auto-card', '/system/respond-self', '/system/forward-long', '/system/reply-segment', '/system/nick-wrap', '/system/censor', '/system/friend-clean', '/system/identity-email']);
+const writable = new Set(['/system/friend-clean', '/system/random-source', '/system/prefixes', '/system/timezone', '/system/plugin-verify', '/system/js-fetch', '/system/autostart', '/system/quote-reply', '/system/auto-card', '/system/respond-self', '/system/forward-long', '/system/reply-segment', '/system/nick-wrap', '/system/censor', '/system/friend-clean', '/system/identity-email']);
 const overrides = new Map();
 const requests = [];
 const helpDefaults = [

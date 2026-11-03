@@ -421,6 +421,7 @@
     "phase_up_to_date": "已是最新"
   },
   "common": {
+    "retry": "重試",
     "refresh": "重新整理",
     "back": "返回",
     "download": "下載",
@@ -467,6 +468,7 @@
     "ok": "確定"
   },
   "dashboard": {
+    "cached_snapshot": "顯示最近一次快取資料",
     "physical": "物理核",
     "logical": "邏輯核",
     "total_commands": "累計回應指令",
@@ -492,6 +494,27 @@
     "no_logs": "暫無日誌"
   },
   "adapters": {
+    "copy_callback": "複製回呼網址",
+    "receive_mode": "事件接收方式",
+    "transport_webhook": "Webhook",
+    "transport_websocket": "WebSocket",
+    "official_help": "WebSocket 由骰子主動連線 QQ；Webhook 由 QQ 向骰子推送事件。",
+    "webhook_help": "將下方回呼網址填入 QQ 開放平台的 Webhook 設定，並啟用此適配器。同一個 AppID 僅設定一個 Webhook 適配器。",
+    "webhook_reachability": "網址按目前存取網域與部署路徑產生。請使用 QQ 可存取的公網網址；本機或內網網址不能直接用於回呼。反向代理須將此路徑轉送至骰子服務。",
+    "websocket_help": "骰子主動建立 WebSocket 連線，無需填寫回呼網址。請確保伺服器能存取 QQ 開放平台。",
+    "official_credentials_required": "請填寫 AppID 和 AppSecret，或切換到掃碼登入。",
+    "qr_label": "QQ 官方機器人綁定二維碼",
+    "qr_loading": "正在取得二維碼…",
+    "qr_start": "點擊掃碼登入",
+    "qr_switch": "切換到掃碼登入",
+    "qr_hint": "請使用手機 QQ 掃碼，成功後會儲存並連線。",
+    "manual_input": "手動輸入",
+    "and": "與",
+    "advanced_options": "進階選項",
+    "validation_failed": "無法儲存，請檢查以下輸入：",
+    "qr_saved": "QQ 官方機器人已儲存",
+    "qr_failed": "QQ 官方機器人掃碼綁定失敗",
+    "qr_error": "無法建立掃碼任務，請稍後重試。",
     "openopq_transport": "連線方式",
     "openopq_transport_hint": "Dice!Next 與協議端之間的連線方式。目前發佈的協議端僅支援正向 WebSocket；反向 WebSocket 須協議端支援。",
     "openopq_transport_forward": "正向 WebSocket（預設）",
@@ -618,8 +641,8 @@
     "detail_enabled": "啟用狀態",
     "detail_created": "建立時間",
     "detail_internal_id": "內部適配器 ID",
-    "detail_official_gateway": "QQ 官方 Gateway WebSocket",
-    "detail_gateway": "Gateway WebSocket",
+    "detail_official_gateway": "WebSocket",
+    "detail_gateway": "WebSocket",
     "detail_managed_endpoint": "由平台自動管理",
     "detail_bdc_cloud": "BDC 雲端服務",
     "bdc_cloud_connected": "BDC 雲端服務已連線",
@@ -627,6 +650,11 @@
     "bdc_cloud_disconnected": "BDC 雲端服務未連線"
   },
   "dice": {
+    "random_title": "擲骰隨機來源",
+    "random_system": "作業系統安全隨機（預設）",
+    "random_openssl": "OpenSSL 安全隨機",
+    "random_hint": "全域套用至 Dice!Next、OneDice 與 DiceScript 擲骰；儲存後立即生效。",
+    "random_help": "預設呼叫系統安全隨機介面，不額外保存大量隨機數狀態。OpenSSL 使用自己的安全隨機產生器。兩者都是安全隨機來源，不等同於直接讀取物理雜訊的硬體真隨機；來源異常時停止本次擲骰，不降級為普通偽隨機。外掛自行產生的隨機數、每日運勢和預覽範例不受此選項控制。",
     "title": "骰子規則",
     "subtitle": "設定各 TRPG 系統的擲骰規則",
     "reset_default": "恢復預設",
@@ -1576,7 +1604,7 @@
     "timezone_auto": "跟隨系統",
     "timezone_hint": "儲存後即時生效；儲存的時間仍為 UTC，顯示與上傳按此處時區換算。",
     "prefix_title": "指令前綴",
-    "prefix_desc": "比對指令的前綴（如 . 。 ! ！）。訊息以任一前綴開頭才會被當作指令。",
+    "prefix_desc": "比對指令的前綴（如 . 。 ! ！ /）。訊息以任一前綴開頭才會被當作指令。",
     "prefix_add": "新增前綴",
     "prefix_hint": "每個前綴建議 1 個字元；至少保留一個。",
     "approval_title": "好友 / 加群邀請審批",
@@ -1929,6 +1957,7 @@
     "delete_confirm": "確定要刪除幫助文件「{{name}}」嗎？"
   },
   "commands": {
+    "status_bar_help": "在 QQ 官方群聊執行 .sn 或 /sn，可在之後的回覆頂部顯示目前人物卡狀態；.sn off 關閉，不需要全域開關。其他支援修改群名片的平台仍修改實際名片。若要把屬性插入指定擲骰文案，在編輯器展開「進階選項」，點選「插入狀態條」，加入 [[bar:HP|{hp}|{hpmax}]]，傳送時讀取目前人物卡數值。",
     "title": "指令列表",
     "subtitle": "全部指令一覽，含範例；擲骰的回覆文字可在此自訂（帶變數，可一鍵還原）。",
     "compat_note": "已全面相容青果骰（OlivaDice）與海豹骰（SealDice）的指令習慣。",
@@ -2549,12 +2578,26 @@
     "hint": "OneBot 無標準「群邀請卡片」API，邀請以私聊文字發送（含群號）。"
   },
   "friendclean": {
-    "title": "自動清理好友與群聊",
-    "desc": "定期刪除長期不活躍好友，並依黑名單與群規模規則自動退出群聊。",
-    "days": "好友不活躍天數",
-    "group_limit": "單次清群上限",
-    "max_group_size": "最大群規模",
-    "hint": "數值為 0 時關閉對應限制；每 12 小時檢查一次。骰主及白名單/信任使用者不會被自動刪除。"
+    "title": "自動清理好友、群聊與本地記錄",
+    "desc": "本地記錄保留期限與平台操作獨立設定。預設全部關閉；設定非零期限或人數上限後才執行。",
+    "days": "好友未使用指令期限（天）",
+    "group_limit": "每輪最多退出群數（個）",
+    "max_group_size": "超過多少群成員時退出（人）",
+    "hint": "全域設定。啟動約 5–6 分鐘後首次檢查，之後每 12 小時檢查。骰主、信任使用者與白名單使用者免清；群白名單、舊版免清/忽略群及正在記錄日誌的群受保護。定時任務保持獨立。",
+    "records": "本地記錄保留",
+    "records_hint": "只清理管理列表資料，不刪除好友、不退出群聊。人物卡、跑團日誌、群規則和權限保留；收到訊息後重新建檔。",
+    "user_record_days": "使用者記錄不活躍期限（天）",
+    "user_record_hint": "0 = 關閉。按最近收到訊息時間計算；無訊息記錄時參考指令或建檔時間。清理使用者檔案（含暱稱、好感度與檔案內計數）。",
+    "group_record_days": "群記錄不活躍期限（天）",
+    "group_record_hint": "0 = 關閉。按最近訊息或指令時間清理群列表資料；保留群設定。沒有可靠活動時間的記錄略過。",
+    "platform_actions": "平台清理操作",
+    "actions_hint": "以下操作會實際刪除好友或退出群聊，僅適用於支援對應介面的已連線適配器。",
+    "days_hint": "0 = 不刪除好友。達到此天數且未受保護的好友才會處理；無指令記錄時使用建檔時間，未知時間略過。",
+    "group_days": "群聊未使用指令期限（天）",
+    "group_days_hint": "0 = 不因不活躍退群。只使用目前骰娘帳號在該群的指令時間；普通聊天不計入，沒有記錄則略過。",
+    "max_size_hint": "0 = 不按人數退群。群成員數嚴格超過此值才退出，不是骰娘可加入的群數。",
+    "group_limit_hint": "0 = 不限制每輪數量，並非關閉清理。達到上限後其餘群等下一輪檢查。",
+    "migration": "舊 Dice 的 InactiveUserLine / InactiveGroupLine 匯入本地記錄期限，GroupClearLimit 匯入每輪退群上限；不會據記錄期限開啟刪好友或退群。既有遷移產生的定時任務保持原樣。"
   },
   "sso": {
     "title": "第三方登入",

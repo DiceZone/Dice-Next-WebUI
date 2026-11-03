@@ -11,13 +11,14 @@ import { Label } from '@/components/ui/label';
 import { FeatureHelp } from '@/components/ui/feature-help';
 import { HelpLabel } from '@/components/ui/help-label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ExternalLink, KeyRound, QrCode, ScanLine } from 'lucide-react';
+import { ChevronDown, ExternalLink, KeyRound, ScanLine } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { QRCodeSVG } from 'qrcode.react';
 import { useToast } from '@/hooks/use-toast';
 import type { Adapter, AdapterFormData, AdapterType } from '@/types/adapter';
 import { PlatformIcon } from '@/components/platform-icon';
 import apiClient from '@/lib/api-client';
+import { officialWebhookUrl } from '@/lib/adapter-connection';
 
 /** Auto-correct URL to proper ws:// or wss:// format */
 function normalizeUrl(raw: string): string {
@@ -46,10 +47,10 @@ const adapterFormSchema = z.object({
   qqNumber: z.string().regex(/^\d{0,12}$/, 'QQ 号只能由最多 12 位数字组成').optional(),
   openopqTransport: z.enum(['forward_ws', 'reverse_ws']).optional().default('forward_ws'),
   forceVerifyImageResource: z.boolean().optional().default(false),
-  subscribeGroupMemberEvents: z.boolean().optional().default(false),
+  subscribeGroupMemberEvents: z.boolean().optional().default(true),
   autoAcknowledgeInteractions: z.boolean().optional().default(true),
-  qqRichReplies: z.enum(['off', 'markdown', 'math']).default('off'),
-  qqInteractions: z.enum(['off', 'links', 'buttons']).default('links'),
+  qqRichReplies: z.enum(['off', 'markdown', 'math']).default('markdown'),
+  qqInteractions: z.enum(['off', 'links', 'buttons']).default('buttons'),
   qqReceiveMode: z.enum(['gateway', 'webhook']).default('gateway'),
   heartApiKey: z.string().optional(),
   clearHeartApiKey: z.boolean().optional().default(false),
@@ -81,6 +82,9 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
   const [qrBusy, setQrBusy] = React.useState(false);
   const [qrSaving, setQrSaving] = React.useState(false);
   const qrPollingRef = React.useRef(false);
+  const qrGeneration = React.useRef(0);
+  const [manualLogin, setManualLogin] = React.useState(isEdit);
+  const [advanced, setAdvanced] = React.useState(false);
 
   const form = useForm<FormInput, unknown, FormValues>({
     resolver: zodResolver(adapterFormSchema),
@@ -93,13 +97,13 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
       accessToken: adapter?.accessToken ?? '',
       appId: adapter?.appId ?? '',
       appSecret: '',
-      qqNumber: adapter?.qqNumber ?? '',
-      openopqTransport: adapter?.openopqTransport ?? 'forward_ws',
+      qqNumber: adapter?.type === 'openopq' ? adapter.qqNumber ?? '' : '',
+      openopqTransport: adapter?.openopqTransport === 'reverse_ws' ? 'reverse_ws' : 'forward_ws',
       forceVerifyImageResource: adapter?.forceVerifyImageResource ?? false,
-      subscribeGroupMemberEvents: adapter?.subscribeGroupMemberEvents ?? false,
+      subscribeGroupMemberEvents: adapter?.subscribeGroupMemberEvents ?? true,
       autoAcknowledgeInteractions: adapter?.autoAcknowledgeInteractions ?? true,
-      qqRichReplies: adapter?.qqRichReplies ?? 'off',
-      qqInteractions: adapter?.qqInteractions ?? 'links',
+      qqRichReplies: adapter?.qqRichReplies ?? 'markdown',
+      qqInteractions: adapter?.qqInteractions ?? 'buttons',
       qqReceiveMode: adapter?.qqReceiveMode === 'webhook' ? 'webhook' : 'gateway',
       heartApiKey: '',
       clearHeartApiKey: false,
@@ -110,6 +114,7 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
 
   React.useEffect(() => {
     if (open) {
+      setManualLogin(isEdit); setAdvanced(false);
       reset({
         name: adapter?.name ?? '',
         type: (adapter?.type as AdapterType) ?? 'onebot_v11',
@@ -119,14 +124,14 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
         accessToken: adapter?.accessToken ?? '',
         appId: adapter?.appId ?? '',
         appSecret: '',
-        qqNumber: adapter?.qqNumber ?? '',
-        openopqTransport: adapter?.openopqTransport ?? 'forward_ws',
+        qqNumber: adapter?.type === 'openopq' ? adapter.qqNumber ?? '' : '',
+        openopqTransport: adapter?.openopqTransport === 'reverse_ws' ? 'reverse_ws' : 'forward_ws',
         forceVerifyImageResource: adapter?.forceVerifyImageResource ?? false,
-        subscribeGroupMemberEvents: adapter?.subscribeGroupMemberEvents ?? false,
+        subscribeGroupMemberEvents: adapter?.subscribeGroupMemberEvents ?? true,
         autoAcknowledgeInteractions: adapter?.autoAcknowledgeInteractions ?? true,
-        qqRichReplies: adapter?.qqRichReplies ?? 'off',
-        qqInteractions: adapter?.qqInteractions ?? 'links',
-      qqReceiveMode: adapter?.qqReceiveMode === 'webhook' ? 'webhook' : 'gateway',
+        qqRichReplies: adapter?.qqRichReplies ?? 'markdown',
+        qqInteractions: adapter?.qqInteractions ?? 'buttons',
+        qqReceiveMode: adapter?.qqReceiveMode === 'webhook' ? 'webhook' : 'gateway',
         heartApiKey: '',
         clearHeartApiKey: false,
         enabled: adapter?.enabled ?? true,
@@ -134,10 +139,11 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
     }
   }, [open, adapter, reset]);
 
-  React.useEffect(() => () => { qrPollingRef.current = false; }, []);
+  React.useEffect(() => () => { ++qrGeneration.current; qrPollingRef.current = false; }, []);
 
   React.useEffect(() => {
     if (!open) {
+      ++qrGeneration.current;
       qrPollingRef.current = false;
       setQr(null);
       setQrBusy(false);
@@ -207,9 +213,12 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
     }
     if (data.type === 'qq_official') {
       if (!data.appId?.trim() || (!isEdit && !data.appSecret?.trim())) {
-        setError('appId', { message: '请输入 AppID 和 AppSecret，或使用扫码绑定。' });
+        setError('appId', { message: t('adapters.official_credentials_required') });
         return;
       }
+      data.appId = data.appId.trim();
+      if (isEdit && !data.appSecret?.trim()) delete data.appSecret;
+      delete data.qqNumber;
       data.endpoint = '';
       data.connectionMode = 'forward_ws';
       await onSubmit(data as AdapterFormData);
@@ -217,7 +226,7 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
       return;
     }
     const mode = data.connectionMode;
-    if (!mode) return;
+    if (!mode) { setError('root', { message: t('adapters.choose_mode') }); return; }
     const raw = (data.endpoint ?? '').trim();
 
     if (mode === 'reverse_ws') {
@@ -250,37 +259,40 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
   };
 
   const startQrLogin = async () => {
+    const generation = ++qrGeneration.current;
     qrPollingRef.current = false;
     setQrBusy(true);
     try {
       const start = await apiClient.post<{ sessionId: string; url: string }>('/adapters/qq-official/qr/start');
+      if (generation !== qrGeneration.current) return;
       const session = start.data;
       setQr(session);
       qrPollingRef.current = true;
       const poll = async (): Promise<void> => {
-        if (!qrPollingRef.current) return;
+        if (!qrPollingRef.current || generation !== qrGeneration.current) return;
         await new Promise((resolve) => window.setTimeout(resolve, 2000));
-        if (!qrPollingRef.current) return;
+        if (!qrPollingRef.current || generation !== qrGeneration.current) return;
         const result = await apiClient.get<{ status: string; appId?: string; appSecret?: string }>(`/adapters/qq-official/qr/${encodeURIComponent(session.sessionId)}`);
-        if (!qrPollingRef.current) return;
+        if (!qrPollingRef.current || generation !== qrGeneration.current) return;
         if (result.data.status === 'completed' && result.data.appId && result.data.appSecret) {
           setValue('appId', result.data.appId); setValue('appSecret', result.data.appSecret); qrPollingRef.current = false; setQr(null); setQrSaving(true);
           const current = getValues();
           const name = current.name.trim() || `QQ 官方机器人 ${result.data.appId}`;
           setValue('name', name);
-          await onSubmit({ name, type: 'qq_official', connectionMode: 'forward_ws', endpoint: '', accessToken: '', appId: result.data.appId, appSecret: result.data.appSecret, qqReceiveMode: current.qqReceiveMode === 'webhook' ? 'webhook' : 'gateway', heartApiKey: current.heartApiKey?.trim(), forceVerifyImageResource: current.forceVerifyImageResource, subscribeGroupMemberEvents: current.subscribeGroupMemberEvents, autoAcknowledgeInteractions: current.autoAcknowledgeInteractions, qqRichReplies: current.qqRichReplies, qqInteractions: current.qqInteractions, enabled: current.enabled ?? true });
+          await handleFormSubmit(adapterFormSchema.parse({ ...current, name, type: 'qq_official', appId: result.data.appId, appSecret: result.data.appSecret }));
           setQrSaving(false); setQrBusy(false);
-          toast({ title: 'QQ 官方机器人已添加，正在连接' }); onOpenChange(false); return;
+          toast({ title: t('adapters.qr_saved') }); onOpenChange(false); return;
         }
         if (result.data.status === 'expired') { qrPollingRef.current = false; setQr(null); setQrBusy(false); return; }
         await poll();
       };
       await poll();
     } catch (error) {
+      if (generation !== qrGeneration.current) return;
       qrPollingRef.current = false;
-      const message = error instanceof Error ? error.message : '无法创建 QQ 官方机器人扫码任务。';
+      const message = error instanceof Error ? error.message : t('adapters.qr_error');
       setError('appId', { message });
-      toast({ title: 'QQ 官方机器人扫码绑定失败', description: message, variant: 'destructive' });
+      toast({ title: t('adapters.qr_failed'), description: message, variant: 'destructive' });
       setQr(null); setQrBusy(false); setQrSaving(false);
     }
   };
@@ -319,6 +331,9 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
           if (qrBusy) return;
           try { await handleFormSubmit(data); }
           catch (error) { setError('root', { message: error instanceof Error ? error.message : t('common.save_fail') }); }
+        }, (invalid) => {
+          const messages = Object.values(invalid).flatMap((error) => error?.message ? [String(error.message)] : []);
+          setError('root', { message: [t('adapters.validation_failed'), ...messages].join(' ') });
         })} className="space-y-4" autoComplete="off">
           {errors.root && <p role="alert" className="text-sm text-destructive">{errors.root.message}</p>}
           <fieldset disabled={isSubmitting || qrSaving} className="min-w-0 space-y-4">
@@ -333,6 +348,7 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
             <Select
               value={watch('type')}
               onValueChange={(v) => {
+                ++qrGeneration.current; qrPollingRef.current = false; setQr(null); setQrBusy(false);
                 setValue('type', v as AdapterType);
                 if (v === 'milky') setValue('connectionMode', 'forward_ws');
               }}
@@ -383,41 +399,37 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
              {errors.accessToken && <p className="text-xs text-destructive">{errors.accessToken.message}</p>}
            </div>
           </> : official ? <>
-          <div className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">QQ 官方机器人走 QQ 开放平台 API v2，不使用 OneBot。事件可以用 Gateway WebSocket 接收，也可以用 Webhook 回调。可填写 AppID 与 AppSecret，也可用扫码登录自动添加连接。</div>
           <div className="space-y-2">
-            <Label htmlFor="qqReceiveMode">事件接收</Label>
+            <HelpLabel htmlFor="qqReceiveMode" title={t('adapters.receive_mode')} description={<p>{t('adapters.official_help')}</p>} />
             <Select value={watch('qqReceiveMode') ?? 'gateway'} onValueChange={(v) => setValue('qqReceiveMode', v as FormValues['qqReceiveMode'])}>
               <SelectTrigger id="qqReceiveMode"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="gateway">Gateway WebSocket</SelectItem>
-                <SelectItem value="webhook">Webhook</SelectItem>
-              </SelectContent>
+              <SelectContent><SelectItem value="gateway">WebSocket</SelectItem><SelectItem value="webhook">Webhook</SelectItem></SelectContent>
             </Select>
-            <p className="text-xs text-muted-foreground">{watch('qqReceiveMode') === 'webhook'
-              ? '在 QQ 开放平台填写回调地址 https://你的域名/qq-official/webhook。允许的端口只有 80、443、8080、8443。同一个 AppID 只应有一个 Webhook 适配器。发送消息仍使用 Access Token。'
-              : 'Gateway 由骰子主动连接 QQ。改成 Webhook 后，QQ 会把事件推送到 /qq-official/webhook。'}</p>
+            {watch('qqReceiveMode') === 'webhook' && <div className="space-y-2 rounded-md bg-muted/30 p-3 text-xs">
+              <p>{t('adapters.webhook_help')}</p>
+              <code className="block select-text break-all">{officialWebhookUrl(document.baseURI)}</code>
+            </div>}
           </div>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(230px,0.9fr)_minmax(0,1.1fr)]">
-            <section className="flex min-h-[278px] flex-col rounded-lg border bg-muted/20 p-4">
-              <div className="flex items-center gap-2 text-sm font-medium"><QrCode className="h-4 w-4" />扫码登录</div>
-              <div className="relative mx-auto my-3 flex min-h-[190px] w-full max-w-[196px] flex-1 items-center justify-center overflow-hidden rounded-md bg-background">
-                {qr ? (
-                  <QRCodeSVG className="h-[190px] w-[190px] max-w-full" value={qr.url} size={190} level="M" includeMargin aria-label="QQ 官方机器人绑定二维码" />
-                ) : (
-                  <QRCodeSVG className="h-[190px] w-[190px] max-w-full blur-[5px] opacity-60" value="DiceNext-QQOfficial-Login" size={190} level="M" includeMargin aria-hidden="true" />
-                )}
-                {!qr && (
-                  <Button type="button" size="sm" className="absolute inset-x-3 top-1/2 -translate-y-1/2 shadow-md" onClick={startQrLogin} disabled={qrBusy}>
-                    <ScanLine className="mr-1.5 h-4 w-4" />{qrBusy ? '正在获取二维码…' : '点击扫码登录'}
-                  </Button>
-                )}
-              </div>
-              <p className="text-center text-xs text-muted-foreground">{qr ? '请使用手机 QQ 扫码，成功后会自动添加并连接。' : '扫码登录会自动获取 AppID 与 AppSecret。'}</p>
-            </section>
-            <section className="space-y-4">
-              <div className="space-y-2"><Label htmlFor="appId">AppID</Label><Input id="appId" autoComplete="off" {...register('appId')} />{errors.appId && <p className="text-xs text-destructive">{errors.appId.message}</p>}</div>
-              <div className="space-y-2"><Label htmlFor="appSecret">AppSecret{isEdit ? '（留空保持不变）' : ''}</Label><Input id="appSecret" type="password" autoComplete="new-password" {...register('appSecret')} /></div>
-              <div className="space-y-2"><Label htmlFor="qqNumber">官方机器人真实 QQ 号（可选）</Label><Input id="qqNumber" inputMode="numeric" autoComplete="off" placeholder="仅用于显示 QQ 头像，不参与官方 API 通信" {...register('qqNumber')} />{errors.qqNumber && <p className="text-xs text-destructive">{errors.qqNumber.message}</p>}</div>
+          <section className="mx-auto w-full max-w-[320px] space-y-2">
+            <div className="relative flex aspect-square w-full flex-col items-center justify-center rounded-xl border bg-muted/20 p-5">
+              {manualLogin ? <div className="w-full space-y-4">
+                <div className="space-y-2"><Label htmlFor="appId">AppID</Label><Input id="appId" autoComplete="off" {...register('appId')} /></div>
+                <div className="space-y-2"><Label htmlFor="appSecret">AppSecret</Label><Input id="appSecret" type="password" autoComplete="new-password" placeholder={isEdit ? t('adapters.token_keep') : ''} {...register('appSecret')} /></div>
+              </div> : <>
+                <QRCodeSVG className={qr ? 'h-full w-full' : 'h-full w-full blur-[5px] opacity-60'} value={qr?.url ?? 'DiceNext-QQOfficial-Login'} size={256} level="M" includeMargin aria-label={t('adapters.qr_label')} />
+                {!qr && <Button type="button" size="sm" className="absolute top-1/2 -translate-y-1/2" onClick={startQrLogin} disabled={qrBusy}><ScanLine className="h-4 w-4" />{t(qrBusy ? 'adapters.qr_loading' : 'adapters.qr_start')}</Button>}
+              </>}
+            </div>
+            {errors.appId && <p role="alert" className="text-xs text-destructive">{errors.appId.message}</p>}
+            <button type="button" className="w-full py-1 text-center text-xs text-muted-foreground hover:text-primary" onClick={() => {
+              ++qrGeneration.current; qrPollingRef.current = false; setQr(null); setQrBusy(false); setManualLogin(!manualLogin);
+            }}>{manualLogin ? t('adapters.qr_switch') : <>{t('adapters.manual_input')} <strong>AppID{t('adapters.and')}AppSecret</strong></>}</button>
+            {!manualLogin && qr && <p className="text-center text-xs text-muted-foreground">{t('adapters.qr_hint')}</p>}
+          </section>
+          <Button type="button" variant="ghost" className="w-full justify-between" aria-expanded={advanced} aria-controls="official-advanced" onClick={() => setAdvanced(!advanced)}>
+            {t('adapters.advanced_options')}<ChevronDown className={advanced ? 'h-4 w-4 rotate-180 transition-transform' : 'h-4 w-4 transition-transform'} />
+          </Button>
+          {advanced && <div id="official-advanced" className="space-y-3">
               <div className="flex items-start justify-between gap-4 rounded-md border bg-muted/20 p-3">
                 <div className="space-y-1">
                   <HelpLabel htmlFor="forceVerifyImageResource" title={t('feature_help.verify_image_title')} description={<p>{t('feature_help.verify_image_desc')}</p>} />
@@ -452,8 +464,7 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
                 </Select>
                 <p className="text-xs text-muted-foreground">{t('qq_rich.interaction_hint')}</p>
               </section>
-            </section>
-          </div>
+          </div>}
           </> : <><div className="space-y-2">
             <div className="flex items-center gap-1.5">
               <Label htmlFor="mode">{t('adapters.connection_mode')}</Label>

@@ -421,6 +421,7 @@
     "phase_up_to_date": "Up to date"
   },
   "common": {
+    "retry": "Retry",
     "refresh": "Refresh",
     "back": "Back",
     "download": "Download",
@@ -467,6 +468,7 @@
     "ok": "OK"
   },
   "dashboard": {
+    "cached_snapshot": "Showing the last cached snapshot",
     "physical": "physical",
     "logical": "logical",
     "total_commands": "Commands Handled",
@@ -492,6 +494,27 @@
     "no_logs": "No logs"
   },
   "adapters": {
+    "copy_callback": "Copy callback URL",
+    "receive_mode": "Event delivery",
+    "transport_webhook": "Webhook",
+    "transport_websocket": "WebSocket",
+    "official_help": "WebSocket connects from the bot to QQ; Webhook lets QQ deliver events to the bot.",
+    "webhook_help": "Enter this callback URL in QQ Open Platform Webhook settings and enable the adapter. Configure only one Webhook adapter per AppID.",
+    "webhook_reachability": "Generated from the current domain and deployment path. Use a public address reachable by QQ, not localhost or a private address. Your reverse proxy must forward this path to the bot service.",
+    "websocket_help": "The bot opens an outbound WebSocket connection. No callback URL is required. Ensure the server can reach QQ Open Platform.",
+    "official_credentials_required": "Enter AppID and AppSecret, or switch to QR login.",
+    "qr_label": "QQ Official bot login QR code",
+    "qr_loading": "Loading QR code…",
+    "qr_start": "Scan to sign in",
+    "qr_switch": "Switch to QR login",
+    "qr_hint": "Scan with mobile QQ. The adapter will be saved and connected after authorization.",
+    "manual_input": "Manually enter",
+    "and": " and ",
+    "advanced_options": "Advanced options",
+    "validation_failed": "Could not save. Check these fields:",
+    "qr_saved": "QQ Official bot saved",
+    "qr_failed": "QQ Official QR login failed",
+    "qr_error": "Could not start QR login. Please try again.",
     "openopq_transport": "Connection",
     "openopq_transport_hint": "How Dice!Next connects to the protocol client. The published client supports forward WebSocket only; reverse WebSocket requires client support.",
     "openopq_transport_forward": "Forward WebSocket (default)",
@@ -618,8 +641,8 @@
     "detail_enabled": "Enabled",
     "detail_created": "Created",
     "detail_internal_id": "Internal adapter ID",
-    "detail_official_gateway": "QQ Official Gateway WebSocket",
-    "detail_gateway": "Gateway WebSocket",
+    "detail_official_gateway": "WebSocket",
+    "detail_gateway": "WebSocket",
     "detail_managed_endpoint": "Managed automatically by the platform",
     "detail_bdc_cloud": "BDC cloud service",
     "bdc_cloud_connected": "BDC cloud connected",
@@ -627,6 +650,11 @@
     "bdc_cloud_disconnected": "BDC cloud disconnected"
   },
   "dice": {
+    "random_title": "Dice random source",
+    "random_system": "System secure random (default)",
+    "random_openssl": "OpenSSL secure random",
+    "random_hint": "Applies globally to Dice!Next, OneDice and DiceScript rolls immediately after saving.",
+    "random_help": "The default uses the operating system secure random API without keeping a large per-engine random state. OpenSSL uses its own secure generator. Neither is a direct physical hardware random source. A source failure stops the roll instead of falling back to a non-secure generator. Plugin-owned generators, daily fortune and preview examples are unaffected.",
     "title": "Dice Rules",
     "subtitle": "Configure dice rolling rules for each TRPG system",
     "reset_default": "Reset to Default",
@@ -1576,7 +1604,7 @@
     "timezone_auto": "Follow system",
     "timezone_hint": "Takes effect immediately. Times are still stored as UTC; display and upload convert using this timezone.",
     "prefix_title": "Command prefixes",
-    "prefix_desc": "Prefixes that mark a command (e.g. . 。 ! ！). A message must start with one to be treated as a command.",
+    "prefix_desc": "Prefixes that mark a command (e.g. . 。 ! ！ /). A message must start with one to be treated as a command.",
     "prefix_add": "Add prefix",
     "prefix_hint": "One character per prefix recommended; keep at least one.",
     "approval_title": "Friend / Group-invite approval",
@@ -1929,6 +1957,7 @@
     "delete_confirm": "Delete help doc \"{{name}}\"?"
   },
   "commands": {
+    "status_bar_help": "In a QQ Official group, use .sn or /sn to show your current character status above later replies; .sn off disables it. No global switch is needed. Other supported platforms still update the actual group nickname. To insert attributes into a particular roll reply, expand Advanced options in the editor and choose Insert status bar to add [[bar:HP|{hp}|{hpmax}]]. Values come from the active character card when sending.",
     "title": "Command List",
     "subtitle": "All commands with examples; roll reply text is customizable here (with variables, one-click reset).",
     "compat_note": "Fully compatible with OlivaDice (青果) and SealDice (海豹) command styles.",
@@ -2549,12 +2578,26 @@
     "hint": "OneBot has no standard group-invite-card API; the invite is sent as a private text (with the group ID)."
   },
   "friendclean": {
-    "title": "Automatic Friend & Group Cleanup",
-    "desc": "Periodically removes inactive friends and leaves groups according to blacklist and group-size rules.",
-    "days": "Friend inactivity days",
-    "group_limit": "Groups per cleanup",
-    "max_group_size": "Maximum group size",
-    "hint": "0 disables the corresponding limit. Checked every 12 hours; masters and trusted users are exempt from friend cleanup."
+    "title": "Automatic friend, group and local record cleanup",
+    "desc": "Local retention and platform actions are independent. Disabled by default; a nonzero threshold enables its action.",
+    "days": "Friend command inactivity (days)",
+    "group_limit": "Maximum departures per pass (groups)",
+    "max_group_size": "Leave when member count exceeds (people)",
+    "hint": "Global settings. First check about 5–6 minutes after startup, then every 12 hours. Owners, trusted/allowlisted users, allowlisted/exempt/ignored groups and groups with active logs are protected. Scheduled tasks remain independent.",
+    "records": "Local record retention",
+    "records_hint": "Clears management records without deleting friends or leaving groups. Character cards, game logs, group rules and permissions remain. Incoming messages recreate records.",
+    "user_record_days": "Inactive user record retention (days)",
+    "user_record_hint": "0 = disabled. Uses the last received message, falling back to command/creation time. Removes the profile including its nickname, favor and profile counters.",
+    "group_record_days": "Inactive group record retention (days)",
+    "group_record_hint": "0 = disabled. Uses last message/command time to clear group listing metadata while retaining settings. Skips records without a reliable activity timestamp.",
+    "platform_actions": "Platform actions",
+    "actions_hint": "These actions actually delete friends or leave groups. Requires a connected adapter that supports the corresponding API.",
+    "days_hint": "0 = never delete friends. Only unprotected friends beyond this threshold qualify. Falls back to profile creation time if no command is recorded; unknown times are skipped.",
+    "group_days": "Group command inactivity (days)",
+    "group_days_hint": "0 = never leave for inactivity. Uses commands received by this bot account in the group, not ordinary chat. Missing history is skipped.",
+    "max_size_hint": "0 = no size-based departures. Leaves only when membership is strictly greater; this is not the number of groups the bot may join.",
+    "group_limit_hint": "0 = unlimited per pass, not disabled. Remaining groups wait for the next pass after the limit is reached.",
+    "migration": "Legacy InactiveUserLine / InactiveGroupLine become local retention periods; GroupClearLimit becomes the departure batch limit. Retention never enables deleting friends or leaving groups. Existing migrated scheduled tasks stay unchanged."
   },
   "sso": {
     "title": "Third-party sign-in",

@@ -99,7 +99,7 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
     }
     setBusy(false);
   };
-  if (state === 'loading') return null;
+  if (state === 'loading') return <div role="status" aria-label={t('common.loading')} className="flex min-h-screen items-center justify-center"><div className="h-10 w-10 animate-spin rounded-full border-4 border-muted border-t-primary" /></div>;
   if (state === 'ok') return <>{children}</>;
 
   if (state === 'setup') {

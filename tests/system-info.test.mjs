@@ -14,13 +14,16 @@ const compiled = await build({
     import { I18nextProvider } from 'react-i18next';
     import { createInstance } from 'i18next';
     import { ServerInfo } from './src/components/dashboard/server-info';
-    import { setSample } from './src/components/onboarding/tour-data';
+    import { panelQueryClient } from './src/lib/query-client';
+    import { appendServerInfo } from './src/lib/server-info-history';
     export { tourSamples } from './src/lib/tour-samples';
     export function render(sample, lang, locale) {
-      setSample(sample);
+      panelQueryClient.setQueryData(['panel', 'server-info-history'], appendServerInfo(undefined, sample));
       const i18n = createInstance();
       i18n.init({ lng: lang, initImmediate: false, interpolation: { escapeValue: false }, resources: { [lang]: { translation: locale } } });
-      return renderToStaticMarkup(React.createElement(I18nextProvider, { i18n }, React.createElement(ServerInfo)));
+      const html = renderToStaticMarkup(React.createElement(I18nextProvider, { i18n }, React.createElement(ServerInfo)));
+      panelQueryClient.clear();
+      return html;
     }
   ` },
   alias: { '@': fileURLToPath(new URL('../src/', import.meta.url)) },
