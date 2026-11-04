@@ -22,16 +22,71 @@ async function setup() {
     );
 }
 describe('Server information history', () => {
-  it('keeps only real samples, caps history and expires stale history', () => {
+  it('older servers: keeps only real browser samples, caps history and expires stale history', () => {
+    const values = (points: { v: number }[]) => points.map((p) => p.v);
     let history = appendServerInfo(undefined, sample, 1);
-    expect(history.cpu).toEqual([25]);
+    expect(values(history.cpu)).toEqual([25]);
+    expect(history.backend).toBe(false);
     for (let n = 2; n < 90; n++) history = appendServerInfo(history, { ...sample, cpu_load: n }, n);
     expect(history.cpu).toHaveLength(60);
-    expect(history.cpu.at(-1)).toBe(89);
+    expect(history.cpu.at(-1)?.v).toBe(89);
     const unknown = appendServerInfo(history, { ...sample, cpu_load: -1, mem_load: NaN }, 100);
     expect(unknown.cpu).toEqual(history.cpu);
     expect(unknown.memory).toEqual(history.memory);
-    expect(appendServerInfo(history, sample, 31 * 60_000).cpu).toEqual([25]);
+    expect(values(appendServerInfo(history, sample, 31 * 60_000).cpu)).toEqual([25]);
+  });
+
+  it('uses the backend history: merges incremental samples and trims to its window', () => {
+    const backend = (samples: [number, number, number][]) => ({
+      ...sample,
+      history: { interval: 5, window: 20, samples },
+    });
+    let history = appendServerInfo(
+      undefined,
+      backend([
+        [100, 10, 40],
+        [105, 20, 41],
+        [110, -1, 42],
+      ]),
+    );
+    expect(history.backend).toBe(true);
+    expect(history.lastT).toBe(110);
+    expect(history.cpu.map((p) => p.t)).toEqual([100, 105]); // unavailable CPU is skipped, not zeroed
+    expect(history.memory.map((p) => p.v)).toEqual([40, 41, 42]);
+    history = appendServerInfo(
+      history,
+      backend([
+        [110, 30, 42],
+        [115, 30, 43],
+        [125, 50, 44],
+      ]),
+    );
+    expect(history.lastT).toBe(125);
+    expect(history.memory.map((p) => p.t)).toEqual([110, 115, 125]); // duplicates ignored, older than 20 s dropped
+    // A legacy snapshot never mixes into backend points and vice versa.
+    expect(appendServerInfo(history, sample).backend).toBe(false);
+  });
+
+  it('draws the backend hour immediately, even on the first visit after a reload', async () => {
+    const samples: [number, number, number][] = Array.from({ length: 720 }, (_, i) => [1000 + i * 5, 20, 30]);
+    const get = vi.spyOn(apiClient, 'get').mockResolvedValue({
+      code: 0,
+      message: 'ok',
+      data: { ...sample, history: { interval: 5, window: 3600, samples } },
+    } as any);
+    const mount = await setup();
+    const view = mount();
+    await waitFor(() =>
+      expect(view.container.querySelector('[title*="60"]')?.getAttribute('title')).toContain('60'),
+    );
+    expect(get).toHaveBeenCalledWith('/system/sysinfo?since=0');
+    const points = view.container
+      .querySelector('svg[viewBox="0 0 100 20"] polyline')
+      ?.getAttribute('points')
+      ?.split(' ');
+    expect(points).toHaveLength(720);
+    expect(points?.[0].startsWith('0.')).toBe(true); // spans the full width
+    view.unmount();
   });
   it('shows a loading placeholder then retains the curve across page visits and refresh failures', async () => {
     let resolve!: (value: any) => void;

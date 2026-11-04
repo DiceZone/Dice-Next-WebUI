@@ -495,7 +495,10 @@
     "active_records": "Active Records",
     "custom_replies": "Custom Replies",
     "recent_logs": "Recent Logs",
-    "no_logs": "No logs"
+    "no_logs": "No logs",
+    "open_page": "Open {{page}}",
+    "history_backend": "Curves show the last {{minutes}} minutes recorded by the server (sampled every 5 s); they survive page changes and reloads.",
+    "history_local": "This server version keeps no history; curves show this browser's recent samples only."
   },
   "adapters": {
     "copy_callback": "Copy callback URL",

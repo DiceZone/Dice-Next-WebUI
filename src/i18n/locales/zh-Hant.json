@@ -495,7 +495,10 @@
     "active_records": "活躍記錄",
     "custom_replies": "自訂回覆",
     "recent_logs": "最近日誌",
-    "no_logs": "暫無日誌"
+    "no_logs": "暫無日誌",
+    "open_page": "開啟{{page}}",
+    "history_backend": "曲線為後端記錄的最近 {{minutes}} 分鐘（每 5 秒取樣），切換頁面或重新整理不會遺失。",
+    "history_local": "目前後端版本不記錄歷史，曲線僅為本瀏覽器的最近取樣。"
   },
   "adapters": {
     "copy_callback": "複製回呼網址",

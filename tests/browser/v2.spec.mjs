@@ -125,7 +125,7 @@ test('server information loads visibly and keeps actual curve samples across nav
   let release;
   const held = new Promise(done => { release = done; });
   let count = 0;
-  await page.route('**/api/system/sysinfo', async route => {
+  await page.route('**/api/system/sysinfo*', async route => {   // polls carry ?since=
     const response = await route.fetch();
     const body = await response.json();
     body.data.cpu_load = 20 + (++count);
