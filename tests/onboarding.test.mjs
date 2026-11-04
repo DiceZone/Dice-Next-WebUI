@@ -57,7 +57,7 @@ test('malformed storage is ignored and progress can be reset', () => {
 
 test('every application route has a tour tied to real controls', () => {
   const routes = [
-    '/', '/statistics', '/playground', '/adapters', '/dice-rules', '/replies', '/decks',
+    '/', '/statistics', '/playground', '/adapters', '/replies', '/decks',
     '/groups', '/players', '/schedules', '/roadmap', '/commands', '/help', '/modules',
     '/rules', '/permissions', '/banlist', '/settings', '/ai', '/ai/chat', '/ai/npc',
     '/ai/polish', '/ai/translate', '/notice-settings', '/webui-settings', '/about',

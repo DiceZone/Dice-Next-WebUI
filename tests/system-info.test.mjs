@@ -44,16 +44,16 @@ new Function('require', 'module', 'exports', compiled.outputFiles[0].text)(creat
 const ui = module.exports;
 const render = (sample, lang = 'zh-Hans') => ui.render(sample, lang, locales[lang]);
 
-test('dashboard shows one data filesystem, the actual path and its whole-volume usage', () => {
+test('dashboard shows one data filesystem and its whole-volume usage without exposing the data path', () => {
   const sample = structuredClone(ui.tourSamples.system);
   sample.disks[0].mount = '/srv/dice-data';
   sample.disks[0].path = '/srv/dice-data/骰娘/dice.db';
   const html = render(sample);
   assert.equal((html.match(/data-disk-path=/g) || []).length, 1);
   assert.ok(html.includes('数据所在分区'));
-  assert.ok(html.includes('数据位置：/srv/dice-data/骰娘/dice.db'));
+  assert.ok(!html.includes('/srv/dice-data/骰娘/dice.db'));
   assert.ok(html.includes('16 / 80 GB · 20%'));
-  assert.ok(html.includes('title="/srv/dice-data/骰娘/dice.db"'));
+  assert.ok(html.includes('title="/srv/dice-data"'));
   assert.ok(!html.includes('/etc/hosts'));
 });
 
@@ -75,7 +75,7 @@ test('Windows and macOS volume/path labels are not rewritten or treated as Linux
     Object.assign(sample.disks[0], { mount, path });
     const html = render(sample, 'en');
     assert.ok(html.includes(mount));
-    assert.ok(html.includes('Data location: ' + path));
+    assert.ok(!html.includes(path));
   }
 });
 
@@ -89,15 +89,17 @@ test('older backend snapshots without path remain readable; the frontend does no
   assert.equal((render(sample).match(/data-disk-path=/g) || []).length, 2);
 });
 
-test('volume copy is available in all four languages and paths remain escaped text', () => {
+test('volume copy is available in all four languages and the data path is never rendered', () => {
   for (const lang of Object.keys(locales)) {
-    for (const key of ['disk', 'disk_hint', 'disk_path', 'disk_unavailable'])
+    for (const key of ['disk', 'disk_hint', 'disk_unavailable'])
       assert.equal(typeof locales[lang].dashboard[key], 'string', lang + ':' + key);
+    assert.equal(locales[lang].dashboard.disk_path, undefined, lang + ':disk_path');
     const sample = structuredClone(ui.tourSamples.system);
     sample.disks[0].path = '<img src=x onerror=alert(1)>';
+    sample.disks[0].label = '<b>x</b>';
     const html = render(sample, lang);
     assert.ok(html.includes(locales[lang].dashboard.disk));
-    assert.ok(html.includes('&lt;img src=x onerror=alert(1)&gt;'));
-    assert.ok(!html.includes('<img src=x onerror=alert(1)>'));
+    assert.ok(html.includes('&lt;b&gt;x&lt;/b&gt;'));
+    assert.ok(!html.includes('onerror'));
   }
 });

@@ -76,3 +76,24 @@ export function filterAndSortTexts<T extends EditableText>(
     return (sort.direction === 'desc' ? -result : result) || collator.compare(a.key, b.key);
   });
 }
+
+export interface SearchableCommand {
+  cmd: string; title: string; category: string; example: string; desc: string;
+  replies: readonly { key: string; default: string; override: string | null }[];
+}
+
+/**
+ * Global command search used above the category tabs: every word must appear in
+ * the command name, title, example, description, category label or one of its
+ * reply keys / texts. A leading "." or "。" is optional so ".r" and "r" both work.
+ */
+export function commandMatches(command: SearchableCommand, query: string, categoryLabel = '', locale = 'zh-Hans'): boolean {
+  const words = query.trim().toLocaleLowerCase(locale).split(/\s+/).filter(Boolean);
+  if (!words.length) return true;
+  const content = [
+    command.cmd, command.cmd.replace(/(^|\/)\./g, '$1'), command.title, command.example, command.desc,
+    command.category, categoryLabel,
+    ...command.replies.flatMap((reply) => [reply.key, templateSummary(reply.override ?? reply.default)]),
+  ].filter(Boolean).join(' ').toLocaleLowerCase(locale);
+  return words.every((word) => content.includes(word.replace(/^[.。]/, '')));
+}

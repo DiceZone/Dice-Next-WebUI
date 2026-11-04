@@ -16,6 +16,7 @@ import { ADMIN_PASSWORD_MAX_LENGTH, isValidAdminPassword, sanitizeAdminPassword 
 import { Monitor, Key, Eye, EyeOff, Copy, Palette, Terminal, Lock, Server, RefreshCw } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { SsoSettingsCard } from '@/components/settings/sso-settings-card';
+import { InstallAppCard } from '@/components/settings/install-app-card';
 import { panelQueryClient } from '@/lib/query-client';
 
 export const WebuiSettingsPage: React.FC = () => {
@@ -245,6 +246,8 @@ export const WebuiSettingsPage: React.FC = () => {
           </div>
         </CardContent>
       </Card>
+
+      <InstallAppCard />
 
       {/* 控制台日志 */}
       <Card data-setting-anchor="webui-log">

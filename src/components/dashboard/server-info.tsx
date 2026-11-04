@@ -97,7 +97,7 @@ export const ServerInfo: React.FC = () => {
       <Button variant="outline" size="sm" onClick={() => void query.refetch()}>{t('common.retry')}</Button></div>
       : <div role="status" aria-label={t('common.loading')} className="space-y-5"><div className="grid grid-cols-2 gap-4"><Skeleton className="h-28" /><Skeleton className="h-28" /></div><Skeleton className="h-12" /></div>}
   </Card>;
-  const LOGOS = new Set(['windows', 'ubuntu', 'debian', 'centos', 'rocky', 'server']);
+  const LOGOS = new Set(['windows', 'macos', 'ubuntu', 'debian', 'centos', 'rocky', 'server']);
   const logoSrc = `./os/${LOGOS.has(info.os_id) ? info.os_id : 'server'}.svg`;
   const cpuDetail = [
     info.cpu_model,
@@ -129,16 +129,15 @@ export const ServerInfo: React.FC = () => {
           </div>
           {info.disks.length === 0 && <p className="text-xs text-muted-foreground">{t('dashboard.disk_unavailable')}</p>}
           {info.disks.map((d) => (
-            <div key={d.mount} data-disk-path={d.path || d.mount} className="space-y-1">
+            <div key={d.mount} data-disk-path={d.mount} className="space-y-1">
               <div className="flex items-center justify-between gap-3 text-xs">
-                <span className="min-w-0 truncate" title={d.path || d.mount}>
+                <span className="min-w-0 truncate" title={d.mount}>
                   <span className="font-medium">{d.mount}</span>
                   {d.label && <span className="text-muted-foreground"> {d.label}</span>}
                   {d.model && <span className="text-muted-foreground"> · {d.model}</span>}
                 </span>
                 <span className="shrink-0 tabular-nums text-muted-foreground">{d.used_gb} / {d.total_gb} GB · {d.load}%</span>
               </div>
-              {d.path && <p className="truncate text-xs text-muted-foreground" title={d.path}>{t('dashboard.disk_path', { path: d.path })}</p>}
               <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
                 <div className={cn('h-full rounded-full bg-current transition-all', loadColor(d.load))} style={{ width: `${Math.min(100, d.load)}%` }} />
               </div>

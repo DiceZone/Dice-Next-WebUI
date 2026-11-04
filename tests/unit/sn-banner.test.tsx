@@ -5,6 +5,8 @@ import {
   SnBannerPreview,
   validSnTemplate,
   SN_FORMULA_EXAMPLE,
+  normalizeSnColor,
+  validSnColor,
 } from '../../src/components/settings/sn-banner-preview';
 
 describe('SN status presentation', () => {
@@ -28,6 +30,18 @@ describe('SN status presentation', () => {
     expect(math.querySelector('[mathcolor="#E5484D"]')).not.toBeNull();
     expect(math.querySelector('[mathsize="0.7em"]')).not.toBeNull();
     expect(view.container.textContent).not.toContain('{sn_tex}');
+  });
+
+  it('colors the small status line with a validated #RRGGBB value only', () => {
+    const props = { sample: '希亚 SAN50', reply: 'D100=50', template: '> {sn}' };
+    const view = render(<SnBannerPreview {...props} mode="small_red" color="#0090ff" />);
+    expect(screen.getByText(props.sample)).toHaveStyle({ color: 'rgb(0, 144, 255)' });
+    view.rerender(<SnBannerPreview {...props} mode="small_red" color="red;background:url(x)" />);
+    expect(screen.getByText(props.sample)).toHaveStyle({ color: 'rgb(229, 72, 77)' });
+    expect(validSnColor('#30A46C')).toBe(true);
+    expect(validSnColor('30A46C')).toBe(false);
+    expect(normalizeSnColor('#30a46c')).toBe('#30A46C');
+    expect(normalizeSnColor(undefined)).toBe('#E5484D');
   });
 
   it('rejects missing placeholders and measures UTF-8 bytes instead of character count', () => {

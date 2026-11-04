@@ -22,7 +22,6 @@ export const panelQueryClient = createPanelQueryClient();
 export const panelKeys = {
   adapters: ['panel', 'adapters'] as const,
   dashboard: ['panel', 'dashboard'] as const,
-  diceRules: ['panel', 'dice-rules'] as const,
   list: (url: string) => ['panel', 'server-list', url] as const,
   statistics: (days: number, platform: string, adapter: string, granularity: string) =>
     ['panel', 'statistics', days, platform, adapter, granularity] as const,
