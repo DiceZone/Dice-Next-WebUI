@@ -6,7 +6,9 @@ import { GlobalSettingsSearch } from '@/components/layout/global-settings-search
 import { zustandAppStore } from '@/store/app-store';
 import { useSystemUpdateStore } from '@/store/system-update-store';
 import { formatVersion, isUpdateBusy } from '@/lib/system-update';
-import { CircleHelp, ChevronDown, Sun, Moon, MoreHorizontal } from 'lucide-react';
+import { CircleHelp, ChevronDown, Sun, Moon, MoreHorizontal, MonitorDown } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { promptInstall, useCanInstall } from '@/lib/pwa-install';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { changeLanguage, SUPPORTED_LANGUAGES, type LanguageCode } from '@/i18n';
 import { navigationTrail } from './sidebar';
@@ -25,6 +27,11 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ currentPath = '/', wsConnected: _ws, onNavigate, tourAvailable = false, onReplayTour, mobileMenuOpen, onMobileMenuChange }) => {
   const { theme, setTheme } = zustandAppStore();
   const { t, i18n } = useTranslation();
+  const toast = useToast();
+  const canInstall = useCanInstall();
+  const install = async () => {
+    if ((await promptInstall()) === 'accepted') toast({ title: t('pwa.installed_toast') });
+  };
   const version = useSystemUpdateStore((state) => state.version);
   const updateStatus = useSystemUpdateStore((state) => state.status);
 
@@ -110,6 +117,12 @@ export const Header: React.FC<HeaderProps> = ({ currentPath = '/', wsConnected: 
       <div className="hidden shrink-0 items-center gap-2 lg:flex">
         {versionButton}
 
+        {/* Shown only after the browser offers installation (supported, secure origin, not installed). */}
+        {canInstall && <Button variant="outline" size="sm" className="h-9 gap-1.5" data-testid="header-install"
+          onClick={() => void install()} title={t('pwa.desc')}>
+          <MonitorDown className="h-4 w-4" />{t('pwa.install')}
+        </Button>}
+
         {/* Language switcher */}
         <LanguageSwitcher />
 
@@ -145,6 +158,7 @@ export const Header: React.FC<HeaderProps> = ({ currentPath = '/', wsConnected: 
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="min-w-48">
+            {canInstall && <DropdownMenuItem onSelect={() => void install()} data-testid="header-install-menu"><MonitorDown className="mr-2 h-4 w-4" />{t('pwa.install')}</DropdownMenuItem>}
             <DropdownMenuItem onSelect={toggleTheme}>{theme === 'dark' ? <Sun className="mr-2 h-4 w-4" /> : <Moon className="mr-2 h-4 w-4" />}{t('header.toggle_theme')}</DropdownMenuItem>
             {tourAvailable && <DropdownMenuItem onSelect={onReplayTour}><CircleHelp className="mr-2 h-4 w-4" />{t('onboarding.replay')}</DropdownMenuItem>}
             <DropdownMenuSeparator />
