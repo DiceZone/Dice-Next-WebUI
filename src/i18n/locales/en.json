@@ -2749,7 +2749,10 @@
     "color": "Text color",
     "color_hex": "Color value (#RRGGBB)",
     "color_swatches": "Preset colors",
-    "color_help": "Pick a swatch or use the color picker, or type #RRGGBB. The status line appears as small colored text; check contrast in both light and dark QQ themes."
+    "color_help": "Use the color picker, the eyedropper (pick from anywhere on screen), a preset swatch, or type #RRGGBB. The status line appears as small colored text; check contrast in both light and dark QQ themes.",
+    "eyedropper": "Eyedropper",
+    "eyedropper_hint": "Click, then pick a color anywhere on screen; press Esc to cancel",
+    "eyedropper_unsupported": "This browser does not support the screen eyedropper: use Chrome / Edge and open the panel over HTTPS or localhost. The color picker and value field still work."
   },
   "pwa": {
     "title": "Install as app",

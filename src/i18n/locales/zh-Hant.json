@@ -2749,7 +2749,10 @@
     "color": "文字顏色",
     "color_hex": "顏色值（#RRGGBB）",
     "color_swatches": "常用顏色",
-    "color_help": "點擊色塊或用色盤選擇顏色，也可直接輸入 #RRGGBB。狀態行以小號彩色文字顯示，深淺色主題下請留意對比度。"
+    "color_help": "可用色盤、取色器（從螢幕任意位置吸取）、常用色塊或直接輸入 #RRGGBB。狀態行以小號彩色文字顯示，深淺色主題下請留意對比度。",
+    "eyedropper": "取色器",
+    "eyedropper_hint": "點擊後在螢幕任意位置點選顏色，按 Esc 取消",
+    "eyedropper_unsupported": "目前瀏覽器不支援螢幕取色器：需使用 Chrome / Edge，並透過 HTTPS 或 localhost 開啟面板。仍可使用色盤或輸入顏色值。"
   },
   "pwa": {
     "title": "安裝為應用程式",

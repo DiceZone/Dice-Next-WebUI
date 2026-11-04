@@ -16,6 +16,29 @@ export const validSnColor = (value: unknown): value is string =>
 export const normalizeSnColor = (value: unknown) =>
   validSnColor(value) ? value.toUpperCase() : SN_DEFAULT_COLOR;
 
+// Screen eyedropper (EyeDropper API): Chrome / Edge on HTTPS or localhost only.
+type EyeDropperCtor = new () => { open(): Promise<{ sRGBHex: string }> };
+const eyeDropperCtor = () => typeof window === 'undefined' ? undefined
+  : (window as unknown as { EyeDropper?: EyeDropperCtor }).EyeDropper;
+export const eyeDropperAvailable = () => !!eyeDropperCtor();
+/** Chromium returns "#rrggbb"; other engines may return rgb()/rgba(). */
+export function pickedColorToHex(value: string): string | null {
+  const text = value.trim();
+  if (validSnColor(text)) return text.toUpperCase();
+  const match = /^rgba?\(\s*(\d{1,3})[\s,]+(\d{1,3})[\s,]+(\d{1,3})/i.exec(text);
+  if (!match) return null;
+  const channels = match.slice(1, 4).map(Number);
+  if (channels.some((channel) => channel > 255)) return null;
+  return '#' + channels.map((channel) => channel.toString(16).padStart(2, '0')).join('').toUpperCase();
+}
+/** Resolves to the picked #RRGGBB, or null when cancelled (Esc) or unsupported. */
+export async function pickScreenColor(): Promise<string | null> {
+  const EyeDropper = eyeDropperCtor();
+  if (!EyeDropper) return null;
+  try { return pickedColorToHex((await new EyeDropper().open()).sRGBHex); }
+  catch { return null; }
+}
+
 // Loaded only for custom formulas. MathML uses browser fonts, without loading
 // KaTeX's full font bundle; trust=false rejects HTML, links and external images.
 const Formula = lazy(async () => {

@@ -1,5 +1,5 @@
 import { CleanupSettingsCard } from '@/components/settings/cleanup-settings-card';
-import { SnBannerPreview, snBannerStyles, normalizeSnStyle, validSnTemplate, SN_FORMULA_EXAMPLE, SN_DEFAULT_COLOR, SN_COLOR_SWATCHES, normalizeSnColor, validSnColor, type SnBannerStyle } from '@/components/settings/sn-banner-preview';
+import { SnBannerPreview, snBannerStyles, normalizeSnStyle, validSnTemplate, SN_FORMULA_EXAMPLE, SN_DEFAULT_COLOR, SN_COLOR_SWATCHES, normalizeSnColor, validSnColor, eyeDropperAvailable, pickScreenColor, type SnBannerStyle } from '@/components/settings/sn-banner-preview';
 import { useTourState, useTourActive } from '@/components/onboarding/tour-data';
 import { useRequestGate } from '@/hooks/use-request-gate';
 import { tourSamples } from '@/lib/tour-samples';
@@ -22,7 +22,7 @@ import type { LucideIcon } from 'lucide-react';
 import {
   SlidersHorizontal, Crown, Globe, Plus, Trash2, ShieldCheck,
   Image, Type, Server, Clock, Layers3, RotateCcw,
-  ArrowUp, ArrowDown,
+  ArrowUp, ArrowDown, Pipette,
 } from 'lucide-react';
 import { IdentityEmailSettings } from '@/components/identity-email-settings';
 import { TraySettingsCard } from '@/components/tray-settings';
@@ -242,6 +242,8 @@ const SnBannerCard: React.FC<ScopedCardProps> = (scopeProps) => {
   };
   const pickColor = (value: string) => { const next = normalizeSnColor(value); setColor(next); setColorText(next); };
   const colorTextValid = validSnColor(colorText);
+  const canEyedrop = eyeDropperAvailable();
+  const eyedrop = async () => { const picked = await pickScreenColor(); if (picked) pickColor(picked); };
   const { ready, status } = useScopedLoader(scopeProps, apply);
   const valid = validSnTemplate(template);
   const save = async (reset = false) => {
@@ -283,6 +285,10 @@ const SnBannerCard: React.FC<ScopedCardProps> = (scopeProps) => {
               aria-invalid={!colorTextValid}
               onChange={e => { const v = e.target.value.trim(); setColorText(v); if (validSnColor(v)) setColor(v.toUpperCase()); }}
               onBlur={() => setColorText(color)} />
+            <Button type="button" variant="outline" size="sm" className="h-9" disabled={!canEyedrop}
+              onClick={() => void eyedrop()} title={t(canEyedrop ? 'qq_sn.eyedropper_hint' : 'qq_sn.eyedropper_unsupported')}>
+              <Pipette className="mr-1.5 h-3.5 w-3.5" />{t('qq_sn.eyedropper')}
+            </Button>
             <div role="group" aria-label={t('qq_sn.color_swatches')} className="flex flex-wrap gap-1.5">
               {SN_COLOR_SWATCHES.map(swatch => <button key={swatch} type="button" title={swatch} aria-label={swatch}
                 aria-pressed={color === swatch} onClick={() => pickColor(swatch)}
@@ -291,6 +297,7 @@ const SnBannerCard: React.FC<ScopedCardProps> = (scopeProps) => {
             </div>
           </div>
           <p id={`${id}-color-help`} className="text-xs text-muted-foreground">{t('qq_sn.color_help')}</p>
+          {!canEyedrop && <p className="text-xs text-muted-foreground">{t('qq_sn.eyedropper_unsupported')}</p>}
         </div>}
         {(mode === 'custom' || !valid) && <div className="space-y-2">
           <Label htmlFor={`${id}-template`}>{t('qq_sn.template')}</Label>

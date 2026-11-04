@@ -43,6 +43,13 @@ test('official SN presets and custom format persist with scoped overrides', asyn
   await page.goto('/#/settings?focus=settings-qq-sn');
   const card = page.locator('[data-setting-anchor="settings-qq-sn"]');
   await expect(card).toBeVisible();
+  // Edit only after the page's scope requests settle: the card is re-keyed (and reloads its
+  // values) when the page resolves its scope, and its fieldset stays disabled until loaded.
+  const loaded = async () => {
+    await page.waitForLoadState('networkidle');
+    await expect(card.locator('fieldset').first()).toBeEnabled();
+  };
+  await loaded();
   const choose = async label => {
     await card.getByRole('combobox').click();
     await page.getByRole('option', { name: label, exact: true }).click();
@@ -53,6 +60,13 @@ test('official SN presets and custom format persist with scoped overrides', asyn
   await expect(card.getByTestId('sn-banner-preview').locator('p').first()).toHaveCSS('color', 'rgb(0, 144, 255)');
   await picker.getByRole('textbox', { name: '颜色值（#RRGGBB）' }).fill('#30a46c');
   await expect(card.getByTestId('sn-banner-preview').locator('p').first()).toHaveCSS('color', 'rgb(48, 164, 108)');
+  // Chromium exposes EyeDropper, but headless has no screen to sample; the stub returns what it would.
+  await page.addInitScript(() => { window.EyeDropper = class { open() { return Promise.resolve({ sRGBHex: '#6e56cf' }); } }; });
+  await page.reload();
+  await loaded();
+  await picker.getByRole('button', { name: '取色器' }).click();
+  await expect(picker.getByRole('textbox', { name: '颜色值（#RRGGBB）' })).toHaveValue('#6E56CF');
+  await picker.getByRole('textbox', { name: '颜色值（#RRGGBB）' }).fill('#30a46c');
   await choose('引用');
   await expect(card.getByTestId('sn-color-picker')).toHaveCount(0);
   await expect(card.locator('blockquote')).toContainText('SAN50');
@@ -68,6 +82,7 @@ test('official SN presets and custom format persist with scoped overrides', asyn
   await expect.poll(() => writes.length).toBe(1);
   expect(writes[0].values.qq_sn_color).toBe('#30A46C');
   await page.reload();
+  await loaded();
   await expect(input).toHaveValue('**{sn}**');
   await input.fill('没有变量');
   await expect(card.getByRole('button', { name: '保存', exact: true })).toBeDisabled();

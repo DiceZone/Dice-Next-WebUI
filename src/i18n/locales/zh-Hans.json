@@ -2706,7 +2706,10 @@
     "color": "文字颜色",
     "color_hex": "颜色值（#RRGGBB）",
     "color_swatches": "常用颜色",
-    "color_help": "点击色块或用色盘选择颜色，也可直接输入 #RRGGBB。状态行以小号彩色文字显示，深浅色主题下请留意对比度。"
+    "color_help": "可用色盘、取色器（从屏幕任意位置吸取）、常用色块或直接输入 #RRGGBB。状态行以小号彩色文字显示，深浅色主题下请留意对比度。",
+    "eyedropper": "取色器",
+    "eyedropper_hint": "点击后在屏幕任意位置点选颜色，按 Esc 取消",
+    "eyedropper_unsupported": "当前浏览器不支持屏幕取色器：需使用 Chrome / Edge，并通过 HTTPS 或 localhost 打开面板。仍可使用色盘或输入颜色值。"
   },
   "pwa": {
     "title": "安装为应用",
