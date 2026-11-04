@@ -54,9 +54,17 @@ describe('SN status presentation', () => {
     expect(pickedColorToHex('red')).toBeNull();
     expect(await pickScreenColor()).toBeNull();
     const win = window as unknown as { EyeDropper?: unknown };
-    win.EyeDropper = class { open() { return Promise.resolve({ sRGBHex: '#12a594' }); } };
+    win.EyeDropper = class {
+      open() {
+        return Promise.resolve({ sRGBHex: '#12a594' });
+      }
+    };
     expect(await pickScreenColor()).toBe('#12A594');
-    win.EyeDropper = class { open() { return Promise.reject(new DOMException('cancelled', 'AbortError')); } };
+    win.EyeDropper = class {
+      open() {
+        return Promise.reject(new DOMException('cancelled', 'AbortError'));
+      }
+    };
     expect(await pickScreenColor()).toBeNull();
     delete win.EyeDropper;
   });
