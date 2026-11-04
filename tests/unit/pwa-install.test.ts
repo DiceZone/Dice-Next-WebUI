@@ -27,3 +27,35 @@ describe('install-as-app state', () => {
     expect(installState(base)).toBe('menu');
   });
 });
+
+describe('install entry visibility', () => {
+  it('appears only after the browser offers installation and disappears once installed', async () => {
+    const { act, renderHook } = await import('@testing-library/react');
+    const { setupPwa, useCanInstall, promptInstall } = await import('../../src/lib/pwa-install');
+    setupPwa();
+    const { result } = renderHook(() => useCanInstall());
+    expect(result.current).toBe(false);
+    const makeOffer = () =>
+      Object.assign(new Event('beforeinstallprompt', { cancelable: true }), {
+        prompt: () => Promise.resolve(),
+        userChoice: Promise.resolve({ outcome: 'accepted' as const }),
+      });
+    const offer = makeOffer();
+    act(() => {
+      window.dispatchEvent(offer);
+    });
+    expect(offer.defaultPrevented).toBe(true);
+    expect(result.current).toBe(true);
+    await act(async () => {
+      expect(await promptInstall()).toBe('accepted');
+    });
+    expect(result.current).toBe(false);
+    act(() => {
+      window.dispatchEvent(makeOffer());
+    });
+    act(() => {
+      window.dispatchEvent(new Event('appinstalled'));
+    });
+    expect(result.current).toBe(false);
+  });
+});

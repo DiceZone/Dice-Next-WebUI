@@ -1,3 +1,5 @@
+import { useSyncExternalStore } from 'react';
+
 // Install-as-app support. Browsers decide whether a site is installable; the
 // panel can only meet their requirements and explain what is missing.
 
@@ -70,4 +72,14 @@ export function setupPwa(base = './') {
   });
   if (document.readyState === 'complete') void register();
   else window.addEventListener('load', () => void register(), { once: true });
+}
+
+/**
+ * True only while the browser has offered installation (a captured
+ * beforeinstallprompt) and the panel is not already running as an app.
+ * Unsupported browsers, insecure origins and installed apps never show the entry.
+ */
+export function useCanInstall(): boolean {
+  return useSyncExternalStore(subscribeInstallPrompt,
+    () => !!deferred && !isStandalone(), () => false);
 }
