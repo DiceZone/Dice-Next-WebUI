@@ -31,6 +31,9 @@ export const DashboardPage: React.FC = () => {
   const liveStats = query.data || null;
   const loading = query.isPending;
   const stats = useTourValue(liveStats, tourSamples.dashboard);
+  const open = (path: string, pageKey: string) => ({
+    onOpen: () => navigatePanel(path), openLabel: t('dashboard.open_page', { page: t(pageKey) }),
+  });
 
 
   return (
@@ -48,14 +51,15 @@ export const DashboardPage: React.FC = () => {
         </div>
       ) : (
         <section data-tour="dashboard-summary" aria-label={t('dashboard.title')} className="grid shrink-0 grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-4 xl:grid-cols-6">
+          {/* Every summary card opens the page that manages what it counts. */}
           <StatCard icon={PlugZap} label={t('dashboard.online_adapters')}
-            value={`${stats?.active_connections ?? 0} / ${stats?.total_adapters ?? 0}`} />
-          <StatCard icon={Users} label={t('dashboard.user_count')} value={stats?.player_count ?? 0} />
-          <StatCard icon={UsersRound} label={t('dashboard.group_count')} value={stats?.group_count ?? 0} />
+            value={`${stats?.active_connections ?? 0} / ${stats?.total_adapters ?? 0}`} {...open('/adapters', 'nav.adapters')} />
+          <StatCard icon={Users} label={t('dashboard.user_count')} value={stats?.player_count ?? 0} {...open('/players', 'nav.players')} />
+          <StatCard icon={UsersRound} label={t('dashboard.group_count')} value={stats?.group_count ?? 0} {...open('/groups', 'nav.groups')} />
           <StatCard icon={Scroll} label={t('dashboard.log_count')}
-            value={`${stats?.active_logs ?? 0} / ${stats?.total_logs ?? 0}`} />
-          <StatCard icon={MessagesSquare} label={t('dashboard.total_commands')} value={stats?.total_commands ?? 0} />
-          <StatCard icon={Clock} label={t('dashboard.uptime')} value={stats ? formatUptime(stats.uptime_seconds) : '--'} />
+            value={`${stats?.active_logs ?? 0} / ${stats?.total_logs ?? 0}`} {...open('/logs', 'nav.logs')} />
+          <StatCard icon={MessagesSquare} label={t('dashboard.total_commands')} value={stats?.total_commands ?? 0} {...open('/commands', 'nav.commands')} />
+          <StatCard icon={Clock} label={t('dashboard.uptime')} value={stats ? formatUptime(stats.uptime_seconds) : '--'} {...open('/statistics', 'nav.statistics')} />
         </section>
       )}
 

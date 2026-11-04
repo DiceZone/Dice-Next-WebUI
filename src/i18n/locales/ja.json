@@ -495,7 +495,10 @@
     "active_records": "アクティブな記録",
     "custom_replies": "カスタム返信",
     "recent_logs": "最近のログ",
-    "no_logs": "ログなし"
+    "no_logs": "ログなし",
+    "open_page": "{{page}}を開く",
+    "history_backend": "グラフはサーバーが記録した直近 {{minutes}} 分（5 秒ごと）。ページ移動や再読み込みでも消えません。",
+    "history_local": "このサーバーは履歴を記録しないため、グラフはこのブラウザーの直近の取得分のみです。"
   },
   "adapters": {
     "copy_callback": "コールバック URL をコピー",

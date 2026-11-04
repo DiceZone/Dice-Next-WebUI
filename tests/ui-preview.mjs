@@ -212,6 +212,15 @@ const server = await createServer({
         { tag: 'div', attrs: { style: 'position:fixed;right:16px;bottom:12px;z-index:40;border:1px solid #c7d2fe;background:#eef2ff;color:#4338ca;padding:6px 12px;border-radius:20px;font:11px system-ui;pointer-events:none' }, children: '本地预览 · 临时数据 · 不连接机器人', injectTo: 'body' }];
     },
     configureServer(vite) {
+      // Mirrors the backend sampler: one hour of 5-second samples aligned to the clock,
+      // and ?since= returns only newer ones.
+      const sysinfoPreview = (params) => {
+        const now = Math.floor(Date.now() / 5000) * 5, since = Number(params.get('since')) || 0;
+        const samples = [];
+        for (let t = now - 3595; t <= now; t += 5) if (t > since)
+          samples.push([t, Math.round((18 + Math.sin(t / 120) * 6) * 10) / 10, Math.round(24 + Math.sin(t / 600) * 2)]);
+        return { ...tourSamples.system, history: { interval: 5, window: 3600, samples } };
+      };
       vite.middlewares.use(async (req, res, next) => {
         const url = new URL(req.url, 'http://localhost');
         if (url.pathname === '/__ui-preview/requests') { res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify(requests)); return; }
@@ -234,6 +243,7 @@ const server = await createServer({
           }
           if (path === '/system/mcp' || path.startsWith('/system/mcp/')) return reply(mcpPreview(req.method, path, url, body, req.headers['x-dice-mcp-operation-id']));
           if (path === '/statistics/overview' && req.method === 'GET') return reply(statisticsPreview(tourSamples.statistics, url.searchParams));
+          if (path === '/system/sysinfo' && req.method === 'GET') return reply(sysinfoPreview(url.searchParams));
           if (path.startsWith('/system/notice/')) { const notice = noticePreview(req.method, path, url, body); if (notice !== undefined) return reply(notice); }
           if (/^\/adapters\/[^/]+$/.test(path) && req.method === 'PUT') {
             const bot = state['/adapters'].find((item) => item.id === path.slice('/adapters/'.length));
