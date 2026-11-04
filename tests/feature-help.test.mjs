@@ -172,7 +172,7 @@ test('every PageHeader branch includes help, and page guides have the same compl
     assert.ok(count || file === 'playground-page', file);
   }
   const keys = Object.keys(module.exports.pageHelp.en).sort();
-  assert.ok(keys.length >= 29);
+  assert.ok(keys.length >= 28); // dice_rules left with the retired /dice-rules page
   for (const language of languages) {
     assert.deepEqual(Object.keys(module.exports.pageHelp[language]).sort(), keys);
     for (const key of keys) assert.ok(module.exports.pageHelp[language][key].trim().includes('\n\n'), `${language}: ${key}`);

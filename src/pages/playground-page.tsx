@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { PlatformIcon } from '@/components/platform-icon';
 import { cn } from '@/lib/utils';
 import { MarkdownExample } from '@/components/reply/markdown-example';
+import { SUPPORTED_LANGUAGES } from '@/i18n/languages';
 
 /**
  * Playground — a chat-style test page for trying bot commands without QQ.
@@ -26,15 +27,21 @@ interface ChatItem {
 
 const QUICK_COMMANDS = ['.r', '.r3d6+2', '.ra 侦查 60', '.coc', '.dnd', '.help'];
 
+const PANEL_LOCALE = '__panel__';
+/** Backend reply locales match the panel language codes; anything unknown follows the platform. */
+export const panelReplyLocale = (language: string | undefined) =>
+  SUPPORTED_LANGUAGES.some((item) => item.code === language) ? language as string : '';
+
 export const PlaygroundPage: React.FC = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [items, setItems] = useTourState<ChatItem[]>([
     { role: 'bot', text: t('playground.welcome') },
   ], tourSamples.chat);
   const [input, setInput] = useTourState('', '.r 3d6+2');
   const [scene, setScene] = React.useState<'group' | 'private'>('group');
   const [platform, setPlatform] = React.useState('onebot_v11');
-  const [locale, setLocale] = React.useState('');
+  // '__panel__' follows the panel's current language; '' lets the platform/global setting decide.
+  const [locale, setLocale] = React.useState(PANEL_LOCALE);
   const [nickname, setNickname] = useTourState(t('playground.default_nick'), '小夏');
   const [sending, setSending] = React.useState(false);
   const chatRef = React.useRef<HTMLDivElement>(null);
@@ -59,7 +66,7 @@ export const PlaygroundPage: React.FC = () => {
           platform,
           messageType: scene,
           nickname: nickname || t('playground.default_nick'),
-          locale,
+          locale: locale === PANEL_LOCALE ? panelReplyLocale(i18n.resolvedLanguage || i18n.language) : locale,
           userId: '10001',
           groupId: '100001',
         }),
@@ -110,6 +117,7 @@ export const PlaygroundPage: React.FC = () => {
           <Select value={locale || '__default__'} onValueChange={(v) => setLocale(v === '__default__' ? '' : v)}>
             <SelectTrigger className="h-9 w-40"><SelectValue /></SelectTrigger>
             <SelectContent>
+              <SelectItem value={PANEL_LOCALE}>{t('playground.lang_panel')}</SelectItem>
               <SelectItem value="__default__">{t('playground.lang_default')}</SelectItem>
               <SelectItem value="zh-Hans">简体中文</SelectItem>
               <SelectItem value="zh-Hant">繁體中文</SelectItem>

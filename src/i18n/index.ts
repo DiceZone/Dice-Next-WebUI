@@ -35,14 +35,8 @@ import { dashboardShortcutsCopy } from './dashboard-shortcuts';
  * switcher and any future UI iterate over SUPPORTED_LANGUAGES.
  */
 
-export const SUPPORTED_LANGUAGES = [
-  { code: 'zh-Hant', label: '繁體中文' },
-  { code: 'zh-Hans', label: '简体中文' },
-  { code: 'en', label: 'English' },
-  { code: 'ja', label: '日本語' },
-] as const;
-
-export type LanguageCode = (typeof SUPPORTED_LANGUAGES)[number]['code'];
+import { SUPPORTED_LANGUAGES, type LanguageCode } from './languages';
+export { SUPPORTED_LANGUAGES, type LanguageCode };
 
 const STORAGE_KEY = 'dice-lang';
 

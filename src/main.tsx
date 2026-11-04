@@ -11,6 +11,7 @@ import '@fontsource/inter/700.css';
 import '@fontsource/jetbrains-mono/400.css';
 import '@fontsource/jetbrains-mono/500.css';
 import './index.css';
+import { setupPwa } from './lib/pwa-install';
 
 const rootElement = document.getElementById('root');
 
@@ -19,6 +20,9 @@ if (!rootElement) {
     'Root element not found. Make sure there is a <div id="root"></div> in index.html.'
   );
 }
+
+// The service worker only exists in production builds (public/sw.js is not served by HMR as a worker scope).
+if (import.meta.env.PROD) setupPwa();
 
 const root = ReactDOM.createRoot(rootElement);
 

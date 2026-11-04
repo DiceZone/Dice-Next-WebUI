@@ -25,11 +25,6 @@
     "file": "qq-official-page"
   },
   {
-    "path": "/dice-rules",
-    "component": "DiceRulesPage",
-    "file": "dice-rules-page"
-  },
-  {
     "path": "/replies",
     "component": "RepliesPage",
     "file": "replies-page"

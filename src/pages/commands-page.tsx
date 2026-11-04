@@ -20,8 +20,9 @@ import { PersonaManagerCard } from '@/components/persona/persona-manager';
 import { PersonaAccessDialog } from '@/components/persona/persona-access-dialog';
 import {
   Loader2, RefreshCw, RotateCcw, Save, ChevronRight, ChevronDown, Pencil, Trash2, Download, Upload,
-  Globe, Users, BookText, UserCheck, ArrowUpDown, ArrowUp, ArrowDown,
+  Globe, Users, BookText, UserCheck, ArrowUpDown, ArrowUp, ArrowDown, Search,
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/ui/page-header';
 import { useWideWorkspace } from '@/hooks/use-wide-workspace';
 import { FeatureHelp } from '@/components/ui/feature-help';
@@ -35,7 +36,7 @@ import { resolveOutcomeText, resolveOutcomeInheritance, type OutcomeText, type R
 import { templateLocalNames } from '@/lib/legacy-templates';
 import { previewSimulation, readTemplateSimulation, type TemplateSimulation } from '@/lib/template-simulation';
 import { belongsInCommandTexts } from '@/lib/help-document';
-import { buildTextMetadata, commandCategory, COMMAND_CATEGORIES, filterAndSortTexts, type TextSort, type TextSortField } from '@/lib/command-text-catalog';
+import { buildTextMetadata, commandCategory, commandMatches, COMMAND_CATEGORIES, filterAndSortTexts, type TextSort, type TextSortField } from '@/lib/command-text-catalog';
 
 interface Var { name: string; desc: string; }
 type ReplyFormat = 'plain' | 'markdown';
@@ -149,7 +150,10 @@ export const CommandsPage: React.FC = () => {
     finally { if (current()) setAllLoading(false); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lang]);
-  useEffect(() => { if (SPECIAL_TABS.includes(cat)) void loadAll(); }, [cat, loadAll]);
+  // The search box above the tabs is global: it also counts matching reply texts,
+  // so those rows are loaded once a search starts on a command tab.
+  const searching = allQ.trim().length > 0;
+  useEffect(() => { if (SPECIAL_TABS.includes(cat) || searching) void loadAll(); }, [cat, searching, loadAll]);
 
   const categoryRows = rows.map((row) => ({ ...row, category: commandCategory(row.category) }));
   const cats = [...COMMAND_CATEGORIES.filter((c) => categoryRows.some((r) => r.category === c)),
@@ -203,7 +207,11 @@ export const CommandsPage: React.FC = () => {
   const dispAll = personaId === 0 ? outcomeAll
     : outcomeAll.map((k) => ({ ...k, override: personaMap[k.key]?.value ?? null,
       format: personaMap[k.key]?.format ?? 'plain' }));
-  const shown = dispRows.filter((r) => r.category === cat);
+  const matchedRows = searching ? dispRows.filter((r) => commandMatches(r, allQ, categoryLabel(r.category), lang)) : [];
+  const matchCounts = new Map<string, number>();
+  for (const row of matchedRows) matchCounts.set(row.category, (matchCounts.get(row.category) ?? 0) + 1);
+  // While searching, every command tab lists matches from all categories; tab badges show where they live.
+  const shown = searching ? matchedRows : dispRows.filter((r) => r.category === cat);
 
   const toggle = (cmd: string) =>
     setExpanded((p) => { const n = new Set(p); n.has(cmd) ? n.delete(cmd) : n.add(cmd); return n; });
@@ -345,21 +353,28 @@ export const CommandsPage: React.FC = () => {
       )}
 
       {/* category + special tabs */}
+      <div className="relative w-full max-w-xl" data-testid="commands-global-search" data-setting-anchor="commands-global-search">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <input value={allQ} onChange={(e) => setAllQ(e.target.value)} placeholder={t('commands.global_search')}
+          aria-label={t('commands.global_search')} type="search"
+          className="h-10 w-full rounded-md border border-input bg-background pl-9 pr-3 text-sm" />
+      </div>
+
       <Tabs value={cat} onValueChange={setCat} orientation={wideWorkspace ? 'vertical' : 'horizontal'} className="grid items-start gap-5 xl:grid-cols-[150px_minmax(0,1fr)]">
       <TabsList variant="page" className="v2-settings-nav sticky top-0 z-10" data-tour="commands-filters" aria-label={t('commands.title')}>
-        {cats.map((c) => (
-          <TabsTrigger key={c} value={c}>
-            {tabLabel(c)}
-          </TabsTrigger>
-        ))}
+        {cats.map((c) => {
+          const count = !searching ? undefined : c === ALL_TAB ? (allLocale === lang ? visibleTexts.length : undefined)
+            : SPECIAL_TABS.includes(c) ? undefined : matchCounts.get(c) ?? 0;
+          return <TabsTrigger key={c} value={c} className={cn(count === 0 && 'opacity-50')}>
+            {tabLabel(c)}{count !== undefined && <span className="ml-1.5 rounded-full bg-muted px-1.5 text-[11px] tabular-nums text-muted-foreground">{count}</span>}
+          </TabsTrigger>;
+        })}
       </TabsList>
 
       <TabsContent value={cat} data-tour="commands-list" className="mt-0 min-w-0">
       {SPECIAL_TABS.includes(cat) ? (
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
-            <input value={allQ} onChange={(e) => setAllQ(e.target.value)} placeholder={t('commands.all_search')}
-              className="h-9 w-full max-w-sm rounded-md border border-input bg-background px-3 text-sm" />
             {cat === ALL_TAB && (
               <Select value={allGroup} onValueChange={setAllGroup}>
                 <SelectTrigger className="h-9 w-48"><SelectValue placeholder={t('commands.all_group')} /></SelectTrigger>
@@ -488,6 +503,12 @@ export const CommandsPage: React.FC = () => {
       ) : loading ? (
         <div className="flex items-center justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
       ) : (
+        <div className="space-y-3">
+        {searching && <div role="status" className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+          <span>{shown.length ? t('commands.search_results', { count: shown.length }) : t('commands.search_no_command')}</span>
+          {allLocale === lang && visibleTexts.length > 0 && <button type="button" className="text-primary underline-offset-4 hover:underline"
+            onClick={() => setCat(ALL_TAB)}>{t('commands.search_texts_hint', { count: visibleTexts.length })}</button>}
+        </div>}
         <div className="rt-frame rounded-lg border overflow-x-auto">
           <table className="rt w-full text-sm">
             <thead className="bg-muted/50 text-muted-foreground">
@@ -518,6 +539,9 @@ export const CommandsPage: React.FC = () => {
                       </td>
                       <td data-label={t('commands.col_title')} className="command-title p-2.5 font-medium whitespace-nowrap">
                         <span className="inline-flex items-center gap-1.5">{c.title}
+                          {searching && <button type="button" onClick={() => { setAllQ(''); setCat(c.category); }}
+                            title={t('commands.search_open_category')}
+                            className="rounded bg-muted px-1.5 py-0.5 text-[11px] font-normal text-muted-foreground hover:text-foreground">{categoryLabel(c.category)}</button>}
                           {c.cmd === '.alias' && <FeatureHelp title={t('shortcuts.title')} description={<div className="whitespace-pre-line">{t('shortcuts.help')}</div>} />}
                         </span>
                       </td>
@@ -567,6 +591,7 @@ export const CommandsPage: React.FC = () => {
               })}
             </tbody>
           </table>
+        </div>
         </div>
       )}
       </TabsContent>

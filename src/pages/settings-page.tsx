@@ -1,5 +1,5 @@
 import { CleanupSettingsCard } from '@/components/settings/cleanup-settings-card';
-import { SnBannerPreview, snBannerStyles, normalizeSnStyle, validSnTemplate, SN_FORMULA_EXAMPLE, type SnBannerStyle } from '@/components/settings/sn-banner-preview';
+import { SnBannerPreview, snBannerStyles, normalizeSnStyle, validSnTemplate, SN_FORMULA_EXAMPLE, SN_DEFAULT_COLOR, SN_COLOR_SWATCHES, normalizeSnColor, validSnColor, eyeDropperAvailable, pickScreenColor, type SnBannerStyle } from '@/components/settings/sn-banner-preview';
 import { useTourState, useTourActive } from '@/components/onboarding/tour-data';
 import { useRequestGate } from '@/hooks/use-request-gate';
 import { tourSamples } from '@/lib/tour-samples';
@@ -22,13 +22,15 @@ import type { LucideIcon } from 'lucide-react';
 import {
   SlidersHorizontal, Crown, Globe, Plus, Trash2, ShieldCheck,
   Image, Type, Server, Clock, Layers3, RotateCcw,
-  ArrowUp, ArrowDown,
+  ArrowUp, ArrowDown, Pipette,
 } from 'lucide-react';
 import { IdentityEmailSettings } from '@/components/identity-email-settings';
 import { TraySettingsCard } from '@/components/tray-settings';
 import { PlatformIcon, platformLabel } from '@/components/platform-icon';
 import { SettingsWorkspace, SettingsPanel } from '@/components/settings-workspace';
 import { DEFAULT_BOT_MESSAGE, readBotMessageSettings, botMessageValues, validBotMessage } from '@/lib/bot-message';
+import { cn } from '@/lib/utils';
+import { RandomSourceCard } from '@/components/dice/random-source-card';
 
 
 interface Master { platform: string; adapter_id?: string; id: string; nickname?: string; }
@@ -217,11 +219,15 @@ const BotMessageCard: React.FC<ScopedCardProps> = (scopeProps) => {
   </Card>;
 };
 
+const SN_KEYS = ['qq_sn_banner', 'qq_sn_template', 'qq_sn_color'];
+
 const SnBannerCard: React.FC<ScopedCardProps> = (scopeProps) => {
   const { t } = useTranslation();
   const toast = useToast();
   const [mode, setMode] = useTourState<SnBannerStyle>('small_red', 'small_red');
   const [template, setTemplate] = useTourState('> {sn}', '> {sn}');
+  const [color, setColor] = useTourState(SN_DEFAULT_COLOR, SN_DEFAULT_COLOR);
+  const [colorText, setColorText] = useTourState(SN_DEFAULT_COLOR, SN_DEFAULT_COLOR);
   const [overridden, setOverridden] = useTourState(false, false);
   const [saving, setSaving] = React.useState(false);
   const gate = useRequestGate(scopedQuery(scopeProps));
@@ -230,8 +236,14 @@ const SnBannerCard: React.FC<ScopedCardProps> = (scopeProps) => {
   const apply = (data: any) => {
     setMode(normalizeSnStyle(data.values?.qq_sn_banner));
     setTemplate(typeof data.values?.qq_sn_template === 'string' ? data.values.qq_sn_template : '> {sn}');
-    setOverridden(['qq_sn_banner', 'qq_sn_template'].some(key => Object.prototype.hasOwnProperty.call(data.overrides || {}, key)));
+    const loadedColor = normalizeSnColor(data.values?.qq_sn_color);
+    setColor(loadedColor); setColorText(loadedColor);
+    setOverridden(SN_KEYS.some(key => Object.prototype.hasOwnProperty.call(data.overrides || {}, key)));
   };
+  const pickColor = (value: string) => { const next = normalizeSnColor(value); setColor(next); setColorText(next); };
+  const colorTextValid = validSnColor(colorText);
+  const canEyedrop = eyeDropperAvailable();
+  const eyedrop = async () => { const picked = await pickScreenColor(); if (picked) pickColor(picked); };
   const { ready, status } = useScopedLoader(scopeProps, apply);
   const valid = validSnTemplate(template);
   const save = async (reset = false) => {
@@ -240,8 +252,8 @@ const SnBannerCard: React.FC<ScopedCardProps> = (scopeProps) => {
     const current = gate.start();
     try {
       const data = await putJson('/system/global', scopedBody(scopeProps,
-        reset ? {} : { qq_sn_banner: mode, qq_sn_template: template },
-        reset ? ['qq_sn_banner', 'qq_sn_template'] : undefined));
+        reset ? {} : { qq_sn_banner: mode, qq_sn_template: template, qq_sn_color: color },
+        reset ? SN_KEYS : undefined));
       if (current()) { apply(data); toast({ title: t('common.save_success') }); }
     } catch (e) {
       if (current()) toast({ title: (e as Error).message, variant: 'destructive' });
@@ -264,6 +276,29 @@ const SnBannerCard: React.FC<ScopedCardProps> = (scopeProps) => {
             <SelectContent>{snBannerStyles.map(style => <SelectItem key={style} value={style}>{t(`qq_sn.${style}`)}</SelectItem>)}</SelectContent>
           </Select>
         </div>
+        {mode === 'small_red' && <div className="space-y-2" data-testid="sn-color-picker">
+          <Label htmlFor={`${id}-color`}>{t('qq_sn.color')}</Label>
+          <div className="flex flex-wrap items-center gap-2">
+            <input id={`${id}-color`} type="color" value={color.toLowerCase()} onChange={e => pickColor(e.target.value)}
+              className="h-9 w-12 cursor-pointer rounded-md border bg-background p-1" aria-describedby={`${id}-color-help`} />
+            <Input aria-label={t('qq_sn.color_hex')} className="h-9 w-28 font-mono uppercase" maxLength={7} value={colorText}
+              aria-invalid={!colorTextValid}
+              onChange={e => { const v = e.target.value.trim(); setColorText(v); if (validSnColor(v)) setColor(v.toUpperCase()); }}
+              onBlur={() => setColorText(color)} />
+            <Button type="button" variant="outline" size="sm" className="h-9" disabled={!canEyedrop}
+              onClick={() => void eyedrop()} title={t(canEyedrop ? 'qq_sn.eyedropper_hint' : 'qq_sn.eyedropper_unsupported')}>
+              <Pipette className="mr-1.5 h-3.5 w-3.5" />{t('qq_sn.eyedropper')}
+            </Button>
+            <div role="group" aria-label={t('qq_sn.color_swatches')} className="flex flex-wrap gap-1.5">
+              {SN_COLOR_SWATCHES.map(swatch => <button key={swatch} type="button" title={swatch} aria-label={swatch}
+                aria-pressed={color === swatch} onClick={() => pickColor(swatch)}
+                className={cn('h-6 w-6 rounded-full border ring-offset-background transition', color === swatch && 'ring-2 ring-ring ring-offset-2')}
+                style={{ backgroundColor: swatch }} />)}
+            </div>
+          </div>
+          <p id={`${id}-color-help`} className="text-xs text-muted-foreground">{t('qq_sn.color_help')}</p>
+          {!canEyedrop && <p className="text-xs text-muted-foreground">{t('qq_sn.eyedropper_unsupported')}</p>}
+        </div>}
         {(mode === 'custom' || !valid) && <div className="space-y-2">
           <Label htmlFor={`${id}-template`}>{t('qq_sn.template')}</Label>
           <Textarea id={`${id}-template`} rows={3} className="font-mono text-sm" value={template}
@@ -277,7 +312,7 @@ const SnBannerCard: React.FC<ScopedCardProps> = (scopeProps) => {
         </div>}
         <div className="space-y-2">
           <Label>{t('qq_sn.preview')}</Label>
-          <SnBannerPreview mode={mode} template={template} sample={t('qq_sn.sample')} reply={t('qq_sn.sample_reply')} />
+          <SnBannerPreview mode={mode} template={template} color={color} sample={t('qq_sn.sample')} reply={t('qq_sn.sample_reply')} />
           <p className="text-xs text-muted-foreground">{t('qq_sn.preview_hint')}</p>
         </div>
         <p className="text-xs text-muted-foreground">{t('qq_sn.fallback')}</p>
@@ -1395,6 +1430,9 @@ export const SettingsPage: React.FC = () => {
           <p className="text-xs text-muted-foreground">{t('settings.timezone_hint')}</p>
         </CardContent>
       </Card>
+
+      {/* 全局掷骰随机源：原 /dice-rules 占位页移除后迁到基础设置。 */}
+      <RandomSourceCard />
 
       <Card data-setting-anchor="settings-expression">
         <CardHeader>

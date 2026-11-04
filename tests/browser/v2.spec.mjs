@@ -20,7 +20,7 @@ test('official webhook warns on local HTTP access without blocking the editor', 
 });
 
 test('official SN presets and custom format persist with scoped overrides', async ({ page }) => {
-  const global = { qq_sn_banner: 'small_red', qq_sn_template: '> {sn}' };
+  const global = { qq_sn_banner: 'small_red', qq_sn_template: '> {sn}', qq_sn_color: '#E5484D' };
   const scoped = {};
   const writes = [];
   await page.route('**/api/system/global**', async route => {
@@ -43,12 +43,32 @@ test('official SN presets and custom format persist with scoped overrides', asyn
   await page.goto('/#/settings?focus=settings-qq-sn');
   const card = page.locator('[data-setting-anchor="settings-qq-sn"]');
   await expect(card).toBeVisible();
+  // Edit only after the page's scope requests settle: the card is re-keyed (and reloads its
+  // values) when the page resolves its scope, and its fieldset stays disabled until loaded.
+  const loaded = async () => {
+    await page.waitForLoadState('networkidle');
+    await expect(card.locator('fieldset').first()).toBeEnabled();
+  };
+  await loaded();
   const choose = async label => {
     await card.getByRole('combobox').click();
     await page.getByRole('option', { name: label, exact: true }).click();
   };
-  await expect(card.getByRole('combobox')).toContainText('红色小字');
+  await expect(card.getByRole('combobox')).toContainText('彩色文字');
+  const picker = card.getByTestId('sn-color-picker');
+  await picker.getByRole('button', { name: '#0090FF' }).click();
+  await expect(card.getByTestId('sn-banner-preview').locator('p').first()).toHaveCSS('color', 'rgb(0, 144, 255)');
+  await picker.getByRole('textbox', { name: '颜色值（#RRGGBB）' }).fill('#30a46c');
+  await expect(card.getByTestId('sn-banner-preview').locator('p').first()).toHaveCSS('color', 'rgb(48, 164, 108)');
+  // Chromium exposes EyeDropper, but headless has no screen to sample; the stub returns what it would.
+  await page.addInitScript(() => { window.EyeDropper = class { open() { return Promise.resolve({ sRGBHex: '#6e56cf' }); } }; });
+  await page.reload();
+  await loaded();
+  await picker.getByRole('button', { name: '取色器' }).click();
+  await expect(picker.getByRole('textbox', { name: '颜色值（#RRGGBB）' })).toHaveValue('#6E56CF');
+  await picker.getByRole('textbox', { name: '颜色值（#RRGGBB）' }).fill('#30a46c');
   await choose('引用');
+  await expect(card.getByTestId('sn-color-picker')).toHaveCount(0);
   await expect(card.locator('blockquote')).toContainText('SAN50');
   await choose('自定义格式');
   const input = card.getByRole('textbox');
@@ -60,7 +80,9 @@ test('official SN presets and custom format persist with scoped overrides', asyn
   expect(writes).toHaveLength(0);
   await card.getByRole('button', { name: '保存', exact: true }).click();
   await expect.poll(() => writes.length).toBe(1);
+  expect(writes[0].values.qq_sn_color).toBe('#30A46C');
   await page.reload();
+  await loaded();
   await expect(input).toHaveValue('**{sn}**');
   await input.fill('没有变量');
   await expect(card.getByRole('button', { name: '保存', exact: true })).toBeDisabled();
@@ -130,9 +152,11 @@ test('random source selection saves explicitly and survives a page reload', asyn
   let source = 'system', saves = 0;
   await page.route('**/api/system/random-source', async route => {
     if (route.request().method() === 'PUT') { source = route.request().postDataJSON().source; saves++; }
-    await route.fulfill({ json: { code: 0, data: { source } } });
+    await route.fulfill({ json: { code: 0, data: { source, active: source, fallbacks: 0, hardware_available: false } } });
   });
+  // The retired /dice-rules URL redirects to the card's new home in basic settings.
   await page.goto('/#/dice-rules?focus=dice-random-source');
+  await expect(page).toHaveURL(/#\/settings\?focus=dice-random-source/);
   const card = page.locator('[data-setting-anchor="dice-random-source"]');
   await expect(card.getByRole('combobox')).toContainText('操作系统安全随机');
   await card.getByRole('combobox').click();
@@ -142,6 +166,9 @@ test('random source selection saves explicitly and survives a page reload', asyn
   await expect.poll(() => saves).toBe(1);
   await page.reload();
   await expect(card.getByRole('combobox')).toContainText('OpenSSL');
+  await card.getByRole('combobox').click();
+  await expect(page.getByRole('option', { name: /CPU 硬件熵源/ })).toBeDisabled();
+  await page.keyboard.press('Escape');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 

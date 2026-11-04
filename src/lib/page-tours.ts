@@ -69,11 +69,6 @@ export const PAGE_TOURS: Readonly<Record<string, PageTourProfile>> = {
     step('[data-tour="adapters-add"]', 'adapters.add', 'create', 'adapters.add_subtitle'),
     step('[data-tour="adapters-list"]', 'adapters.detail_connection_status', 'manage', 'adapters.no_adapters_hint'),
   ]),
-  '/dice-rules': profile('dice.title', [
-    step(heading, 'dice.title', 'overview', 'dice.subtitle'),
-    step('[data-tour="dice-rule-groups"]', 'dice.title', 'configure', 'dice.subtitle'),
-    step('[data-tour="dice-actions"]', 'dice.save_rules', 'save'),
-  ]),
   '/replies': profile('replies.title', [
     step(heading, 'replies.title', 'overview', 'replies.subtitle'),
     step('[data-tour="replies-tabs"]', 'replies.tab_replies', 'switch'),

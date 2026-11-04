@@ -33,6 +33,9 @@ const formatBytes = (bytes: number) => {
   return value.toFixed(index === 0 ? 0 : 1) + ' ' + units[index];
 };
 
+// Static, translator-owned copy (no user input) rendered with its <strong> emphasis.
+const INTRO_FEATURES = ['dice', 'platforms', 'compat', 'panel', 'records', 'ops'] as const;
+
 export const AboutPage: React.FC = () => {
   const { t } = useTranslation();
   const dialogs = useDialogs(t);
@@ -242,6 +245,12 @@ export const AboutPage: React.FC = () => {
         </CardHeader>
         <CardContent className="space-y-3 text-sm text-muted-foreground">
           <p dangerouslySetInnerHTML={{ __html: t('about.intro_text') }} />
+          <div className="space-y-1.5">
+            <p className="font-medium text-foreground">{t('about.intro_features_title')}</p>
+            <ul className="list-disc space-y-1 pl-5">
+              {INTRO_FEATURES.map((key) => <li key={key} dangerouslySetInnerHTML={{ __html: t(`about.intro_feature_${key}`) }} />)}
+            </ul>
+          </div>
           <p>{t('about.license')}</p>
         </CardContent>
       </Card>
@@ -687,7 +696,6 @@ function ReleaseChangelog() {
         <CardTitle className="text-base">{t('about.changelog_title')}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4 text-sm text-muted-foreground">
-        <p>{t('about.changelog_recent')}</p>
         {state === 'loading' && <p>{t('about.changelog_loading')}</p>}
         {state === 'error' && (
           <p>

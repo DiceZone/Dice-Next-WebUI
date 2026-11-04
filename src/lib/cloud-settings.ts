@@ -14,6 +14,8 @@ export const isCloudSettingsQuery = (query: string) => {
 // Preserve old cloud-tab bookmarks without sending image-host settings to BDC.
 export const resolveSettingsRoute = (path: string, query: string) => {
   const params = new URLSearchParams(query);
+  // The old dice-rules placeholder page is gone; its only live setting moved to basic settings.
+  if (path === '/dice-rules') return { path: '/settings', query: 'focus=dice-random-source' };
   if ((path === '/settings' || path === '/cloud-services')
       && params.get('focus') === 'settings-image-host') {
     params.delete('tab');

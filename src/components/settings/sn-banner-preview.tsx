@@ -8,6 +8,36 @@ export const normalizeSnStyle = (value: unknown): SnBannerStyle =>
 export const validSnTemplate = (value: string) =>
   new TextEncoder().encode(value).length <= 2048 && /\{sn(?:_tex)?\}/.test(value);
 export const SN_FORMULA_EXAMPLE = '$\\scriptsize\\textcolor{#E5484D}{\\text{{sn_tex}}}$';
+// 「彩色文字」预设（存储键沿用 small_red）。后端只接受 #RRGGBB，其他值回退默认红。
+export const SN_DEFAULT_COLOR = '#E5484D';
+export const SN_COLOR_SWATCHES = ['#E5484D', '#F76B15', '#FFC53D', '#30A46C', '#12A594', '#0090FF', '#6E56CF', '#D6409F', '#8B8D98'];
+export const validSnColor = (value: unknown): value is string =>
+  typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value);
+export const normalizeSnColor = (value: unknown) =>
+  validSnColor(value) ? value.toUpperCase() : SN_DEFAULT_COLOR;
+
+// Screen eyedropper (EyeDropper API): Chrome / Edge on HTTPS or localhost only.
+type EyeDropperCtor = new () => { open(): Promise<{ sRGBHex: string }> };
+const eyeDropperCtor = () => typeof window === 'undefined' ? undefined
+  : (window as unknown as { EyeDropper?: EyeDropperCtor }).EyeDropper;
+export const eyeDropperAvailable = () => !!eyeDropperCtor();
+/** Chromium returns "#rrggbb"; other engines may return rgb()/rgba(). */
+export function pickedColorToHex(value: string): string | null {
+  const text = value.trim();
+  if (validSnColor(text)) return text.toUpperCase();
+  const match = /^rgba?\(\s*(\d{1,3})[\s,]+(\d{1,3})[\s,]+(\d{1,3})/i.exec(text);
+  if (!match) return null;
+  const channels = match.slice(1, 4).map(Number);
+  if (channels.some((channel) => channel > 255)) return null;
+  return '#' + channels.map((channel) => channel.toString(16).padStart(2, '0')).join('').toUpperCase();
+}
+/** Resolves to the picked #RRGGBB, or null when cancelled (Esc) or unsupported. */
+export async function pickScreenColor(): Promise<string | null> {
+  const EyeDropper = eyeDropperCtor();
+  if (!EyeDropper) return null;
+  try { return pickedColorToHex((await new EyeDropper().open()).sRGBHex); }
+  catch { return null; }
+}
 
 // Loaded only for custom formulas. MathML uses browser fonts, without loading
 // KaTeX's full font bundle; trust=false rejects HTML, links and external images.
@@ -37,15 +67,15 @@ function CustomPreview({ text }: { text: string }) {
     : part && <MarkdownExample key={index} text={part} enabled />)}</div>;
 }
 
-export function SnBannerPreview({ mode, template, sample, reply }: {
-  mode: SnBannerStyle; template: string; sample: string; reply: string;
+export function SnBannerPreview({ mode, template, sample, reply, color = SN_DEFAULT_COLOR }: {
+  mode: SnBannerStyle; template: string; sample: string; reply: string; color?: string;
 }) {
   // The preview sample is a fixed localized string without markup characters.
   // Replacing once also ensures inserted placeholder-looking text isn't evaluated.
   const expanded = template.replace(/\{sn(?:_tex)?\}/g, () => sample);
   const custom = new TextEncoder().encode(expanded).length > 3000 ? sample : expanded;
   return <div data-testid="sn-banner-preview" className="space-y-3 rounded-lg border bg-background p-4 text-sm">
-    {mode === 'small_red' && <p className="text-[11px] text-[#E5484D]">{sample}</p>}
+    {mode === 'small_red' && <p className="text-[11px]" style={{ color: normalizeSnColor(color) }}>{sample}</p>}
     {mode === 'quote' && <blockquote className="border-l-2 border-muted-foreground/40 pl-3 text-muted-foreground">{sample}</blockquote>}
     {mode === 'plain' && <p>{sample}</p>}
     {mode === 'custom' && <CustomPreview text={custom} />}

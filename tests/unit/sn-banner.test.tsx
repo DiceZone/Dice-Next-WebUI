@@ -5,6 +5,10 @@ import {
   SnBannerPreview,
   validSnTemplate,
   SN_FORMULA_EXAMPLE,
+  normalizeSnColor,
+  pickScreenColor,
+  pickedColorToHex,
+  validSnColor,
 } from '../../src/components/settings/sn-banner-preview';
 
 describe('SN status presentation', () => {
@@ -28,6 +32,41 @@ describe('SN status presentation', () => {
     expect(math.querySelector('[mathcolor="#E5484D"]')).not.toBeNull();
     expect(math.querySelector('[mathsize="0.7em"]')).not.toBeNull();
     expect(view.container.textContent).not.toContain('{sn_tex}');
+  });
+
+  it('colors the small status line with a validated #RRGGBB value only', () => {
+    const props = { sample: '希亚 SAN50', reply: 'D100=50', template: '> {sn}' };
+    const view = render(<SnBannerPreview {...props} mode="small_red" color="#0090ff" />);
+    expect(screen.getByText(props.sample)).toHaveStyle({ color: 'rgb(0, 144, 255)' });
+    view.rerender(<SnBannerPreview {...props} mode="small_red" color="red;background:url(x)" />);
+    expect(screen.getByText(props.sample)).toHaveStyle({ color: 'rgb(229, 72, 77)' });
+    expect(validSnColor('#30A46C')).toBe(true);
+    expect(validSnColor('30A46C')).toBe(false);
+    expect(normalizeSnColor('#30a46c')).toBe('#30A46C');
+    expect(normalizeSnColor(undefined)).toBe('#E5484D');
+  });
+
+  it('reads eyedropper results as #RRGGBB and ignores cancellation or unsupported browsers', async () => {
+    expect(pickedColorToHex('#0090ff')).toBe('#0090FF');
+    expect(pickedColorToHex('rgb(48, 164, 108)')).toBe('#30A46C');
+    expect(pickedColorToHex('rgba(0 144 255 / 1)')).toBe('#0090FF');
+    expect(pickedColorToHex('rgb(300, 0, 0)')).toBeNull();
+    expect(pickedColorToHex('red')).toBeNull();
+    expect(await pickScreenColor()).toBeNull();
+    const win = window as unknown as { EyeDropper?: unknown };
+    win.EyeDropper = class {
+      open() {
+        return Promise.resolve({ sRGBHex: '#12a594' });
+      }
+    };
+    expect(await pickScreenColor()).toBe('#12A594');
+    win.EyeDropper = class {
+      open() {
+        return Promise.reject(new DOMException('cancelled', 'AbortError'));
+      }
+    };
+    expect(await pickScreenColor()).toBeNull();
+    delete win.EyeDropper;
   });
 
   it('rejects missing placeholders and measures UTF-8 bytes instead of character count', () => {
