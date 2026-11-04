@@ -73,6 +73,11 @@ test('a saved plain reply offers one-click Markdown and keeps its toolbar off un
     }],
   }] } }));
   await page.route('**/api/templates/markdown-source', route => route.fulfill({ json: { code: 0, data: { value: '{nick} 掷出 2*3 {res}' } } }));
+  // CI has no production renderer: a fixed preview keeps the editor saveable.
+  await page.route('**/api/templates/preview', route => route.fulfill({ json: { code: 0, data: { templateVersion: 1,
+    preview: { text: '测试玩家 掷出 2*3 D100=42', plain: '测试玩家 掷出 2*3 D100=42', markdown: true, payload: { msg_type: 2 }, actions: [] },
+    markdown: '测试玩家 掷出 2*3 D100=42', onebot: '测试玩家 掷出 2*3 D100=42',
+    simulation: { version: 1, seed: 1, command: '.r', family: '', grade: '', args: {}, facts: {}, unresolved: [], issues: [] } } } }));
   await page.route('**/api/templates', async route => { saved = route.request().postDataJSON(); await route.fulfill({ json: { code: 0, data: null } }); });
   await page.goto('/#/commands');
   await page.getByRole('button', { name: '编辑', exact: true }).first().click();
