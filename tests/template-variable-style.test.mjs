@@ -63,3 +63,9 @@ test('preserves surrounding prose styles, unrelated tokens and escaped literals'
   assert.equal(restyleVariable('**{a.b|x}** 和 ~~{a.b|x}~~', 'a.b|x', 'italic'), '*{a.b|x}* 和 *{a.b|x}*');
   assert.equal(restyleVariable('**{nick}**/**{nick}**', 'nick', 'plain'), '{nick}/{nick}');
 });
+
+test('variable styling leaves button payloads, bar values and TeX untouched', () => {
+  const components = '[[action:{nick}|.r {nick}]] [[bar:HP|{nick}|10]] [[math:\\text{ {{nick}} }|{nick}]]';
+  assert.equal(restyleVariable(components + ' {nick}', 'nick', 'bold'), components + ' **{nick}**');
+  assert.equal(variableStyleOf(components + ' **{nick}**', 'nick'), 'bold');
+});

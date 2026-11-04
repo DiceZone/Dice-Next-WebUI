@@ -27,6 +27,7 @@ import { noticeManagerCopy } from './notice-manager';
 import { v2Copy } from './v2';
 import { mcpCopy } from './mcp';
 import { dashboardShortcutsCopy } from './dashboard-shortcuts';
+import { visualEditorCopy } from './visual-editor';
 
 /**
  * Front-end i18n setup (繁體中文 / 简体中文 / English).
@@ -56,6 +57,10 @@ function detectInitialLanguage(): LanguageCode {
 }
 
 const initialLanguage = detectInitialLanguage();
+for (const [language, bundle] of Object.entries(visualEditorCopy)) {
+  const resource = ({ 'zh-Hans': zhHans, 'zh-Hant': zhHant, en, ja } as Record<string, object>)[language];
+  Object.assign(resource, { visual_editor: bundle });
+}
 for (const [language, bundle] of Object.entries(dashboardShortcutsCopy)) {
   const resource = ({ 'zh-Hans': zhHans, 'zh-Hant': zhHant, en, ja } as Record<string, object>)[language];
   Object.assign(resource, { dashboard_shortcuts: bundle });

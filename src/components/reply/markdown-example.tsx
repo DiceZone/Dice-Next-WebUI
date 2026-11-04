@@ -1,11 +1,12 @@
 import React from 'react';
+import { MathFormula } from './math-formula';
 
 // Lightweight preview of the Markdown subset that rich platforms render.
 // Backslash escapes (`\>`, `\*`) show the literal character, as on Discord/KOOK.
 const unescapeMarkdown = (text: string): string => text.replace(/\\([!-/:-@[-`{-~])/g, '$1');
 
 const inlineMarkdown = (text: string, prefix: string): React.ReactNode[] => {
-  const pattern = /(\\[!-/:-@[-`{-~]|\*\*[^*\n]+\*\*|__[^_\n]+__|~~[^~\n]+~~|\*[^*\n]+\*|_[^_\n]+_|`[^`\n]+`|\[[^\]\n]+\]\([^)\n]+\))/g;
+  const pattern = /(\\[!-/:-@[-`{-~]|\$(?:\\.|[^$\\\n])+\$|\*\*[^*\n]+\*\*|__[^_\n]+__|~~[^~\n]+~~|\*[^*\n]+\*|_[^_\n]+_|`[^`\n]+`|\[[^\]\n]+\]\([^)\n]+\))/g;
   const out: React.ReactNode[] = [];
   let last = 0, index = 0;
   for (const match of text.matchAll(pattern)) {
@@ -14,6 +15,7 @@ const inlineMarkdown = (text: string, prefix: string): React.ReactNode[] => {
     const token = match[0];
     const key = `${prefix}-${index++}`;
     if (token.startsWith('\\')) out.push(token.slice(1));
+    else if (token.startsWith('$')) out.push(<MathFormula key={key} text={token.slice(1, -1)} />);
     else if ((token.startsWith('**') && token.endsWith('**')) || (token.startsWith('__') && token.endsWith('__')))
       out.push(<strong key={key}>{unescapeMarkdown(token.slice(2, -2))}</strong>);
     else if ((token.startsWith('*') && token.endsWith('*')) || (token.startsWith('_') && token.endsWith('_')))

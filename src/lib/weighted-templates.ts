@@ -1,3 +1,5 @@
+import { presentationComponents } from './presentation-template.js';
+
 export interface TemplateVariant { text: string; weight: number; }
 export interface PersonaWeight { id: number; weight: number; }
 export const WEIGHTED_TEMPLATE_PREFIX = '@dicenext:weighted:v1\n';
@@ -42,11 +44,14 @@ export function templateSummary(value: string): string {
 export function splitLegacySample(text: string): string[] | null {
   if (!text.startsWith('{sample:') || !text.endsWith('}')) return null;
   let depth = 0, start = 8;
+  const components = new Map(presentationComponents(text).map(c => [c.start, c.end]));
   const out: string[] = [];
   for (let i = start; i < text.length; i++) {
     let slashes = 0;
     for (let j = i - 1; j >= 0 && text[j] === '\\'; --j) slashes++;
     if (slashes % 2 && (text[i] === '{' || text[i] === '}')) continue;
+    const componentEnd = components.get(i);
+    if (componentEnd && slashes % 2 === 0) { i = componentEnd - 1; continue; }
     if (text[i] === '{') depth++;
     else if (text[i] === '}') {
       if (!depth) {

@@ -44,6 +44,8 @@ const compiled = await build({
       "import { resourceTransferCopy } from './src/i18n/resource-transfer';",
       "import { noticeManagerCopy } from './src/i18n/notice-manager';",
       "import { mcpCopy } from './src/i18n/mcp';",
+      "import { visualEditorCopy } from './src/i18n/visual-editor';",
+      "export { visualEditorCopy };",
       "export { mcpCopy };",
       "export { imageResourcesCopy, resourceTransferCopy, noticeManagerCopy };",
       "import { HelpLabel } from './src/components/ui/help-label';",
@@ -90,6 +92,7 @@ for (const language of languages) {
   messages[language].resource_transfer = module.exports.resourceTransferCopy[language];
   messages[language].notice_manager = module.exports.noticeManagerCopy[language];
   messages[language].mcp = module.exports.mcpCopy[language];
+  messages[language].visual_editor = module.exports.visualEditorCopy[language];
 }
 
 function renderPage(page, hash, language = 'zh-Hans', tour = false) {

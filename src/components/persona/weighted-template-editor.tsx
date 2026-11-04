@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { FeatureHelp } from '@/components/ui/feature-help';
+import { PresentationTemplateEditor } from '@/components/reply/presentation-template-editor';
 import { MAX_TEMPLATE_WEIGHT, probabilities, splitLegacySample, validWeights, type TemplateVariant } from '@/lib/weighted-templates';
 
 interface Props {
@@ -56,6 +57,7 @@ export function WeightedTemplateEditor({ items, onChange, activeIndex, onActiveI
       <Textarea ref={textareaRef} rows={7} className="min-h-40 font-mono text-sm" spellCheck={false}
         aria-label={t('weighted.reply_number', { n: index + 1 })} value={items[index].text}
         onChange={event => update({ text: event.target.value })} />
+      <PresentationTemplateEditor text={items[index].text} onChange={text => update({ text })} />
     </div>
     {!validWeights(items) && <p role="alert" className="text-xs text-destructive">{t('weighted.invalid_weights')}</p>}
     {legacy && legacy.length > 1 && legacy.length <= 256 && <Button type="button" size="sm" variant="outline"

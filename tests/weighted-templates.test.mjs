@@ -22,6 +22,8 @@ test('legacy outer sample conversion preserves nested macros, placeholders and e
   for (const text of ['前{sample:甲|乙}', '{sample:甲|乙}后', '{sample:甲|{nick}', '\\{sample:甲|乙}'])
     assert.equal(splitLegacySample(text), null);
   assert.deepEqual(splitLegacySample('{sample:甲|乙}'), ['甲', '乙']);
+  assert.deepEqual(splitLegacySample('{sample:[[action:甲|.r]]|[[math:\\frac{1}{2}|1/2]]}'),
+    ['[[action:甲|.r]]', '[[math:\\frac{1}{2}|1/2]]']);
 });
 
 test('invalid single-weight drafts stay invalid and zero variants remain editable', () => {

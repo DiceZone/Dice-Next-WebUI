@@ -24,6 +24,8 @@ import {
 } from '@/components/ui/select';
 import { Plus, X } from 'lucide-react';
 import { ImageResourcePicker } from '@/components/image-resource-picker';
+import { PresentationTemplateEditor } from './presentation-template-editor';
+import { presentationIssues } from '@/lib/presentation-template';
 import type { ReplyRule, ReplyFormData, MatchType, ReplyLogic, ReplyCondition, ReplyScopeMode } from '@/types/reply';
 import { DEFAULT_REPLY_PRIORITY } from '@/types/reply';
 
@@ -107,6 +109,7 @@ export const ReplyForm: React.FC<ReplyFormProps> = ({ open, onOpenChange, onSubm
     const res = selected.map((r) => r.text);
     if (!eventTrigger && conds.length === 0) { setError(t('replies.err_need_cond')); return; }
     if (res.length === 0) { setError(t('replies.err_need_result')); return; }
+    if (res.some(presentationIssues)) { setError(t('visual_editor.required')); return; }
     if (!validResultWeights(selected.map((r) => r.weight)) || !selected.some((r) => r.weight > 0)) {
       setError(t('replies.err_weights')); return;
     }
@@ -204,14 +207,6 @@ export const ReplyForm: React.FC<ReplyFormProps> = ({ open, onOpenChange, onSubm
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="text-xs text-muted-foreground">{t('replies.result_n', { n: i + 1 })}</span>
                   <div className="flex flex-wrap items-center gap-1">
-                    <Button type="button" variant="outline" size="sm"
-                      onClick={() => setResult(i, `${r}${r && !r.endsWith('\n') ? '\n' : ''}[[bar:HP|6|10]]`)} className="h-8 text-xs">
-                      {t('replies.insert_status_bar')}
-                    </Button>
-                    <Button type="button" variant="outline" size="sm"
-                      onClick={() => setResult(i, `${r}${r && !r.endsWith('\n') ? '\n' : ''}[[action:掷骰指令|.r]]`)} className="h-8 text-xs">
-                      {t('replies.insert_action_hint')}
-                    </Button>
                     <ImageResourcePicker directory={reply?.id ? `reply/${reply.id}` : 'reply'} disabled={submitting} className="h-8 text-xs"
                       onSelect={(entry) => setResults((rs) => rs.map((value, idx) => idx === i ? value + entry.code : value))}>{t('replies.insert_image')}</ImageResourcePicker>
                     {results.length > 1 && (
@@ -221,6 +216,7 @@ export const ReplyForm: React.FC<ReplyFormProps> = ({ open, onOpenChange, onSubm
                 </div>
                 <Textarea rows={3} value={r} onChange={(e) => setResult(i, e.target.value)}
                   placeholder={t('replies.result_ph')} />
+                <PresentationTemplateEditor text={r} onChange={value => setResult(i, value)} allowMath={false} />
                 <div className="flex flex-wrap items-center gap-2 text-xs">
                   <Label htmlFor={`reply-weight-${i}`} className="text-xs">{t('replies.result_weight')}</Label>
                   <Input id={`reply-weight-${i}`} type="number" min={0} max={MAX_REPLY_WEIGHT} step={1} className="h-8 w-24" value={Number.isNaN(weights[i]) ? '' : weights[i]}

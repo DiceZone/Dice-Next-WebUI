@@ -355,6 +355,7 @@ export const SETTINGS_SEARCH_ENTRIES: SettingsSearchEntry[] = [
   e('page-replies', '/replies', 'nav.custom_replies', 'replies.title', '高级回复 進階回覆 自定义回复 自訂回覆 回复 回覆 advanced custom reply template text markdown variables 自定义 自訂', 'replies.subtitle'),
   e('commands-global-search', '/commands', 'nav.commands', 'commands.global_search', '指令搜索 指令搜尋 全局搜索 全域搜尋 查找指令 找指令 command search find', 'commands.subtitle'),
   e('page-commands', '/commands', 'nav.commands', 'commands.title', '指令 命令 command alias enable disable reply text', 'commands.subtitle'),
+  e('visual-template-editor', '/commands', 'nav.commands', 'visual_editor.components', '高级视觉 高階視覺 文案 预设 預設 按钮 按鈕 公式 数学 數學 状态条 狀態條 TeX latex visual buttons template preset', 'visual_editor.preset_hint', true),
   e('page-modules', '/modules', 'nav.modules', 'modules.title', '插件 plugin js javascript lua module extension config', 'modules.subtitle'),
   e('page-rules', '/rules', 'nav.rules', 'rules.title', '规则 規則 rule coc dnd dice system bundle', 'rules.desc'),
   e('rules-coc7r', '/rules', 'nav.rules', 'coc7r_ui.title', 'coc7r Keeper Companion CHA23197-H 安抚 安撫 震惊 理智 SAN Changed 专长 專長', 'coc7r_ui.help'),

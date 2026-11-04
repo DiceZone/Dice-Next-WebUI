@@ -16,6 +16,7 @@ import { apiClient } from '@/lib/api-client';
 import type { PersonaTemplate, PersonaEntry } from '@/types/persona';
 import { WeightedTemplateEditor } from './weighted-template-editor';
 import { readTemplateVariants, writeTemplateVariants, validWeights } from '@/lib/weighted-templates';
+import { presentationIssues } from '@/lib/presentation-template';
 
 interface Props {
   persona: PersonaTemplate;
@@ -74,6 +75,9 @@ export const PersonaEditor: React.FC<Props> = ({ persona, onClose, onChanged }) 
     if (!supportsWeighted) { toast({ title: t('weighted.backend_required'), variant: 'destructive' }); return; }
     if (!validWeights(readTemplateVariants(newValue))) {
       toast({ title: t('weighted.invalid_weights'), variant: 'destructive' }); return;
+    }
+    if (readTemplateVariants(newValue).some(item => presentationIssues(item.text))) {
+      toast({ title: t('visual_editor.required'), variant: 'destructive' }); return;
     }
     setSaving(true);
     try {

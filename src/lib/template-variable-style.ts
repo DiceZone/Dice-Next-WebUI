@@ -1,3 +1,5 @@
+import { presentationComponents } from './presentation-template.js';
+
 export type VariableStyle = 'plain' | 'bold' | 'italic' | 'code' | 'strike';
 export const VARIABLE_STYLES: VariableStyle[] = ['plain', 'bold', 'italic', 'code', 'strike'];
 
@@ -42,9 +44,10 @@ export function wrapVariable(name: string, style: VariableStyle): string {
 
 export function variableStyleOf(text: string, name: string): VariableStyle {
   const token = `{${name}}`;
+  const components = presentationComponents(text);
   let pos = text.indexOf(token);
   while (pos !== -1) {
-    if (!escapedAt(text, pos)) return variableRange(text, pos, token).style;
+    if (!escapedAt(text, pos) && !components.some(c => pos >= c.start && pos < c.end)) return variableRange(text, pos, token).style;
     pos = text.indexOf(token, pos + token.length);
   }
   return 'plain';
@@ -52,9 +55,10 @@ export function variableStyleOf(text: string, name: string): VariableStyle {
 
 export function restyleVariable(text: string, name: string, style: VariableStyle): string {
   const token = `{${name}}`;
+  const components = presentationComponents(text);
   let cursor = 0, output = '', pos = text.indexOf(token);
   while (pos !== -1) {
-    if (escapedAt(text, pos)) { pos = text.indexOf(token, pos + token.length); continue; }
+    if (escapedAt(text, pos) || components.some(c => pos >= c.start && pos < c.end)) { pos = text.indexOf(token, pos + token.length); continue; }
     const range = variableRange(text, pos, token);
     output += text.slice(cursor, range.start) + wrapVariable(name, style);
     cursor = range.end;

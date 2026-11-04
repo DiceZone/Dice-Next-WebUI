@@ -2,6 +2,57 @@ import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 const manifest = JSON.parse(readFileSync(new URL('../../src/routes/route-manifest.json', import.meta.url)));
 
+test('visual templates keep edited buttons and formulas after saving and reopening', async ({ page }, info) => {
+  test.skip(!process.env.DICENEXT_UI_PREVIEW_RENDERER, 'Production template renderer required');
+  const preset = '🎲 **{nick}** 掷骰：`{res}`\n[[action:再掷一次|.r]]';
+  let saved = null;
+  await page.route('**/api/commands?*', route => route.fulfill({ json: { code: 0, data: [{
+    cmd: 'r', title: '掷骰', category: '掷骰', sources: ['core'], example: '.r', desc: '掷骰', replies: [{
+      key: 'dice.roll.result', default: preset, override: saved?.value ?? null, format: saved?.format ?? 'markdown', defaultFormat: 'markdown',
+      vars: [{ name: 'res', desc: '结果' }], presetStyle: 'visual',
+      presets: { visual: { value: preset, format: 'markdown' }, standard: { value: '{nick} {res}', format: 'plain' }, traditional: { value: '{nick} {res}', format: 'plain' } },
+    }],
+  }] } }));
+  await page.route('**/api/templates', async route => {
+    saved = route.request().postDataJSON();
+    await route.fulfill({ json: { code: 0, data: null } });
+  });
+  await page.goto('/#/commands');
+  await page.getByRole('button', { name: '编辑', exact: true }).first().click();
+  let dialog = page.getByRole('dialog');
+  await expect(dialog.getByLabel('按钮文字 1')).toHaveValue('再掷一次');
+  await dialog.getByRole('combobox', { name: '从内置预设开始' }).click();
+  await page.getByRole('option', { name: '标准文案', exact: true }).click();
+  await dialog.getByRole('button', { name: '载入预设', exact: true }).click();
+  await page.getByRole('dialog', { name: '载入预设', exact: true }).getByRole('button', { name: '确定', exact: true }).click();
+  await expect(dialog.getByLabel('回复 1', { exact: true })).toHaveValue('{nick} {res}');
+  await expect(dialog.getByLabel('按钮文字 1')).toHaveCount(0);
+  await dialog.getByRole('combobox', { name: '从内置预设开始' }).click();
+  await page.getByRole('option', { name: '高级视觉文案', exact: true }).click();
+  await dialog.getByRole('button', { name: '载入预设', exact: true }).click();
+  await page.getByRole('dialog', { name: '载入预设', exact: true }).getByRole('button', { name: '确定', exact: true }).click();
+  await expect(dialog.getByLabel('按钮文字 1')).toHaveValue('再掷一次');
+  await dialog.getByLabel('回复 1', { exact: true }).fill('我的结果：' + preset);
+  await dialog.getByLabel('按钮文字 1').fill('继续掷骰');
+  await dialog.getByLabel('填入的指令 1').fill('/r 2d6');
+  await dialog.getByRole('button', { name: '添加公式', exact: true }).click();
+  await expect(dialog.locator('[data-math-preview]')).toBeVisible();
+  await expect(dialog.getByText('继续掷骰 · /r 2d6', { exact: true })).toBeVisible();
+  expect(await dialog.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+  await dialog.getByLabel('TeX 公式 2').scrollIntoViewIfNeeded();
+  await page.screenshot({ path: info.outputPath('visual-template-editor.png'), fullPage: true });
+  await dialog.getByRole('button', { name: '保存', exact: true }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  expect(saved.value).toContain('我的结果：');
+  expect(saved.value).toContain('[[action:继续掷骰|/r 2d6]]');
+  expect(saved.value).toContain('[[math:');
+  await page.reload();
+  await page.getByRole('button', { name: '编辑', exact: true }).first().click();
+  dialog = page.getByRole('dialog');
+  await expect(dialog.getByLabel('填入的指令 1')).toHaveValue('/r 2d6');
+  await expect(dialog.locator('[data-math-preview]')).toBeVisible();
+});
+
 test('official webhook warns on local HTTP access without blocking the editor', async ({ page }) => {
   await page.goto('/#/adapters');
   const card = page.getByTestId('adapter-card').first();

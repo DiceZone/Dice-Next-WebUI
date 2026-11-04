@@ -34,6 +34,7 @@ import { Switch } from '@/components/ui/switch';
 import { MarkdownExample } from '@/components/reply/markdown-example';
 import { resolveOutcomeText, resolveOutcomeInheritance, type OutcomeText, type ResolvedOutcomeText } from '@/lib/outcome-replies';
 import { templateLocalNames } from '@/lib/legacy-templates';
+import { presentationIssues, variablesOutsidePresentation, type PresentationStyle } from '@/lib/presentation-template';
 import { previewSimulation, readTemplateSimulation, type TemplateSimulation } from '@/lib/template-simulation';
 import { belongsInCommandTexts } from '@/lib/help-document';
 import { buildTextMetadata, commandCategory, commandMatches, COMMAND_CATEGORIES, filterAndSortTexts, type TextSort, type TextSortField } from '@/lib/command-text-catalog';
@@ -62,7 +63,7 @@ const GLOBAL_SET = new Set(GLOBAL_VARS);
 const extractVars = (s: string): string[] =>
   [...s.matchAll(/\{([^{}]+)\}/g)].map((m) => m[1]);
 // [[bar:HP|{hp}|{hpmax}]] reads the character card when the reply is sent.
-const varsOutsideBars = (s: string): string[] => extractVars(s.replace(/\[\[bar:[\s\S]*?\]\]/g, ''));
+const varsOutsideBars = variablesOutsidePresentation;
 
 export const CommandsPage: React.FC = () => {
   const wideWorkspace = useWideWorkspace();
@@ -625,6 +626,8 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
   const { t } = useTranslation();
   const toast = useToast();
   const [variants, setVariants] = useState(() => readTemplateVariants(reply.override ?? reply.default));
+  const dialogs = useDialogs(t);
+  const [presetStyle, setPresetStyle] = useState<PresentationStyle>(reply.presetStyle ?? 'visual');
   const [useInherited, setUseInherited] = useState(!!reply.outcome && !reply.override);
   const [activeIndex, setActiveIndex] = useState(0);
   const text = variants[activeIndex]?.text ?? '';
@@ -686,6 +689,7 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
   // Command-specific vars (chips) vs global vars (behind the button).
   const exclusiveVars = reply.vars.filter((v) => !GLOBAL_SET.has(v.name) && !isFormFeedVariable(v.name));
   const allowed = new Set([...reply.vars.map((v) => v.name), ...GLOBAL_VARS, ...(reply.legacyReferences ?? []),
+    ...Object.values(reply.presets ?? {}).flatMap(preset => variablesOutsidePresentation(preset.value)),
     ...templateLocalNames(variants.map(item => item.text).join('\n')), 'uid', 'gid', 'selfId', 'user.trust', 'user.favor', 'game.pls', 'game.gms',
     'list_all_deck', 'list_extern_deck', 'list_extern_order', 'list_reply_deck', 'list_dice_sister']);
   const joined = variants.map(item => item.text).join('\n');
@@ -712,6 +716,7 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
     if (reply.outcome && (useInherited || storedValue === '')) { await reset(); return; }
     if (!supportsWeighted) { toast({ title: t('weighted.backend_required'), variant: 'destructive' }); return; }
     if (!validWeights(variants)) { toast({ title: t('weighted.invalid_weights'), variant: 'destructive' }); return; }
+    if (variants.some(item => presentationIssues(item.text))) { toast({ title: t('visual_editor.required'), variant: 'destructive' }); return; }
     if (variants.reduce((bytes, item) => bytes + new TextEncoder().encode(item.text).length, 0) > 65536) {
       toast({ title: t('weighted.text_limit'), variant: 'destructive' }); return;
     }
@@ -778,6 +783,22 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
             description={<><p>{t('legacy_text.hint')}</p><p>{t('legacy_text.macros')}</p><p>{t('legacy_text.preview')}</p></>}
             labelClassName="text-sm font-medium" />}
           {!useInherited && <>
+          {reply.presets && <div className="space-y-2 rounded-lg border p-3">
+            <HelpLabel title={t('visual_editor.preset')} description={<p>{t('visual_editor.preset_hint')}</p>} labelClassName="text-sm font-medium" />
+            <div className="flex flex-wrap items-center gap-2">
+              <Select value={presetStyle} onValueChange={value => setPresetStyle(value as PresentationStyle)}>
+                <SelectTrigger className="min-w-0 flex-1" aria-label={t('visual_editor.preset')}><SelectValue /></SelectTrigger>
+                <SelectContent>{(['traditional', 'standard', 'visual'] as const).map(style =>
+                  <SelectItem key={style} value={style}>{t(`settings.message_style_${style}`)}</SelectItem>)}</SelectContent>
+              </Select>
+              <Button type="button" variant="outline" size="sm" onClick={async () => {
+                const preset = reply.presets?.[presetStyle];
+                if (!preset) return;
+                if (text && text !== preset.value && !await dialogs.confirm({ title: t('visual_editor.load'), description: t('visual_editor.replace_confirm') })) return;
+                setText(preset.value); setFormat(preset.format); setPreviewStyle(presetStyle);
+              }}>{t('visual_editor.load')}</Button>
+            </div>
+          </div>}
           <div className="flex items-center justify-between gap-2"><span className="text-sm font-medium">{t('commands.edit')}</span><span className="text-xs text-muted-foreground">{t('commands.format_' + format)}</span></div>
           <WeightedTemplateEditor items={variants} onChange={setVariants} activeIndex={activeIndex}
             onActiveIndex={setActiveIndex} textareaRef={taRef} />
@@ -847,14 +868,6 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
           </button>
           <ImageResourcePicker directory={personaId > 0 ? `text/persona-${personaId}` : 'text/default'} disabled={saving}
             className="h-7 border-dashed px-2 text-xs" onSelect={(entry) => insertRaw(entry.code)}>{t('commands.insert_image')}</ImageResourcePicker>
-          <button onClick={() => insertRaw('[[bar:HP|{hp}|{hpmax}]]')}
-            className="inline-flex items-center gap-1 rounded border border-dashed px-2 py-1 text-xs hover:bg-muted transition-colors">
-            {t('commands.insert_status_bar')}
-          </button>
-          <button onClick={() => insertRaw('[[action:掷骰指令|.r]]')}
-            className="inline-flex items-center gap-1 rounded border border-dashed px-2 py-1 text-xs hover:bg-muted transition-colors">
-            {t('commands.insert_action_hint')}
-          </button>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
@@ -906,6 +919,7 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
       </DialogContent>
 
       {/* second-level popup: global variables */}
+      {dialogs.node}
       <Dialog open={showGlobals} onOpenChange={setShowGlobals}>
         <DialogContent className="max-w-sm">
           <DialogHeader>

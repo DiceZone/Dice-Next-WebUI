@@ -6,6 +6,8 @@ export interface OutcomeText {
   override: string | null;
   format: TemplateFormat;
   defaultFormat: TemplateFormat;
+  presets?: Partial<Record<'traditional' | 'standard' | 'visual', { value: string; format: TemplateFormat }>>;
+  presetStyle?: 'traditional' | 'standard' | 'visual';
   outcome?: OutcomeMetadata;
   fallbackKeys?: string[];
   legacyCompatibility?: boolean;
