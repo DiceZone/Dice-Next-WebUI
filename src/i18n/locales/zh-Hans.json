@@ -497,8 +497,7 @@
     "recent_logs": "最近日志",
     "no_logs": "暂无日志",
     "open_page": "打开{{page}}",
-    "history_backend": "曲线为后端记录的最近 {{minutes}} 分钟（每 5 秒采样），切换页面或刷新不会丢失。",
-    "history_local": "当前后端版本不记录历史，曲线仅为本浏览器的最近采样。"
+    "history_window": "最近 {{minutes}} 分钟的 CPU 与内存使用率，每 5 秒更新。"
   },
   "adapters": {
     "copy_callback": "复制回调地址",

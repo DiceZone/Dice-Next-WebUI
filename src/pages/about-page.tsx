@@ -472,14 +472,16 @@ export const AboutPage: React.FC = () => {
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>{t('about.update_interval')}</Label>
+              <div className="flex flex-col gap-2">
+                <div className="flex min-h-6 flex-1 items-center">
+                  <Label htmlFor="update-interval">{t('about.update_interval')}</Label>
+                </div>
                 <Select
                   value={String(updateDraft?.intervalHours ?? 6)}
                   disabled={!updateDraft || !updateDraft.autoCheck}
                   onValueChange={(value) => updateSetting('intervalHours', Number(value))}
                 >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger id="update-interval"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {[1, 3, 6, 12, 24, 48, 72, 168].map((hours) => (
                       <SelectItem key={hours} value={String(hours)}>
@@ -490,9 +492,9 @@ export const AboutPage: React.FC = () => {
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <div className="flex items-center gap-1.5">
-                  <Label>{t('about.update_auto_action')}</Label>
+              <div className="flex flex-col gap-2">
+                <div className="flex min-h-6 flex-1 items-center gap-1.5">
+                  <Label htmlFor="update-auto-action">{t('about.update_auto_action')}</Label>
                   <FeatureHelp title={t('about.update_auto_action')} description={
                     <dl className="space-y-2">
                       {(['notify', 'download', 'install'] as const).map((action) => (
@@ -509,7 +511,7 @@ export const AboutPage: React.FC = () => {
                   disabled={!updateDraft || !updateDraft.autoCheck}
                   onValueChange={(value) => updateSetting('autoAction', value as UpdateAction)}
                 >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger id="update-auto-action"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="notify">{t('about.action_notify')}</SelectItem>
                     <SelectItem value="download" disabled={updateStatus?.downloadSupported === false}>

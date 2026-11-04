@@ -6,7 +6,7 @@ export interface ServerInfoHistory {
   info: SystemInfo;
   cpu: HistoryPoint[];
   memory: HistoryPoint[];
-  /** Seconds the curve spans (backend history window, or the local fallback window). */
+  /** History retention, independent of the dashboard's visible time range. */
   window: number;
   /** Newest sample time, sent back as ?since= so polls only fetch new samples. */
   lastT: number;
@@ -19,11 +19,16 @@ export interface ServerInfoHistory {
 export interface BackendHistory { interval: number; window: number; samples: [number, number, number][] }
 
 // Older backends have no history: keep the previous browser-side curve.
-export const SERVER_HISTORY_LIMIT = 60;
+export const SERVER_CHART_WINDOW_SECONDS = 10 * 60;
 const LOCAL_POLL_SECONDS = 5;
+export const SERVER_HISTORY_LIMIT = SERVER_CHART_WINDOW_SECONDS / LOCAL_POLL_SECONDS;
 
 const valid = (value: number) => Number.isFinite(value) && value >= 0;
 const point = (t: number, value: number): HistoryPoint => ({ t, v: Math.min(100, value) });
+
+/** Both resource charts use the same latest sample and keep each real value. */
+export const visibleServerHistory = (points: HistoryPoint[], end: number): HistoryPoint[] =>
+  points.filter(({ t }) => t > end - SERVER_CHART_WINDOW_SECONDS && t <= end);
 
 export function appendServerInfo(previous: ServerInfoHistory | undefined, info: SystemInfo & { history?: BackendHistory },
   now = Date.now()): ServerInfoHistory {

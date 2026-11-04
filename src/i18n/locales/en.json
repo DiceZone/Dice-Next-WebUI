@@ -497,8 +497,7 @@
     "recent_logs": "Recent Logs",
     "no_logs": "No logs",
     "open_page": "Open {{page}}",
-    "history_backend": "Curves show the last {{minutes}} minutes recorded by the server (sampled every 5 s); they survive page changes and reloads.",
-    "history_local": "This server version keeps no history; curves show this browser's recent samples only."
+    "history_window": "CPU and memory usage over the last {{minutes}} minutes, updated every 5 seconds."
   },
   "adapters": {
     "copy_callback": "Copy callback URL",

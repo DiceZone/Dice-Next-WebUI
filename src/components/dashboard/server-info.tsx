@@ -2,7 +2,7 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTourActive, useTourValue } from '@/components/onboarding/tour-data';
 import { panelQueryClient } from '@/lib/query-client';
-import { appendServerInfo, spacedPoints, type BackendHistory, type HistoryPoint, type ServerInfoHistory } from '@/lib/server-info-history';
+import { appendServerInfo, spacedPoints, visibleServerHistory, SERVER_CHART_WINDOW_SECONDS, type BackendHistory, type HistoryPoint, type ServerInfoHistory } from '@/lib/server-info-history';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { tourSamples } from '@/lib/tour-samples';
@@ -31,10 +31,9 @@ function loadColor(pct: number): string {
 
 /** Tiny dependency-free area sparkline on a time axis: the right edge is the newest
  *  sample and the width spans `window` seconds. Values are 0–100. */
-const Sparkline: React.FC<{ data: HistoryPoint[]; window: number; title?: string; className?: string; tall?: boolean }> = ({ data, window, title, className, tall }) => {
+const Sparkline: React.FC<{ data: HistoryPoint[]; window: number; end: number; title?: string; className?: string; tall?: boolean }> = ({ data, window, end, title, className, tall }) => {
   const w = 100, h = 20;
   if (!data.length) return <div className={tall ? 'min-h-5 flex-1' : 'h-5'} />;
-  const end = data[data.length - 1].t;
   const span = Math.max(1, window);
   const pts = data.map(({ t, v }) => {
     const x = Math.max(0, w - ((end - t) / span) * w);
@@ -50,15 +49,15 @@ const Sparkline: React.FC<{ data: HistoryPoint[]; window: number; title?: string
       <polygon points={`${first},${h} ${line} ${last},${h}`} fill="currentColor" className="opacity-15" />
       <polyline points={line} fill="none" stroke="currentColor" strokeWidth={1.5}
         strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-      {data.length === 1 && <circle cx={100} cy={h - data[0].v / 100 * h} r={1.5} fill="currentColor" />}
+      {data.length === 1 && <circle cx={Number(first)} cy={h - data[0].v / 100 * h} r={1.5} fill="currentColor" />}
     </svg>
     </div>
   );
 };
 
 /** One resource: header row (icon + label + %), detail, progress bar, curve. */
-const ResourceMeter: React.FC<{ icon: LucideIcon; label: string; pct: number; detail: string; history: HistoryPoint[]; window: number; note?: string; tall?: boolean }>
-  = ({ icon: Icon, label, pct, detail, history, window, note, tall }) => {
+const ResourceMeter: React.FC<{ icon: LucideIcon; label: string; pct: number; detail: string; history: HistoryPoint[]; window: number; end: number; note?: string; tall?: boolean }>
+  = ({ icon: Icon, label, pct, detail, history, window, end, note, tall }) => {
   const known = Number.isFinite(pct) && pct >= 0;
   const clamped = known ? Math.min(100, pct) : 0;
   const color = known ? loadColor(clamped) : 'text-muted-foreground';
@@ -72,7 +71,7 @@ const ResourceMeter: React.FC<{ icon: LucideIcon; label: string; pct: number; de
       <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
         <div className={cn('h-full rounded-full bg-current transition-all', color)} style={{ width: `${clamped}%` }} />
       </div>
-      <Sparkline data={history} window={window} tall={tall} title={note} className={cn(color, tall && 'mt-auto')} />
+      <Sparkline data={history} window={window} end={end} tall={tall} title={note} className={cn(color, tall && 'mt-auto')} />
     </div>
   );
 };
@@ -95,9 +94,9 @@ export const ServerInfo: React.FC = () => {
   const info = useTourValue(query.data?.info ?? null, tourSamples.system);
   const cpuHistory = useTourValue(query.data?.cpu ?? [], spacedPoints(tourSamples.cpuHistory));
   const memHistory = useTourValue(query.data?.memory ?? [], spacedPoints(tourSamples.memHistory));
-  const historyWindow = useTourValue(query.data?.window ?? 300, 300);
-  const fromBackend = useTourValue(query.data?.backend ?? false, true);
-  const historyNote = t(fromBackend ? 'dashboard.history_backend' : 'dashboard.history_local', { minutes: Math.round(historyWindow / 60) });
+  const historyEnd = useTourValue(query.data?.lastT ?? 0, (Math.max(tourSamples.cpuHistory.length, tourSamples.memHistory.length) - 1) * 5);
+  const historyWindow = SERVER_CHART_WINDOW_SECONDS;
+  const historyNote = t('dashboard.history_window', { minutes: historyWindow / 60 });
 
   if (!info) return <Card className="h-full min-h-64 p-4" aria-busy={query.isPending}>
     <CardTitle className="mb-4 text-sm">{t('dashboard.server_info')}</CardTitle>
@@ -128,10 +127,10 @@ export const ServerInfo: React.FC = () => {
       <CardContent className="grid min-h-0 flex-1 grid-cols-2 gap-3 p-4 pt-0 lg:grid-rows-[minmax(0,1fr)_auto]">
         {!touring && query.isError && <p role="status" className="col-span-2 text-xs text-amber-600">{t('common.load_fail')} · {t('dashboard.cached_snapshot')}</p>}
         <ResourceMeter tall icon={Cpu} label={t('dashboard.cpu')} pct={info.cpu_load}
-          detail={cpuDetail} history={cpuHistory} window={historyWindow} note={historyNote} />
+          detail={cpuDetail} history={visibleServerHistory(cpuHistory, historyEnd)} window={historyWindow} end={historyEnd} note={historyNote} />
         <ResourceMeter tall icon={MemoryStick} label={t('dashboard.memory')} pct={info.mem_load}
           detail={`${fmtMB(info.mem_used_mb)} / ${fmtMB(info.mem_total_mb)}${info.mem_speed_mhz ? ` · ${info.mem_speed_mhz} MHz` : ''}`}
-          history={memHistory} window={historyWindow} note={historyNote} />
+          history={visibleServerHistory(memHistory, historyEnd)} window={historyWindow} end={historyEnd} note={historyNote} />
 
         <div className="col-span-2 min-w-0 space-y-3">
           <div className="flex items-center gap-2 text-sm font-medium"><HardDrive className="h-4 w-4 text-muted-foreground" />{t('dashboard.disk')}

@@ -6,6 +6,8 @@ test('visual templates keep edited buttons and formulas after saving and reopeni
   test.skip(!process.env.DICENEXT_UI_PREVIEW_RENDERER, 'Production template renderer required');
   const preset = '**{nick}** 掷骰\n> `{res}`\n[[action:再掷一次|.r]]';
   let saved = null;
+  let previewRequests = 0;
+  page.on('request', request => { if (new URL(request.url()).pathname === '/api/templates/preview') previewRequests++; });
   await page.route('**/api/commands?*', route => route.fulfill({ json: { code: 0, data: [{
     cmd: 'r', title: '掷骰', category: '掷骰', sources: ['core'], example: '.r', desc: '掷骰', replies: [{
       key: 'dice.roll.result', default: preset, override: saved?.value ?? null, format: saved?.format ?? 'markdown', defaultFormat: 'markdown',
@@ -46,6 +48,11 @@ test('visual templates keep edited buttons and formulas after saving and reopeni
   await pane('预期回复示例');
   await expect(dialog.locator('[data-math-preview]')).toBeVisible();
   await expect(dialog.getByText('继续掷骰 · /r 2d6', { exact: true })).toBeVisible();
+  // A settled editor must not repeatedly request previews without any edits.
+  await page.waitForTimeout(500);
+  const settledRequests = previewRequests;
+  await page.waitForTimeout(1200);
+  expect(previewRequests).toBe(settledRequests);
   expect(await dialog.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
   await pane('编辑');
   await dialog.getByLabel('TeX 公式 2').scrollIntoViewIfNeeded();
@@ -234,10 +241,13 @@ test('server information loads visibly and keeps actual curve samples across nav
   let release;
   const held = new Promise(done => { release = done; });
   let count = 0;
+  const historyStart = Math.floor(Date.now() / 5000) * 5 - 3600;
   await page.route('**/api/system/sysinfo*', async route => {   // polls carry ?since=
     const response = await route.fetch();
     const body = await response.json();
     body.data.cpu_load = 20 + (++count);
+    body.data.history = { interval: 5, window: 3600, samples: Array.from({ length: 720 }, (_, i) =>
+      [historyStart + (i + count) * 5, (i % 30) * 3, 30 + i % 10]) };
     if (count === 1) await held;
     await route.fulfill({ json: body });
   });
@@ -246,7 +256,8 @@ test('server information loads visibly and keeps actual curve samples across nav
   await expect(server.getByRole('status')).toBeVisible();
   release();
   const curve = server.locator('svg[viewBox="0 0 100 20"] polyline').first();
-  await expect.poll(async () => (await curve.getAttribute('points'))?.split(' ').length).toBeGreaterThanOrEqual(2);
+  await expect.poll(async () => (await curve.getAttribute('points'))?.split(' ').length).toBe(120);
+  await expect(server.locator('[title="最近 10 分钟的 CPU 与内存使用率，每 5 秒更新。"]')).toHaveCount(2);
   const oldPoints = await curve.getAttribute('points');
   await page.evaluate(() => { location.hash = '/settings'; });
   await expect(page.locator('[data-setting-anchor="settings-scope"]')).toBeVisible();
