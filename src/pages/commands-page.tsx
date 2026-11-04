@@ -20,7 +20,7 @@ import { PersonaManagerCard } from '@/components/persona/persona-manager';
 import { PersonaAccessDialog } from '@/components/persona/persona-access-dialog';
 import {
   Loader2, RefreshCw, RotateCcw, Save, ChevronRight, ChevronDown, Pencil, Trash2, Download, Upload,
-  Globe, Users, BookText, UserCheck, ArrowUpDown, ArrowUp, ArrowDown, Search,
+  Globe, Users, BookText, UserCheck, ArrowUpDown, ArrowUp, ArrowDown, Search, WandSparkles,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/ui/page-header';
@@ -28,7 +28,8 @@ import { useWideWorkspace } from '@/hooks/use-wide-workspace';
 import { FeatureHelp } from '@/components/ui/feature-help';
 import { HelpLabel } from '@/components/ui/help-label';
 import { ResponsiveActions } from '@/components/ui/responsive-actions';
-import { VARIABLE_STYLES, variableStyleOf, restyleVariable, type VariableStyle } from '@/lib/template-variable-style';
+import { MarkdownToolbar, useMarkdownEditing } from '@/components/reply/markdown-toolbar';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { PREVIEW_PLATFORMS, readReplyPreview, previewMessages, isFormFeedVariable, type PreviewPlatform, type ReplyPreview } from '@/lib/reply-preview';
 import { Switch } from '@/components/ui/switch';
 import { MarkdownExample } from '@/components/reply/markdown-example';
@@ -277,6 +278,32 @@ export const CommandsPage: React.FC = () => {
     } catch (e) { toast({ title: t('commands.import_fail'), description: String(e), variant: 'destructive' }); }
   };
 
+  // Migrated Dice! texts arrive as plain text; convert them all at once instead
+  // of opening every entry. The server keeps the visible text identical.
+  const convertAllToMarkdown = async () => {
+    const language = LANGS.find((l) => l.code === lang)?.label ?? lang;
+    const base = personaId > 0
+      ? t('visual_editor.scope_persona', { name: personas.find((p) => p.id === personaId)?.name ?? '' })
+      : t('visual_editor.scope_global');
+    const scope = `${base}（${language}）`;
+    const request = async (dryRun: boolean) => {
+      const r = await fetch('/api/templates/convert-markdown', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ personaId, locale: lang, dryRun }) });
+      const j = await r.json();
+      if (!r.ok || j.code !== 0) throw new Error(j.message || t('common.operation_fail'));
+      return j.data as { total: number; escaped: number; converted: number };
+    };
+    try {
+      const plan = await request(true);
+      if (!plan.total) { toast({ title: t('visual_editor.convert_all_none', { scope }) }); return; }
+      if (!(await dlg.confirm({ title: t('visual_editor.convert_all'), confirmText: t('visual_editor.convert_all'),
+        description: t('visual_editor.convert_all_confirm', { scope, total: plan.total, escaped: plan.escaped }) }))) return;
+      const done = await request(false);
+      toast({ title: t('visual_editor.convert_all_done', { n: done.converted }) });
+      void load(); void loadAll(); void loadPersonaMap();
+    } catch (e) { toast({ title: t('common.operation_fail'), description: String(e), variant: 'destructive' }); }
+  };
+
   const V2Help = () => <FeatureHelp title={t('commands.v2_label')} description={<p>{t('commands.v2_tooltip')}</p>} />;
   const V2Head: React.FC<{ label: string }> = ({ label }) => (
     <span className="inline-flex items-center gap-1">{label}
@@ -334,6 +361,7 @@ export const CommandsPage: React.FC = () => {
           <ResponsiveActions actions={[
             { id: 'personas', label: t('commands.persona_manage'), icon: Users, onAction: () => setMgrOpen(true) },
             { id: 'access', label: t('commands.persona_access'), icon: UserCheck, disabled: tourActive, onAction: () => setAccessOpen(true) },
+            { id: 'markdown', label: t('visual_editor.convert_all'), icon: WandSparkles, disabled: tourActive || !!editing, onAction: convertAllToMarkdown },
             { id: 'export', label: t('commands.export'), icon: Download, onAction: doExport },
             { id: 'import', label: t('commands.import'), icon: Upload, onAction: () => fileRef.current?.click() },
           ]} />
@@ -621,25 +649,43 @@ export const CommandsPage: React.FC = () => {
 };
 
 // ─── Edit modal ──────────────────────────────────────────────
+type EditorPane = 'edit' | 'preview';
+const PRESET_ORDER: PresentationStyle[] = ['visual', 'standard', 'traditional'];
+
+// Plain → Markdown with the same visible text. The server knows the template
+// syntax ({variables}, [[components]]) that must stay unescaped.
+async function markdownSource(value: string): Promise<string> {
+  const r = await fetch('/api/templates/markdown-source', { method: 'POST',
+    headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ value }) });
+  const j = await r.json();
+  if (!r.ok || j.code !== 0 || typeof j.data?.value !== 'string') throw new Error(j.message || 'markdown-source');
+  return j.data.value;
+}
+
 const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string; reply: Reply; personaId: number; onClose: () => void; onSaved: (key: string, value: string | null, format: ReplyFormat) => void }>
   = ({ lang, cmd, description, reply, personaId, onClose, onSaved }) => {
   const { t } = useTranslation();
   const toast = useToast();
   const [variants, setVariants] = useState(() => readTemplateVariants(reply.override ?? reply.default));
   const dialogs = useDialogs(t);
-  const [presetStyle, setPresetStyle] = useState<PresentationStyle>(reply.presetStyle ?? 'visual');
   const [useInherited, setUseInherited] = useState(!!reply.outcome && !reply.override);
   const [activeIndex, setActiveIndex] = useState(0);
   const text = variants[activeIndex]?.text ?? '';
-  const setText = (next: string | ((current: string) => string)) =>
+  const edited = useRef(false);
+  const setText = (next: string | ((current: string) => string)) => {
+    edited.current = true;
     setVariants(current => current.map((item, i) => i === activeIndex
       ? { ...item, text: typeof next === 'function' ? next(item.text) : next } : item));
+  };
   const storedValue = writeTemplateVariants(variants);
   const [resample, setResample] = useState(() => crypto.getRandomValues(new Uint32Array(1))[0]);
   const [saving, setSaving] = useState(false);
+  const [converting, setConverting] = useState(false);
   const [supportsWeighted, setSupportsWeighted] = useState(false);
   const [backendTooOld, setBackendTooOld] = useState(false);
-  const [format, setFormat] = useState<ReplyFormat>(reply.override == null ? reply.defaultFormat : reply.format);
+  // New customizations are Markdown; a saved plain text keeps its format until converted.
+  const [format, setFormat] = useState<ReplyFormat>(reply.override == null ? 'markdown' : reply.format);
+  const [pane, setPane] = useState<EditorPane>('edit');
   const [preview, setPreview] = useState<ReplyPreview | null>(null);
   const [simulation, setSimulation] = useState<TemplateSimulation | null>(null);
   const [previewPlatform, setPreviewPlatform] = useState<PreviewPlatform>('qq_group');
@@ -649,12 +695,48 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
   const [previewFailed, setPreviewFailed] = useState(false);
   const [showGlobals, setShowGlobals] = useState(false);
   const taRef = useRef<HTMLTextAreaElement>(null);
+  const markdownKeys = useMarkdownEditing({ textareaRef: taRef, value: text, onChange: setText });
   const inheritedSource = reply.inherited?.key.startsWith('dice.outcome.')
     ? `${t(`outcome.families.${reply.inherited.key.split('.')[2]}`)} · ${t(`outcome.grades.${reply.inherited.key.split('.')[3]}`)}`
     : t('outcome.original');
   const inheritedLabel = t('outcome.inherited', { source: reply.inherited?.layer === 'global' && personaId > 0
     ? `${t('outcome.global')} · ${inheritedSource}` : inheritedSource });
   const previewKey = useInherited ? reply.inherited?.key ?? reply.key : reply.key;
+
+  // Starting from a plain default (traditional style): convert it once so the
+  // Markdown draft shows the same text. Older backends keep it as plain text.
+  useEffect(() => {
+    if (reply.override != null || reply.outcome || reply.defaultFormat !== 'plain') return;
+    let alive = true;
+    markdownSource(reply.default)
+      .then(value => { if (alive && !edited.current) setVariants(readTemplateVariants(value)); })
+      .catch(() => { if (alive && !edited.current) setFormat('plain'); });
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Text that is plain becomes Markdown with the same appearance.
+  const asMarkdown = async (value: string, valueFormat: ReplyFormat): Promise<{ value: string; format: ReplyFormat }> => {
+    if (valueFormat === 'markdown') return { value, format: 'markdown' };
+    try { return { value: await markdownSource(value), format: 'markdown' }; }
+    catch { return { value, format: 'plain' }; }
+  };
+  const convertToMarkdown = async () => {
+    setConverting(true);
+    try {
+      const value = await markdownSource(storedValue);
+      edited.current = true;
+      setVariants(readTemplateVariants(value)); setFormat('markdown');
+    } catch { toast({ title: t('visual_editor.convert_failed'), variant: 'destructive' }); }
+    finally { setConverting(false); }
+  };
+  const loadText = async (value: string, valueFormat: ReplyFormat, style?: PresentationStyle) => {
+    if (useInherited) return;
+    if (text && text !== value && !await dialogs.confirm({ title: t('visual_editor.load'), description: t('visual_editor.replace_confirm') })) return;
+    const next = await asMarkdown(value, valueFormat);
+    setText(next.value); setFormat(next.format);
+    if (style) setPreviewStyle(style);
+  };
 
   useEffect(() => {
     const controller = new AbortController();
@@ -696,11 +778,6 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
   const used = extractVars(joined);
   const unknown = [...new Set(varsOutsideBars(joined).filter((u) => !allowed.has(u) && !isFormFeedVariable(u) && !u.includes('|') && !u.includes(':')))];
   const missing = reply.outcome || reply.legacyCompatibility ? [] : exclusiveVars.map((v) => v.name).filter((n) => !used.includes(n));
-  const styledVars = [...new Set(used.filter((name) => allowed.has(name) && !isFormFeedVariable(name)))];
-  const applyVariableStyle = (name: string, style: VariableStyle) => {
-    setText((current) => restyleVariable(current, name, style));
-    if (style !== 'plain') setFormat('markdown');
-  };
 
   const insertRaw = (tok: string) => {
     const ta = taRef.current;
@@ -736,9 +813,10 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
     } catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
     finally { setSaving(false); }
   };
+  // Clear the saved customization so the reply follows the default (or inherits) again.
   const reset = async () => {
     if (reply.outcome && reply.override == null) { onSaved(reply.key, null, reply.defaultFormat); return; }
-    if (reply.override == null) { setVariants(readTemplateVariants(reply.default)); setActiveIndex(0); setFormat(reply.defaultFormat); return; }
+    if (reply.override == null) return;
     setSaving(true);
     try {
       const r = personaId > 0
@@ -752,17 +830,45 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
     finally { setSaving(false); }
   };
 
+  const presetStyles = PRESET_ORDER.filter(style => reply.presets?.[style]);
+  const canReset = reply.override != null || !!reply.outcome;
+  const variableBar = <div className="flex flex-wrap items-center gap-1.5" data-testid="template-variables">
+    <span className="text-xs text-muted-foreground">{t('visual_editor.insert_variable')}</span>
+    {exclusiveVars.length === 0 && <span className="text-xs text-muted-foreground">{t('commands.no_vars')}</span>}
+    {exclusiveVars.map((v) => (
+      <button key={v.name} type="button" onClick={() => insert(v.name)} title={v.desc}
+        className="inline-flex items-center gap-1 rounded border bg-background px-2 py-0.5 text-xs transition-colors hover:bg-muted">
+        <code className="text-primary">{`{${v.name}}`}</code>
+        {v.desc && <span className="text-muted-foreground">{v.desc}</span>}
+      </button>
+    ))}
+    <button type="button" onClick={() => setShowGlobals(true)}
+      className="inline-flex items-center gap-1 rounded border border-dashed px-2 py-0.5 text-xs transition-colors hover:bg-muted">
+      <Globe className="h-3.5 w-3.5 text-primary" />{t('commands.insert_global')}
+    </button>
+    <ImageResourcePicker directory={personaId > 0 ? `text/persona-${personaId}` : 'text/default'} disabled={saving}
+      className="h-6 border-dashed px-2 text-xs" onSelect={(entry) => insertRaw(entry.code)}>{t('commands.insert_image')}</ImageResourcePicker>
+  </div>;
+
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent layout="editor" className="max-w-2xl lg:max-w-6xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-1.5 pr-6">{description || cmd || reply.key}
-            <FeatureHelp title={description || cmd || reply.key} description={<p>{t('commands.var_insert_hint')}</p>} />
+            <FeatureHelp title={description || cmd || reply.key} description={<><p>{t('commands.var_insert_hint')}</p><p>{t('visual_editor.preset_hint')}</p></>} />
           </DialogTitle>
           <DialogDescription className={reply.v2key ? undefined : 'sr-only'}>{t('commands.var_insert_hint')}{reply.v2key ? `　${t('commands.v2_label')}: ${reply.v2key}` : ''}</DialogDescription>
         </DialogHeader>
-        <DialogBody className="grid items-start gap-5 pr-1 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
-        <div className="min-w-0 space-y-4">
+        {/* Narrow screens switch between the two panes; wide screens show both side by side. */}
+        <div role="tablist" aria-label={`${t('commands.edit')} / ${t('commands.preview_title')}`} className="grid shrink-0 grid-cols-2 gap-1 rounded-lg bg-muted p-1 lg:hidden">
+          {(['edit', 'preview'] as const).map(name => <button key={name} type="button" role="tab" aria-selected={pane === name}
+            onClick={() => setPane(name)} className={cn('rounded-md px-3 py-1.5 text-sm transition-colors',
+              pane === name ? 'bg-background font-medium shadow-sm' : 'text-muted-foreground hover:text-foreground')}>
+            {t(name === 'edit' ? 'commands.edit' : 'commands.preview_title')}</button>)}
+        </div>
+        <DialogBody className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)] lg:overflow-hidden">
+        <section aria-label={t('commands.edit')} data-editor-pane="edit"
+          className={cn('min-w-0 space-y-4 lg:h-full lg:overflow-y-auto lg:pr-2 lg:[scrollbar-gutter:stable]', pane !== 'edit' && 'hidden lg:block')}>
           {reply.outcome && <div className="space-y-2 rounded-lg border bg-primary/5 p-3">
             <div className="flex items-center justify-between gap-3">
               <HelpLabel title={t('outcome.title')} description={<><p>{t('outcome.hint')}</p><p>{t('outcome.preview_hint')}</p></>} labelClassName="text-sm font-medium" />
@@ -770,8 +876,13 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
                 {t('outcome.independent')}
                 <Switch checked={!useInherited} aria-label={t('outcome.independent')} onCheckedChange={checked => {
                   if (checked && storedValue === '') {
-                    setVariants(readTemplateVariants(reply.inherited?.value ?? '')); setActiveIndex(0);
+                    const inherited = reply.inherited?.value ?? '';
+                    setVariants(readTemplateVariants(inherited)); setActiveIndex(0);
                     setFormat(reply.inherited?.format ?? reply.defaultFormat);
+                    void asMarkdown(inherited, reply.inherited?.format ?? reply.defaultFormat).then(next => {
+                      if (edited.current) return;
+                      setVariants(readTemplateVariants(next.value)); setFormat(next.format);
+                    });
                   }
                   setUseInherited(!checked);
                 }} />
@@ -783,37 +894,51 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
             description={<><p>{t('legacy_text.hint')}</p><p>{t('legacy_text.macros')}</p><p>{t('legacy_text.preview')}</p></>}
             labelClassName="text-sm font-medium" />}
           {!useInherited && <>
-          {reply.presets && <div className="space-y-2 rounded-lg border p-3">
-            <HelpLabel title={t('visual_editor.preset')} description={<p>{t('visual_editor.preset_hint')}</p>} labelClassName="text-sm font-medium" />
-            <div className="flex flex-wrap items-center gap-2">
-              <Select value={presetStyle} onValueChange={value => setPresetStyle(value as PresentationStyle)}>
-                <SelectTrigger className="min-w-0 flex-1" aria-label={t('visual_editor.preset')}><SelectValue /></SelectTrigger>
-                <SelectContent>{(['traditional', 'standard', 'visual'] as const).map(style =>
-                  <SelectItem key={style} value={style}>{t(`settings.message_style_${style}`)}</SelectItem>)}</SelectContent>
-              </Select>
-              <Button type="button" variant="outline" size="sm" onClick={async () => {
-                const preset = reply.presets?.[presetStyle];
-                if (!preset) return;
-                if (text && text !== preset.value && !await dialogs.confirm({ title: t('visual_editor.load'), description: t('visual_editor.replace_confirm') })) return;
-                setText(preset.value); setFormat(preset.format); setPreviewStyle(presetStyle);
-              }}>{t('visual_editor.load')}</Button>
-            </div>
+          {format === 'plain' && <div role="status" data-testid="plain-format-notice"
+            className="flex flex-wrap items-center gap-3 rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 text-sm">
+            <span className="min-w-0 flex-1 text-muted-foreground">{t('visual_editor.plain_notice')}</span>
+            <Button type="button" size="sm" variant="outline" disabled={converting} onClick={() => void convertToMarkdown()}>
+              {converting && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />}{t('visual_editor.to_markdown')}</Button>
           </div>}
-          <div className="flex items-center justify-between gap-2"><span className="text-sm font-medium">{t('commands.edit')}</span><span className="text-xs text-muted-foreground">{t('commands.format_' + format)}</span></div>
-          <WeightedTemplateEditor items={variants} onChange={setVariants} activeIndex={activeIndex}
-            onActiveIndex={setActiveIndex} textareaRef={taRef} />
+          <WeightedTemplateEditor items={variants} onChange={items => { edited.current = true; setVariants(items); }} activeIndex={activeIndex}
+            onActiveIndex={setActiveIndex} textareaRef={taRef}
+            toolbar={<MarkdownToolbar textareaRef={taRef} value={text} onChange={setText} disabled={format !== 'markdown'} />}
+            onTextKeyDown={format === 'markdown' ? markdownKeys.onKeyDown : undefined}
+            afterText={variableBar} />
           {unknown.length > 0 && <p role="alert" className="text-xs text-destructive">{t('commands.err_unknown', { vars: unknown.map((u) => `{${u}}`).join(' ') })}</p>}
           {missing.length > 0 && unknown.length === 0 && <p className="text-xs text-amber-600">{t('commands.warn_missing', { vars: missing.map((m) => `{${m}}`).join(' ') })}</p>}
+          <AdvancedOptions defaultExpanded={false} title={t('ui_refresh.advanced_options')} description={t('ui_refresh.template_advanced_hint')}>
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <HelpLabel title={t('commands.format_label')} description={<><p>{t('commands.format_hint')}</p><p>{t('commands.presentation_component_hint')}</p></>} labelClassName="text-sm font-medium shrink-0" />
+                <Select value={format} onValueChange={(v) => setFormat(v as ReplyFormat)}>
+                  <SelectTrigger className="h-9 w-44" aria-label={t('commands.format_label')}><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="markdown">{t('commands.format_markdown')}</SelectItem>
+                    <SelectItem value="plain">{t('commands.format_plain')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <p className="text-[11px] text-muted-foreground">{t('commands.format_hint')}</p>
+              <p className="text-[11px] text-muted-foreground">{t('commands.presentation_component_hint')}</p>
+              <p className="break-all text-[11px] text-muted-foreground">{t('commands.default_label')}: <span className="font-mono">{reply.default}</span></p>
+            </div>
+          </AdvancedOptions>
           </>}
+        </section>
+        <section aria-label={t('commands.preview_title')} data-editor-pane="preview"
+          className={cn('min-w-0 lg:h-full lg:overflow-y-auto lg:[scrollbar-gutter:stable]', pane !== 'preview' && 'hidden lg:block')}>
           <Tabs defaultValue="display" className="rounded-lg border bg-muted/20 p-3">
-            <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <HelpLabel title={t('commands.preview_title')} description={<p>{t('commands.preview_hint')}</p>} labelClassName="text-sm font-medium" />
-              <Button type="button" size="sm" variant="outline" disabled={useInherited ? !reply.inherited : !validWeights(variants)}
-                onClick={() => setResample(current => (current + 1) >>> 0)}><RefreshCw className="mr-1 h-3.5 w-3.5" />{t('weighted.resample')}</Button>
-              <TabsList aria-label={t('commands.preview_title')}>
-                <TabsTrigger value="display" className="px-2.5 text-xs">{t('commands.preview_display')}</TabsTrigger>
-                <TabsTrigger value="payload" className="px-2.5 text-xs">{t('commands.preview_payload')}</TabsTrigger>
-              </TabsList>
+              <div className="flex items-center gap-2">
+                <Button type="button" size="sm" variant="outline" disabled={useInherited ? !reply.inherited : !validWeights(variants)}
+                  onClick={() => setResample(current => (current + 1) >>> 0)}><RefreshCw className="mr-1 h-3.5 w-3.5" />{t('weighted.resample')}</Button>
+                <TabsList aria-label={t('commands.preview_title')}>
+                  <TabsTrigger value="display" className="px-2.5 text-xs">{t('commands.preview_display')}</TabsTrigger>
+                  <TabsTrigger value="payload" className="px-2.5 text-xs">{t('commands.preview_payload')}</TabsTrigger>
+                </TabsList>
+              </div>
             </div>
             <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
               <Select value={previewPlatform} onValueChange={value => setPreviewPlatform(value as PreviewPlatform)}>
@@ -826,95 +951,49 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
               </Select>
             </div>
             <label className="mt-2 flex items-center gap-2 text-xs"><Switch checked={previewPlain} onCheckedChange={setPreviewPlain} />{t('commands.preview_force_plain')}</label>
-            <p className="mt-2 text-[11px] text-muted-foreground">{t('feature_help.preview_note')}</p>
             <AsyncPreview loading={previewLoading} loadingLabel={t('common.loading')}
               error={previewFailed ? t(backendTooOld ? 'commands.preview_backend_required' : 'commands.preview_unavailable') : undefined}>
-              {simulation && <div className="mt-3 space-y-1 text-xs text-muted-foreground" data-preview-simulation>
-                <p>{t('commands.preview_scenario')} <code>{simulation.command}</code>
-                  {simulation.grade && <> · {t(`outcome.grades.${simulation.grade}`)}</>}</p>
-                {simulation.unresolved.length > 0 && <p role="status" className="text-amber-600">{t('commands.preview_unresolved', { vars: simulation.unresolved.map(name => `{${name}}`).join(' ') })}</p>}
-                {simulation.issues.length > 0 && <p role="status" className="text-amber-600">{t('commands.preview_syntax')} {simulation.issues.join('; ')}</p>}
-              </div>}
               {preview && <>
-                <TabsContent value="display" className="min-h-24 max-h-64 overflow-y-auto break-words rounded-md bg-background p-3 text-sm [overflow-wrap:anywhere] [scrollbar-gutter:stable]">
+                <TabsContent value="display" className="min-h-32 overflow-y-auto break-words rounded-md border bg-background p-3 text-sm [overflow-wrap:anywhere]">
                   <div className="space-y-3">{previewMessages(preview).map((message, index) => <div key={index}
                     data-preview-message={index + 1} className={preview.messages ? 'rounded-md border p-3' : undefined}>
                     <MarkdownExample text={message.text} enabled={message.markdown} />
                     {message.actions.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{message.actions.map((action, i) => <span key={i} title={action.text} className="rounded border bg-muted px-2 py-1 text-xs">{action.label} · {action.text}</span>)}</div>}
                   </div>)}</div>
                 </TabsContent>
-                <TabsContent value="payload"><pre className="max-h-64 overflow-auto whitespace-pre-wrap break-all rounded-md bg-background p-3 text-xs">{preview.messages
+                <TabsContent value="payload"><pre className="max-h-96 overflow-auto whitespace-pre-wrap break-all rounded-md bg-background p-3 text-xs">{preview.messages
                   ? JSON.stringify(preview.messages.map(message => message.payload ?? message.plain), null, 2)
                   : preview.payload === null ? preview.plain : JSON.stringify(preview.payload, null, 2)}</pre></TabsContent>
               </>}
+              {simulation && <div className="space-y-1 text-xs text-muted-foreground" data-preview-simulation>
+                <p>{t('commands.preview_scenario')} <code>{simulation.command}</code>
+                  {simulation.grade && <> · {t(`outcome.grades.${simulation.grade}`)}</>}</p>
+                {simulation.unresolved.length > 0 && <p role="status" className="text-amber-600">{t('commands.preview_unresolved', { vars: simulation.unresolved.map(name => `{${name}}`).join(' ') })}</p>}
+                {simulation.issues.length > 0 && <p role="status" className="text-amber-600">{t('commands.preview_syntax')} {simulation.issues.join('; ')}</p>}
+              </div>}
             </AsyncPreview>
+            <p className="mt-2 text-[11px] text-muted-foreground">{t('feature_help.preview_note')}</p>
           </Tabs>
-        </div>
-        {!useInherited && <AdvancedOptions title={t('ui_refresh.advanced_options')} description={t('ui_refresh.template_advanced_hint')}>
-        <div className="space-y-4">
-        {/* command-specific chips + insert image + insert global var */}
-        <div className="flex flex-wrap items-center gap-1.5">
-          {exclusiveVars.length === 0 && <span className="text-xs text-muted-foreground">{t('commands.no_vars')}</span>}
-          {exclusiveVars.map((v) => (
-            <button key={v.name} onClick={() => insert(v.name)} title={v.desc}
-              className="inline-flex items-center gap-1 rounded border px-2 py-1 text-xs hover:bg-muted transition-colors">
-              <code className="text-primary">{`{${v.name}}`}</code>
-              {v.desc && <span className="text-muted-foreground">{v.desc}</span>}
-            </button>
-          ))}
-          <button onClick={() => setShowGlobals(true)}
-            className="inline-flex items-center gap-1 rounded border border-dashed px-2 py-1 text-xs hover:bg-muted transition-colors">
-            <Globe className="h-3.5 w-3.5 text-primary" />{t('commands.insert_global')}
-          </button>
-          <ImageResourcePicker directory={personaId > 0 ? `text/persona-${personaId}` : 'text/default'} disabled={saving}
-            className="h-7 border-dashed px-2 text-xs" onSelect={(entry) => insertRaw(entry.code)}>{t('commands.insert_image')}</ImageResourcePicker>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <HelpLabel title={t('commands.format_label')} description={<><p>{t('commands.format_hint')}</p><p>{t('commands.presentation_component_hint')}</p></>} labelClassName="text-sm font-medium shrink-0" />
-          <Select value={format} onValueChange={(v) => setFormat(v as ReplyFormat)}>
-            <SelectTrigger className="h-9 w-44"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="plain">{t('commands.format_plain')}</SelectItem>
-              <SelectItem value="markdown">{t('commands.format_markdown')}</SelectItem>
-            </SelectContent>
-          </Select>
-          <span className="text-xs text-muted-foreground">{t('commands.format_hint')}</span>
-        </div>
-        <p className="text-[11px] text-muted-foreground">{t('commands.presentation_component_hint')}</p>
-
-        {styledVars.length > 0 && (
-          <div className="rounded-lg border bg-muted/20 p-3 space-y-2">
-            <div>
-              <HelpLabel title={t('commands.variable_styles_title')} description={<p>{t('commands.variable_styles_desc')}</p>} labelClassName="text-sm font-medium" />
-              <p className="text-[11px] text-muted-foreground">{t('feature_help.variable_style_note')}</p>
-            </div>
-            <div className="grid gap-2">
-              {styledVars.map((name) => (
-                <div key={name} className="flex items-center justify-between gap-2 rounded-md bg-background px-2.5 py-2">
-                  <code className="min-w-0 truncate text-xs text-primary">{'{' + name + '}'}</code>
-                  <Select value={variableStyleOf(text, name)} onValueChange={(value) => applyVariableStyle(name, value as VariableStyle)}>
-                    <SelectTrigger className="h-8 w-28 shrink-0 text-xs"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {VARIABLE_STYLES.map((style) => (
-                        <SelectItem key={style} value={style}>{t('commands.variable_style_' + style)}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <p className="text-[11px] text-muted-foreground">{t('commands.default_label')}: <span className="font-mono">{reply.default}</span></p>
-        </div>
-        </AdvancedOptions>}
+        </section>
         </DialogBody>
-        <DialogFooter className="shrink-0 gap-2 border-t pt-4 sm:gap-2">
-          <Button variant="outline" disabled={saving || (storedValue === reply.default && reply.override == null)} onClick={reset}><RotateCcw className="mr-2 h-4 w-4" />{t(reply.outcome ? 'outcome.reset' : 'commands.reset')}</Button>
-          <Button variant="ghost" onClick={onClose}>{t('common.cancel')}</Button>
-          <Button disabled={saving || (useInherited ? !reply.inherited : !supportsWeighted || unknown.length > 0 || !validWeights(variants))} onClick={save}><Save className="mr-2 h-4 w-4" />{t('common.save')}</Button>
+        <DialogFooter className="shrink-0 flex-row flex-wrap items-center justify-between gap-2 border-t pt-4 sm:space-x-0">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" disabled={saving}><RotateCcw className="mr-2 h-4 w-4" />{t('visual_editor.load')}<ChevronDown className="ml-1 h-4 w-4 opacity-60" /></Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              {!useInherited && (presetStyles.length
+                ? presetStyles.map(style => <DropdownMenuItem key={style} onSelect={() => { const preset = reply.presets?.[style]; if (preset) void loadText(preset.value, preset.format, style); }}>
+                  {t(`settings.message_style_${style}`)}</DropdownMenuItem>)
+                : <DropdownMenuItem onSelect={() => void loadText(reply.default, reply.defaultFormat)}>{t('visual_editor.default_text')}</DropdownMenuItem>)}
+              {!useInherited && <DropdownMenuSeparator />}
+              <DropdownMenuItem disabled={!canReset} onSelect={() => void reset()}>{t(reply.outcome ? 'outcome.reset' : 'visual_editor.follow_default')}</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <div className="ml-auto flex gap-2">
+            <Button variant="ghost" onClick={onClose}>{t('common.cancel')}</Button>
+            <Button disabled={saving || (useInherited ? !reply.inherited : !supportsWeighted || unknown.length > 0 || !validWeights(variants))} onClick={save}><Save className="mr-2 h-4 w-4" />{t('common.save')}</Button>
+          </div>
         </DialogFooter>
       </DialogContent>
 
@@ -930,7 +1009,7 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
           </DialogHeader>
           <div className="flex flex-wrap gap-1.5">
             {GLOBAL_VARS.map((name) => (
-              <button key={name} onClick={() => { insert(name); setShowGlobals(false); }}
+              <button key={name} type="button" onClick={() => { insert(name); setShowGlobals(false); }}
                 className="inline-flex items-center gap-1 rounded border px-2 py-1 text-xs hover:bg-muted transition-colors">
                 <code className="text-primary">{`{${name}}`}</code>
                 <span className="text-muted-foreground">{t(`commands.gvar_${name}`)}</span>

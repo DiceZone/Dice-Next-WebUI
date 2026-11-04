@@ -380,6 +380,15 @@ const server = await createServer({
             if (result.code !== 0) throw new Error('The isolated text renderer rejected this request');
             return reply(result.data);
           }
+          // Preview only: the real server escapes literal Markdown characters
+          // outside template syntax; here the text is returned unchanged.
+          if (path === '/templates/markdown-source' && req.method === 'POST') return reply({ value: String(body.value ?? '') });
+          if (path === '/templates/convert-markdown' && req.method === 'POST') {
+            const plain = [...previewTextOverrides].filter(([entryKey, entry]) => entry.format !== 'markdown'
+              && (!body.locale || entryKey.startsWith(body.locale + ':')));
+            if (!body.dryRun) for (const [entryKey, entry] of plain) previewTextOverrides.set(entryKey, { ...entry, format: 'markdown' });
+            return reply({ total: plain.length, escaped: 0, converted: body.dryRun ? 0 : plain.length });
+          }
           if (path === '/templates' && req.method === 'PUT') {
             previewTextOverrides.set(`${body.locale}:${body.key}`, { value: body.value, format: body.format });
             const help = helpDocs.find((entry) => entry.i18nKey === body.key);

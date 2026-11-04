@@ -14,9 +14,14 @@ interface Props {
   activeIndex?: number;
   onActiveIndex?: (index: number) => void;
   textareaRef?: React.RefObject<HTMLTextAreaElement>;
+  /** Formatting controls shown right above the text. */
+  toolbar?: React.ReactNode;
+  /** Variable chips and similar insert helpers shown right below the text. */
+  afterText?: React.ReactNode;
+  onTextKeyDown?: React.KeyboardEventHandler<HTMLTextAreaElement>;
 }
 
-export function WeightedTemplateEditor({ items, onChange, activeIndex, onActiveIndex, textareaRef }: Props) {
+export function WeightedTemplateEditor({ items, onChange, activeIndex, onActiveIndex, textareaRef, toolbar, afterText, onTextKeyDown }: Props) {
   const { t } = useTranslation();
   const [localIndex, setLocalIndex] = useState(0);
   const index = Math.min(activeIndex ?? localIndex, items.length - 1);
@@ -54,9 +59,13 @@ export function WeightedTemplateEditor({ items, onChange, activeIndex, onActiveI
           <Trash2 className="mr-1 h-3.5 w-3.5" />{t('weighted.remove_reply')}
         </Button>
       </div>
-      <Textarea ref={textareaRef} rows={7} className="min-h-40 font-mono text-sm" spellCheck={false}
-        aria-label={t('weighted.reply_number', { n: index + 1 })} value={items[index].text}
-        onChange={event => update({ text: event.target.value })} />
+      <div className="space-y-1.5">
+        {toolbar}
+        <Textarea ref={textareaRef} rows={8} className="min-h-44 font-mono text-sm" spellCheck={false}
+          aria-label={t('weighted.reply_number', { n: index + 1 })} value={items[index].text}
+          onKeyDown={onTextKeyDown} onChange={event => update({ text: event.target.value })} />
+        {afterText}
+      </div>
       <PresentationTemplateEditor text={items[index].text} onChange={text => update({ text })} />
     </div>
     {!validWeights(items) && <p role="alert" className="text-xs text-destructive">{t('weighted.invalid_weights')}</p>}
