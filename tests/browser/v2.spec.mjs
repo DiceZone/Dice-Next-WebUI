@@ -4,7 +4,7 @@ const manifest = JSON.parse(readFileSync(new URL('../../src/routes/route-manifes
 
 test('visual templates keep edited buttons and formulas after saving and reopening', async ({ page }, info) => {
   test.skip(!process.env.DICENEXT_UI_PREVIEW_RENDERER, 'Production template renderer required');
-  const preset = '🎲 **{nick}** 掷骰：`{res}`\n[[action:再掷一次|.r]]';
+  const preset = '**{nick}** 掷骰\n> `{res}`\n[[action:再掷一次|.r]]';
   let saved = null;
   await page.route('**/api/commands?*', route => route.fulfill({ json: { code: 0, data: [{
     cmd: 'r', title: '掷骰', category: '掷骰', sources: ['core'], example: '.r', desc: '掷骰', replies: [{
@@ -20,37 +20,90 @@ test('visual templates keep edited buttons and formulas after saving and reopeni
   await page.goto('/#/commands');
   await page.getByRole('button', { name: '编辑', exact: true }).first().click();
   let dialog = page.getByRole('dialog');
+  // Narrow screens show one pane at a time; wide screens show editor and preview together.
+  const narrow = (page.viewportSize()?.width ?? 1440) < 1024;
+  const pane = async name => { if (narrow) await dialog.getByRole('tab', { name, exact: true }).click(); };
   await expect(dialog.getByLabel('按钮文字 1')).toHaveValue('再掷一次');
-  await dialog.getByRole('combobox', { name: '从内置预设开始' }).click();
-  await page.getByRole('option', { name: '标准文案', exact: true }).click();
+  await expect(dialog.getByTestId('markdown-toolbar')).toBeVisible();
   await dialog.getByRole('button', { name: '载入预设', exact: true }).click();
+  await page.getByRole('menuitem', { name: '标准文案', exact: true }).click();
   await page.getByRole('dialog', { name: '载入预设', exact: true }).getByRole('button', { name: '确定', exact: true }).click();
   await expect(dialog.getByLabel('回复 1', { exact: true })).toHaveValue('{nick} {res}');
   await expect(dialog.getByLabel('按钮文字 1')).toHaveCount(0);
-  await dialog.getByRole('combobox', { name: '从内置预设开始' }).click();
-  await page.getByRole('option', { name: '高级视觉文案', exact: true }).click();
   await dialog.getByRole('button', { name: '载入预设', exact: true }).click();
+  await page.getByRole('menuitem', { name: '高级视觉文案', exact: true }).click();
   await page.getByRole('dialog', { name: '载入预设', exact: true }).getByRole('button', { name: '确定', exact: true }).click();
   await expect(dialog.getByLabel('按钮文字 1')).toHaveValue('再掷一次');
   await dialog.getByLabel('回复 1', { exact: true }).fill('我的结果：' + preset);
+  // Toolbar: select a word and make it bold; the source keeps the Markdown.
+  const reply = dialog.getByLabel('回复 1', { exact: true });
+  await reply.evaluate(el => el.setSelectionRange(0, 4));
+  await dialog.getByRole('button', { name: '粗体', exact: true }).click();
+  await expect(reply).toHaveValue('**我的结果**：' + preset);
   await dialog.getByLabel('按钮文字 1').fill('继续掷骰');
   await dialog.getByLabel('填入的指令 1').fill('/r 2d6');
   await dialog.getByRole('button', { name: '添加公式', exact: true }).click();
+  await pane('预期回复示例');
   await expect(dialog.locator('[data-math-preview]')).toBeVisible();
   await expect(dialog.getByText('继续掷骰 · /r 2d6', { exact: true })).toBeVisible();
   expect(await dialog.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+  await pane('编辑');
   await dialog.getByLabel('TeX 公式 2').scrollIntoViewIfNeeded();
   await page.screenshot({ path: info.outputPath('visual-template-editor.png'), fullPage: true });
   await dialog.getByRole('button', { name: '保存', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  expect(saved.value).toContain('我的结果：');
+  expect(saved.value).toContain('**我的结果**：');
+  expect(saved.format).toBe('markdown');
   expect(saved.value).toContain('[[action:继续掷骰|/r 2d6]]');
   expect(saved.value).toContain('[[math:');
   await page.reload();
   await page.getByRole('button', { name: '编辑', exact: true }).first().click();
   dialog = page.getByRole('dialog');
   await expect(dialog.getByLabel('填入的指令 1')).toHaveValue('/r 2d6');
+  await pane('预期回复示例');
   await expect(dialog.locator('[data-math-preview]')).toBeVisible();
+});
+
+test('a saved plain reply offers one-click Markdown and keeps its toolbar off until then', async ({ page }) => {
+  let saved = null;
+  await page.route('**/api/commands?*', route => route.fulfill({ json: { code: 0, data: [{
+    cmd: 'r', title: '掷骰', category: '掷骰', sources: ['core'], example: '.r', desc: '掷骰', replies: [{
+      key: 'dice.roll.result', default: '**{nick}** {res}', override: '{nick} 掷出 2*3 {res}', format: 'plain', defaultFormat: 'markdown',
+      vars: [{ name: 'res', desc: '结果' }],
+    }],
+  }] } }));
+  await page.route('**/api/templates/markdown-source', route => route.fulfill({ json: { code: 0, data: { value: '{nick} 掷出 2*3 {res}' } } }));
+  await page.route('**/api/templates', async route => { saved = route.request().postDataJSON(); await route.fulfill({ json: { code: 0, data: null } }); });
+  await page.goto('/#/commands');
+  await page.getByRole('button', { name: '编辑', exact: true }).first().click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByTestId('plain-format-notice')).toBeVisible();
+  await expect(dialog.getByRole('button', { name: '粗体', exact: true })).toBeDisabled();
+  await dialog.getByRole('button', { name: '转为 Markdown', exact: true }).click();
+  await expect(dialog.getByTestId('plain-format-notice')).toHaveCount(0);
+  await expect(dialog.getByRole('button', { name: '粗体', exact: true })).toBeEnabled();
+  await dialog.getByRole('button', { name: '保存', exact: true }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  expect(saved).toMatchObject({ format: 'markdown', value: '{nick} 掷出 2*3 {res}' });
+});
+
+test('migrated plain replies convert to Markdown in one step after a dry run', async ({ page }) => {
+  const calls = [];
+  await page.route('**/api/templates/convert-markdown', async route => {
+    const body = route.request().postDataJSON();
+    calls.push(body);
+    await route.fulfill({ json: { code: 0, data: body.dryRun ? { total: 3, escaped: 1, converted: 0 } : { total: 3, escaped: 1, converted: 3 } } });
+  });
+  await page.goto('/#/commands');
+  await page.locator('[data-tour="commands-toolbar"]').getByRole('button', { name: '更多操作', exact: true }).click();
+  await page.getByRole('menuitem', { name: '全部转为 Markdown', exact: true }).click();
+  const confirm = page.getByRole('dialog', { name: '全部转为 Markdown', exact: true });
+  await expect(confirm).toContainText('3 条纯文本文案');
+  await expect(confirm).toContainText('其中 1 条');
+  await confirm.getByRole('button', { name: '全部转为 Markdown', exact: true }).click();
+  await expect(page.getByText('已将 3 条文案转为 Markdown').first()).toBeVisible();
+  expect(calls.map(call => call.dryRun)).toEqual([true, false]);
+  expect(calls[0]).toMatchObject({ personaId: 0, locale: 'zh-Hans' });
 });
 
 test('official webhook warns on local HTTP access without blocking the editor', async ({ page }) => {

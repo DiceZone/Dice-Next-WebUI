@@ -5,8 +5,10 @@ import { FeatureHelp } from '@/components/ui/feature-help';
 
 /** Responsive defaults, not responsive coercion: an explicit user choice wins
  * until the next editing session. Hidden controls stay mounted with their data. */
-export function AdvancedOptions({ title, description, sessionOpen = true, revealToken = 0, children, className }: {
+export function AdvancedOptions({ title, description, sessionOpen = true, revealToken = 0, defaultExpanded, children, className }: {
   title: string; description?: string; sessionOpen?: boolean; revealToken?: number;
+  /** Overrides the wide-screen default (expanded) for rarely used settings. */
+  defaultExpanded?: boolean;
   children: React.ReactNode; className?: string;
 }) {
   const id = React.useId();
@@ -20,7 +22,7 @@ export function AdvancedOptions({ title, description, sessionOpen = true, reveal
   }, []);
   React.useEffect(() => { if (sessionOpen) setChoice(null); }, [sessionOpen]);
   React.useEffect(() => { if (revealToken) setChoice(true); }, [revealToken]);
-  const expanded = choice ?? wide;
+  const expanded = choice ?? defaultExpanded ?? wide;
   return <section className={cn('self-start overflow-hidden rounded-xl border bg-muted/20', className)}>
     <div className="flex items-center pr-3">
       <button type="button" id={`${id}-trigger`} aria-expanded={expanded} aria-controls={id}

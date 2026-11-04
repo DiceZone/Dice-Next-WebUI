@@ -113,7 +113,10 @@ test('template refresh does not replace its content and long previews stay inter
   const editor = read('src/pages/commands-page.tsx');
   assert.match(editor, /<AsyncPreview loading=\{previewLoading\}/);
   assert.doesNotMatch(editor, /\{previewLoading\s*\?/);
-  assert.match(editor, /<TabsContent value="display" className="[^"]*max-h-64 overflow-y-auto/);
+  assert.match(editor, /<TabsContent value="display" className="[^"]*overflow-y-auto/);
+  // Editing and preview sit side by side on wide screens, each scrolling on its own.
+  assert.match(editor, /data-editor-pane="edit"[\s\S]*lg:overflow-y-auto/);
+  assert.match(editor, /data-editor-pane="preview"[\s\S]*lg:overflow-y-auto/);
   // Existing stale-request cancellation remains intact.
   assert.match(editor, /if \(controller.signal.aborted\) return/);
   assert.match(editor, /window.clearTimeout\(timer\); controller.abort\(\)/);

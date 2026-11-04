@@ -41,7 +41,10 @@ export const MarkdownExample: React.FC<{ text: string; enabled: boolean }> = ({ 
     const heading = line.match(/^(#{1,6})\s+(.*)$/);
     if (heading) return <div key={i} className="font-bold" style={{ fontSize: `${Math.max(1, 1.45 - heading[1].length * 0.08)}rem` }}>{inlineMarkdown(heading[2], `h${i}`)}</div>;
     if (/^>\s?/.test(line)) return <blockquote key={i} className="border-l-2 border-primary/40 pl-3 text-muted-foreground">{inlineMarkdown(line.replace(/^>\s?/, ''), `q${i}`)}</blockquote>;
+    if (/^\s*(?:\*\s*){3,}$|^\s*(?:-\s*){3,}$|^\s*(?:_\s*){3,}$/.test(line)) return <hr key={i} className="my-2 border-border" />;
     if (/^[-+*]\s+/.test(line)) return <div key={i} className="flex gap-2"><span>•</span><span>{inlineMarkdown(line.replace(/^[-+*]\s+/, ''), `l${i}`)}</span></div>;
+    const ordered = line.match(/^(\d+)[.)]\s+(.*)$/);
+    if (ordered) return <div key={i} className="flex gap-2"><span className="tabular-nums">{ordered[1]}.</span><span>{inlineMarkdown(ordered[2], `o${i}`)}</span></div>;
     if (!line) return <div key={i} className="h-2" />;
     return <div key={i}>{inlineMarkdown(line, `p${i}`)}</div>;
   })}</div>;

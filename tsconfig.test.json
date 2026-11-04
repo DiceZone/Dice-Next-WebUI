@@ -41,7 +41,7 @@
     "src/i18n/legacy-templates.ts",
     "src/i18n/shortcuts.ts",
     "src/lib/workspace-view.ts",
-    "src/lib/template-variable-style.ts",
+    "src/lib/markdown-edit.ts",
     "src/lib/weighted-templates.ts",
     "src/i18n/weighted-templates.ts",
     "src/lib/reply-preview.ts",

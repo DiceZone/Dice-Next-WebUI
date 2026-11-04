@@ -1,6 +1,5 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { restyleVariable, variableStyleOf, VARIABLE_STYLES } from '../.test-dist/lib/template-variable-style.js';
 import { readReplyPreview, previewMessages, isFormFeedVariable, PREVIEW_PLATFORMS } from '../.test-dist/lib/reply-preview.js';
 import { readFile } from 'node:fs/promises';
 
@@ -24,13 +23,13 @@ test('explicit message-break previews preserve separate payloads and reject malf
   }
 });
 
-test('legacy FormFeed is accepted case-insensitively and is not a styleable display value', async () => {
+test('legacy FormFeed is accepted case-insensitively and is not offered as a display variable', async () => {
   for (const name of ['FormFeed', 'formfeed', 'FORMFEED', 'fOrMfEeD']) assert.equal(isFormFeedVariable(name), true);
   for (const name of ['formFeed ', 'form feed', 'FormFeed:1', 'FormFeeds', 'nick']) assert.equal(isFormFeedVariable(name), false);
   const source = await readFile(new URL('../src/pages/commands-page.tsx', import.meta.url), 'utf8');
   assert.match(source, /const GLOBAL_VARS = .*'FormFeed'/);
   assert.match(source, /const unknown = .*!isFormFeedVariable\(u\)/);
-  assert.match(source, /const styledVars = .*!isFormFeedVariable\(name\)/);
+  assert.match(source, /const exclusiveVars = .*!isFormFeedVariable\(v.name\)/);
   assert.ok(source.includes('previewMessages(preview).map'));
   for (const language of ['zh-Hans', 'zh-Hant', 'en', 'ja']) {
     const locale = JSON.parse(await readFile(new URL(`../src/i18n/locales/${language}.json`, import.meta.url), 'utf8'));
@@ -43,29 +42,4 @@ test('independent frontend CI stays read-only and does not compile the backend',
   assert.match(workflow, /contents: read/);
   assert.match(workflow, /ubuntu-24\.04/);
   assert.doesNotMatch(workflow, /pull_request_target|cmake|vcpkg|git push|deploy|secrets\./);
-});
-
-test('nested variable wrappers are replaced, not stacked', () => {
-  for (const wrapped of ['***{nick}***', '**`{nick}`**', '~~__{nick}__~~', '``{nick}``', '*~~`{nick}`~~*']) {
-    assert.equal(restyleVariable(wrapped, 'nick', 'plain'), '{nick}');
-    assert.equal(restyleVariable(wrapped, 'nick', 'code'), '`{nick}`');
-  }
-});
-test('all style transitions round trip without residual delimiters', () => {
-  for (const first of VARIABLE_STYLES) for (const next of VARIABLE_STYLES) {
-    const value = restyleVariable(restyleVariable('结果：{nick}', 'nick', first), 'nick', next);
-    assert.equal(variableStyleOf(value, 'nick'), next);
-    assert.equal(restyleVariable(value, 'nick', 'plain'), '结果：{nick}');
-  }
-});
-test('preserves surrounding prose styles, unrelated tokens and escaped literals', () => {
-  assert.equal(restyleVariable('**角色 {nick}** {other} 2*{nick}*3 \\{nick}', 'nick', 'plain'), '**角色 {nick}** {other} 2*{nick}*3 \\{nick}');
-  assert.equal(restyleVariable('**{a.b|x}** 和 ~~{a.b|x}~~', 'a.b|x', 'italic'), '*{a.b|x}* 和 *{a.b|x}*');
-  assert.equal(restyleVariable('**{nick}**/**{nick}**', 'nick', 'plain'), '{nick}/{nick}');
-});
-
-test('variable styling leaves button payloads, bar values and TeX untouched', () => {
-  const components = '[[action:{nick}|.r {nick}]] [[bar:HP|{nick}|10]] [[math:\\text{ {{nick}} }|{nick}]]';
-  assert.equal(restyleVariable(components + ' {nick}', 'nick', 'bold'), components + ' **{nick}**');
-  assert.equal(variableStyleOf(components + ' **{nick}**', 'nick'), 'bold');
 });
