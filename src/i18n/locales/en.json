@@ -1958,6 +1958,10 @@
     "delete_confirm": "Delete help doc \"{{name}}\"?"
   },
   "commands": {
+    "reason_inherit_title": "Roll replies with a reason",
+    "reason_independent": "Set a separate reply",
+    "reason_base": "Custom roll reply",
+    "reason_inherit_hint": "Unless customised separately, rolls with a reason inherit the matching single-roll or multi-roll custom reply. Enable independent editing to override it.",
     "status_bar_help": "In a QQ Official group, use .sn or /sn to show your current character status above later replies; .sn off disables it. No global switch is needed. Other supported platforms still update the actual group nickname. To insert attributes into a particular roll reply, expand Advanced options in the editor and choose Insert status bar to add [[bar:HP|{hp}|{hpmax}]]. Values come from the active character card when sending.",
     "title": "Command List",
     "subtitle": "All commands with examples; roll reply text is customizable here (with variables, one-click reset).",

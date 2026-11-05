@@ -12,6 +12,21 @@ const bonus = row('dice.outcome.bonus.regular', '', { outcome: { family: 'bonus'
 const legacy = row('dice.check.result', '**{nick}** {roll}/{rate} {level}', { defaultFormat: 'markdown' });
 const index = (...texts) => new Map(texts.map(text => [text.key, text]));
 
+test('reason replies inherit matching custom rolls without overriding explicit empty text', () => {
+  const basic = row('dice.roll.result', 'builtin', { override: 'custom {reason}', format: 'markdown' });
+  const reason = row('dice.roll.result_reason', 'builtin reason');
+  assert.equal(resolveOutcomeText(reason, index(basic)).value, 'custom {reason}');
+  assert.equal(resolveOutcomeText(reason, index(basic)).format, 'markdown');
+  const persona = { [basic.key]: { value: 'persona', format: 'plain' } };
+  assert.equal(resolveOutcomeText(reason, index(basic), persona).value, 'persona');
+  assert.equal(resolveOutcomeText({ ...reason, override: '' }, index(basic), persona).value, '');
+  assert.equal(resolveOutcomeInheritance({ ...reason, override: 'own' }, index(basic), persona).value, 'own');
+  assert.equal(resolveOutcomeInheritance({ ...reason, override: 'own' }, index(basic)).value, basic.override);
+  const multi = row('dice.roll.multi_reason', 'builtin multi');
+  assert.equal(resolveOutcomeText(multi, index(basic)).value, multi.default);
+  assert.equal(resolveOutcomeText(multi, index(row('dice.roll.multi', '', { override: 'multi custom' }))).value, 'multi custom');
+});
+
 test('specific → standard → original, including formats and empty optional overrides', () => {
   const defaults = index(standard, legacy);
   assert.equal(resolveOutcomeText(bonus, defaults).key, legacy.key);

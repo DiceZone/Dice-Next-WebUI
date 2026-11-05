@@ -21,6 +21,11 @@ export interface ResolvedOutcomeText {
 }
 export type PersonaTexts = Record<string, { value: string; format: TemplateFormat }>;
 
+export function reasonReplyBase(key: string): string | undefined {
+  return key === 'dice.roll.result_reason' ? 'dice.roll.result'
+    : key === 'dice.roll.multi_reason' ? 'dice.roll.multi' : undefined;
+}
+
 function configuredText(row: OutcomeText | undefined, persona: PersonaTexts): ResolvedOutcomeText | undefined {
   if (!row) return undefined;
   const entry = persona[row.key];
@@ -68,6 +73,9 @@ function legacyCheckFallback(
 export function resolveOutcomeText(
   text: OutcomeText, index: ReadonlyMap<string, OutcomeText>, persona: PersonaTexts = {},
 ): ResolvedOutcomeText | undefined {
+  const reasonBase = reasonReplyBase(text.key);
+  if (reasonBase) return configuredText(text, persona) ?? configuredText(index.get(reasonBase), persona)
+    ?? { key: text.key, value: text.default, format: text.defaultFormat, layer: 'builtin' };
   if (!text.outcome) return undefined;
   for (const key of [text.key, ...(text.fallbackKeys ?? [])]) {
     let row = key === text.key ? text : index.get(key);

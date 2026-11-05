@@ -33,7 +33,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { PREVIEW_PLATFORMS, readReplyPreview, previewMessages, isFormFeedVariable, type PreviewPlatform, type ReplyPreview } from '@/lib/reply-preview';
 import { Switch } from '@/components/ui/switch';
 import { MarkdownExample } from '@/components/reply/markdown-example';
-import { resolveOutcomeText, resolveOutcomeInheritance, type OutcomeText, type ResolvedOutcomeText } from '@/lib/outcome-replies';
+import { reasonReplyBase, resolveOutcomeText, resolveOutcomeInheritance, type OutcomeText, type ResolvedOutcomeText } from '@/lib/outcome-replies';
 import { templateLocalNames } from '@/lib/legacy-templates';
 import { presentationIssues, variablesOutsidePresentation, type PresentationStyle } from '@/lib/presentation-template';
 import { previewSimulation, readTemplateSimulation, type TemplateSimulation } from '@/lib/template-simulation';
@@ -194,7 +194,7 @@ export const CommandsPage: React.FC = () => {
   const inheritanceLabel = (reply: Reply | AllKey) => {
     const source = reply.effective;
     if (!source) return t('outcome.unavailable');
-    const name = source.key.startsWith('dice.outcome.') ? replyLabel(source.key) : t('outcome.original');
+    const name = source.key.startsWith('dice.outcome.') || reasonReplyBase(reply.key) ? replyLabel(source.key) : t('outcome.original');
     return t('outcome.inherited', { source: source.layer === 'global' && personaId > 0 ? `${t('outcome.global')} · ${name}` : name });
   };
   // When a persona is selected, swap each key's `override` for that persona's entry
@@ -470,7 +470,7 @@ export const CommandsPage: React.FC = () => {
                       {text.key}<V2Sub v2={text.v2key} />
                     </td>
                     <td data-label={t('commands.col_text')} className="rt-body p-2.5 text-muted-foreground">
-                      {text.outcome && !text.override && <p className="mb-1 text-xs text-primary">{inheritanceLabel(text)}</p>}
+                      {(text.outcome || reasonReplyBase(text.key)) && text.override == null && <p className="mb-1 text-xs text-primary">{inheritanceLabel(text)}</p>}
                       <div className="line-clamp-3 whitespace-pre-wrap break-words" title={templateSummary(text.effective?.value ?? text.override ?? text.default)}>{templateSummary(text.effective?.value ?? text.override ?? text.default)}</div>
                     </td>
                     <td data-label={t('common.actions')} className="rt-footer p-2.5">
@@ -607,7 +607,7 @@ export const CommandsPage: React.FC = () => {
                           {rep.example && <code className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono text-foreground/80 whitespace-nowrap">{rep.example}</code>}
                         </td>
                         <td data-label={t('commands.col_reply')} className="p-2 text-xs text-muted-foreground" colSpan={1}>
-                          {rep.outcome && !rep.override && <p className="mb-1 text-primary">{inheritanceLabel(rep)}</p>}
+                          {(rep.outcome || reasonReplyBase(rep.key)) && rep.override == null && <p className="mb-1 text-primary">{inheritanceLabel(rep)}</p>}
                           <span className="font-mono whitespace-pre-wrap break-words">{templateSummary(rep.effective?.value ?? rep.override ?? rep.default)}</span>
                         </td>
                         <td data-label={t('common.actions')} className="p-2">
@@ -668,7 +668,9 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
   const toast = useToast();
   const [variants, setVariants] = useState(() => readTemplateVariants(reply.override ?? reply.default));
   const dialogs = useDialogs(t);
-  const [useInherited, setUseInherited] = useState(!!reply.outcome && !reply.override);
+  const reasonBase = reasonReplyBase(reply.key);
+  const hasInheritance = !!reply.outcome || !!reasonBase;
+  const [useInherited, setUseInherited] = useState(reasonBase ? reply.override == null : !!reply.outcome && !reply.override);
   const [activeIndex, setActiveIndex] = useState(0);
   const text = variants[activeIndex]?.text ?? '';
   const edited = useRef(false);
@@ -698,7 +700,7 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
   const markdownKeys = useMarkdownEditing({ textareaRef: taRef, value: text, onChange: setText });
   const inheritedSource = reply.inherited?.key.startsWith('dice.outcome.')
     ? `${t(`outcome.families.${reply.inherited.key.split('.')[2]}`)} · ${t(`outcome.grades.${reply.inherited.key.split('.')[3]}`)}`
-    : t('outcome.original');
+    : reasonBase && reply.inherited?.key === reasonBase ? t('commands.reason_base') : t('outcome.original');
   const inheritedLabel = t('outcome.inherited', { source: reply.inherited?.layer === 'global' && personaId > 0
     ? `${t('outcome.global')} · ${inheritedSource}` : inheritedSource });
   const previewKey = useInherited ? reply.inherited?.key ?? reply.key : reply.key;
@@ -706,7 +708,7 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
   // Starting from a plain default (traditional style): convert it once so the
   // Markdown draft shows the same text. Older backends keep it as plain text.
   useEffect(() => {
-    if (reply.override != null || reply.outcome || reply.defaultFormat !== 'plain') return;
+    if (reply.override != null || hasInheritance || reply.defaultFormat !== 'plain') return;
     let alive = true;
     markdownSource(reply.default)
       .then(value => { if (alive && !edited.current) setVariants(readTemplateVariants(value)); })
@@ -743,7 +745,7 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
     setPreviewLoading(true); setPreviewFailed(false);
     const timer = window.setTimeout(async () => {
       try {
-        if (useInherited && reply.outcome && !reply.inherited) throw new Error('Inherited text unavailable');
+        if (useInherited && hasInheritance && !reply.inherited) throw new Error('Inherited text unavailable');
         const previewVariants = useInherited ? readTemplateVariants(reply.inherited?.value ?? '') : variants;
         const previewFormat = useInherited ? reply.inherited?.format ?? 'plain' : format;
         const r = await fetch('/api/templates/preview', { method: 'POST', signal: controller.signal,
@@ -790,6 +792,7 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
 
   const save = async () => {
     if (saving) return;
+    if (reasonBase && useInherited) { await reset(); return; }
     if (reply.outcome && (useInherited || storedValue === '')) { await reset(); return; }
     if (!supportsWeighted) { toast({ title: t('weighted.backend_required'), variant: 'destructive' }); return; }
     if (!validWeights(variants)) { toast({ title: t('weighted.invalid_weights'), variant: 'destructive' }); return; }
@@ -815,7 +818,7 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
   };
   // Clear the saved customization so the reply follows the default (or inherits) again.
   const reset = async () => {
-    if (reply.outcome && reply.override == null) { onSaved(reply.key, null, reply.defaultFormat); return; }
+    if (hasInheritance && reply.override == null) { onSaved(reply.key, null, reply.defaultFormat); return; }
     if (reply.override == null) return;
     setSaving(true);
     try {
@@ -831,7 +834,7 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
   };
 
   const presetStyles = PRESET_ORDER.filter(style => reply.presets?.[style]);
-  const canReset = reply.override != null || !!reply.outcome;
+  const canReset = reply.override != null || hasInheritance;
   const variableBar = <div className="flex flex-wrap items-center gap-1.5" data-testid="template-variables">
     <span className="text-xs text-muted-foreground">{t('visual_editor.insert_variable')}</span>
     {exclusiveVars.length === 0 && <span className="text-xs text-muted-foreground">{t('commands.no_vars')}</span>}
@@ -869,13 +872,13 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
         <DialogBody className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)] lg:overflow-hidden">
         <section aria-label={t('commands.edit')} data-editor-pane="edit"
           className={cn('min-w-0 space-y-4 lg:h-full lg:overflow-y-auto lg:pr-2 lg:[scrollbar-gutter:stable]', pane !== 'edit' && 'hidden lg:block')}>
-          {reply.outcome && <div className="space-y-2 rounded-lg border bg-primary/5 p-3">
+          {hasInheritance && <div className="space-y-2 rounded-lg border bg-primary/5 p-3">
             <div className="flex items-center justify-between gap-3">
-              <HelpLabel title={t('outcome.title')} description={<><p>{t('outcome.hint')}</p><p>{t('outcome.preview_hint')}</p></>} labelClassName="text-sm font-medium" />
+              <HelpLabel title={t(reasonBase ? 'commands.reason_inherit_title' : 'outcome.title')} description={<><p>{t(reasonBase ? 'commands.reason_inherit_hint' : 'outcome.hint')}</p><p>{t('outcome.preview_hint')}</p></>} labelClassName="text-sm font-medium" />
               <label className="flex items-center gap-2 text-xs">
-                {t('outcome.independent')}
-                <Switch checked={!useInherited} aria-label={t('outcome.independent')} onCheckedChange={checked => {
-                  if (checked && storedValue === '') {
+                {t(reasonBase ? 'commands.reason_independent' : 'outcome.independent')}
+                <Switch checked={!useInherited} aria-label={t(reasonBase ? 'commands.reason_independent' : 'outcome.independent')} onCheckedChange={checked => {
+                  if (checked && (storedValue === '' || !!reasonBase)) {
                     const inherited = reply.inherited?.value ?? '';
                     setVariants(readTemplateVariants(inherited)); setActiveIndex(0);
                     setFormat(reply.inherited?.format ?? reply.defaultFormat);
