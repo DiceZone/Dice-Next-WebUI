@@ -2,6 +2,117 @@ import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 const manifest = JSON.parse(readFileSync(new URL('../../src/routes/route-manifest.json', import.meta.url)));
 
+test('reason reply editor previews the inherited custom roll and can override it independently', async ({ page }) => {
+  const previews = [];
+  await page.route('**/api/commands?*', route => route.fulfill({ json: { code: 0, data: [{ cmd: 'r', title: '掷骰', category: '掷骰', sources: ['core'], example: '.r', desc: '掷骰', replies: [
+    { key: 'dice.roll.result', default: 'DEFAULT {res}', override: '我的回复 {res}', format: 'plain', defaultFormat: 'plain', vars: [{ name: 'res', desc: '结果' }] },
+    { key: 'dice.roll.result_reason', default: 'DEFAULT REASON {reason} {res}', override: null, format: 'plain', defaultFormat: 'plain', vars: [{ name: 'res', desc: '结果' }, { name: 'reason', desc: '理由' }] },
+  ] }] } }));
+  await page.route('**/api/templates/preview', route => { previews.push(route.request().postDataJSON()); return route.fulfill({ json: { code: 0, data: { templateVersion: 1, simulation: { version: 1, seed: 1, command: '.r d100 理由', family: '', grade: '', args: {}, facts: {}, unresolved: [], issues: [] }, preview: { text: '我的回复 D100=55', plain: '我的回复 D100=55', markdown: false, payload: null, actions: [] } } } }); });
+  await page.route('**/api/templates/markdown-source', route => route.fulfill({ json: { code: 0, data: { value: '我的回复 {res}' } } }));
+  await page.goto('/#/commands');
+  await page.getByRole('button', { name: '编辑 (2)', exact: true }).click();
+  await page.getByRole('button', { name: '编辑', exact: true }).nth(1).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByRole('switch', { name: '单独设置此回复', exact: true })).not.toBeChecked();
+  await expect(dialog.getByText(/当前继承：.*普通掷骰/)).toBeVisible();
+  await expect.poll(() => previews.at(-1)?.variants?.[0]?.text).toBe('我的回复 {res}');
+  await dialog.getByRole('switch', { name: '单独设置此回复', exact: true }).click();
+  await expect(dialog.getByLabel('回复 1', { exact: true })).toHaveValue('我的回复 {res}');
+});
+
+test('expression engine priority follows drag and arrow order after saving and reloading', async ({ page }, info) => {
+  let order = ['dicenext', 'onedice', 'dicescript'];
+  await page.route('**/api/system/expression-engine*', async route => {
+    if (route.request().method() === 'PUT') order = route.request().postDataJSON().values.expression_order;
+    await route.fulfill({ json: { code: 0, data: { mode: 'custom', order, engines: order.map(id => ({ id, available: true })), overrides: {}, sources: {} } } });
+  });
+  await page.goto('/#/settings?focus=settings-expression');
+  const list = page.getByTestId('expression-engine-order');
+  const ids = () => list.locator('[data-engine-id]').evaluateAll(rows => rows.map(row => row.dataset.engineId));
+  await expect(list.locator('[data-engine-id]')).toHaveCount(3);
+  const one = list.locator('[data-engine-id="onedice"]');
+  await one.getByRole('button', { name: '提高优先级', exact: true }).click();
+  await expect.poll(ids).toEqual(['onedice', 'dicenext', 'dicescript']);
+  const handle = one.getByRole('button', { name: /^拖动排序:/ });
+  await handle.focus(); await page.keyboard.press('ArrowDown');
+  await expect.poll(ids).toEqual(['dicenext', 'onedice', 'dicescript']);
+  await list.scrollIntoViewIfNeeded();
+  // Exercise actual pointer drag, including the narrow mobile layout.
+  await expect(handle).toBeVisible();
+  const from = await handle.boundingBox();
+  const to = await list.locator('[data-engine-id="dicenext"]').boundingBox();
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(from.x + from.width / 2, to.y + 5, { steps: 18 });
+  await page.mouse.up();
+  await expect.poll(ids).toEqual(['onedice', 'dicenext', 'dicescript']);
+  await page.locator('[data-setting-anchor="settings-expression"]').getByRole('button', { name: '保存', exact: true }).click();
+  await expect.poll(() => order).toEqual(['onedice', 'dicenext', 'dicescript']);
+  await page.reload();
+  await expect.poll(ids).toEqual(order);
+  expect(await list.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+  await page.screenshot({ path: info.outputPath('engine-order.png'), fullPage: true });
+});
+
+test('official materials load images only on preview and upload, paginate and delete per account', async ({ page }, info) => {
+  const calls = [], imageRequests = [];
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aRZkAAAAASUVORK5CYII=', 'base64');
+  await page.route('https://assets.example.test/**', route => { imageRequests.push(route.request().url()); return route.fulfill({ contentType: 'image/png', body: png }); });
+  await page.route('**/api/adapters/*/qq-official-actions', async route => {
+    const posted = route.request().postDataJSON(); calls.push(posted);
+    const data = posted.action === 'qq_material_list' ? { images: [{ image_id: 'image-1', file_name: 'image.png', url: 'qqbot-media://image/v1/token', preview_url: 'https://assets.example.test/preview.png', expires_at: 1900000000 }], next_cursor: posted.params.cursor ? '' : 'page2', total: 2 }
+      : posted.action === 'qq_material_upload' ? { image_id: 'new', url: 'qqbot-media://image/v1/new' } : {};
+    await route.fulfill({ json: { code: 0, data } });
+  });
+  await page.goto('/#/qq-official?focus=qq-materials');
+  const materials = page.locator('[data-setting-anchor="qq-materials"]');
+  await materials.getByRole('button', { name: '刷新', exact: true }).click();
+  await expect(materials.getByText('image.png', { exact: true })).toBeVisible();
+  expect(imageRequests).toHaveLength(0);
+  await materials.getByRole('button', { name: '预览图片', exact: true }).click();
+  await expect(page.getByRole('dialog').locator('img')).toBeVisible();
+  await expect.poll(() => imageRequests.length).toBe(1);
+  await page.keyboard.press('Escape');
+  await materials.getByRole('button', { name: '下一页', exact: true }).click();
+  await expect(materials.getByRole('button', { name: '下一页', exact: true })).toBeDisabled();
+  expect(calls.some(call => call.params.cursor === 'page2')).toBe(true);
+  await materials.getByLabel('上传图片', { exact: true }).setInputFiles({ name: 'upload.png', mimeType: 'image/png', buffer: png });
+  await materials.locator('button').filter({ hasText: /^上传图片$/ }).click();
+  await expect(materials.getByRole('status')).toContainText('图片上传成功');
+  expect(calls.find(call => call.action === 'qq_material_upload').params.base64).toBe(png.toString('base64'));
+  await materials.getByRole('button', { name: '删除', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: '确定', exact: true }).click();
+  await expect.poll(() => calls.filter(call => call.action === 'qq_material_delete').length).toBe(1);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: info.outputPath('qq-materials.png'), fullPage: true });
+});
+
+test('official picture composer validates inputs and sends the selected native card payload', async ({ page }, info) => {
+  const calls = [];
+  await page.route('**/api/adapters/*/qq-official-actions', async route => { calls.push(route.request().postDataJSON()); await route.fulfill({ json: { code: 0, data: { id: 'sent' } } }); });
+  await page.goto('/#/qq-official?focus=qq-messages');
+  const composer = page.locator('[data-setting-anchor="qq-messages"]');
+  await composer.getByLabel('标题（1–50 字）').fill('调查员日报');
+  await composer.getByLabel('描述（1–200 字）').fill('本周团务');
+  await composer.getByLabel('跳转链接（HTTPS）').fill('http://example.test/news');
+  await composer.getByLabel('图片链接（HTTPS）').fill('https://example.test/image.png');
+  await composer.getByLabel('接收对象 OpenID').fill('group-openid');
+  await expect(composer.getByRole('button', { name: '发送', exact: true })).toBeDisabled();
+  await composer.getByLabel('跳转链接（HTTPS）').fill('https://example.test/news');
+  await composer.getByRole('button', { name: '发送', exact: true }).click();
+  expect(calls.filter(call => call.action === 'qq_send_message')).toHaveLength(0);
+  await page.getByRole('dialog').getByRole('button', { name: '确定', exact: true }).click();
+  await expect(composer.getByRole('status')).toHaveText('平台已接受发送请求。');
+  expect(calls.find(call => call.action === 'qq_send_message')).toMatchObject({ action: 'qq_send_message', params: { groupId: 'group-openid', body: { msg_type: 8, card: { type: 'tuwen', content: { title: '调查员日报', description: '本周团务', url: 'https://example.test/news', pic_url: 'https://example.test/image.png' } } } } });
+  await composer.getByRole('combobox', { name: '类型', exact: true }).click();
+  await page.getByRole('option', { name: 'Markdown', exact: true }).click();
+  await composer.getByRole('button', { name: '插入 @全体成员', exact: true }).click();
+  await expect(composer.getByLabel('Markdown', { exact: true })).toHaveValue('<qqbot-at-everyone />');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: info.outputPath('qq-message-composer.png'), fullPage: true });
+});
+
 test('visual templates keep edited buttons and formulas after saving and reopening', async ({ page }, info) => {
   test.skip(!process.env.DICENEXT_UI_PREVIEW_RENDERER, 'Production template renderer required');
   const preset = '**{nick}** 掷骰\n> `{res}`\n[[action:再掷一次|.r]]';
