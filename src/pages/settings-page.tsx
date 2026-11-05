@@ -783,7 +783,8 @@ export const SettingsPage: React.FC = () => {
   const [autostart, setAutostart] = useTourState(false, false);
   const [quoteReply, setQuoteReply] = useTourState(true, true);
   const [autoCard, setAutoCard] = useTourState(true, true);
-  const [respondSelf, setRespondSelf] = useTourState(false, false);   // C#69：自响应/自控
+  const [respondSelf, setRespondSelf] = useTourState(false, false);
+  const [rollReasonOff, setRollReasonOff] = useTourState(false, false);   // C#69：自响应/自控
   const [forwardLong, setForwardLong] = useTourState(false, false);
   const [forwardThreshold, setForwardThreshold] = useTourState(1200, 1200);
   const [segLen, setSegLen] = useTourState(600, 600);
@@ -889,6 +890,7 @@ export const SettingsPage: React.FC = () => {
     try { setQuoteReply((await getJson('/system/quote-reply')).enabled !== false); } catch { /* ignore */ }
     try { setAutoCard((await getJson('/system/auto-card')).enabled !== false); } catch { /* ignore */ }
     try { setRespondSelf(!!(await getJson('/system/respond-self')).enabled); } catch { /* ignore */ }
+    try { setRollReasonOff(!!(await getJson('/system/roll-reason')).disabled); } catch { /* ignore */ }
     try { const d = await getJson('/system/forward-long'); setForwardLong(!!d.enabled); setForwardThreshold(Number(d.threshold) || 1200); } catch { /* ignore */ }
     try { const d = await getJson('/system/reply-segment'); setSegLen(Number(d.len) || 600); setSegEnabled(d.enabled !== false); } catch { /* ignore */ }
     try { const d = await getJson('/system/nick-wrap'); setNickPre(d.prefix ?? '<'); setNickSuf(d.suffix ?? '>'); } catch { /* ignore */ }
@@ -1182,6 +1184,11 @@ export const SettingsPage: React.FC = () => {
     setRespondSelf(v);
     try { const d = await putJson('/system/respond-self', { enabled: v }); setRespondSelf(!!d.enabled); }
     catch (e) { toast({ title: (e as Error).message, variant: 'destructive' }); setRespondSelf(!v); }
+  };
+  const toggleRollReasonOff = async (v: boolean) => {
+    setRollReasonOff(v);
+    try { const d = await putJson('/system/roll-reason', { disabled: v }); setRollReasonOff(!!d.disabled); }
+    catch (e) { toast({ title: (e as Error).message, variant: 'destructive' }); setRollReasonOff(!v); }
   };
   const toggleForwardLong = async (v: boolean) => {
     setForwardLong(v);
@@ -1600,6 +1607,7 @@ export const SettingsPage: React.FC = () => {
         <SettingSwitch help searchId="settings-quote-reply" title={t('settings.quote_reply')} desc={t('settings.quote_reply_desc')} checked={quoteReply} onToggle={toggleQuoteReply} />
         <SettingSwitch searchId="settings-auto-card" title={t('settings.auto_card')} desc={t('settings.auto_card_desc')} note={t('feature_help.auto_card_scope')} checked={autoCard} onToggle={toggleAutoCard} />
         <SettingSwitch help searchId="settings-respond-self" title={t('settings.respond_self')} desc={t('settings.respond_self_desc')} checked={respondSelf} onToggle={toggleRespondSelf} />
+        <SettingSwitch searchId="settings-roll-reason" title={t('settings.roll_reason_off')} desc={t('settings.roll_reason_off_desc')} checked={rollReasonOff} onToggle={toggleRollReasonOff} />
         <SettingSwitch searchId="settings-forward-long" title={t('settings.forward_long')} desc={t('settings.forward_long_desc')} note={t('feature_help.forward_scope')} checked={forwardLong} onToggle={toggleForwardLong} />
         <SettingRow searchId="settings-forward-threshold" title={t('settings.forward_threshold')} desc={t('settings.forward_threshold_desc')}>
           <Input type="number" min={1} max={100000} disabled={!forwardLong} className="h-9 w-28 text-sm"

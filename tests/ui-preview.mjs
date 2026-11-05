@@ -90,7 +90,7 @@ const state = {
   '/system/identity-email': { enabled: false, host: '', port: 465, ssl: true, user: '', from: '', password_configured: false },
   '/system/nick-wrap': { prefix: '<', suffix: '>' }, '/system/reply-segment': { enabled: true, len: 600 },
 };
-const writable = new Set(['/system/friend-clean', '/system/random-source', '/system/prefixes', '/system/timezone', '/system/plugin-verify', '/system/js-fetch', '/system/autostart', '/system/quote-reply', '/system/auto-card', '/system/respond-self', '/system/forward-long', '/system/reply-segment', '/system/nick-wrap', '/system/censor', '/system/friend-clean', '/system/identity-email']);
+const writable = new Set(['/system/friend-clean', '/system/random-source', '/system/prefixes', '/system/timezone', '/system/plugin-verify', '/system/js-fetch', '/system/autostart', '/system/quote-reply', '/system/auto-card', '/system/respond-self', '/system/roll-reason', '/system/forward-long', '/system/reply-segment', '/system/nick-wrap', '/system/censor', '/system/friend-clean', '/system/identity-email']);
 const overrides = new Map();
 const requests = [];
 const helpDefaults = [

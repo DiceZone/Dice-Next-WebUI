@@ -1641,6 +1641,8 @@
     "poke_enabled": "Enable poke reply",
     "respond_self": "Respond to own messages (self-control)",
     "respond_self_desc": "When on, messages sent by the bot's own account are also processed, so you can control the bot by sending commands from the bot account in group/private chats (built-in commands, plugins and custom replies all work). Self-echo dedup (the bot's own replies won't re-trigger it) and a cross-bot loop guard (a zero-width char is inserted when a reply starts with a command, so other bots aren't triggered) are built in. Off by default.",
+    "roll_reason_off": "Disable roll reasons",
+    "roll_reason_off_desc": "When on, .r shows only the result and never a reason: .r 1d6 attack replies with the 1d6 result only, and text alone (such as .r takes the suit to the cleaners) rolls the default die. Off by default: text after an expression, or text that is not an expression, is shown as the reason.",
     "poke_desc": "Reaction when poked. 'Mapped command' takes priority: run it as a message from the poker (a built-in command like .jrrp, a plugin command, or a custom-reply trigger). Leave empty to send the reply text below.",
     "poke_command": "Mapped command / trigger (priority)",
     "poke_text": "Reply text (when no mapped command)",

@@ -299,6 +299,7 @@ export const SETTINGS_SEARCH_ENTRIES: SettingsSearchEntry[] = [
   e('settings-user-group', '/settings', 'nav.settings', 'usergroup.title', '用户群 用戶群 user group 分组 分組 邀请 邀請 enforce'),
   e('settings-friend-clean', '/settings', 'nav.settings', 'friendclean.title', '好友清理 群聊清理 自动清理 自動清理 不活跃 不活躍 退群 记录保留 記錄保留 本地记录 免清 迁移 記錄清理 friend clean cleanup leave group record retention inactivity'),
   e('settings-quote-reply', '/settings', 'nav.settings', 'settings.quote_reply', '引用回复 引用回覆 quote reply', 'settings.quote_reply_desc'),
+  e('settings-roll-reason', '/settings', 'nav.settings', 'settings.roll_reason_off', '掷骰理由 擲骰理由 理由 原因 reason roll .r', 'settings.roll_reason_off_desc'),
   e('settings-auto-card', '/settings', 'nav.settings', 'settings.auto_card', '自动名片 自動名片 group card nickname', 'settings.auto_card_desc'),
   e('settings-respond-self', '/settings', 'nav.settings', 'settings.respond_self', '自身消息 自己消息 self message echo', 'settings.respond_self_desc'),
   e('settings-forward-long', '/settings', 'nav.settings', 'settings.forward_long', '长消息 長消息 合并转发 合併轉發 forward long message', 'settings.forward_long_desc'),
