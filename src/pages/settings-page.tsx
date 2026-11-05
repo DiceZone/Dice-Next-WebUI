@@ -1,3 +1,4 @@
+import { ExpressionEngineOrder } from '@/components/settings/expression-engine-order';
 import { CleanupSettingsCard } from '@/components/settings/cleanup-settings-card';
 import { SnBannerPreview, snBannerStyles, normalizeSnStyle, validSnTemplate, SN_FORMULA_EXAMPLE, SN_DEFAULT_COLOR, SN_COLOR_SWATCHES, normalizeSnColor, validSnColor, eyeDropperAvailable, pickScreenColor, type SnBannerStyle } from '@/components/settings/sn-banner-preview';
 import { useTourState, useTourActive } from '@/components/onboarding/tour-data';
@@ -22,7 +23,7 @@ import type { LucideIcon } from 'lucide-react';
 import {
   SlidersHorizontal, Crown, Globe, Plus, Trash2, ShieldCheck,
   Image, Type, Server, Clock, Layers3, RotateCcw,
-  ArrowUp, ArrowDown, Pipette,
+  Pipette,
 } from 'lucide-react';
 import { IdentityEmailSettings } from '@/components/identity-email-settings';
 import { TraySettingsCard } from '@/components/tray-settings';
@@ -1093,14 +1094,6 @@ export const SettingsPage: React.FC = () => {
       toast({ title: t('settings.expression_need_one'), variant: 'destructive' });
     }
   };
-  const moveExpressionEngine = (id: ExpressionEngineId, delta: -1 | 1) => {
-    const index = expressionOrder.indexOf(id);
-    const next = index + delta;
-    if (index < 0 || next < 0 || next >= expressionOrder.length) return;
-    const order = [...expressionOrder];
-    [order[index], order[next]] = [order[next], order[index]];
-    setExpressionOrder(order);
-  };
   const saveExpression = async () => {
     if (!scopedReady || savingExpression) return;
     const current = scopeGate.capture();
@@ -1466,36 +1459,8 @@ export const SettingsPage: React.FC = () => {
           {expressionMode === 'custom' ? (
             <div className="space-y-2">
               <Label>{t('settings.expression_order')}</Label>
-              {EXPRESSION_ENGINES.map((id) => {
-                const enabled = expressionOrder.includes(id);
-                const index = expressionOrder.indexOf(id);
-                const available = expressionAvailable(id);
-                return (
-                  <div key={id} className="flex items-center gap-3 rounded-lg border px-3 py-2.5">
-                    <Switch checked={enabled} disabled={!available}
-                      onCheckedChange={(checked) => toggleExpressionEngine(id, checked)} />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <HelpLabel title={t(`settings.expression_engine_${id}`)} description={<p>{t(`settings.expression_engine_${id}_desc`)}</p>} labelClassName="text-sm font-medium" />
-                        {!available && <Badge variant="secondary">{t('settings.expression_unavailable')}</Badge>}
-                      </div>
-                    </div>
-                    {enabled && (
-                      <div className="flex items-center gap-1">
-                        <Button type="button" size="icon" variant="ghost" className="h-8 w-8"
-                          disabled={index <= 0} onClick={() => moveExpressionEngine(id, -1)} aria-label={t('settings.expression_move_up')}>
-                          <ArrowUp className="h-4 w-4" />
-                        </Button>
-                        <Button type="button" size="icon" variant="ghost" className="h-8 w-8"
-                          disabled={index < 0 || index >= expressionOrder.length - 1}
-                          onClick={() => moveExpressionEngine(id, 1)} aria-label={t('settings.expression_move_down')}>
-                          <ArrowDown className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+              <ExpressionEngineOrder order={expressionOrder} onReorder={setExpressionOrder}
+                available={expressionAvailable} toggle={toggleExpressionEngine} disabled={!scopedReady || savingExpression} />
             </div>
           ) : (
             <div className="flex flex-wrap items-center gap-2 rounded-lg bg-muted/60 px-3 py-2 text-sm">

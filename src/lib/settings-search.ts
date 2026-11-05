@@ -292,7 +292,7 @@ export const SETTINGS_SEARCH_ENTRIES: SettingsSearchEntry[] = [
   e('settings-prefix', '/settings', 'nav.settings', 'settings.prefix_title', '指令前缀 指令前綴 命令前缀 command prefix dot 点号 點號', 'settings.prefix_desc', true),
   e('settings-timezone', '/settings', 'nav.settings', 'settings.timezone_title', '时区 時區 timezone utc time clock', 'settings.timezone_desc'),
   e('settings-scope', '/settings', 'nav.settings', 'settings.scope_title', '作用域 分账号 分帳號 适配器 適配器 account adapter inherit override 覆盖 覆寫', 'settings.scope_desc'),
-  e('settings-expression', '/settings', 'nav.settings', 'settings.expression_title', '表达式 表達式 expression dicescript onedice engine compatibility 兼容 原版 增强 增強', 'settings.expression_desc', true),
+  e('settings-expression', '/settings', 'nav.settings', 'settings.expression_title', '表达式 表達式 expression dicescript onedice engine compatibility 拖动 拖曳 排序 优先级 優先級 drag reorder priority 兼容 原版 增强 增強', 'settings.expression_desc', true),
   e('settings-approval', '/settings', 'nav.settings', 'settings.approval_title', '好友申请 好友申請 加群邀请 加群邀請 审批 審批 approve reject keyword blacklist whitelist', 'settings.approval_desc'),
   e('settings-poke', '/replies', 'nav.custom_replies', 'replies.poke_title', '戳一戳 nudge poke jrrp 随机回复 概率', 'replies.poke_desc'),
   e('settings-welcome', '/settings', 'nav.settings', 'settings.welcome_min_title', '欢迎词 歡迎詞 welcome 入群 delay cooldown 延迟 延遲 冷却 冷卻', 'settings.welcome_min_desc'),
