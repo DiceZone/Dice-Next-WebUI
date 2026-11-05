@@ -285,6 +285,8 @@ export const SETTINGS_SEARCH_ENTRIES: SettingsSearchEntry[] = [
   e('mcp-audit', '/mcp', 'mcp.title', 'mcp.audit', 'MCP 调用 呼叫 日志 日誌 审计 審計 audit history pagination', 'mcp.audit_hint'),
   e('qq-menu', '/qq-official', 'qq_editor.title', 'qq_editor.menu', '卡片与按钮 卡片 按钮 官方菜单与面板 QQ 官方 自定义菜单 全局菜单 二级菜单 开关 menu switch c2c cards buttons', 'qq_editor.menu_help'),
   e('qq-panels', '/qq-official', 'qq_editor.title', 'qq_editor.panels', '卡片与按钮 卡片 按钮 官方菜单与面板 QQ 官方 指令面板 关联对象 OpenID panel command group channel cards buttons', 'qq_editor.panel_help'),
+  e('qq-materials', '/qq-official', 'qq_editor.title', 'qq_editor.materials', 'QQ 素材 图片 上传 qqbot-media markdown media image', 'qq_editor.material_help'),
+  e('qq-messages', '/qq-official', 'qq_editor.title', 'qq_editor.message_cards', 'QQ 图文卡片 全体成员 tuwen card mention everyone', 'qq_editor.message_help'),
   e('settings-master', '/settings', 'nav.settings', 'settings.master_title', 'master 主人 骰主 管理员 管理員 admin owner', 'settings.master_desc', true),
   e('settings-plugin-verify', '/settings', 'nav.settings', 'settings.plugin_verify_title', '插件签名 插件簽名 signature public key verify js lua security', 'settings.plugin_verify_desc'),
   e('settings-prefix', '/settings', 'nav.settings', 'settings.prefix_title', '指令前缀 指令前綴 命令前缀 command prefix dot 点号 點號', 'settings.prefix_desc', true),

@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { QQMenuEditor } from '@/components/adapter/qq-menu-editor';
 import { QQPanelEditor } from '@/components/adapter/qq-panel-editor';
+import { QQMaterials, QQMessageComposer } from '@/components/adapter/qq-media-editor';
 import { EditorError } from '@/components/adapter/qq-editor-shared';
 import { zustandAdapterStore } from '@/store/adapter-store';
 import { navigatePanel } from '@/lib/panel-navigation';
@@ -14,18 +15,23 @@ import type { Adapter } from '@/types/adapter';
 function AccountEditors({ adapter, onBusy }: { adapter: Adapter; onBusy: (busy: boolean) => void }) {
   const { t } = useTranslation();
   const [menuBusy, setMenuBusy] = useState(false), [panelBusy, setPanelBusy] = useState(false);
+  const [materialBusy, setMaterialBusy] = useState(false), [messageBusy, setMessageBusy] = useState(false);
   const focus = new URLSearchParams(window.location.hash.split('?')[1] || '').get('focus');
-  const [tab, setTab] = useState(focus === 'qq-panels' ? 'panels' : 'menu');
-  useEffect(() => { onBusy(menuBusy || panelBusy); }, [menuBusy, panelBusy, onBusy]);
+  const [tab, setTab] = useState(focus === 'qq-panels' ? 'panels' : focus === 'qq-materials' ? 'materials' : focus === 'qq-messages' ? 'messages' : 'menu');
+  useEffect(() => { onBusy(menuBusy || panelBusy || materialBusy || messageBusy); }, [menuBusy, panelBusy, materialBusy, messageBusy, onBusy]);
   return <Tabs value={tab} onValueChange={setTab} className="min-w-0 space-y-5">
     <TabsList variant="page" responsive aria-label={t('qq_editor.title')}>
       <TabsTrigger value="menu"><ListTree className="h-4 w-4" />{t('qq_editor.menu')}</TabsTrigger>
       <TabsTrigger value="panels"><PanelsTopLeft className="h-4 w-4" />{t('qq_editor.panels')}</TabsTrigger>
+      <TabsTrigger value="messages">{t('qq_editor.message_cards')}</TabsTrigger>
+      <TabsTrigger value="materials">{t('qq_editor.materials')}</TabsTrigger>
     </TabsList>
     {/* Keep both drafts mounted when switching tabs. */}
     <TabsContent forceMount value="menu" className="data-[state=inactive]:hidden" data-setting-anchor="qq-menu">
       <QQMenuEditor adapterId={adapter.id} accountName={adapter.name} connected={adapter.status === 'connected'} onBusy={setMenuBusy} />
     </TabsContent>
+    <TabsContent forceMount value="messages" className="data-[state=inactive]:hidden"><QQMessageComposer adapterId={adapter.id} onBusy={setMessageBusy} /></TabsContent>
+    <TabsContent forceMount value="materials" className="data-[state=inactive]:hidden"><QQMaterials adapterId={adapter.id} onBusy={setMaterialBusy} /></TabsContent>
     <TabsContent forceMount value="panels" className="data-[state=inactive]:hidden" data-setting-anchor="qq-panels">
       <QQPanelEditor adapterId={adapter.id} accountName={adapter.name} connected={adapter.status === 'connected'} onBusy={setPanelBusy} />
     </TabsContent>

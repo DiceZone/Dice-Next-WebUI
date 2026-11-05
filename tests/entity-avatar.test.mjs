@@ -58,6 +58,27 @@ test('network failures show a visible fallback and do not hide a later entity av
   assert.equal(node.props.children.type, 'img');
   assert.match(node.props.children.props.src, /987654\/987654/);
 });
+
+test('official avatars use the supplied URL even for virtual identities and retain failure fallback', () => {
+  const { entityAvatarSource, EntityAvatar } = harness();
+  const props = { kind: 'user', id: 'virtual-user', platform: 'qq_official', virtualId: true,
+    avatarUrl: 'https://q.qlogo.cn/example/avatar.png' };
+  assert.equal(entityAvatarSource(props), props.avatarUrl);
+  EntityAvatar(props).props.children.props.onError();
+  assert.equal(EntityAvatar(props).props.children.type, 'user-fallback');
+  assert.equal(EntityAvatar({ ...props, avatarUrl: props.avatarUrl + '?new' }).props.children.type, 'img');
+  for (const avatarUrl of ['javascript:alert(1)', 'data:image/svg+xml,xxx', '//untrusted/path'])
+    assert.equal(entityAvatarSource({ ...props, avatarUrl }), undefined);
+});
+
+test('official fallback uses the actual account endpoint, never the public identity as an OpenID', () => {
+  const { entityAvatarSource } = harness();
+  const props = { kind: 'user', id: 'virtual-user', platform: 'qq_official', virtualId: true,
+    bindings: [{ adapterType: 'qq_official', adapterAccount: '123456', endpointId: 'ABCDEF0123456789ABCDEF0123456789' }] };
+  assert.equal(entityAvatarSource(props), 'https://q.qlogo.cn/qqapp/123456/ABCDEF0123456789ABCDEF0123456789/100');
+  assert.equal(entityAvatarSource({ ...props, kind: 'group' }), undefined);
+  assert.equal(entityAvatarSource({ ...props, bindings: [{ ...props.bindings[0], endpointId: 'invalid/openid' }] }), undefined);
+});
 test('user lists and details share the same avatar; every group view uses the shared wrapper', () => {
   const players = source('pages/players-page.tsx'), groups = source('pages/groups-page.tsx');
   assert.equal((players.match(/<EntityAvatar kind="user"/g) || []).length, 3);

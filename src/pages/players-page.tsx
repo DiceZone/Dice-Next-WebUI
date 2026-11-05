@@ -30,6 +30,7 @@ interface Player {
   lastCmdAt: string;
   createdAt: string;
   virtualId?: boolean;
+  avatarUrl?: string;
   bindings?: { adapterType: string; adapterAccount: string; endpointId: string }[];
 }
 
@@ -190,7 +191,7 @@ const PlayerDetailView: React.FC<{
       </div>}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex items-center gap-3">
-          <EntityAvatar kind="user" id={player.userId} platform={player.platform} virtualId={player.virtualId} className="h-16 w-16" />
+          <EntityAvatar kind="user" id={player.userId} platform={player.platform} virtualId={player.virtualId} avatarUrl={player.avatarUrl} bindings={player.bindings} className="h-16 w-16" />
           <div>
             <div className="flex items-center gap-2">
               <span className="break-words text-lg font-semibold">{player.nickname || player.userId}</span>
@@ -582,7 +583,7 @@ export const PlayersPage: React.FC = () => {
           <div className={view === 'split' ? 'max-h-[260px] space-y-1 overflow-y-auto lg:max-h-[65vh]' : 'grid gap-3 sm:grid-cols-2 xl:grid-cols-3'}>
             {paged.map((p) => view === 'card' ? <Card key={key(p)} className="flex min-w-0 flex-col p-4 shadow-none">
               <div className="flex items-start gap-3">
-                <EntityAvatar kind="user" id={p.userId} platform={p.platform} virtualId={p.virtualId} />
+                <EntityAvatar kind="user" id={p.userId} platform={p.platform} virtualId={p.virtualId} avatarUrl={p.avatarUrl} bindings={p.bindings} />
                 <div className="min-w-0 flex-1"><button type="button" onClick={() => void change(() => detailScroll.open(() => { setSelected(p); setDetailOpen(true); setEditFav(null); }))} className="break-words text-left font-semibold hover:text-primary">{p.nickname || p.userId}</button><div className="mt-1 flex items-start gap-1 text-xs text-muted-foreground"><PlatformIcon platform={p.platform} /><span className="break-all font-mono">{p.userId}</span></div></div>
               </div>
               <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
@@ -593,7 +594,7 @@ export const PlayersPage: React.FC = () => {
               </dl>
               <div className="mt-4 flex justify-end border-t pt-3"><Button variant="outline" size="sm" onClick={() => void change(() => detailScroll.open(() => { setSelected(p); setDetailOpen(true); setEditFav(null); }))}>{t('groups.manage')}<ChevronRight className="ml-1 h-4 w-4" /></Button></div>
             </Card> : <button type="button" key={key(p)} aria-pressed={active && key(active) === key(p)} onClick={() => void change(() => { setSelected(p); setEditFav(null); })} className={`flex w-full items-start gap-3 rounded-lg border p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${active && key(active) === key(p) ? 'border-primary/20 bg-primary/[0.07]' : 'border-transparent hover:bg-muted/60'}`}>
-              <EntityAvatar kind="user" id={p.userId} platform={p.platform} virtualId={p.virtualId} /><span className="min-w-0 flex-1"><span className="block break-words text-sm font-medium">{p.nickname || p.userId}</span><span className="mt-1 flex items-center gap-1 break-all text-xs text-muted-foreground"><PlatformIcon platform={p.platform} />{p.userId}</span><span className="mt-2 block text-xs text-muted-foreground">{t('players.col_count')}: {p.cmdCount} · {t('players.col_favor')}: {p.favor}</span></span>
+              <EntityAvatar kind="user" id={p.userId} platform={p.platform} virtualId={p.virtualId} avatarUrl={p.avatarUrl} bindings={p.bindings} /><span className="min-w-0 flex-1"><span className="block break-words text-sm font-medium">{p.nickname || p.userId}</span><span className="mt-1 flex items-center gap-1 break-all text-xs text-muted-foreground"><PlatformIcon platform={p.platform} />{p.userId}</span><span className="mt-2 block text-xs text-muted-foreground">{t('players.col_count')}: {p.cmdCount} · {t('players.col_favor')}: {p.favor}</span></span>
             </button>)}
           </div>
           <PaginationBar total={shown.length} page={curPage} pageSize={PAGE_SIZE} onPageChange={(value) => void change(() => setPage(value))} fixedSize compact={view === 'split'} />

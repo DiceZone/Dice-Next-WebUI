@@ -8,10 +8,18 @@ type EntityAvatarProps = {
   id: string;
   platform: string;
   virtualId?: boolean;
+  avatarUrl?: string;
+  bindings?: { adapterType: string; adapterAccount: string; endpointId: string }[];
   className?: string;
 };
 
-export function entityAvatarSource({ kind, id, platform, virtualId }: EntityAvatarProps): string | undefined {
+export function entityAvatarSource({ kind, id, platform, virtualId, avatarUrl, bindings }: EntityAvatarProps): string | undefined {
+  if (avatarUrl && /^https?:\/\/[^\s]+$/i.test(avatarUrl)) return avatarUrl;
+  if (kind === 'user') {
+    const official = bindings?.find(binding => binding.adapterType === 'qq_official'
+      && /^[1-9]\d{0,19}$/.test(binding.adapterAccount) && /^[a-fA-F0-9]{32}$/.test(binding.endpointId));
+    if (official) return `https://q.qlogo.cn/qqapp/${official.adapterAccount}/${official.endpointId}/100`;
+  }
   const normalized = normalizePlatform(platform);
   // OpenIDs and generated identity IDs are not QQ numbers, even if numeric.
   if (virtualId || !['onebot_v11', 'milky'].includes(normalized) || !/^[1-9]\d{0,19}$/.test(id)) return undefined;

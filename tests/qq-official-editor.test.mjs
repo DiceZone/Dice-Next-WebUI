@@ -149,7 +149,7 @@ test('editors preserve drafts across tabs and failures and use styled controls, 
   const menu = readFileSync(new URL('../src/components/adapter/qq-menu-editor.tsx', import.meta.url), 'utf8');
   const panels = readFileSync(new URL('../src/components/adapter/qq-panel-editor.tsx', import.meta.url), 'utf8');
   assert.match(page, /AccountEditors key=\{adapter\.id\}/);
-  assert.equal([...page.matchAll(/TabsContent forceMount/g)].length, 2);
+  assert.equal([...page.matchAll(/TabsContent forceMount/g)].length, 4);
   assert.match(page, /query\.set\('adapter', value\)/);
   assert.match(readFileSync(new URL('../src/routes/index.tsx', import.meta.url), 'utf8'), /createNavigationBlocker\(confirmPageLeave\)/);
   for (const source of [menu, panels]) {
