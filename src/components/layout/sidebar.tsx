@@ -9,7 +9,7 @@ import { BrandWordmark } from './brand-wordmark';
 import {
   LayoutDashboard, PlugZap, MessageSquareReply, MessageSquareText, PanelsTopLeft, FolderKanban, FolderOpen, Boxes,
   Settings, Info, ChevronLeft, ChevronDown, FlaskConical, Users, UserCog,
-  Map, BookText, Clock, Scroll, ShieldBan, Database, Puzzle, SlidersHorizontal,
+  Map, BookText, BookOpen, Clock, Scroll, ShieldBan, Database, Puzzle, SlidersHorizontal,
   Monitor, HelpCircle, Archive, Sparkles, Wand2, Languages, Cpu, MessageCircle, Drama, Bell, BarChart3, Cloud, X,
 } from 'lucide-react';
 
@@ -46,6 +46,7 @@ const NAV: Node[] = [
     { labelKey: 'nav.ai_models', path: '/ai', icon: Cpu },
     { labelKey: 'nav.ai_chat', path: '/ai/chat', icon: MessageCircle },
     { labelKey: 'nav.ai_npc', path: '/ai/npc', icon: Drama },
+    { labelKey: 'nav.ai_knowledge', path: '/ai/knowledge', icon: BookOpen },
     { labelKey: 'nav.ai_polish', path: '/ai/polish', icon: Wand2 },
     { labelKey: 'nav.ai_translate', path: '/ai/translate', icon: Languages },
   ] },

@@ -7,7 +7,7 @@ export const SHORTCUT_OPTIONS = [
   ['/rules', 'nav.rules'], ['/decks', 'nav.decks'], ['/files', 'image_resources.title'],
   ['/groups', 'nav.groups'], ['/players', 'nav.players'], ['/logs', 'nav.logs'],
   ['/permissions', 'nav.banlist'], ['/ai', 'nav.ai_models'], ['/ai/chat', 'nav.ai_chat'],
-  ['/ai/npc', 'nav.ai_npc'], ['/ai/polish', 'nav.ai_polish'], ['/ai/translate', 'nav.ai_translate'],
+  ['/ai/npc', 'nav.ai_npc'], ['/ai/knowledge', 'nav.ai_knowledge'], ['/ai/polish', 'nav.ai_polish'], ['/ai/translate', 'nav.ai_translate'],
   ['/settings', 'nav.settings'], ['/cloud-services', 'cloud.title'], ['/mcp', 'mcp.title'],
   ['/notice-settings', 'nav.notice'], ['/webui-settings', 'nav.webui'], ['/schedules', 'nav.schedules'],
   ['/backup', 'nav.backup'], ['/roadmap', 'nav.roadmap'], ['/about', 'nav.about'],

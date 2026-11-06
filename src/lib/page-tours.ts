@@ -163,6 +163,12 @@ export const PAGE_TOURS: Readonly<Record<string, PageTourProfile>> = {
     step('[data-setting-anchor="ai-whitelist"]', 'ai.wl', 'configure', 'ai.wl_desc'),
     step('[data-tour="ai-save"]', 'common.save', 'save'),
   ]),
+  '/ai/knowledge': profile('nav.ai_knowledge', [
+    step(heading, 'nav.ai_knowledge', 'overview', 'knowledge.desc'),
+    step('[data-setting-anchor="ai-knowledge"]', 'knowledge.enable', 'configure', 'knowledge.enable_desc'),
+    step('[data-setting-anchor="ai-knowledge-test"]', 'knowledge.test_title', 'inspect', 'knowledge.test_desc'),
+    step('[data-setting-anchor="ai-knowledge-entries"]', 'knowledge.entries', 'create', 'knowledge.entries_desc'),
+  ]),
   '/ai/npc': profile('ai.sec_npc', [
     step(heading, 'ai.sec_npc', 'overview', 'ai.npc_desc'),
     step('[data-setting-anchor="ai-npc"]', 'ai.npc_add', 'create', 'ai.npc_desc'),

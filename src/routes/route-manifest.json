@@ -120,6 +120,11 @@
     "file": "ai-page"
   },
   {
+    "path": "/ai/knowledge",
+    "component": "KnowledgePage",
+    "file": "knowledge-page"
+  },
+  {
     "path": "/notice-settings",
     "component": "NoticeSettingsPage",
     "file": "notice-settings-page"

@@ -65,6 +65,9 @@ const state = {
   '/auth/status': { required: false, need_setup: false },
   '/system/status': { version: '3.0.0', buildNumber: 123, prerelease: true, buildTime: '2026-10-03 00:00:00' },
   '/system/tray': { text: '', port: 18088, tooltip: 'Dice!Next(18088)', supported: true },
+  '/knowledge/settings': { enabled: true, sources: { help: true, docs: true, custom: true }, top_k: 3, min_score: 0.45, max_chars: 1200, faq_direct: true, faq_threshold: 0.6, semantic: false },
+  '/knowledge/status': { help: 128, docs: 786, custom: 1, aiEnabled: true, embedModel: false },
+  '/knowledge/entries': { entries: [{ id: 'demo-kb', title: '开团时间 · 示例', content: '本群每周六晚上八点开团。', tags: ['团务'], questions: ['几点开团'], direct: true, enabled: true, updated_at: 1788264000 }] },
   '/system/ai': { enabled: true, providers: tourSamples.aiProviders, models: [...tourSamples.models,
     { ...tourSamples.models[0], id: 'demo-vision', name: '识图助手 · 示例', model: 'example-vision-model', vision: true },
     { ...tourSamples.models[0], id: 'demo-embed', name: '向量 · 示例', model: 'example-embedding', kind: 'embedding' }],
@@ -95,7 +98,7 @@ const state = {
   '/system/identity-email': { enabled: false, host: '', port: 465, ssl: true, user: '', from: '', password_configured: false },
   '/system/nick-wrap': { prefix: '<', suffix: '>' }, '/system/reply-segment': { enabled: true, len: 600 },
 };
-const writable = new Set(['/system/friend-clean', '/system/random-source', '/system/prefixes', '/system/timezone', '/system/plugin-verify', '/system/js-fetch', '/system/autostart', '/system/quote-reply', '/system/auto-card', '/system/respond-self', '/system/roll-reason', '/system/ai', '/system/forward-long', '/system/reply-segment', '/system/nick-wrap', '/system/censor', '/system/friend-clean', '/system/identity-email']);
+const writable = new Set(['/system/friend-clean', '/system/random-source', '/system/prefixes', '/system/timezone', '/system/plugin-verify', '/system/js-fetch', '/system/autostart', '/system/quote-reply', '/system/auto-card', '/system/respond-self', '/system/roll-reason', '/system/ai', '/knowledge/settings', '/system/forward-long', '/system/reply-segment', '/system/nick-wrap', '/system/censor', '/system/friend-clean', '/system/identity-email']);
 const overrides = new Map();
 const requests = [];
 const helpDefaults = [
@@ -249,6 +252,10 @@ const server = await createServer({
           if (path === '/system/mcp' || path.startsWith('/system/mcp/')) return reply(mcpPreview(req.method, path, url, body, req.headers['x-dice-mcp-operation-id']));
           if (path === '/statistics/overview' && req.method === 'GET') return reply(statisticsPreview(tourSamples.statistics, url.searchParams));
           if (path === '/system/sysinfo' && req.method === 'GET') return reply(sysinfoPreview(url.searchParams));
+          if (path === '/knowledge/search' && req.method === 'POST') return reply({ scanned: 914, elapsedMs: 12, injectedChars: 64, faqSimilarity: 0.31, faq: null,
+            injected: '[1] 帮助词条「rh」', hits: [{ source: 'help', id: 'rh', title: 'rh', url: '', text: '暗骰：.rh 表达式，结果私聊发送。', coverage: 0.86, score: 6.2, semantic: -1 }],
+            below: [{ source: 'docs', id: 'doc1', title: '使用指南 > 掷骰', url: '/use/dice', text: '.r 掷骰……', coverage: 0.3, score: 1.1, semantic: -1 }] });
+          if (path === '/knowledge/entries' && req.method === 'POST') { const entry = { ...body.entry, id: body.entry.id || 'preview-' + Date.now(), updated_at: 1788264000 }; state['/knowledge/entries'].entries = [...state['/knowledge/entries'].entries.filter((e) => e.id !== entry.id), entry]; return reply(entry); }
           if (path.startsWith('/system/notice/')) { const notice = noticePreview(req.method, path, url, body); if (notice !== undefined) return reply(notice); }
           if (/^\/adapters\/[^/]+$/.test(path) && req.method === 'PUT') {
             const bot = state['/adapters'].find((item) => item.id === path.slice('/adapters/'.length));
