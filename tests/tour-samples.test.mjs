@@ -39,9 +39,13 @@ test('samples form one consistent fictional bot, group and player scenario', () 
 });
 
 test('tutorial samples contain no working credentials or real messaging IDs', () => {
+  for (const provider of samples.aiProviders) {
+    assert.equal(provider.api_key, '');
+    assert.ok(new URL(provider.base_url).hostname.endsWith('.invalid'));
+  }
   for (const model of samples.models) {
-    assert.equal(model.api_key, '');
-    assert.ok(new URL(model.base_url).hostname.endsWith('.invalid'));
+    assert.ok(samples.aiProviders.some((provider) => provider.id === model.provider_id));
+    assert.equal(model.api_key, undefined);
   }
   for (const group of samples.groups) assert.ok(group.groupId.startsWith('demo-'));
   for (const player of samples.players) assert.ok(player.userId.startsWith('demo-'));

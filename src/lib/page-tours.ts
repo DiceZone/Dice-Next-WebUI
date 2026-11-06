@@ -151,7 +151,7 @@ export const PAGE_TOURS: Readonly<Record<string, PageTourProfile>> = {
   '/ai': profile('ai.sec_models', [
     step(heading, 'ai.sec_models', 'overview', 'ai.desc'),
     step('[data-setting-anchor="ai-master"]', 'ai.master', 'configure', 'ai.master_desc'),
-    step('[data-setting-anchor="ai-models"]', 'ai.models', 'configure', 'ai.no_models'),
+    step('[data-setting-anchor="ai-providers"]', 'ai.tab_providers', 'configure', 'ai.providers_desc'),
     step('[data-setting-anchor="ai-params"]', 'ai.params', 'configure', 'ai.params_desc'),
     step('[data-tour="ai-save"]', 'common.save', 'save'),
   ]),

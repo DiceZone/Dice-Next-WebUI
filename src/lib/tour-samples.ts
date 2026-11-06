@@ -90,12 +90,13 @@ const helpEntries = [
 ];
 const scheduleForm = { name: '周末开团提醒 · 示例', adapterId, platform, targetType: 'group', targetId: groupId,
   cronTime: '19:30', days: '6', content: '今晚八点开团，请准备好人物卡。', action: 'send', condition: '', triggerType: 'daily', intervalMin: 30, onceDate: '' };
-const models = [{ id: 'demo-model', name: '故事助手 · 示例模型', base_url: 'https://api.example.invalid/v1',
-  api_key: '', model: 'example-chat-model', enabled: true, price_in: 0, price_out: 0,
+const aiProviders = [{ id: 'demo-provider', name: '示例服务商', base_url: 'https://api.example.invalid/v1', api_key: '', enabled: true }];
+const models = [{ id: 'demo-model', name: '故事助手 · 示例模型', provider_id: 'demo-provider', model: 'example-chat-model',
+  kind: 'chat' as const, vision: false, enabled: true, price_in: 0, price_out: 0,
   token_limit: 0, cost_limit: 0, used_tokens: 0, used_cost: 0 }];
 
 export const tourSamples = {
-  adapters, accounts, groups, players, masters, replies, system, dashboard, statistics, helpEntries, scheduleForm, models,
+  adapters, accounts, groups, players, masters, replies, system, dashboard, statistics, helpEntries, scheduleForm, models, aiProviders,
   replyPreview: { matched: true, ruleId: -1, reply: replies[0].replyContent, notice: false, noticeRuleId: 0,
     candidates: [{ id: -1, priority: 100, matchType: 'keyword', matchContent: '开团啦', prob: 100, cooldownSec: 30 }], skipped: [] },
   cpuHistory: Array.from({ length: 60 }, (_, i) => 16 + Math.sin(i / 3) * 6),

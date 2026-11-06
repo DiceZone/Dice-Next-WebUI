@@ -18,40 +18,64 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { PlatformIcon } from '@/components/platform-icon';
-import { Sparkles, Plus, Trash2, FlaskConical, Loader2, AlertTriangle, Wand2, Languages, MessageCircle, Drama } from 'lucide-react';
+import { Sparkles, Plus, Trash2, FlaskConical, Loader2, AlertTriangle, Wand2, Languages, MessageCircle, Drama, ArrowUp, ArrowDown, Route } from 'lucide-react';
 
+interface AiProvider { id: string; name: string; base_url: string; api_key: string; enabled: boolean; }
+type ModelKind = 'chat' | 'embedding';
 interface AiModel {
-  id: string; name: string; base_url: string; api_key: string; model: string;
+  id: string; name: string; provider_id: string; model: string; kind: ModelKind; vision: boolean;
   enabled: boolean; price_in: number; price_out: number;
   token_limit: number; cost_limit: number; used_tokens: number; used_cost: number;
 }
+type Strategy = 'balance' | 'random' | 'priority' | 'weight';
+interface UsageEntry { id: string; weight: number; }
+interface Usage { models: UsageEntry[]; strategy: Strategy; }
+type Usages = Record<string, Usage>;
+// 与后端 ai_usage.h 的 usageDefs 一一对应；fallback = 未分配时的去向。
+const USAGES: { key: string; kind: ModelKind; vision?: boolean; fallback: string }[] = [
+  { key: 'reply', kind: 'chat', fallback: 'first' },
+  { key: 'decision', kind: 'chat', fallback: 'reply' },
+  { key: 'polish', kind: 'chat', fallback: 'reply' },
+  { key: 'translate', kind: 'chat', fallback: 'reply' },
+  { key: 'summary', kind: 'chat', fallback: 'reply' },
+  { key: 'extract', kind: 'chat', fallback: 'reply' },
+  { key: 'npc', kind: 'chat', fallback: 'reply' },
+  { key: 'mood', kind: 'chat', fallback: 'npc' },
+  { key: 'vision', kind: 'chat', vision: true, fallback: 'reply' },
+  { key: 'speech', kind: 'chat', fallback: 'none' },
+  { key: 'embed', kind: 'embedding', fallback: 'none' },
+];
+const STRATEGIES: Strategy[] = ['balance', 'random', 'priority', 'weight'];
+const emptyUsages = (): Usages => Object.fromEntries(USAGES.map((u) => [u.key, { models: [], strategy: u.key === 'embed' ? 'priority' : 'balance' }]));
+interface Speech { enabled: boolean; }
 interface TestResult { ok: boolean; reply: string; error: string; latencyMs: number; totalTokens: number; cost: number; }
 type Cov = { roll: boolean; deck: boolean; fun: boolean; custom: boolean; plugin: boolean };
 interface Params { temperature: number; top_p: number; max_tokens: number; frequency_penalty: number; presence_penalty: number; }
-interface Polish { enabled: boolean; model_id: string; mode: string; persona: string; prompt: string; cov: Cov; }
+interface Polish { enabled: boolean; mode: string; persona: string; prompt: string; cov: Cov; }
 interface AiLang { name: string; keywords: string[]; }
-interface Translate { enabled: boolean; model_id: string; prompt: string; cov: Cov; langs: AiLang[]; }
+interface Translate { enabled: boolean; prompt: string; cov: Cov; langs: AiLang[]; }
 
 const emptyCov = (roll = true, others = false): Cov => ({ roll, deck: others, fun: others, custom: others, plugin: others });
 const emptyParams = (): Params => ({ temperature: 0.7, top_p: 1, max_tokens: 1024, frequency_penalty: 0, presence_penalty: 0 });
-const emptyPolish = (): Polish => ({ enabled: false, model_id: '', mode: 'text', persona: '', prompt: '', cov: emptyCov(true, false) });
-const emptyTranslate = (): Translate => ({ enabled: false, model_id: '', prompt: '', cov: emptyCov(true, true), langs: [] });
-interface Chat { enabled: boolean; model_id: string; persona: string; prompt: string; at_bot: boolean; keywords: string[]; standby_prob: number; context_rounds: number; max_chars: number; cooldown_sec: number; reply_at: boolean; no_emoji: boolean; filters: string[]; }
-const emptyChat = (): Chat => ({ enabled: false, model_id: '', persona: '', prompt: '', at_bot: true, keywords: [], standby_prob: 0, context_rounds: 10, max_chars: 200, cooldown_sec: 5, reply_at: false, no_emoji: true, filters: [] });
-interface MemoryShort { enabled: boolean; rounds: number; max_chars: number; summary_model_id: string; summary_prompt: string; }
-interface MemoryLong { enabled: boolean; embed_model_id: string; embed_model: string; top_k: number; min_similarity: number; max_facts: number; extract_model_id: string; extract_prompt: string; }
+const emptyPolish = (): Polish => ({ enabled: false, mode: 'text', persona: '', prompt: '', cov: emptyCov(true, false) });
+const emptyTranslate = (): Translate => ({ enabled: false, prompt: '', cov: emptyCov(true, true), langs: [] });
+interface Chat { enabled: boolean; persona: string; prompt: string; at_bot: boolean; keywords: string[]; standby_prob: number; decision: boolean; context_rounds: number; max_chars: number; cooldown_sec: number; reply_at: boolean; no_emoji: boolean; filters: string[]; }
+const emptyChat = (): Chat => ({ enabled: false, persona: '', prompt: '', at_bot: true, keywords: [], standby_prob: 0, decision: false, context_rounds: 10, max_chars: 200, cooldown_sec: 5, reply_at: false, no_emoji: true, filters: [] });
+interface MemoryShort { enabled: boolean; rounds: number; max_chars: number; summary_prompt: string; }
+interface MemoryLong { enabled: boolean; top_k: number; min_similarity: number; max_facts: number; extract_prompt: string; }
 interface Memory { short: MemoryShort; long: MemoryLong; }
 const emptyMemory = (): Memory => ({
-  short: { enabled: false, rounds: 20, max_chars: 400, summary_model_id: '', summary_prompt: '' },
-  long: { enabled: false, embed_model_id: '', embed_model: '', top_k: 4, min_similarity: 0.75, max_facts: 300, extract_model_id: '', extract_prompt: '' },
+  short: { enabled: false, rounds: 20, max_chars: 400, summary_prompt: '' },
+  long: { enabled: false, top_k: 4, min_similarity: 0.75, max_facts: 300, extract_prompt: '' },
 });
 interface MemItem { scope_id: string; content: string; ref_id: number; updated_at: number; hits: number; }
 interface Tools { enabled: boolean; roll_dice: boolean; draw_deck: boolean; get_attr: boolean; set_attr: boolean; run_command: boolean; search_help: boolean; max_rounds: number; }
 const emptyTools = (): Tools => ({ enabled: false, roll_dice: true, draw_deck: true, get_attr: true, set_attr: false, run_command: true, search_help: true, max_rounds: 3 });
-interface Vision { enabled: boolean; model_id: string; prompt: string; max_images: number; pass_url: boolean; }
-const emptyVision = (): Vision => ({ enabled: false, model_id: '', prompt: '', max_images: 2, pass_url: true });
+interface Vision { enabled: boolean; prompt: string; max_images: number; pass_url: boolean; }
+const emptyVision = (): Vision => ({ enabled: false, prompt: '', max_images: 2, pass_url: true });
 interface WlEntry { platform: string; id: string; is_group: boolean; name?: string; }
 interface Whitelist { enabled: boolean; list: WlEntry[]; }
 const emptyWhitelist = (): Whitelist => ({ enabled: false, list: [] });
@@ -61,11 +85,12 @@ interface Npc { id: string; name: string; persona: string; knowledge: string; tr
 interface NpcConf { enabled: boolean; list: Npc[]; }
 const emptyNpcConf = (): NpcConf => ({ enabled: false, list: [] });
 const emptyNpc = (): Npc => ({ id: 'npc' + Math.random().toString(36).slice(2, 10), name: '', persona: '', knowledge: '', triggers: [], model_id: '', group: '', enabled: true, mood_enabled: false });
-const emptyModel = (): AiModel => ({
-  id: 'm' + Math.random().toString(36).slice(2, 10), name: '', base_url: 'https://api.openai.com/v1',
-  api_key: '', model: '', enabled: true, price_in: 0, price_out: 0, token_limit: 0, cost_limit: 0,
+const emptyModel = (provider_id = ''): AiModel => ({
+  id: 'm' + Math.random().toString(36).slice(2, 10), name: '', provider_id, model: '', kind: 'chat', vision: false,
+  enabled: true, price_in: 0, price_out: 0, token_limit: 0, cost_limit: 0,
   used_tokens: 0, used_cost: 0,
 });
+const emptyProvider = (): AiProvider => ({ id: 'p' + Math.random().toString(36).slice(2, 10), name: '', base_url: 'https://api.openai.com/v1', api_key: '', enabled: true });
 
 async function jget(path: string) { const r = await fetch('/api' + path); const j = await r.json(); if (j.code !== 0) throw new Error(j.message); return j.data; }
 async function jput(path: string, body: unknown) { const r = await fetch('/api' + path, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); const j = await r.json(); if (j.code !== 0) throw new Error(j.message); return j.data; }
@@ -86,12 +111,16 @@ export const AiPage: React.FC = () => {
   const toast = useToast();
   const [section, setSection] = useState<'models' | 'polish' | 'translate' | 'chat' | 'npc'>(sectionFromHash());
   const [enabled, setEnabled] = useTourState(false, true);
+  const [providers, setProviders] = useTourState<AiProvider[]>([], tourSamples.aiProviders);
   const [models, setModels] = useTourState<AiModel[]>([], tourSamples.models);
+  const [usages, setUsages] = useTourState<Usages>(emptyUsages(), { ...emptyUsages(), reply: { models: [{ id: 'demo-model', weight: 1 }], strategy: 'balance' } });
+  const [speech, setSpeech] = useTourState<Speech>({ enabled: false }, { enabled: false });
+  const [modelTab, setModelTab] = useState<'providers' | 'models' | 'usages'>('providers');
   const [params, setParams] = useTourState<Params>(emptyParams(), emptyParams());
-  const [polish, setPolish] = useTourState<Polish>(emptyPolish(), { ...emptyPolish(), enabled: true, model_id: 'demo-model', persona: '星灯：温柔、简洁的故事旁白。' });
-  const [trans, setTrans] = useTourState<Translate>(emptyTranslate(), { ...emptyTranslate(), enabled: true, model_id: 'demo-model', langs: [{ name: '英语', keywords: ['英语', 'English'] }] });
-  const [chat, setChat] = useTourState<Chat>(emptyChat(), { ...emptyChat(), enabled: true, model_id: 'demo-model', persona: '你是星灯，陪伴调查员冒险的骰子助手。', keywords: ['星灯'] });
-  const [memory, setMemory] = useTourState<Memory>(emptyMemory(), { ...emptyMemory(), short: { ...emptyMemory().short, enabled: true, summary_model_id: 'demo-model' } });
+  const [polish, setPolish] = useTourState<Polish>(emptyPolish(), { ...emptyPolish(), enabled: true, persona: '星灯：温柔、简洁的故事旁白。' });
+  const [trans, setTrans] = useTourState<Translate>(emptyTranslate(), { ...emptyTranslate(), enabled: true, langs: [{ name: '英语', keywords: ['英语', 'English'] }] });
+  const [chat, setChat] = useTourState<Chat>(emptyChat(), { ...emptyChat(), enabled: true, persona: '你是星灯，陪伴调查员冒险的骰子助手。', keywords: ['星灯'] });
+  const [memory, setMemory] = useTourState<Memory>(emptyMemory(), { ...emptyMemory(), short: { ...emptyMemory().short, enabled: true } });
   const [tools, setTools] = useTourState<Tools>(emptyTools(), { ...emptyTools(), enabled: true });
   const [vision, setVision] = useTourState<Vision>(emptyVision(), emptyVision());
   const [npc, setNpc] = useTourState<NpcConf>(emptyNpcConf(), { enabled: true, list: [{ id: 'demo-npc', name: '灯塔守望者 · 示例', persona: '一位熟悉雾港旧事的守塔人。', knowledge: '每到深夜，旧港口会传来钟声。', triggers: ['守塔人'], model_id: 'demo-model', group: 'demo-group', enabled: true, mood_enabled: true }] });
@@ -106,7 +135,20 @@ export const AiPage: React.FC = () => {
   const [testing, setTesting] = useState<Record<string, boolean>>({});
   const [results, setResults] = useState<Record<string, TestResult>>({});
   const [memFacts, setMemFacts] = useState<MemItem[]>([]);
-  const [defaults, setDefaults] = useState<{ polish_text: string; polish_rp: string; translate: string; chat: string; summary: string; extract: string; vision: string }>({ polish_text: '', polish_rp: '', translate: '', chat: '', summary: '', extract: '', vision: '' });
+  const [defaults, setDefaults] = useState<{ polish_text: string; polish_rp: string; translate: string; chat: string; summary: string; extract: string; vision: string; decision?: string }>({ polish_text: '', polish_rp: '', translate: '', chat: '', summary: '', extract: '', vision: '' });
+
+  useEffect(() => {
+    // 设置搜索带 ?focus= 跳到模型页某个选项卡时，先切到对应选项卡（未显示的锚点找不到）。
+    const syncTab = () => {
+      const focus = new URLSearchParams(window.location.hash.split('?')[1] || '').get('focus') || '';
+      if (focus === 'ai-providers') setModelTab('providers');
+      else if (focus === 'ai-models') setModelTab('models');
+      else if (focus === 'ai-usages' || focus.startsWith('ai-usage-')) setModelTab('usages');
+    };
+    syncTab();
+    window.addEventListener('hashchange', syncTab);
+    return () => window.removeEventListener('hashchange', syncTab);
+  }, []);
 
   useEffect(() => {
     const onHash = () => setSection(sectionFromHash());
@@ -114,9 +156,12 @@ export const AiPage: React.FC = () => {
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
 
-  const applyData = (d: { enabled?: boolean; models?: AiModel[]; params?: Partial<Params>; polish?: Partial<Polish>; translate?: Partial<Translate>; chat?: Partial<Chat>; memory?: { short?: Partial<MemoryShort>; long?: Partial<MemoryLong> }; tools?: Partial<Tools>; vision?: Partial<Vision>; npc?: Partial<NpcConf>; whitelist?: Partial<Whitelist>; defaults?: { polish_text: string; polish_rp: string; translate: string; chat: string; summary: string; extract: string; vision: string } }) => {
+  const applyData = (d: { enabled?: boolean; providers?: AiProvider[]; models?: AiModel[]; usages?: Partial<Usages>; speech?: Partial<Speech>; params?: Partial<Params>; polish?: Partial<Polish>; translate?: Partial<Translate>; chat?: Partial<Chat>; memory?: { short?: Partial<MemoryShort>; long?: Partial<MemoryLong> }; tools?: Partial<Tools>; vision?: Partial<Vision>; npc?: Partial<NpcConf>; whitelist?: Partial<Whitelist>; defaults?: { polish_text: string; polish_rp: string; translate: string; chat: string; summary: string; extract: string; vision: string } }) => {
     setEnabled(!!d.enabled);
+    setProviders((d.providers || []).map((p: AiProvider) => ({ ...emptyProvider(), ...p })));
     setModels((d.models || []).map((m: AiModel) => ({ ...emptyModel(), ...m })));
+    setUsages(Object.fromEntries(USAGES.map((u) => [u.key, { ...emptyUsages()[u.key], ...(d.usages?.[u.key] || {}) }])));
+    setSpeech({ enabled: !!d.speech?.enabled });
     setParams({ ...emptyParams(), ...(d.params || {}) });
     setPolish({ ...emptyPolish(), ...(d.polish || {}), cov: { ...emptyCov(true, false), ...(d.polish?.cov || {}) } });
     setTrans({ ...emptyTranslate(), ...(d.translate || {}), cov: { ...emptyCov(true, true), ...(d.translate?.cov || {}) } });
@@ -144,13 +189,54 @@ export const AiPage: React.FC = () => {
   const delNpc = (i: number) => setNpc((c) => ({ ...c, list: c.list.filter((_, idx) => idx !== i) }));
 
   const patch = (i: number, p: Partial<AiModel>) => setModels((ms) => ms.map((m, idx) => (idx === i ? { ...m, ...p } : m)));
-  const addModel = () => setModels((ms) => [...ms, emptyModel()]);
-  const delModel = (i: number) => setModels((ms) => ms.filter((_, idx) => idx !== i));
+  const addModel = () => setModels((ms) => [...ms, emptyModel(providers[0]?.id || '')]);
+  const delModel = (i: number) => {
+    const id = models[i]?.id;
+    setModels((ms) => ms.filter((_, idx) => idx !== i));
+    setUsages((us) => Object.fromEntries(Object.entries(us).map(([k, u]) => [k, { ...u, models: u.models.filter((e) => e.id !== id) }])));
+  };
+  const patchProvider = (i: number, p: Partial<AiProvider>) => setProviders((ps) => ps.map((x, idx) => (idx === i ? { ...x, ...p } : x)));
+  const addProvider = () => setProviders((ps) => [...ps, emptyProvider()]);
+  const delProvider = (i: number) => {
+    const id = providers[i]?.id;
+    const used = models.filter((m) => m.provider_id === id).length;
+    if (used > 0) { toast({ title: t('ai.provider_in_use', { count: used }), variant: 'destructive' }); return; }
+    setProviders((ps) => ps.filter((_, idx) => idx !== i));
+  };
+  // 用途分配：增删模型、调整顺序/权重、切换策略。
+  const patchUsage = (key: string, p: Partial<Usage>) => setUsages((us) => ({ ...us, [key]: { ...us[key], ...p } }));
+  const addUsageModel = (key: string, id: string) => setUsages((us) => {
+    const cur = us[key];
+    if (cur.models.some((e) => e.id === id)) return us;
+    const list = key === 'embed' ? [{ id, weight: 1 }] : [...cur.models, { id, weight: 1 }];
+    return { ...us, [key]: { ...cur, models: list } };
+  });
+  const moveUsageModel = (key: string, i: number, dir: -1 | 1) => setUsages((us) => {
+    const list = [...us[key].models];
+    const j = i + dir;
+    if (j < 0 || j >= list.length) return us;
+    [list[i], list[j]] = [list[j], list[i]];
+    return { ...us, [key]: { ...us[key], models: list } };
+  });
+  const usageFits = (u: (typeof USAGES)[number], m: AiModel) => m.kind === u.kind && (!u.vision || m.vision);
+  const modelLabel = (id: string) => { const m = models.find((x) => x.id === id); return m ? (m.name || m.model || m.id) : id; };
+  // 各功能页里原先的模型下拉改成指向用途分配的提示。
+  const usageHint = (key: string) => {
+    const list = usages[key]?.models || [];
+    return (
+      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+        <Route className="h-3.5 w-3.5 shrink-0" />
+        <span>{t('ai.usage_hint', { usage: t('ai.usage_' + key) })}</span>
+        <span className="text-foreground">{list.length ? list.map((e) => modelLabel(e.id)).join(t('ai.usage_list_sep')) : t('ai.usage_unassigned_' + (USAGES.find((u) => u.key === key)?.fallback === 'none' ? 'none' : 'fallback'))}</span>
+        <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => { window.location.hash = '#/ai?focus=ai-usage-' + key; setModelTab('usages'); }}>{t('ai.usage_goto')}</Button>
+      </div>
+    );
+  };
   const num = (v: string) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
 
   const save = async () => {
     setSaving(true);
-    try { applyData(await jput('/system/ai', { enabled, models, params, polish, translate: trans, chat, memory, tools, vision, npc, whitelist: wl })); toast({ title: t('common.save_success') }); }
+    try { applyData(await jput('/system/ai', { enabled, providers, models, usages, speech, params, polish, translate: trans, chat, memory, tools, vision, npc, whitelist: wl })); toast({ title: t('common.save_success') }); }
     catch (e) { toast({ title: (e as Error).message, variant: 'destructive' }); }
     finally { setSaving(false); }
   };
@@ -185,18 +271,18 @@ export const AiPage: React.FC = () => {
   const test = async (m: AiModel) => {
     setTesting((s) => ({ ...s, [m.id]: true }));
     setResults((s) => { const c = { ...s }; delete c[m.id]; return c; });
-    try { const r = await jpost('/system/ai/test', { model: m }) as TestResult; setResults((s) => ({ ...s, [m.id]: r })); }
+    try { const r = await jpost('/system/ai/test', { model: m, provider: providers.find((p) => p.id === m.provider_id) }) as TestResult; setResults((s) => ({ ...s, [m.id]: r })); }
     catch (e) { setResults((s) => ({ ...s, [m.id]: { ok: false, reply: '', error: (e as Error).message, latencyMs: 0, totalTokens: 0, cost: 0 } })); }
     finally { setTesting((s) => ({ ...s, [m.id]: false })); }
   };
 
-  // 模型下拉（润色/翻译共用）
+  // NPC 专属模型下拉
   const modelSelect = (value: string, onChange: (v: string) => void) => (
     <Select value={value || '__first__'} onValueChange={(v) => onChange(v === '__first__' ? '' : v)}>
       <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
       <SelectContent>
-        <SelectItem value="__first__">{t('ai.polish_model_first')}</SelectItem>
-        {models.filter((m) => m.enabled && m.name).map((m) => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
+        <SelectItem value="__first__">{t('ai.npc_model_default')}</SelectItem>
+        {models.filter((m) => m.enabled && m.kind === 'chat').map((m) => <SelectItem key={m.id} value={m.id}>{m.name || m.model}</SelectItem>)}
       </SelectContent>
     </Select>
   );
@@ -258,55 +344,183 @@ export const AiPage: React.FC = () => {
           </CardContent>
         </Card>
 
-        <div data-setting-anchor="ai-models" className="flex items-center justify-between">
-          <h2 className="text-sm font-medium">{t('ai.models')}</h2>
-          <Button size="sm" variant="outline" onClick={addModel}><Plus className="mr-1 h-4 w-4" />{t('ai.add_model')}</Button>
-        </div>
-        {models.length === 0 && <p className="text-xs text-muted-foreground italic py-4 text-center">{t('ai.no_models')}</p>}
-        {models.map((m, i) => {
-          const res = results[m.id];
-          return (
-            <Card key={m.id}>
-              <CardContent className="py-3 space-y-2.5">
-                <div className="flex items-center gap-2">
-                  <Switch checked={m.enabled} onCheckedChange={(v) => patch(i, { enabled: v })} />
-                  <Input className="h-8 text-sm font-medium flex-1" value={m.name} onChange={(e) => patch(i, { name: e.target.value })} placeholder={t('ai.name_ph')} />
-                  <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive shrink-0" onClick={() => delModel(i)}><Trash2 className="h-4 w-4" /></Button>
-                </div>
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  <div className="space-y-1 sm:col-span-2"><Label className="text-xs">{t('ai.base_url')}</Label>
-                    <Input className="h-8 text-sm" value={m.base_url} onChange={(e) => patch(i, { base_url: e.target.value })} placeholder="https://api.openai.com/v1" /></div>
-                  <div className="space-y-1"><Label className="text-xs">{t('ai.model_id')}</Label>
-                    <Input className="h-8 text-sm" value={m.model} onChange={(e) => patch(i, { model: e.target.value })} placeholder="gpt-4o-mini / qwen2.5 …" /></div>
-                  <div className="space-y-1"><Label className="text-xs">{t('ai.api_key')}</Label>
-                    <Input type="password" className="h-8 text-sm" value={m.api_key} onChange={(e) => patch(i, { api_key: e.target.value })} placeholder="sk-… （本地模型可留空）" /></div>
-                  <div className="space-y-1"><Label className="text-xs">{t('ai.price_in')}</Label>
-                    <Input type="number" className="h-8 text-sm" value={m.price_in} onChange={(e) => patch(i, { price_in: num(e.target.value) })} /></div>
-                  <div className="space-y-1"><Label className="text-xs">{t('ai.price_out')}</Label>
-                    <Input type="number" className="h-8 text-sm" value={m.price_out} onChange={(e) => patch(i, { price_out: num(e.target.value) })} /></div>
-                  <div className="space-y-1"><Label className="text-xs">{t('ai.token_limit')}</Label>
-                    <Input type="number" className="h-8 text-sm" value={m.token_limit} onChange={(e) => patch(i, { token_limit: num(e.target.value) })} /></div>
-                  <div className="space-y-1"><Label className="text-xs">{t('ai.cost_limit')}</Label>
-                    <Input type="number" className="h-8 text-sm" value={m.cost_limit} onChange={(e) => patch(i, { cost_limit: num(e.target.value) })} /></div>
-                </div>
-                <div className="flex items-center justify-between">
-                  <p className="text-[11px] text-muted-foreground">{t('ai.usage', { tokens: m.used_tokens, cost: m.used_cost.toFixed(4) })}</p>
-                  <Button size="sm" variant="outline" onClick={() => test(m)} disabled={!!testing[m.id]}>
-                    {testing[m.id] ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <FlaskConical className="mr-1 h-3.5 w-3.5" />}{t('ai.test')}
-                  </Button>
-                </div>
-                {res && (
-                  <div className={`rounded-md border p-2 text-xs ${res.ok ? 'border-emerald-300 bg-emerald-50 dark:bg-emerald-950/30' : 'border-destructive/40 bg-destructive/5'}`}>
-                    {res.ok ? (<>
-                      <div className="text-muted-foreground mb-1">{t('ai.test_ok', { ms: res.latencyMs, tokens: res.totalTokens, cost: res.cost.toFixed(5) })}</div>
-                      <div className="whitespace-pre-wrap break-words">{res.reply}</div>
-                    </>) : (<div className="text-destructive break-words">{t('ai.test_fail')}: {res.error}</div>)}
+        <Tabs value={modelTab} onValueChange={(v) => setModelTab(v as typeof modelTab)} className="space-y-4">
+          <TabsList variant="page" aria-label={t('ai.models')}>
+            <TabsTrigger value="providers">{t('ai.tab_providers')}</TabsTrigger>
+            <TabsTrigger value="models">{t('ai.tab_models')}</TabsTrigger>
+            <TabsTrigger value="usages">{t('ai.tab_usages')}</TabsTrigger>
+          </TabsList>
+
+          {/* 提供商 */}
+          <TabsContent value="providers" className="mt-0 space-y-3" data-setting-anchor="ai-providers">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs text-muted-foreground">{t('ai.providers_desc')}</p>
+              <Button size="sm" variant="outline" onClick={addProvider}><Plus className="mr-1 h-4 w-4" />{t('ai.add_provider')}</Button>
+            </div>
+            {providers.length === 0 && <p className="text-xs text-muted-foreground italic py-4 text-center">{t('ai.no_providers')}</p>}
+            {providers.map((p, i) => (
+              <Card key={p.id}>
+                <CardContent className="py-3 space-y-2.5">
+                  <div className="flex items-center gap-2">
+                    <Switch checked={p.enabled} onCheckedChange={(v) => patchProvider(i, { enabled: v })} />
+                    <Input className="h-8 text-sm font-medium flex-1" value={p.name} onChange={(e) => patchProvider(i, { name: e.target.value })} placeholder={t('ai.provider_name_ph')} />
+                    <Badge variant="outline" className="shrink-0 text-[11px]">{t('ai.provider_models', { count: models.filter((m) => m.provider_id === p.id).length })}</Badge>
+                    <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive shrink-0" onClick={() => delProvider(i)}><Trash2 className="h-4 w-4" /></Button>
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          );
-        })}
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <div className="space-y-1"><Label className="text-xs">{t('ai.base_url')}</Label>
+                      <Input className="h-8 text-sm" value={p.base_url} onChange={(e) => patchProvider(i, { base_url: e.target.value })} placeholder="https://api.openai.com/v1" /></div>
+                    <div className="space-y-1"><Label className="text-xs">{t('ai.api_key')}</Label>
+                      <Input type="password" className="h-8 text-sm" value={p.api_key} onChange={(e) => patchProvider(i, { api_key: e.target.value })} placeholder={t('ai.api_key_ph')} /></div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </TabsContent>
+
+          {/* 模型 */}
+          <TabsContent value="models" className="mt-0 space-y-3" data-setting-anchor="ai-models">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs text-muted-foreground">{t('ai.models_desc')}</p>
+              <Button size="sm" variant="outline" onClick={addModel} disabled={providers.length === 0}><Plus className="mr-1 h-4 w-4" />{t('ai.add_model')}</Button>
+            </div>
+            {providers.length === 0 && <p className="text-xs text-muted-foreground italic py-4 text-center">{t('ai.provider_none')}</p>}
+            {providers.length > 0 && models.length === 0 && <p className="text-xs text-muted-foreground italic py-4 text-center">{t('ai.no_models')}</p>}
+            {models.map((m, i) => {
+              const res = results[m.id];
+              return (
+                <Card key={m.id}>
+                  <CardContent className="py-3 space-y-2.5">
+                    <div className="flex items-center gap-2">
+                      <Switch checked={m.enabled} onCheckedChange={(v) => patch(i, { enabled: v })} />
+                      <Input className="h-8 text-sm font-medium flex-1" value={m.name} onChange={(e) => patch(i, { name: e.target.value })} placeholder={t('ai.name_ph')} />
+                      <Badge variant="secondary" className="shrink-0 text-[11px]">{t('ai.kind_' + m.kind)}</Badge>
+                      <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive shrink-0" onClick={() => delModel(i)}><Trash2 className="h-4 w-4" /></Button>
+                    </div>
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      <div className="space-y-1"><Label className="text-xs">{t('ai.provider')}</Label>
+                        <Select value={m.provider_id || '__none__'} onValueChange={(v) => patch(i, { provider_id: v === '__none__' ? '' : v })}>
+                          <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {!m.provider_id && <SelectItem value="__none__">{t('ai.provider_pick')}</SelectItem>}
+                            {providers.map((p) => <SelectItem key={p.id} value={p.id}>{p.name || p.base_url}</SelectItem>)}
+                          </SelectContent>
+                        </Select></div>
+                      <div className="space-y-1"><Label className="text-xs">{t('ai.model_id')}</Label>
+                        <Input className="h-8 text-sm" value={m.model} onChange={(e) => patch(i, { model: e.target.value })} placeholder={m.kind === 'embedding' ? 'text-embedding-3-small / bge-m3 …' : 'gpt-4o-mini / qwen2.5 …'} /></div>
+                      <div className="space-y-1"><HelpLabel title={t('ai.model_kind')} description={<p>{t('ai.model_kind_desc')}</p>} labelClassName="text-xs" />
+                        <Select value={m.kind} onValueChange={(v) => {
+                          patch(i, { kind: v as ModelKind, vision: v === 'chat' ? m.vision : false });
+                          // 类别变了，已分配到不符用途的位置一并移除。
+                          setUsages((us) => Object.fromEntries(Object.entries(us).map(([k, u]) => {
+                            const def = USAGES.find((x) => x.key === k);
+                            return [k, def && def.kind !== v ? { ...u, models: u.models.filter((e) => e.id !== m.id) } : u];
+                          })));
+                        }}>
+                          <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="chat">{t('ai.kind_chat')}</SelectItem>
+                            <SelectItem value="embedding">{t('ai.kind_embedding')}</SelectItem>
+                          </SelectContent>
+                        </Select></div>
+                      {m.kind === 'chat' && (
+                        <div className="flex items-center justify-between rounded-md border px-2.5 py-1.5 sm:mt-5">
+                          <HelpLabel title={t('ai.model_vision')} description={<p>{t('ai.model_vision_desc')}</p>} labelClassName="text-xs" />
+                          <Switch checked={m.vision} onCheckedChange={(v) => {
+                            patch(i, { vision: v });
+                            if (!v) setUsages((us) => ({ ...us, vision: { ...us.vision, models: us.vision.models.filter((e) => e.id !== m.id) } }));
+                          }} />
+                        </div>
+                      )}
+                      <div className="space-y-1"><Label className="text-xs">{t('ai.price_in')}</Label>
+                        <Input type="number" className="h-8 text-sm" value={m.price_in} onChange={(e) => patch(i, { price_in: num(e.target.value) })} /></div>
+                      {m.kind === 'chat' && <div className="space-y-1"><Label className="text-xs">{t('ai.price_out')}</Label>
+                        <Input type="number" className="h-8 text-sm" value={m.price_out} onChange={(e) => patch(i, { price_out: num(e.target.value) })} /></div>}
+                      <div className="space-y-1"><Label className="text-xs">{t('ai.token_limit')}</Label>
+                        <Input type="number" className="h-8 text-sm" value={m.token_limit} onChange={(e) => patch(i, { token_limit: num(e.target.value) })} /></div>
+                      <div className="space-y-1"><Label className="text-xs">{t('ai.cost_limit')}</Label>
+                        <Input type="number" className="h-8 text-sm" value={m.cost_limit} onChange={(e) => patch(i, { cost_limit: num(e.target.value) })} /></div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <p className="text-[11px] text-muted-foreground">{t('ai.usage', { tokens: m.used_tokens, cost: m.used_cost.toFixed(4) })}</p>
+                      <Button size="sm" variant="outline" onClick={() => test(m)} disabled={!!testing[m.id] || !m.provider_id}>
+                        {testing[m.id] ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <FlaskConical className="mr-1 h-3.5 w-3.5" />}{t('ai.test')}
+                      </Button>
+                    </div>
+                    {res && (
+                      <div className={`rounded-md border p-2 text-xs ${res.ok ? 'border-emerald-300 bg-emerald-50 dark:bg-emerald-950/30' : 'border-destructive/40 bg-destructive/5'}`}>
+                        {res.ok ? (<>
+                          <div className="text-muted-foreground mb-1">{t('ai.test_ok', { ms: res.latencyMs, tokens: res.totalTokens, cost: res.cost.toFixed(5) })}</div>
+                          <div className="whitespace-pre-wrap break-words">{res.reply}</div>
+                        </>) : (<div className="text-destructive break-words">{t('ai.test_fail')}: {res.error}</div>)}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </TabsContent>
+
+          {/* 用途分配 */}
+          <TabsContent value="usages" className="mt-0 space-y-3" data-setting-anchor="ai-usages">
+            <p className="text-xs text-muted-foreground">{t('ai.usages_desc')}</p>
+            {USAGES.map((u) => {
+              const cur = usages[u.key] || emptyUsages()[u.key];
+              const candidates = models.filter((m) => usageFits(u, m) && !cur.models.some((e) => e.id === m.id));
+              const single = u.key === 'embed';
+              return (
+                <Card key={u.key} data-setting-anchor={'ai-usage-' + u.key}>
+                  <CardContent className="py-3 space-y-2.5">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <HelpLabel title={t('ai.usage_' + u.key)} description={<p>{t('ai.usage_' + u.key + '_desc')}</p>} labelClassName="text-sm font-medium" />
+                        <p className="text-[11px] text-muted-foreground mt-0.5">{cur.models.length ? '' : t('ai.usage_fallback_' + u.fallback)}</p>
+                      </div>
+                      {!single && (
+                        <div className="w-40 shrink-0">
+                          <Select value={cur.strategy} onValueChange={(v) => patchUsage(u.key, { strategy: v as Strategy })}>
+                            <SelectTrigger className="h-8 text-xs" aria-label={t('ai.strategy')}><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {STRATEGIES.map((st) => <SelectItem key={st} value={st}>{t('ai.strategy_' + st)}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+                    </div>
+                    {single && <p className="text-[11px] text-muted-foreground">{t('ai.usage_embed_single')}</p>}
+                    {!single && cur.models.length > 1 && <p className="text-[11px] text-muted-foreground">{t('ai.strategy_' + cur.strategy + '_desc')}</p>}
+                    <div className="space-y-1.5">
+                      {cur.models.map((e, i) => (
+                        <div key={e.id} className="flex items-center gap-2 rounded-md border px-2.5 py-1.5">
+                          {!single && cur.strategy === 'priority' && <span className="w-5 shrink-0 text-xs text-muted-foreground">{i + 1}</span>}
+                          <span className="min-w-0 flex-1 truncate text-sm">{modelLabel(e.id)}</span>
+                          {cur.strategy === 'weight' && !single && (
+                            <Input type="number" className="h-7 w-20 text-xs" aria-label={t('ai.weight')} value={e.weight}
+                              onChange={(ev) => patchUsage(u.key, { models: cur.models.map((x, idx) => (idx === i ? { ...x, weight: Math.max(1, Math.min(100, num(ev.target.value))) } : x)) })} />
+                          )}
+                          {!single && cur.strategy === 'priority' && (<>
+                            <Button size="icon" variant="ghost" className="h-7 w-7" aria-label={t('ai.move_up')} disabled={i === 0} onClick={() => moveUsageModel(u.key, i, -1)}><ArrowUp className="h-3.5 w-3.5" /></Button>
+                            <Button size="icon" variant="ghost" className="h-7 w-7" aria-label={t('ai.move_down')} disabled={i === cur.models.length - 1} onClick={() => moveUsageModel(u.key, i, 1)}><ArrowDown className="h-3.5 w-3.5" /></Button>
+                          </>)}
+                          <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" aria-label={t('common.delete')} onClick={() => patchUsage(u.key, { models: cur.models.filter((_, idx) => idx !== i) })}><Trash2 className="h-3.5 w-3.5" /></Button>
+                        </div>
+                      ))}
+                    </div>
+                    {candidates.length > 0 && (!single || cur.models.length === 0) && (
+                      <Select value="" onValueChange={(v) => addUsageModel(u.key, v)}>
+                        <SelectTrigger className="h-8 text-xs max-w-xs"><SelectValue placeholder={t('ai.usage_add')} /></SelectTrigger>
+                        <SelectContent>
+                          {candidates.map((m) => <SelectItem key={m.id} value={m.id}>{m.name || m.model}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    )}
+                    {candidates.length === 0 && cur.models.length === 0 && <p className="text-[11px] text-muted-foreground italic">{t(u.kind === 'embedding' ? 'ai.usage_no_embedding' : u.vision ? 'ai.usage_no_vision' : 'ai.usage_no_chat')}</p>}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </TabsContent>
+        </Tabs>
       </>)}
 
       {/* ══ 润色 section ══ */}
@@ -334,7 +548,7 @@ export const AiPage: React.FC = () => {
             {polish.enabled && (
               <div className="space-y-2.5 border-t pt-3">
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  <div className="space-y-1"><Label className="text-xs">{t('ai.polish_model')}</Label>{modelSelect(polish.model_id, (v) => setPolish((p) => ({ ...p, model_id: v })))}</div>
+                  <div className="space-y-1 sm:col-span-2">{usageHint('polish')}</div>
                   <div className="space-y-1">
                     <Label className="text-xs">{t('ai.polish_mode')}</Label>
                     <Select value={polish.mode} onValueChange={(v) => setPolish((p) => ({ ...p, mode: v }))}>
@@ -392,7 +606,7 @@ export const AiPage: React.FC = () => {
             </div>
             {trans.enabled && (
               <div className="space-y-2.5 border-t pt-3">
-                <div className="space-y-1 max-w-xs"><Label className="text-xs">{t('ai.trans_model')}</Label>{modelSelect(trans.model_id, (v) => setTrans((p) => ({ ...p, model_id: v })))}</div>
+                {usageHint('translate')}
                 {coverage(trans.cov, (c) => setTrans((p) => ({ ...p, cov: c })))}
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
@@ -455,7 +669,7 @@ export const AiPage: React.FC = () => {
               </div>
               {chat.enabled && (
                 <div className="space-y-2.5 border-t pt-3">
-                  <div className="space-y-1 max-w-xs"><Label className="text-xs">{t('ai.chat_model')}</Label>{modelSelect(chat.model_id, (v) => setChat((p) => ({ ...p, model_id: v })))}</div>
+                  {usageHint('reply')}
 
                   <div className="space-y-1.5 rounded-md border p-2.5">
                     <HelpLabel title={t('ai.chat_trigger')} description={<p>{t('ai.chat_trigger_desc')}</p>} labelClassName="text-xs font-medium" />
@@ -468,6 +682,13 @@ export const AiPage: React.FC = () => {
                         onChange={(e) => setChat((p) => ({ ...p, keywords: e.target.value.split(/[,，]/).map((s) => s.trim()).filter(Boolean) }))} /></div>
                     <div className="space-y-1"><Label className="text-xs">{t('ai.chat_standby')}</Label>
                       <Input type="number" className="h-8 text-sm w-28" value={chat.standby_prob} onChange={(e) => setChat((p) => ({ ...p, standby_prob: num(e.target.value) }))} /></div>
+                    <div className="flex items-center gap-1.5">
+                      <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none">
+                        <input type="checkbox" className="accent-primary" checked={chat.decision} onChange={(e) => setChat((p) => ({ ...p, decision: e.target.checked }))} />
+                        {t('ai.chat_decision')}
+                      </label>
+                      <FeatureHelp title={t('ai.chat_decision')} description={<p>{t('ai.chat_decision_desc')}</p>} />
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
@@ -534,7 +755,7 @@ export const AiPage: React.FC = () => {
               </div>
               {memory.short.enabled && (
                 <div className="mt-3 space-y-3">
-                  <div className="space-y-1 max-w-xs"><Label className="text-xs">{t('ai.mem_model')}</Label>{modelSelect(memory.short.summary_model_id, (v) => setMemory((p) => ({ ...p, short: { ...p.short, summary_model_id: v } })))}</div>
+                  {usageHint('summary')}
                   <div className="grid min-w-0 w-full grid-cols-1 gap-3 sm:grid-cols-2">
                     <div className="space-y-1"><Label className="text-xs">{t('ai.mem_rounds')}</Label>
                       <Input type="number" className="h-8 text-sm" value={memory.short.rounds} onChange={(e) => setMemory((p) => ({ ...p, short: { ...p.short, rounds: num(e.target.value) } }))} /></div>
@@ -593,12 +814,8 @@ export const AiPage: React.FC = () => {
                 </div>
                 {memory.long.enabled && (
                   <div className="mt-3 space-y-3">
-                    <div className="grid min-w-0 w-full grid-cols-1 gap-3 sm:grid-cols-2">
-                      <div className="space-y-1"><Label className="text-xs">{t('ai.mlong_embed_model_conn')}</Label>{modelSelect(memory.long.embed_model_id, (v) => setMemory((p) => ({ ...p, long: { ...p.long, embed_model_id: v } })))}</div>
-                      <div className="space-y-1"><Label className="text-xs">{t('ai.mlong_embed_model')}</Label>
-                        <Input className="h-8 text-sm" value={memory.long.embed_model} placeholder="text-embedding-3-small" onChange={(e) => setMemory((p) => ({ ...p, long: { ...p.long, embed_model: e.target.value } }))} /></div>
-                    </div>
-                    <div className="space-y-1 max-w-xs"><Label className="text-xs">{t('ai.mlong_extract_model')}</Label>{modelSelect(memory.long.extract_model_id, (v) => setMemory((p) => ({ ...p, long: { ...p.long, extract_model_id: v } })))}</div>
+                    {usageHint('embed')}
+                    {usageHint('extract')}
                     <div className="grid min-w-0 w-full grid-cols-1 gap-3 sm:grid-cols-3">
                       <div className="space-y-1"><Label className="text-xs">{t('ai.mlong_topk')}</Label>
                         <Input type="number" className="h-8 text-sm" value={memory.long.top_k} onChange={(e) => setMemory((p) => ({ ...p, long: { ...p.long, top_k: num(e.target.value) } }))} /></div>
@@ -794,7 +1011,7 @@ export const AiPage: React.FC = () => {
               {vision.enabled && (
                 <div className="mt-3 space-y-3">
                   <div className="grid min-w-0 w-full grid-cols-1 gap-3 sm:grid-cols-2">
-                    <div className="space-y-1"><Label className="text-xs">{t('ai.vision_model')}</Label>{modelSelect(vision.model_id, (v) => setVision((p) => ({ ...p, model_id: v })))}</div>
+                    <div className="space-y-1 sm:col-span-2">{usageHint('vision')}</div>
                     <div className="space-y-1"><Label className="text-xs">{t('ai.vision_max_images')}</Label>
                       <Input type="number" className="h-8 text-sm" value={vision.max_images} onChange={(e) => setVision((p) => ({ ...p, max_images: num(e.target.value) }))} /></div>
                   </div>
@@ -814,6 +1031,32 @@ export const AiPage: React.FC = () => {
                     <Textarea className="text-sm min-h-[60px]" value={vision.prompt} onChange={(e) => setVision((p) => ({ ...p, prompt: e.target.value }))} placeholder={t('ai.vision_prompt_ph')} />
                   </div>
                   <p className="text-[11px] text-muted-foreground">{t('ai.vision_note')}</p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* ══ 语音识别 ══ */}
+        <Card data-setting-anchor="ai-speech">
+          <CardContent className="py-4 space-y-3">
+            <div className={enabled ? '' : 'opacity-50 pointer-events-none select-none'}>
+              <div className="flex items-center justify-between">
+                <div className="pr-4">
+                  <div className="flex items-center gap-1.5">
+                    <Label className="text-sm font-medium">{t('ai.speech')}</Label>
+                    <FeatureHelp title={t('ai.speech')} description={<>
+                      <p>{t('ai.speech_desc')}</p>
+                      <p>{t('ai.speech_note')}</p>
+                    </>} />
+                  </div>
+                </div>
+                <Switch checked={speech.enabled} onCheckedChange={(v) => setSpeech({ enabled: v })} />
+              </div>
+              {speech.enabled && (
+                <div className="mt-3 space-y-2">
+                  {usageHint('speech')}
+                  <p className="text-[11px] text-muted-foreground">{t('ai.speech_note')}</p>
                 </div>
               )}
             </div>

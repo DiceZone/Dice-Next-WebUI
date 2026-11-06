@@ -20,13 +20,13 @@ function readFunction(name, context) {
 
 function fixture(direct) {
   const writes = [], notices = [], state = {};
-  const context = vm.createContext({ enabled: false, models: [], params: {}, polish: {}, trans: {}, chat: {},
+  const context = vm.createContext({ enabled: false, providers: [], models: [], usages: {}, speech: { enabled: false }, params: {}, polish: {}, trans: {}, chat: {},
     memory: {}, tools: {}, npc: {}, wl: {}, vision: { enabled: true, pass_url: direct, max_images: 2 },
     t: (key) => key, toast: (value) => notices.push(value) });
-  for (const name of ['Enabled', 'Models', 'Params', 'Polish', 'Trans', 'Chat', 'Memory', 'Tools', 'Vision', 'Npc', 'Wl', 'Defaults', 'Saving']) {
+  for (const name of ['Enabled', 'Providers', 'Usages', 'Speech', 'Models', 'Params', 'Polish', 'Trans', 'Chat', 'Memory', 'Tools', 'Vision', 'Npc', 'Wl', 'Defaults', 'Saving']) {
     context['set' + name] = (value) => { state[name] = value; };
   }
-  for (const name of ['emptyCov', 'emptyParams', 'emptyModel', 'emptyPolish', 'emptyTranslate', 'emptyChat', 'emptyMemory', 'emptyTools', 'emptyVision', 'emptyNpc']) {
+  for (const name of ['USAGES', 'emptyUsages', 'emptyProvider', 'emptyCov', 'emptyParams', 'emptyModel', 'emptyPolish', 'emptyTranslate', 'emptyChat', 'emptyMemory', 'emptyTools', 'emptyVision', 'emptyNpc']) {
     context[name] = readFunction(name, context);
   }
   context.fetch = async (path, options) => {
@@ -66,4 +66,22 @@ test('AI save failures preserve the unsaved switch and never display a success n
   assert.equal(f.context.vision.pass_url, false);
   assert.equal(f.state.Saving, false);
   assert.equal(f.notices[0].variant, 'destructive');
+});
+
+test('AI page saves providers, models with their type and per-feature model assignments', async () => {
+  const f = fixture(true);
+  f.context.providers = [{ id: 'p1', name: 'P', base_url: 'https://api.example.invalid/v1', api_key: 'k', enabled: true }];
+  f.context.models = [{ id: 'm1', provider_id: 'p1', model: 'chat', kind: 'chat', vision: true }];
+  f.context.usages = { reply: { models: [{ id: 'm1', weight: 1 }], strategy: 'weight' } };
+  f.context.speech = { enabled: true };
+  await f.save();
+  const body = f.writes[0].body;
+  assert.equal(body.providers[0].id, 'p1');
+  assert.equal(body.models[0].provider_id, 'p1');
+  assert.equal(body.usages.reply.strategy, 'weight');
+  assert.equal(body.speech.enabled, true);
+  // 读回时，没有返回的用途补成空分配（嵌入固定顺序优先）。
+  assert.equal(f.state.Usages.embed.strategy, 'priority');
+  assert.equal(f.state.Usages.embed.models.length, 0);
+  assert.equal(f.state.Usages.reply.models[0].id, 'm1');
 });

@@ -65,6 +65,11 @@ const state = {
   '/auth/status': { required: false, need_setup: false },
   '/system/status': { version: '3.0.0', buildNumber: 123, prerelease: true, buildTime: '2026-10-03 00:00:00' },
   '/system/tray': { text: '', port: 18088, tooltip: 'Dice!Next(18088)', supported: true },
+  '/system/ai': { enabled: true, providers: tourSamples.aiProviders, models: [...tourSamples.models,
+    { ...tourSamples.models[0], id: 'demo-vision', name: '识图助手 · 示例', model: 'example-vision-model', vision: true },
+    { ...tourSamples.models[0], id: 'demo-embed', name: '向量 · 示例', model: 'example-embedding', kind: 'embedding' }],
+  usages: { reply: { models: [{ id: 'demo-model', weight: 1 }, { id: 'demo-vision', weight: 3 }], strategy: 'weight' }, embed: { models: [{ id: 'demo-embed', weight: 1 }], strategy: 'priority' } },
+  speech: { enabled: false }, params: {}, chat: { enabled: true }, memory: {}, tools: {}, npc: { enabled: false, list: [] }, whitelist: { enabled: false, list: [] }, vision: { enabled: true } },
   '/system/update': {
     current: { version: '3.0.0', build: 123, tag: 'v3.0.0-beta.123', prerelease: true },
     latest: { version: '3.0.0', build: 124, tag: 'v3.0.0-beta.124', prerelease: true, publishedAt: '', releaseUrl: '',
@@ -90,7 +95,7 @@ const state = {
   '/system/identity-email': { enabled: false, host: '', port: 465, ssl: true, user: '', from: '', password_configured: false },
   '/system/nick-wrap': { prefix: '<', suffix: '>' }, '/system/reply-segment': { enabled: true, len: 600 },
 };
-const writable = new Set(['/system/friend-clean', '/system/random-source', '/system/prefixes', '/system/timezone', '/system/plugin-verify', '/system/js-fetch', '/system/autostart', '/system/quote-reply', '/system/auto-card', '/system/respond-self', '/system/roll-reason', '/system/forward-long', '/system/reply-segment', '/system/nick-wrap', '/system/censor', '/system/friend-clean', '/system/identity-email']);
+const writable = new Set(['/system/friend-clean', '/system/random-source', '/system/prefixes', '/system/timezone', '/system/plugin-verify', '/system/js-fetch', '/system/autostart', '/system/quote-reply', '/system/auto-card', '/system/respond-self', '/system/roll-reason', '/system/ai', '/system/forward-long', '/system/reply-segment', '/system/nick-wrap', '/system/censor', '/system/friend-clean', '/system/identity-email']);
 const overrides = new Map();
 const requests = [];
 const helpDefaults = [
