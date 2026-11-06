@@ -6,6 +6,7 @@ const en = {
   clear: 'Clear message filter', search: 'Search content, module, plugin or msgID',
   follow_paused: 'Automatic scrolling paused.', back_to_latest: 'Back to latest',
   recording_note: 'Changes immediately affect new console and file logs. DEBUG / TRACE increase recording volume.',
+  debug_content_note: 'DEBUG and lower record the full content of AI requests and replies, including group messages and character sheets. Switch back to INFO when you are done.',
 };
 type Copy = typeof en;
 const zhHans: Copy = {
@@ -16,6 +17,7 @@ const zhHans: Copy = {
   clear: '清除消息筛选', search: '搜索内容、模块、插件或 msgID',
   follow_paused: '已暂停自动滚动。', back_to_latest: '回到最新',
   recording_note: '修改后立即影响新产生的控制台与文件日志。DEBUG／TRACE 会增加记录量。',
+  debug_content_note: 'DEBUG 及以下级别会记录 AI 请求与回复的完整内容，包括群聊消息与人物卡。排查完毕后请调回 INFO。',
 };
 const zhHant: Copy = {
   display_level: '最低展示級別', recording_level: '最低記錄級別',
@@ -25,6 +27,7 @@ const zhHant: Copy = {
   clear: '清除訊息篩選', search: '搜尋內容、模組、插件或 msgID',
   follow_paused: '已暫停自動捲動。', back_to_latest: '回到最新',
   recording_note: '修改後立即影響新產生的控制台與檔案日誌。DEBUG／TRACE 會增加記錄量。',
+  debug_content_note: 'DEBUG 及以下等級會記錄 AI 請求與回覆的完整內容，包括群聊訊息與人物卡。排查完畢後請調回 INFO。',
 };
 const ja: Copy = {
   display_level: '最低表示レベル', recording_level: '最低記録レベル',
@@ -34,5 +37,6 @@ const ja: Copy = {
   clear: 'メッセージフィルターを解除', search: '内容、モジュール、プラグイン、msgID を検索',
   follow_paused: '自動スクロールを一時停止しました。', back_to_latest: '最新へ戻る',
   recording_note: '新しいコンソール・ファイルログにすぐ適用します。DEBUG / TRACE は記録量を増やします。',
+  debug_content_note: 'DEBUG 以下では AI のリクエストと返信の内容をすべて記録します（グループの会話やキャラクターシートを含みます）。調査が終わったら INFO に戻してください。',
 };
 export const runtimeLogsCopy = { en, 'zh-Hans': zhHans, 'zh-Hant': zhHant, ja };

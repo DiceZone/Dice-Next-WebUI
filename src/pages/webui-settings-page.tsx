@@ -268,6 +268,7 @@ export const WebuiSettingsPage: React.FC = () => {
             </Select>
           </div>
           <p className="text-xs text-muted-foreground">{t('runtime_logs.recording_note')}</p>
+          {(logLevel === 'debug' || logLevel === 'trace') && <p className="text-xs text-amber-700 dark:text-amber-300">{t('runtime_logs.debug_content_note')}</p>}
           <div className="flex items-center justify-between">
             <Label htmlFor="raw-log" className="font-normal">{t('runtime_logs.protocol')}</Label>
             <Switch id="raw-log" checked={rawLog} onCheckedChange={toggleRawLog} />
