@@ -312,7 +312,7 @@ export const SETTINGS_SEARCH_ENTRIES: SettingsSearchEntry[] = [
   e('settings-bot-message', '/settings', 'nav.settings', 'bot_message.title', 'BotMsg bot .bot 附加说明 附加說明 页眉 頁首 页脚 頁尾 版本信息 版本資訊 strBotMsg strBotHeader introduction footer header', 'bot_message.description'),
   e('settings-response-switches', '/settings', 'nav.settings', 'settings.sec_reply', '响应开关 響應開關 静默 靜默 silent jrrp me deck draw send help bot off'),
   e('settings-deck-display', '/settings', 'nav.settings', 'global_search.deck_display_title', '牌堆显示 牌堆顯示 deck display hide underscore metadata author title 元数据 元資料', 'global_search.deck_display_desc'),
-  e('settings-event-response', '/settings', 'nav.settings', 'global_search.event_response_title', '事件响应 事件回應 加群请求 加群請求 好友请求 好友請求 入群欢迎 入群歡迎 黑名单退群 event response request welcome leave blacklist', 'global_search.event_response_desc'),
+  e('settings-event-response', '/settings', 'nav.settings', 'global_search.event_response_title', '事件响应 事件回應 加群请求 加群請求 好友请求 好友請求 入群欢迎 入群歡迎 黑名单退群 被踢 禁言 拉黑 邀请人连坐 listen_group_kick listen_group_ban kicked_ban_inviter banned_ban_inviter event response request welcome leave blacklist kick mute', 'global_search.event_response_desc'),
   e('settings-external-request', '/settings', 'nav.settings', 'global_search.external_request_title', '外部请求 外部請求 api url http https timeout 自定义回复 自訂回覆 网络请求 網路請求', 'global_search.external_request_desc'),
   e('settings-identity-binding', '/settings', 'nav.settings', 'global_search.identity_binding_title', '身份绑定 身份綁定 qq官方 official bind real qq account high risk 冒认 冒認', 'global_search.identity_binding_desc'),
   e('settings-save-images', '/settings', 'nav.settings', 'settings.save_images', '保存图片 保存圖片 log image archive', 'settings.save_images_desc'),
