@@ -313,7 +313,7 @@ export const AiPage: React.FC = () => {
                     <div className="space-y-1"><Label className="text-xs">{t('ai.api_key')}</Label>
                       <Input type="password" className="h-8 text-sm" value={providerDraft.api_key} onChange={(e) => setProviderDraft({ ...providerDraft, api_key: e.target.value })} placeholder={t('ai.api_key_ph')} /></div>
                   </div>
-            <DialogFooter><Button variant="outline" onClick={() => setProviderDraft(null)}>{t('common.cancel')}</Button><Button disabled={!providerDraft.name.trim() || !/^https?:\/\//.test(providerDraft.base_url)} onClick={() => { setProviders((ps) => ps.some((p) => p.id === providerDraft.id) ? ps.map((p) => p.id === providerDraft.id ? providerDraft : p) : [...ps, providerDraft]); setProviderDraft(null); }}>{t('common.confirm')}</Button></DialogFooter>
+            <DialogFooter><Button variant="outline" onClick={() => setProviderDraft(null)}>{t('common.cancel')}</Button><Button disabled={!providerDraft.name.trim() || !/^https?:\/\//.test(providerDraft.base_url)} onClick={() => { setProviders((ps) => ps.some((p) => p.id === providerDraft.id) ? ps.map((p) => p.id === providerDraft.id ? providerDraft : p) : [...ps, providerDraft]); setProviderDraft(null); }}>{t('common.ok')}</Button></DialogFooter>
           </div>}
         </DialogContent>
       </Dialog>
@@ -366,7 +366,7 @@ export const AiPage: React.FC = () => {
             setModels((ms) => ms.some((m) => m.id === modelDraft.id) ? ms.map((m) => m.id === modelDraft.id ? modelDraft : m) : [...ms, modelDraft]);
             setUsages((us) => Object.fromEntries(Object.entries(us).map(([k, u]) => [k, { ...u, models: u.models.filter((e) => e.id !== modelDraft.id || usageFits(USAGES.find((x) => x.key === k)!, modelDraft)) }])));
             setModelDraft(null);
-          }}>{t('common.confirm')}</Button></DialogFooter></>}
+          }}>{t('common.ok')}</Button></DialogFooter></>}
         </DialogContent>
       </Dialog>
 
@@ -450,7 +450,7 @@ export const AiPage: React.FC = () => {
                   <Button size="icon" variant="ghost" aria-label={t('common.delete') + ' ' + m.name} onClick={() => delModel(i)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                 </div>
                 <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-                  <span>{t('ai.preset_cost', { input: m.price_in, output: m.price_out })}</span>
+                  <div><p>{t('ai.preset_cost', { input: m.price_in, output: m.price_out })}</p><p>{t('ai.usage', { tokens: m.used_tokens, cost: m.used_cost.toFixed(4) })}</p></div>
                   <Button size="sm" variant="outline" disabled={!!testing[m.id]} onClick={() => test(m)}>{testing[m.id] && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}{t('ai.test')}</Button>
                 </div>
                     {res && (

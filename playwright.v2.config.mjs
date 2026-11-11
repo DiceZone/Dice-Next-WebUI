@@ -1,6 +1,6 @@
 import { defineConfig } from '@playwright/test';
 export default defineConfig({
-  testDir: './tests/browser', testMatch: 'v2.spec.mjs', fullyParallel: true,
+  testDir: './tests/browser', testMatch: ['v2.spec.mjs', 'ai-settings.spec.mjs'], fullyParallel: true,
   forbidOnly: !!process.env.CI, retries: 0, workers: 2, timeout: 30000,
   reporter: 'list', outputDir: 'test-results/v2', globalSetup: './tests/browser/setup-v2.mjs',
   projects: [

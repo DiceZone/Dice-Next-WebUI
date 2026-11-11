@@ -1564,7 +1564,8 @@
     "memory_delete": "この記憶を削除しますか？",
     "memory_delete_desc": "選択した記憶のみを削除し、他の会話や項目には影響しません。",
     "memory_discard": "未保存の変更を破棄しますか？",
-    "memory_discard_desc": "この記憶には未保存の変更があります。"
+    "memory_discard_desc": "この記憶には未保存の変更があります。",
+    "memory_search": "記憶を検索"
   },
   "settings": {
     "js_fetch_title": "JSプラグインのネットワークアクセス",

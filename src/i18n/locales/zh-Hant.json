@@ -1564,7 +1564,8 @@
     "memory_delete": "刪除這條記憶？",
     "memory_delete_desc": "只刪除選取的記憶，不影響其他群組或條目。",
     "memory_discard": "放棄未儲存的修改？",
-    "memory_discard_desc": "目前記憶內容尚未儲存。"
+    "memory_discard_desc": "目前記憶內容尚未儲存。",
+    "memory_search": "搜尋記憶內容"
   },
   "settings": {
     "js_fetch_title": "JS 插件網路存取",

@@ -1564,7 +1564,8 @@
     "memory_delete": "Delete this memory?",
     "memory_delete_desc": "Only the selected memory will be deleted. Other conversations and entries are unaffected.",
     "memory_discard": "Discard unsaved changes?",
-    "memory_discard_desc": "The current memory has unsaved changes."
+    "memory_discard_desc": "The current memory has unsaved changes.",
+    "memory_search": "Search memories"
   },
   "settings": {
     "js_fetch_title": "JS plugin network access",

@@ -1531,7 +1531,8 @@
     "memory_delete": "删除这条记忆？",
     "memory_delete_desc": "仅删除选中的记忆，不影响其他群组或条目。",
     "memory_discard": "放弃未保存的修改？",
-    "memory_discard_desc": "当前记忆内容尚未保存。"
+    "memory_discard_desc": "当前记忆内容尚未保存。",
+    "memory_search": "搜索记忆内容"
   },
   "settings": {
     "js_fetch_title": "JS 插件网络访问",

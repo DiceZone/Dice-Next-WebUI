@@ -356,7 +356,7 @@ test('editor and detail components keep contextual instructions in named help', 
 
 test('ordinary long instructions are no longer repeated under their fields', () => {
   const cases = {
-    'src/pages/ai-page.tsx': ['ai.cov_desc', 'ai.params_desc', 'ai.polish_prompt_note', 'ai.trans_prompt_note', 'ai.chat_trigger_desc', 'ai.chat_filters_note', 'ai.vision_pass_url_desc'],
+    'src/pages/ai-page.tsx': ['ai.cov_desc', 'ai.params_desc', 'ai.polish_prompt_note', 'ai.trans_prompt_note', 'ai.chat_trigger_desc', 'ai.chat_filters_note', 'ai.vision_size_desc'],
     'src/components/causal/causal-rule-editor.tsx': ['causal.v2.tpl_desc', 'causal.v2.reply_hint', 'causal.v2.counter_hint', 'causal.v2.cooldown_hint'],
     'src/components/reply/reply-form.tsx': ['replies.priority_hint', 'replies.limits_hint'],
     'src/pages/rule-editor.tsx': ['ruleed.test_hint', 'ruleed.custom_hint'],

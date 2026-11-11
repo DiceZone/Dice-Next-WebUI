@@ -18,7 +18,7 @@ async function request(path: string, method = 'GET', body?: unknown) {
 }
 
 export function AiMemoryDialog({ kind, onClose }: { kind: 'summary' | 'fact' | null; onClose: () => void }) {
-  const { t } = useTranslation(); const toast = useToast(); const dialogs = useDialogs();
+  const { t } = useTranslation(); const toast = useToast(); const dialogs = useDialogs(t);
   const [items, setItems] = useState<Memory[]>([]); const [busy, setBusy] = useState(false);
   const [error, setError] = useState(''); const [group, setGroup] = useState('');
   const [query, setQuery] = useState(''); const [page, setPage] = useState(0);
@@ -34,8 +34,9 @@ export function AiMemoryDialog({ kind, onClose }: { kind: 'summary' | 'fact' | n
   const matches = items.filter((item) => item.scope_id === group && item.content.toLowerCase().includes(query.toLowerCase()));
   const visible = matches.slice(page * 8, page * 8 + 8);
   const select = async (item: Memory | null) => {
-    if (selected && draft !== selected.content && !await dialogs.confirm({ title: t('ai.memory_discard'), description: t('ai.memory_discard_desc') })) return;
+    if (selected && draft !== selected.content && !await dialogs.confirm({ title: t('ai.memory_discard'), description: t('ai.memory_discard_desc') })) return false;
     setSelected(item); setDraft(item?.content || '');
+    return true;
   };
   const save = async () => {
     if (!selected) return;
@@ -51,7 +52,7 @@ export function AiMemoryDialog({ kind, onClose }: { kind: 'summary' | 'fact' | n
   const remove = async () => {
     if (!selected || !await dialogs.confirm({ title: t('ai.memory_delete'), description: t('ai.memory_delete_desc'), destructive: true, confirmText: t('common.delete') })) return;
     setBusy(true);
-    try { await request('?id=' + selected.id, 'DELETE'); setItems((all) => all.filter((item) => item.id !== selected.id)); setSelected(null); setDraft(''); }
+    try { await request('?id=' + selected.id, 'DELETE'); setItems((all) => all.filter((item) => item.id !== selected.id)); setSelected(null); setDraft(''); setPage(0); }
     catch (e) { toast({ title: (e as Error).message, variant: 'destructive' }); }
     finally { setBusy(false); }
   };
@@ -59,7 +60,7 @@ export function AiMemoryDialog({ kind, onClose }: { kind: 'summary' | 'fact' | n
   return <>{dialogs.node}<Dialog open={!!kind} onOpenChange={async (open) => {
     if (!open && !busy && (!selected || draft === selected.content || await dialogs.confirm({ title: t('ai.memory_discard'), description: t('ai.memory_discard_desc') }))) onClose();
   }}><DialogContent layout="editor" className="max-w-6xl"><DialogHeader><DialogTitle>{t(kind === 'fact' ? 'ai.mlong_stored' : 'ai.mem_stored')}</DialogTitle></DialogHeader>
-    <div className="grid gap-3 sm:grid-cols-2"><Select value={group || undefined} onValueChange={(value) => { setGroup(value); setPage(0); }}><SelectTrigger aria-label={t('ai.memory_scope')}><SelectValue placeholder={t('ai.memory_scope')} /></SelectTrigger><SelectContent>{groups.map((id) => <SelectItem key={id} value={id}>{id}</SelectItem>)}</SelectContent></Select><Input aria-label={t('common.search')} placeholder={t('common.search')} value={query} onChange={(e) => { setQuery(e.target.value); setPage(0); }} /></div>
+    <div className="grid gap-3 sm:grid-cols-2"><Select disabled={busy} value={group || undefined} onValueChange={async (value) => { if (await select(null)) { setGroup(value); setPage(0); } }}><SelectTrigger aria-label={t('ai.memory_scope')}><SelectValue placeholder={t('ai.memory_scope')} /></SelectTrigger><SelectContent>{groups.map((id) => <SelectItem key={id} value={id}>{id}</SelectItem>)}</SelectContent></Select><Input aria-label={t('ai.memory_search')} placeholder={t('ai.memory_search')} value={query} onChange={(e) => { setQuery(e.target.value); setPage(0); }} /></div>
     <DialogBody className="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
       <div className="min-w-0 rounded-xl border bg-muted/20 p-3">
         {busy && <Loader2 className="h-5 w-5 animate-spin" aria-label={t('common.loading')} />}
