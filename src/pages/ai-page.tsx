@@ -1,11 +1,11 @@
+import { AiMemoryDialog } from '@/components/ai-memory-dialog';
 import { useTourState } from '@/components/onboarding/tour-data';
 import { tourSamples } from '@/lib/tour-samples';
 /**
- * C#67/C#68/C#78：人工智能 —— 分「模型 / 润色 / 翻译」三个子页面（由路由 /ai、/ai/polish、
- * /ai/translate 决定，同一组件不重挂载，编辑状态共享，一次保存全部）。
+ * 人工智能：模型管理和功能设置。开关单独即时保存，表单保存只提交当前页面。
  * 后端：/api/system/ai (GET/PUT)、/api/system/ai/test (POST)。
  */
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent } from '@/components/ui/card';
@@ -19,9 +19,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/components/ui/dialog';
+import { providerPresets, modelPresets, providerPresetId, primaryAiUsages } from '@/lib/ai-presets';
 import { useToast } from '@/hooks/use-toast';
 import { PlatformIcon } from '@/components/platform-icon';
-import { Sparkles, Plus, Trash2, FlaskConical, Loader2, AlertTriangle, Wand2, Languages, MessageCircle, Drama, ArrowUp, ArrowDown, Route } from 'lucide-react';
+import { Sparkles, Plus, Trash2, Loader2, AlertTriangle, Wand2, Languages, MessageCircle, Drama, ArrowUp, ArrowDown, Route, Pencil } from 'lucide-react';
 
 interface AiProvider { id: string; name: string; base_url: string; api_key: string; enabled: boolean; }
 type ModelKind = 'chat' | 'embedding';
@@ -71,11 +73,10 @@ const emptyMemory = (): Memory => ({
   short: { enabled: false, rounds: 20, max_chars: 400, summary_prompt: '' },
   long: { enabled: false, top_k: 4, min_similarity: 0.75, max_facts: 300, extract_prompt: '' },
 });
-interface MemItem { scope_id: string; content: string; ref_id: number; updated_at: number; hits: number; }
 interface Tools { enabled: boolean; roll_dice: boolean; draw_deck: boolean; get_attr: boolean; set_attr: boolean; run_command: boolean; search_help: boolean; max_rounds: number; }
 const emptyTools = (): Tools => ({ enabled: false, roll_dice: true, draw_deck: true, get_attr: true, set_attr: false, run_command: true, search_help: true, max_rounds: 3 });
-interface Vision { enabled: boolean; prompt: string; max_images: number; pass_url: boolean; }
-const emptyVision = (): Vision => ({ enabled: false, prompt: '', max_images: 2, pass_url: true });
+interface Vision { enabled: boolean; prompt: string; max_images: number; max_image_kb: number; pass_url: boolean; }
+const emptyVision = (): Vision => ({ enabled: false, prompt: '', max_images: 2, max_image_kb: 1024, pass_url: false });
 interface WlEntry { platform: string; id: string; is_group: boolean; name?: string; }
 interface Whitelist { enabled: boolean; list: WlEntry[]; }
 const emptyWhitelist = (): Whitelist => ({ enabled: false, list: [] });
@@ -95,7 +96,6 @@ const emptyProvider = (): AiProvider => ({ id: 'p' + Math.random().toString(36).
 async function jget(path: string) { const r = await fetch('/api' + path); const j = await r.json(); if (j.code !== 0) throw new Error(j.message); return j.data; }
 async function jput(path: string, body: unknown) { const r = await fetch('/api' + path, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); const j = await r.json(); if (j.code !== 0) throw new Error(j.message); return j.data; }
 async function jpost(path: string, body: unknown) { const r = await fetch('/api' + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); const j = await r.json(); if (j.code !== 0) throw new Error(j.message); return j.data; }
-async function jdel(path: string) { const r = await fetch('/api' + path, { method: 'DELETE' }); const j = await r.json(); if (j.code !== 0) throw new Error(j.message); return j.data; }
 
 function sectionFromHash(): 'models' | 'polish' | 'translate' | 'chat' | 'npc' {
   const h = window.location.hash;
@@ -129,18 +129,27 @@ export const AiPage: React.FC = () => {
   const [wlPicking, setWlPicking] = useState(false);
   const [pickGroups, setPickGroups] = useTourState<PickGroup[]>([], tourSamples.groups);
   const [pickPlayers, setPickPlayers] = useTourState<PickPlayer[]>([], tourSamples.players);
-  const [memItems, setMemItems] = useTourState<MemItem[]>([], [{ scope_id: 'demo-group', content: '调查员来到雾港，约定周六晚在灯塔集合。', ref_id: 1, updated_at: 1788264000, hits: 2 }]);
-  const [memBusy, setMemBusy] = useState(false);
   const [saving, setSaving] = useState(false);
+  const writeBusy = useRef(false);
+  const [providerDraft, setProviderDraft] = useState<AiProvider | null>(null);
+  const [modelDraft, setModelDraft] = useState<AiModel | null>(null);
+  const [advancedUsages, setAdvancedUsages] = useState(false);
+  const autoSave = async (body: unknown, apply: () => void) => {
+    if (writeBusy.current) return;
+    writeBusy.current = true; setSaving(true);
+    try { await jput('/system/ai', body); apply(); }
+    catch (e) { toast({ title: (e as Error).message, variant: 'destructive' }); }
+    finally { writeBusy.current = false; setSaving(false); }
+  };
   const [testing, setTesting] = useState<Record<string, boolean>>({});
   const [results, setResults] = useState<Record<string, TestResult>>({});
-  const [memFacts, setMemFacts] = useState<MemItem[]>([]);
   const [defaults, setDefaults] = useState<{ polish_text: string; polish_rp: string; translate: string; chat: string; summary: string; extract: string; vision: string; decision?: string }>({ polish_text: '', polish_rp: '', translate: '', chat: '', summary: '', extract: '', vision: '' });
 
   useEffect(() => {
     // 设置搜索带 ?focus= 跳到模型页某个选项卡时，先切到对应选项卡（未显示的锚点找不到）。
     const syncTab = () => {
       const focus = new URLSearchParams(window.location.hash.split('?')[1] || '').get('focus') || '';
+      if (focus.startsWith('ai-usage-') && !primaryAiUsages.includes(focus.slice(9))) setAdvancedUsages(true);
       if (focus === 'ai-providers') setModelTab('providers');
       else if (focus === 'ai-models') setModelTab('models');
       else if (focus === 'ai-usages' || focus.startsWith('ai-usage-')) setModelTab('usages');
@@ -189,14 +198,14 @@ export const AiPage: React.FC = () => {
   const delNpc = (i: number) => setNpc((c) => ({ ...c, list: c.list.filter((_, idx) => idx !== i) }));
 
   const patch = (i: number, p: Partial<AiModel>) => setModels((ms) => ms.map((m, idx) => (idx === i ? { ...m, ...p } : m)));
-  const addModel = () => setModels((ms) => [...ms, emptyModel(providers[0]?.id || '')]);
+  const addModel = () => setModelDraft(emptyModel(providers[0]?.id || ''));
   const delModel = (i: number) => {
     const id = models[i]?.id;
     setModels((ms) => ms.filter((_, idx) => idx !== i));
     setUsages((us) => Object.fromEntries(Object.entries(us).map(([k, u]) => [k, { ...u, models: u.models.filter((e) => e.id !== id) }])));
   };
   const patchProvider = (i: number, p: Partial<AiProvider>) => setProviders((ps) => ps.map((x, idx) => (idx === i ? { ...x, ...p } : x)));
-  const addProvider = () => setProviders((ps) => [...ps, emptyProvider()]);
+  const addProvider = () => setProviderDraft(emptyProvider());
   const delProvider = (i: number) => {
     const id = providers[i]?.id;
     const used = models.filter((m) => m.provider_id === id).length;
@@ -235,38 +244,20 @@ export const AiPage: React.FC = () => {
   const num = (v: string) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
 
   const save = async () => {
-    setSaving(true);
-    try { applyData(await jput('/system/ai', { enabled, providers, models, usages, speech, params, polish, translate: trans, chat, memory, tools, vision, npc, whitelist: wl })); toast({ title: t('common.save_success') }); }
+    if (writeBusy.current) return;
+    writeBusy.current = true; setSaving(true);
+    try {
+      const body = section === 'models' ? { enabled, providers, models, usages, params }
+        : section === 'polish' ? { polish } : section === 'translate' ? { translate: trans }
+        : section === 'npc' ? { npc } : { chat, memory, tools, vision, speech, whitelist: wl };
+      await jput('/system/ai', body);
+      toast({ title: t('common.save_success') });
+    }
     catch (e) { toast({ title: (e as Error).message, variant: 'destructive' }); }
-    finally { setSaving(false); }
+    finally { writeBusy.current = false; setSaving(false); }
   };
 
-  // 阶段B：记忆管理 —— 查看已存群摘要 / 清空。
-  const loadMem = async () => {
-    setMemBusy(true);
-    try { const d = await jget('/system/ai/memory'); setMemItems((d?.items || []) as MemItem[]); }
-    catch (e) { toast({ title: (e as Error).message, variant: 'destructive' }); }
-    finally { setMemBusy(false); }
-  };
-  const clearMem = async () => {
-    setMemBusy(true);
-    try { await jdel('/system/ai/memory?kind=summary'); setMemItems([]); toast({ title: t('common.save_success') }); }
-    catch (e) { toast({ title: (e as Error).message, variant: 'destructive' }); }
-    finally { setMemBusy(false); }
-  };
-  // 阶段C：长期事实 —— 查看 / 清空。
-  const loadFacts = async () => {
-    setMemBusy(true);
-    try { const d = await jget('/system/ai/memory?kind=fact'); setMemFacts((d?.items || []) as MemItem[]); }
-    catch (e) { toast({ title: (e as Error).message, variant: 'destructive' }); }
-    finally { setMemBusy(false); }
-  };
-  const clearFacts = async () => {
-    setMemBusy(true);
-    try { await jdel('/system/ai/memory?kind=fact'); setMemFacts([]); toast({ title: t('common.save_success') }); }
-    catch (e) { toast({ title: (e as Error).message, variant: 'destructive' }); }
-    finally { setMemBusy(false); }
-  };
+  const [memoryKind, setMemoryKind] = useState<'summary' | 'fact' | null>(null);
 
   const test = async (m: AiModel) => {
     setTesting((s) => ({ ...s, [m.id]: true }));
@@ -288,13 +279,13 @@ export const AiPage: React.FC = () => {
   );
 
   // 覆盖范围（5 类别复选）
-  const coverage = (cov: Cov, set: (c: Cov) => void) => (
+  const coverage = (cov: Cov, set: (c: Cov) => void, key: 'polish' | 'translate') => (
     <div className="space-y-1">
       <HelpLabel title={t('ai.cov')} description={<p>{t('ai.cov_desc')}</p>} labelClassName="text-xs" />
       <div className="flex flex-wrap gap-x-4 gap-y-1 pt-1">
         {(['roll', 'deck', 'fun', 'custom', 'plugin'] as const).map((k) => (
           <label key={k} className="flex items-center gap-1.5 text-xs cursor-pointer select-none">
-            <input type="checkbox" className="accent-primary" checked={!!cov[k]} onChange={(e) => set({ ...cov, [k]: e.target.checked })} />
+            <input type="checkbox" className="accent-primary" checked={!!cov[k]} onChange={(e) => { const value = e.target.checked; void autoSave({ [key]: { cov: { [k]: value } } }, () => set({ ...cov, [k]: value })); }} />
             {t('ai.cov_' + k)}
           </label>
         ))}
@@ -309,6 +300,78 @@ export const AiPage: React.FC = () => {
     <div className="space-y-6">
       <PageHeader icon={TitleIcon} title={t(titleKey)} description={t('ai.desc')} help={`${t(`page_help.ai_${section}`)}\n\n${t('ai.stage_note')}`} />
 
+
+      <AiMemoryDialog kind={memoryKind} onClose={() => setMemoryKind(null)} />
+      <Dialog open={!!providerDraft} onOpenChange={(open) => { if (!open) setProviderDraft(null); }}>
+        <DialogContent><DialogHeader><DialogTitle>{t(providers.some((p) => p.id === providerDraft?.id) ? 'ai.edit_provider' : 'ai.add_provider')}</DialogTitle></DialogHeader>
+          {providerDraft && <div className="space-y-4">
+            <Label>{t('ai.preset')}</Label><Select value="" onValueChange={(id) => { const preset = providerPresets.find((p) => p.id === id); if (preset) setProviderDraft({ ...providerDraft, name: preset.name, base_url: preset.base_url, api_key: '' }); }}><SelectTrigger><SelectValue placeholder={t('ai.preset_pick')} /></SelectTrigger><SelectContent>{providerPresets.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent></Select>
+            <div className="space-y-1"><Label>{t('ai.provider_name_ph')}</Label><Input value={providerDraft.name} onChange={(e) => setProviderDraft({ ...providerDraft, name: e.target.value })} /></div>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <div className="space-y-1"><Label className="text-xs">{t('ai.base_url')}</Label>
+                      <Input className="h-8 text-sm" value={providerDraft.base_url} onChange={(e) => setProviderDraft({ ...providerDraft, base_url: e.target.value })} placeholder="https://api.openai.com/v1" /></div>
+                    <div className="space-y-1"><Label className="text-xs">{t('ai.api_key')}</Label>
+                      <Input type="password" className="h-8 text-sm" value={providerDraft.api_key} onChange={(e) => setProviderDraft({ ...providerDraft, api_key: e.target.value })} placeholder={t('ai.api_key_ph')} /></div>
+                  </div>
+            <DialogFooter><Button variant="outline" onClick={() => setProviderDraft(null)}>{t('common.cancel')}</Button><Button disabled={!providerDraft.name.trim() || !/^https?:\/\//.test(providerDraft.base_url)} onClick={() => { setProviders((ps) => ps.some((p) => p.id === providerDraft.id) ? ps.map((p) => p.id === providerDraft.id ? providerDraft : p) : [...ps, providerDraft]); setProviderDraft(null); }}>{t('common.confirm')}</Button></DialogFooter>
+          </div>}
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!modelDraft} onOpenChange={(open) => { if (!open) setModelDraft(null); }}>
+        <DialogContent layout="editor" className="max-w-2xl"><DialogHeader><DialogTitle>{t(models.some((m) => m.id === modelDraft?.id) ? 'ai.edit_model' : 'ai.add_model')}</DialogTitle></DialogHeader>
+          {modelDraft && <><DialogBody className="space-y-4 pr-2">
+            <div className="space-y-1"><Label>{t('ai.preset')}</Label><Select value="" onValueChange={(id) => { const preset = modelPresets.find((p) => p.model === id); if (preset) setModelDraft({ ...modelDraft, name: preset.name, model: preset.model, kind: preset.kind, vision: preset.vision, price_in: preset.price_in, price_out: preset.price_out }); }}><SelectTrigger><SelectValue placeholder={t('ai.preset_pick')} /></SelectTrigger><SelectContent>{modelPresets.filter((p) => p.provider === providerPresetId(providers.find((x) => x.id === modelDraft.provider_id)?.base_url || '')).map((p) => <SelectItem key={p.model} value={p.model}>{p.name}</SelectItem>)}</SelectContent></Select></div>
+            <p className="text-xs text-muted-foreground">{t('ai.preset_pricing_note')}</p>
+            <div className="space-y-1"><Label>{t('ai.name_ph')}</Label><Input value={modelDraft.name} onChange={(e) => setModelDraft({ ...modelDraft, name: e.target.value })} /></div>
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      <div className="space-y-1"><Label className="text-xs">{t('ai.provider')}</Label>
+                        <Select value={modelDraft.provider_id || '__none__'} onValueChange={(v) => setModelDraft({ ...modelDraft, provider_id: v === '__none__' ? '' : v })}>
+                          <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {!modelDraft.provider_id && <SelectItem value="__none__">{t('ai.provider_pick')}</SelectItem>}
+                            {providers.map((p) => <SelectItem key={p.id} value={p.id}>{p.name || p.base_url}</SelectItem>)}
+                          </SelectContent>
+                        </Select></div>
+                      <div className="space-y-1"><Label className="text-xs">{t('ai.model_id')}</Label>
+                        <Input className="h-8 text-sm" value={modelDraft.model} onChange={(e) => setModelDraft({ ...modelDraft, model: e.target.value })} placeholder={modelDraft.kind === 'embedding' ? 'text-embedding-3-small / bge-m3 …' : 'gpt-4o-mini / qwen2.5 …'} /></div>
+                      <div className="space-y-1"><HelpLabel title={t('ai.model_kind')} description={<p>{t('ai.model_kind_desc')}</p>} labelClassName="text-xs" />
+                        <Select value={modelDraft.kind} onValueChange={(v) => {
+                          setModelDraft({ ...modelDraft, kind: v as ModelKind, vision: v === 'chat' ? modelDraft.vision : false });
+
+                        }}>
+                          <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="chat">{t('ai.kind_chat')}</SelectItem>
+                            <SelectItem value="embedding">{t('ai.kind_embedding')}</SelectItem>
+                          </SelectContent>
+                        </Select></div>
+                      {modelDraft.kind === 'chat' && (
+                        <div className="flex items-center justify-between rounded-md border px-2.5 py-1.5 sm:mt-5">
+                          <HelpLabel title={t('ai.model_vision')} description={<p>{t('ai.model_vision_desc')}</p>} labelClassName="text-xs" />
+                          <Switch checked={modelDraft.vision} onCheckedChange={(v) => {
+                            setModelDraft({ ...modelDraft, vision: v });
+                          }} />
+                        </div>
+                      )}
+                      <div className="space-y-1"><Label className="text-xs">{t('ai.price_in')}</Label>
+                        <Input type="number" className="h-8 text-sm" value={modelDraft.price_in} onChange={(e) => setModelDraft({ ...modelDraft, price_in: num(e.target.value) })} /></div>
+                      {modelDraft.kind === 'chat' && <div className="space-y-1"><Label className="text-xs">{t('ai.price_out')}</Label>
+                        <Input type="number" className="h-8 text-sm" value={modelDraft.price_out} onChange={(e) => setModelDraft({ ...modelDraft, price_out: num(e.target.value) })} /></div>}
+                      <div className="space-y-1"><Label className="text-xs">{t('ai.token_limit')}</Label>
+                        <Input type="number" className="h-8 text-sm" value={modelDraft.token_limit} onChange={(e) => setModelDraft({ ...modelDraft, token_limit: num(e.target.value) })} /></div>
+                      <div className="space-y-1"><Label className="text-xs">{t('ai.cost_limit')}</Label>
+                        <Input type="number" className="h-8 text-sm" value={modelDraft.cost_limit} onChange={(e) => setModelDraft({ ...modelDraft, cost_limit: num(e.target.value) })} /></div>
+                    </div>
+          </DialogBody><DialogFooter><Button variant="outline" onClick={() => setModelDraft(null)}>{t('common.cancel')}</Button><Button disabled={!modelDraft.provider_id || !modelDraft.model.trim()} onClick={() => {
+            setModels((ms) => ms.some((m) => m.id === modelDraft.id) ? ms.map((m) => m.id === modelDraft.id ? modelDraft : m) : [...ms, modelDraft]);
+            setUsages((us) => Object.fromEntries(Object.entries(us).map(([k, u]) => [k, { ...u, models: u.models.filter((e) => e.id !== modelDraft.id || usageFits(USAGES.find((x) => x.key === k)!, modelDraft)) }])));
+            setModelDraft(null);
+          }}>{t('common.confirm')}</Button></DialogFooter></>}
+        </DialogContent>
+      </Dialog>
+
+      <fieldset disabled={saving} className="min-w-0 space-y-6">
+      {section !== 'models' && <p className="text-xs text-muted-foreground">{t('ai.switch_autosave')}</p>}
       {/* ══ 模型 section ══ */}
       {section === 'models' && (<>
         <Card data-setting-anchor="ai-master">
@@ -359,22 +422,12 @@ export const AiPage: React.FC = () => {
             </div>
             {providers.length === 0 && <p className="text-xs text-muted-foreground italic py-4 text-center">{t('ai.no_providers')}</p>}
             {providers.map((p, i) => (
-              <Card key={p.id}>
-                <CardContent className="py-3 space-y-2.5">
-                  <div className="flex items-center gap-2">
-                    <Switch checked={p.enabled} onCheckedChange={(v) => patchProvider(i, { enabled: v })} />
-                    <Input className="h-8 text-sm font-medium flex-1" value={p.name} onChange={(e) => patchProvider(i, { name: e.target.value })} placeholder={t('ai.provider_name_ph')} />
-                    <Badge variant="outline" className="shrink-0 text-[11px]">{t('ai.provider_models', { count: models.filter((m) => m.provider_id === p.id).length })}</Badge>
-                    <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive shrink-0" onClick={() => delProvider(i)}><Trash2 className="h-4 w-4" /></Button>
-                  </div>
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    <div className="space-y-1"><Label className="text-xs">{t('ai.base_url')}</Label>
-                      <Input className="h-8 text-sm" value={p.base_url} onChange={(e) => patchProvider(i, { base_url: e.target.value })} placeholder="https://api.openai.com/v1" /></div>
-                    <div className="space-y-1"><Label className="text-xs">{t('ai.api_key')}</Label>
-                      <Input type="password" className="h-8 text-sm" value={p.api_key} onChange={(e) => patchProvider(i, { api_key: e.target.value })} placeholder={t('ai.api_key_ph')} /></div>
-                  </div>
-                </CardContent>
-              </Card>
+              <Card key={p.id}><CardContent className="flex items-center gap-3 p-4">
+                <Switch aria-label={t('common.enabled') + ' ' + p.name} checked={p.enabled} onCheckedChange={(v) => patchProvider(i, { enabled: v })} />
+                <div className="min-w-0 flex-1"><p className="truncate font-medium">{p.name || p.base_url}</p><p className="truncate text-xs text-muted-foreground">{p.base_url}</p><p className="text-xs text-muted-foreground">{t('ai.provider_models', { count: models.filter((m) => m.provider_id === p.id).length })}</p></div>
+                <Button size="icon" variant="ghost" aria-label={t('common.edit') + ' ' + p.name} onClick={() => setProviderDraft({ ...p })}><Pencil className="h-4 w-4" /></Button>
+                <Button size="icon" variant="ghost" aria-label={t('common.delete') + ' ' + p.name} onClick={() => delProvider(i)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+              </CardContent></Card>
             ))}
           </TabsContent>
 
@@ -388,65 +441,18 @@ export const AiPage: React.FC = () => {
             {providers.length > 0 && models.length === 0 && <p className="text-xs text-muted-foreground italic py-4 text-center">{t('ai.no_models')}</p>}
             {models.map((m, i) => {
               const res = results[m.id];
-              return (
-                <Card key={m.id}>
-                  <CardContent className="py-3 space-y-2.5">
-                    <div className="flex items-center gap-2">
-                      <Switch checked={m.enabled} onCheckedChange={(v) => patch(i, { enabled: v })} />
-                      <Input className="h-8 text-sm font-medium flex-1" value={m.name} onChange={(e) => patch(i, { name: e.target.value })} placeholder={t('ai.name_ph')} />
-                      <Badge variant="secondary" className="shrink-0 text-[11px]">{t('ai.kind_' + m.kind)}</Badge>
-                      <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive shrink-0" onClick={() => delModel(i)}><Trash2 className="h-4 w-4" /></Button>
-                    </div>
-                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                      <div className="space-y-1"><Label className="text-xs">{t('ai.provider')}</Label>
-                        <Select value={m.provider_id || '__none__'} onValueChange={(v) => patch(i, { provider_id: v === '__none__' ? '' : v })}>
-                          <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            {!m.provider_id && <SelectItem value="__none__">{t('ai.provider_pick')}</SelectItem>}
-                            {providers.map((p) => <SelectItem key={p.id} value={p.id}>{p.name || p.base_url}</SelectItem>)}
-                          </SelectContent>
-                        </Select></div>
-                      <div className="space-y-1"><Label className="text-xs">{t('ai.model_id')}</Label>
-                        <Input className="h-8 text-sm" value={m.model} onChange={(e) => patch(i, { model: e.target.value })} placeholder={m.kind === 'embedding' ? 'text-embedding-3-small / bge-m3 …' : 'gpt-4o-mini / qwen2.5 …'} /></div>
-                      <div className="space-y-1"><HelpLabel title={t('ai.model_kind')} description={<p>{t('ai.model_kind_desc')}</p>} labelClassName="text-xs" />
-                        <Select value={m.kind} onValueChange={(v) => {
-                          patch(i, { kind: v as ModelKind, vision: v === 'chat' ? m.vision : false });
-                          // 类别变了，已分配到不符用途的位置一并移除。
-                          setUsages((us) => Object.fromEntries(Object.entries(us).map(([k, u]) => {
-                            const def = USAGES.find((x) => x.key === k);
-                            return [k, def && def.kind !== v ? { ...u, models: u.models.filter((e) => e.id !== m.id) } : u];
-                          })));
-                        }}>
-                          <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="chat">{t('ai.kind_chat')}</SelectItem>
-                            <SelectItem value="embedding">{t('ai.kind_embedding')}</SelectItem>
-                          </SelectContent>
-                        </Select></div>
-                      {m.kind === 'chat' && (
-                        <div className="flex items-center justify-between rounded-md border px-2.5 py-1.5 sm:mt-5">
-                          <HelpLabel title={t('ai.model_vision')} description={<p>{t('ai.model_vision_desc')}</p>} labelClassName="text-xs" />
-                          <Switch checked={m.vision} onCheckedChange={(v) => {
-                            patch(i, { vision: v });
-                            if (!v) setUsages((us) => ({ ...us, vision: { ...us.vision, models: us.vision.models.filter((e) => e.id !== m.id) } }));
-                          }} />
-                        </div>
-                      )}
-                      <div className="space-y-1"><Label className="text-xs">{t('ai.price_in')}</Label>
-                        <Input type="number" className="h-8 text-sm" value={m.price_in} onChange={(e) => patch(i, { price_in: num(e.target.value) })} /></div>
-                      {m.kind === 'chat' && <div className="space-y-1"><Label className="text-xs">{t('ai.price_out')}</Label>
-                        <Input type="number" className="h-8 text-sm" value={m.price_out} onChange={(e) => patch(i, { price_out: num(e.target.value) })} /></div>}
-                      <div className="space-y-1"><Label className="text-xs">{t('ai.token_limit')}</Label>
-                        <Input type="number" className="h-8 text-sm" value={m.token_limit} onChange={(e) => patch(i, { token_limit: num(e.target.value) })} /></div>
-                      <div className="space-y-1"><Label className="text-xs">{t('ai.cost_limit')}</Label>
-                        <Input type="number" className="h-8 text-sm" value={m.cost_limit} onChange={(e) => patch(i, { cost_limit: num(e.target.value) })} /></div>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <p className="text-[11px] text-muted-foreground">{t('ai.usage', { tokens: m.used_tokens, cost: m.used_cost.toFixed(4) })}</p>
-                      <Button size="sm" variant="outline" onClick={() => test(m)} disabled={!!testing[m.id] || !m.provider_id}>
-                        {testing[m.id] ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <FlaskConical className="mr-1 h-3.5 w-3.5" />}{t('ai.test')}
-                      </Button>
-                    </div>
+              return <Card key={m.id}><CardContent className="space-y-3 p-4">
+                <div className="flex items-center gap-3">
+                  <Switch aria-label={t('common.enabled') + ' ' + (m.name || m.model)} checked={m.enabled} onCheckedChange={(v) => patch(i, { enabled: v })} />
+                  <div className="min-w-0 flex-1"><p className="truncate font-medium">{m.name || m.model}</p><p className="truncate text-xs text-muted-foreground">{providers.find((p) => p.id === m.provider_id)?.name} · {m.model}</p></div>
+                  <Badge variant="secondary">{t('ai.kind_' + m.kind)}</Badge>
+                  <Button size="icon" variant="ghost" aria-label={t('common.edit') + ' ' + m.name} onClick={() => setModelDraft({ ...m })}><Pencil className="h-4 w-4" /></Button>
+                  <Button size="icon" variant="ghost" aria-label={t('common.delete') + ' ' + m.name} onClick={() => delModel(i)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                  <span>{t('ai.preset_cost', { input: m.price_in, output: m.price_out })}</span>
+                  <Button size="sm" variant="outline" disabled={!!testing[m.id]} onClick={() => test(m)}>{testing[m.id] && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}{t('ai.test')}</Button>
+                </div>
                     {res && (
                       <div className={`rounded-md border p-2 text-xs ${res.ok ? 'border-emerald-300 bg-emerald-50 dark:bg-emerald-950/30' : 'border-destructive/40 bg-destructive/5'}`}>
                         {res.ok ? (<>
@@ -455,16 +461,15 @@ export const AiPage: React.FC = () => {
                         </>) : (<div className="text-destructive break-words">{t('ai.test_fail')}: {res.error}</div>)}
                       </div>
                     )}
-                  </CardContent>
-                </Card>
-              );
+              </CardContent></Card>;
             })}
           </TabsContent>
 
           {/* 用途分配 */}
           <TabsContent value="usages" className="mt-0 space-y-3" data-setting-anchor="ai-usages">
             <p className="text-xs text-muted-foreground">{t('ai.usages_desc')}</p>
-            {USAGES.map((u) => {
+            <Button variant="outline" aria-expanded={advancedUsages} onClick={() => setAdvancedUsages(!advancedUsages)}>{t('ai.advanced_usages')}</Button>
+            {USAGES.filter((u) => advancedUsages || primaryAiUsages.includes(u.key)).sort((a, b) => Number(!primaryAiUsages.includes(a.key)) - Number(!primaryAiUsages.includes(b.key))).map((u) => {
               const cur = usages[u.key] || emptyUsages()[u.key];
               const candidates = models.filter((m) => usageFits(u, m) && !cur.models.some((e) => e.id === m.id));
               const single = u.key === 'embed';
@@ -543,7 +548,7 @@ export const AiPage: React.FC = () => {
                   </>} />
                 </div>
               </div>
-              <Switch checked={polish.enabled} onCheckedChange={(v) => setPolish((p) => ({ ...p, enabled: v }))} />
+              <Switch checked={polish.enabled} onCheckedChange={(v) => void autoSave({ polish: { enabled: v } }, () => setPolish((p) => ({ ...p, enabled: v })))} />
             </div>
             {polish.enabled && (
               <div className="space-y-2.5 border-t pt-3">
@@ -560,7 +565,7 @@ export const AiPage: React.FC = () => {
                     </Select>
                   </div>
                 </div>
-                {coverage(polish.cov, (c) => setPolish((p) => ({ ...p, cov: c })))}
+                {coverage(polish.cov, (c) => setPolish((p) => ({ ...p, cov: c })), 'polish')}
                 <div className="space-y-1">
                   <Label className="text-xs">{t('ai.polish_persona')}</Label>
                   <Textarea className="text-sm min-h-[60px]" value={polish.persona} onChange={(e) => setPolish((p) => ({ ...p, persona: e.target.value }))} placeholder={t('ai.polish_persona_ph')} />
@@ -602,12 +607,12 @@ export const AiPage: React.FC = () => {
                   </>} />
                 </div>
               </div>
-              <Switch checked={trans.enabled} onCheckedChange={(v) => setTrans((p) => ({ ...p, enabled: v }))} />
+              <Switch checked={trans.enabled} onCheckedChange={(v) => void autoSave({ translate: { enabled: v } }, () => setTrans((p) => ({ ...p, enabled: v })))} />
             </div>
             {trans.enabled && (
               <div className="space-y-2.5 border-t pt-3">
                 {usageHint('translate')}
-                {coverage(trans.cov, (c) => setTrans((p) => ({ ...p, cov: c })))}
+                {coverage(trans.cov, (c) => setTrans((p) => ({ ...p, cov: c })), 'translate')}
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
                     <Label className="text-xs">{t('ai.trans_langs')}</Label>
@@ -665,7 +670,7 @@ export const AiPage: React.FC = () => {
                     </>} />
                   </div>
                 </div>
-                <Switch checked={chat.enabled} onCheckedChange={(v) => setChat((p) => ({ ...p, enabled: v }))} />
+                <Switch checked={chat.enabled} onCheckedChange={(v) => void autoSave({ chat: { enabled: v } }, () => setChat((p) => ({ ...p, enabled: v })))} />
               </div>
               {chat.enabled && (
                 <div className="space-y-2.5 border-t pt-3">
@@ -674,7 +679,7 @@ export const AiPage: React.FC = () => {
                   <div className="space-y-1.5 rounded-md border p-2.5">
                     <HelpLabel title={t('ai.chat_trigger')} description={<p>{t('ai.chat_trigger_desc')}</p>} labelClassName="text-xs font-medium" />
                     <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none">
-                      <input type="checkbox" className="accent-primary" checked={chat.at_bot} onChange={(e) => setChat((p) => ({ ...p, at_bot: e.target.checked }))} />
+                      <input type="checkbox" className="accent-primary" checked={chat.at_bot} onChange={(e) => { const checked = e.target.checked; void autoSave({ chat: { at_bot: checked } }, () => setChat((p) => ({ ...p, at_bot: checked }))) }} />
                       {t('ai.chat_at_bot')}
                     </label>
                     <div className="space-y-1"><Label className="text-xs">{t('ai.chat_keywords')}</Label>
@@ -684,7 +689,7 @@ export const AiPage: React.FC = () => {
                       <Input type="number" className="h-8 text-sm w-28" value={chat.standby_prob} onChange={(e) => setChat((p) => ({ ...p, standby_prob: num(e.target.value) }))} /></div>
                     <div className="flex items-center gap-1.5">
                       <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none">
-                        <input type="checkbox" className="accent-primary" checked={chat.decision} onChange={(e) => setChat((p) => ({ ...p, decision: e.target.checked }))} />
+                        <input type="checkbox" className="accent-primary" checked={chat.decision} onChange={(e) => { const checked = e.target.checked; void autoSave({ chat: { decision: checked } }, () => setChat((p) => ({ ...p, decision: checked }))) }} />
                         {t('ai.chat_decision')}
                       </label>
                       <FeatureHelp title={t('ai.chat_decision')} description={<p>{t('ai.chat_decision_desc')}</p>} />
@@ -701,12 +706,12 @@ export const AiPage: React.FC = () => {
                   </div>
 
                   <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none">
-                    <input type="checkbox" className="accent-primary" checked={chat.reply_at} onChange={(e) => setChat((p) => ({ ...p, reply_at: e.target.checked }))} />
+                    <input type="checkbox" className="accent-primary" checked={chat.reply_at} onChange={(e) => { const checked = e.target.checked; void autoSave({ chat: { reply_at: checked } }, () => setChat((p) => ({ ...p, reply_at: checked }))) }} />
                     {t('ai.chat_reply_at')}
                   </label>
 
                   <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none">
-                    <input type="checkbox" className="accent-primary" checked={chat.no_emoji} onChange={(e) => setChat((p) => ({ ...p, no_emoji: e.target.checked }))} />
+                    <input type="checkbox" className="accent-primary" checked={chat.no_emoji} onChange={(e) => { const checked = e.target.checked; void autoSave({ chat: { no_emoji: checked } }, () => setChat((p) => ({ ...p, no_emoji: checked }))) }} />
                     {t('ai.chat_no_emoji')}
                   </label>
 
@@ -751,7 +756,7 @@ export const AiPage: React.FC = () => {
                     </>} />
                   </div>
                 </div>
-                <Switch checked={memory.short.enabled} onCheckedChange={(v) => setMemory((p) => ({ ...p, short: { ...p.short, enabled: v } }))} />
+                <Switch checked={memory.short.enabled} onCheckedChange={(v) => void autoSave({ memory: { short: { enabled: v } } }, () => setMemory((p) => ({ ...p, short: { ...p.short, enabled: v } })))} />
               </div>
               {memory.short.enabled && (
                 <div className="mt-3 space-y-3">
@@ -773,28 +778,7 @@ export const AiPage: React.FC = () => {
                   </div>
                   <p className="text-[11px] text-muted-foreground">{t('ai.mem_note')}</p>
 
-                  {/* 已存群摘要：查看 / 清空 */}
-                  <div className="rounded-md border p-3 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-xs font-medium">{t('ai.mem_stored')}</Label>
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="outline" className="h-7 text-xs" disabled={memBusy} onClick={loadMem}>{t('ai.mem_view')}</Button>
-                        <Button size="sm" variant="outline" className="h-7 text-xs text-destructive" disabled={memBusy || memItems.length === 0} onClick={clearMem}>{t('ai.mem_clear')}</Button>
-                      </div>
-                    </div>
-                    {memItems.length === 0 ? (
-                      <p className="text-[11px] text-muted-foreground">{t('ai.mem_empty')}</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {memItems.map((it) => (
-                          <div key={it.scope_id} className="rounded border bg-muted/40 p-2">
-                            <div className="text-[11px] font-mono text-muted-foreground">{it.scope_id}</div>
-                            <div className="text-xs mt-0.5 whitespace-pre-wrap">{it.content}</div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  <div className="flex items-center justify-between rounded-md border p-3"><Label>{t('ai.mem_stored')}</Label><Button size="sm" variant="outline" onClick={() => setMemoryKind('summary')}>{t('ai.mem_view')}</Button></div>
                 </div>
               )}
 
@@ -810,7 +794,7 @@ export const AiPage: React.FC = () => {
                       </>} />
                     </div>
                   </div>
-                  <Switch checked={memory.long.enabled} onCheckedChange={(v) => setMemory((p) => ({ ...p, long: { ...p.long, enabled: v } }))} />
+                  <Switch checked={memory.long.enabled} onCheckedChange={(v) => void autoSave({ memory: { long: { enabled: v } } }, () => setMemory((p) => ({ ...p, long: { ...p.long, enabled: v } })))} />
                 </div>
                 {memory.long.enabled && (
                   <div className="mt-3 space-y-3">
@@ -835,27 +819,7 @@ export const AiPage: React.FC = () => {
                     </div>
                     <p className="text-[11px] text-muted-foreground">{t('ai.mlong_note')}</p>
 
-                    {/* 已存事实：查看 / 清空 */}
-                    <div className="rounded-md border p-3 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Label className="text-xs font-medium">{t('ai.mlong_stored')}</Label>
-                        <div className="flex gap-2">
-                          <Button size="sm" variant="outline" className="h-7 text-xs" disabled={memBusy} onClick={loadFacts}>{t('ai.mem_view')}</Button>
-                          <Button size="sm" variant="outline" className="h-7 text-xs text-destructive" disabled={memBusy || memFacts.length === 0} onClick={clearFacts}>{t('ai.mem_clear')}</Button>
-                        </div>
-                      </div>
-                      {memFacts.length === 0 ? (
-                        <p className="text-[11px] text-muted-foreground">{t('ai.mlong_empty')}</p>
-                      ) : (
-                        <div className="space-y-1.5">
-                          {memFacts.map((it, i) => (
-                            <div key={i} className="rounded border bg-muted/40 px-2 py-1.5 text-xs">
-                              <span className="font-mono text-[10px] text-muted-foreground mr-2">{it.scope_id}</span>{it.content}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                  <div className="flex items-center justify-between rounded-md border p-3"><Label>{t('ai.mlong_stored')}</Label><Button size="sm" variant="outline" onClick={() => setMemoryKind('fact')}>{t('ai.mem_view')}</Button></div>
                   </div>
                 )}
               </div>
@@ -877,34 +841,34 @@ export const AiPage: React.FC = () => {
                     </>} />
                   </div>
                 </div>
-                <Switch checked={tools.enabled} onCheckedChange={(v) => setTools((p) => ({ ...p, enabled: v }))} />
+                <Switch checked={tools.enabled} onCheckedChange={(v) => void autoSave({ tools: { enabled: v } }, () => setTools((p) => ({ ...p, enabled: v })))} />
               </div>
               {tools.enabled && (
                 <div className="mt-3 space-y-3">
                   <div className="space-y-2">
                     <Label className="text-xs font-medium">{t('ai.tools_enabled_list')}</Label>
                     <label className="flex items-center gap-2 text-sm">
-                      <input type="checkbox" className="accent-primary" checked={tools.roll_dice} onChange={(e) => setTools((p) => ({ ...p, roll_dice: e.target.checked }))} />
+                      <input type="checkbox" className="accent-primary" checked={tools.roll_dice} onChange={(e) => { const checked = e.target.checked; void autoSave({ tools: { roll_dice: checked } }, () => setTools((p) => ({ ...p, roll_dice: checked }))) }} />
                       {t('ai.tools_roll_dice')}
                     </label>
                     <label className="flex items-center gap-2 text-sm">
-                      <input type="checkbox" className="accent-primary" checked={tools.draw_deck} onChange={(e) => setTools((p) => ({ ...p, draw_deck: e.target.checked }))} />
+                      <input type="checkbox" className="accent-primary" checked={tools.draw_deck} onChange={(e) => { const checked = e.target.checked; void autoSave({ tools: { draw_deck: checked } }, () => setTools((p) => ({ ...p, draw_deck: checked }))) }} />
                       {t('ai.tools_draw_deck')}
                     </label>
                     <label className="flex items-center gap-2 text-sm">
-                      <input type="checkbox" className="accent-primary" checked={tools.get_attr} onChange={(e) => setTools((p) => ({ ...p, get_attr: e.target.checked }))} />
+                      <input type="checkbox" className="accent-primary" checked={tools.get_attr} onChange={(e) => { const checked = e.target.checked; void autoSave({ tools: { get_attr: checked } }, () => setTools((p) => ({ ...p, get_attr: checked }))) }} />
                       {t('ai.tools_get_attr')}
                     </label>
                     <label className="flex items-center gap-2 text-sm">
-                      <input type="checkbox" className="accent-primary" checked={tools.set_attr} onChange={(e) => setTools((p) => ({ ...p, set_attr: e.target.checked }))} />
+                      <input type="checkbox" className="accent-primary" checked={tools.set_attr} onChange={(e) => { const checked = e.target.checked; void autoSave({ tools: { set_attr: checked } }, () => setTools((p) => ({ ...p, set_attr: checked }))) }} />
                       {t('ai.tools_set_attr')}
                     </label>
                     <label className="flex items-center gap-2 text-sm">
-                      <input type="checkbox" className="accent-primary" checked={tools.run_command} onChange={(e) => setTools((p) => ({ ...p, run_command: e.target.checked }))} />
+                      <input type="checkbox" className="accent-primary" checked={tools.run_command} onChange={(e) => { const checked = e.target.checked; void autoSave({ tools: { run_command: checked } }, () => setTools((p) => ({ ...p, run_command: checked }))) }} />
                       {t('ai.tools_run_command')}
                     </label>
                     <label className="flex items-center gap-2 text-sm">
-                      <input type="checkbox" className="accent-primary" checked={tools.search_help} onChange={(e) => setTools((p) => ({ ...p, search_help: e.target.checked }))} />
+                      <input type="checkbox" className="accent-primary" checked={tools.search_help} onChange={(e) => { const checked = e.target.checked; void autoSave({ tools: { search_help: checked } }, () => setTools((p) => ({ ...p, search_help: checked }))) }} />
                       {t('ai.tools_search_help')}
                     </label>
                   </div>
@@ -934,7 +898,7 @@ export const AiPage: React.FC = () => {
                   </div>
                   <p className="text-xs text-muted-foreground mt-0.5">{t('ai.wl_desc')}</p>
                 </div>
-                <Switch checked={wl.enabled} onCheckedChange={(v) => setWl((p) => ({ ...p, enabled: v }))} />
+                <Switch checked={wl.enabled} onCheckedChange={(v) => void autoSave({ whitelist: { enabled: v } }, () => setWl((p) => ({ ...p, enabled: v })))} />
               </div>
               {wl.enabled && (
                 <div className="mt-3 space-y-2">
@@ -1006,7 +970,7 @@ export const AiPage: React.FC = () => {
                     </>} />
                   </div>
                 </div>
-                <Switch checked={vision.enabled} onCheckedChange={(v) => setVision((p) => ({ ...p, enabled: v }))} />
+                <Switch checked={vision.enabled} onCheckedChange={(v) => void autoSave({ vision: { enabled: v } }, () => setVision((p) => ({ ...p, enabled: v })))} />
               </div>
               {vision.enabled && (
                 <div className="mt-3 space-y-3">
@@ -1015,12 +979,7 @@ export const AiPage: React.FC = () => {
                     <div className="space-y-1"><Label className="text-xs">{t('ai.vision_max_images')}</Label>
                       <Input type="number" className="h-8 text-sm" value={vision.max_images} onChange={(e) => setVision((p) => ({ ...p, max_images: num(e.target.value) }))} /></div>
                   </div>
-                  <div className="flex items-center justify-between rounded-md border p-3">
-                    <div>
-                      <HelpLabel title={t('ai.vision_pass_url')} description={<p>{t('ai.vision_pass_url_desc')}</p>} labelClassName="text-sm font-medium" />
-                    </div>
-                    <Switch checked={vision.pass_url !== false} onCheckedChange={(v) => setVision((p) => ({ ...p, pass_url: v }))} />
-                  </div>
+                  <div className="space-y-1"><HelpLabel title={t('ai.vision_size_limit')} description={<p>{t('ai.vision_size_desc')}</p>} labelClassName="text-xs" /><Input type="number" min={1} max={8192} value={vision.max_image_kb} onChange={(e) => setVision((p) => ({ ...p, max_image_kb: num(e.target.value) }))} /></div>
                   <div className="space-y-1">
                     <div className="flex items-center justify-between">
                       <Label className="text-xs">{t('ai.vision_prompt')}</Label>
@@ -1051,7 +1010,7 @@ export const AiPage: React.FC = () => {
                     </>} />
                   </div>
                 </div>
-                <Switch checked={speech.enabled} onCheckedChange={(v) => setSpeech({ enabled: v })} />
+                <Switch checked={speech.enabled} onCheckedChange={(v) => void autoSave({ speech: { enabled: v } }, () => setSpeech({ enabled: v }))} />
               </div>
               {speech.enabled && (
                 <div className="mt-3 space-y-2">
@@ -1084,7 +1043,7 @@ export const AiPage: React.FC = () => {
                     </>} />
                   </div>
                 </div>
-                <Switch checked={npc.enabled} onCheckedChange={(v) => setNpc((p) => ({ ...p, enabled: v }))} />
+                <Switch checked={npc.enabled} onCheckedChange={(v) => void autoSave({ npc: { enabled: v } }, () => setNpc((p) => ({ ...p, enabled: v })))} />
               </div>
               {npc.enabled && (
                 <div className="mt-3 space-y-3">
@@ -1094,11 +1053,11 @@ export const AiPage: React.FC = () => {
                       <div className="flex items-center gap-2">
                         <Input className="h-8 text-sm max-w-[12rem]" placeholder={t('ai.npc_name')} value={n.name} onChange={(e) => patchNpc(i, { name: e.target.value })} />
                         <label className="flex items-center gap-1 text-xs whitespace-nowrap">
-                          <input type="checkbox" className="accent-primary" checked={n.enabled} onChange={(e) => patchNpc(i, { enabled: e.target.checked })} />
+                          <input type="checkbox" className="accent-primary" checked={n.enabled} onChange={(e) => { const value = e.target.checked; if (!n.name.trim()) { toast({ title: t('ai.npc_name_required'), variant: 'destructive' }); return; } void autoSave({ npc: { list: npc.list.map((x, idx) => idx === i ? { ...x, enabled: value } : x) } }, () => patchNpc(i, { enabled: value })); }} />
                           {t('ai.npc_on')}
                         </label>
                         <div className="flex items-center gap-1">
-                          <input id={`npc-mood-${n.id}`} type="checkbox" className="accent-primary" checked={n.mood_enabled} onChange={(e) => patchNpc(i, { mood_enabled: e.target.checked })} />
+                          <input id={`npc-mood-${n.id}`} type="checkbox" className="accent-primary" checked={n.mood_enabled} onChange={(e) => { const value = e.target.checked; if (!n.name.trim()) { toast({ title: t('ai.npc_name_required'), variant: 'destructive' }); return; } void autoSave({ npc: { list: npc.list.map((x, idx) => idx === i ? { ...x, mood_enabled: value } : x) } }, () => patchNpc(i, { mood_enabled: value })); }} />
                           <HelpLabel htmlFor={`npc-mood-${n.id}`} title={t('ai.npc_mood')} description={<p>{t('ai.npc_mood_tip')}</p>} labelClassName="text-xs whitespace-nowrap" />
                         </div>
                         <Button variant="ghost" size="sm" className="ml-auto h-7 w-7 p-0 text-destructive" onClick={() => delNpc(i)}><Trash2 className="h-4 w-4" /></Button>
@@ -1128,6 +1087,7 @@ export const AiPage: React.FC = () => {
       <div data-tour="ai-save" className="flex justify-end pt-2">
         <Button onClick={save} disabled={saving}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{t('common.save')}</Button>
       </div>
+      </fieldset>
     </div>
   );
 };

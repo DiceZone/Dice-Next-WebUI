@@ -30,7 +30,7 @@ interface KbEntry { id: string; title: string; content: string; tags: string[]; 
 interface KbHit { source: 'help' | 'docs' | 'custom'; id: string; title: string; url: string; text: string; coverage: number; score: number; semantic: number; }
 interface KbSearch { hits: KbHit[]; below: KbHit[]; scanned: number; elapsedMs: number; injected: string; injectedChars: number; faq: { id: string; title: string; text: string } | null; faqSimilarity: number; }
 
-const emptySettings = (): KbSettings => ({ enabled: false, sources: { help: true, docs: true, custom: true }, top_k: 3, min_score: 0.45, max_chars: 1200, faq_direct: true, faq_threshold: 0.6, semantic: false });
+const emptySettings = (): KbSettings => ({ enabled: true, sources: { help: true, docs: true, custom: true }, top_k: 3, min_score: 0.45, max_chars: 1200, faq_direct: true, faq_threshold: 0.6, semantic: false });
 const emptyEntry = (): KbEntry => ({ id: '', title: '', content: '', tags: [], questions: [], direct: false, enabled: true, updated_at: 0 });
 const sampleEntries: KbEntry[] = [
   { id: 'demo-kb-1', title: '开团时间 · 示例', content: '本群每周六晚上八点开团，请提前半小时集合并准备好人物卡。', tags: ['团务'], questions: ['几点开团', '什么时候跑团'], direct: true, enabled: true, updated_at: 1788264000 },
@@ -64,6 +64,7 @@ export const KnowledgePage: React.FC = () => {
   const [questionsText, setQuestionsText] = useState('');
   const [tagsText, setTagsText] = useState('');
   const [entryBusy, setEntryBusy] = useState(false);
+  const writeBusy = useRef(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const load = async () => {
@@ -75,6 +76,14 @@ export const KnowledgePage: React.FC = () => {
 
   const num = (v: string) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
   const patch = (p: Partial<KbSettings>) => setSettings((s) => ({ ...s, ...p }));
+
+  const autoSave = async (part: Partial<KbSettings>) => {
+    if (writeBusy.current) return;
+    writeBusy.current = true; setSaving(true);
+    try { await send('/knowledge/settings', 'PUT', part); patch(part); }
+    catch (e) { toast({ title: (e as Error).message, variant: 'destructive' }); }
+    finally { writeBusy.current = false; setSaving(false); }
+  };
 
   const saveSettings = async () => {
     setSaving(true);
@@ -177,7 +186,7 @@ export const KnowledgePage: React.FC = () => {
               </div>
               <p className="text-xs text-muted-foreground mt-0.5">{t('knowledge.enable_desc')}</p>
             </div>
-            <Switch checked={settings.enabled} onCheckedChange={(v) => patch({ enabled: v })} />
+            <Switch disabled={saving} checked={settings.enabled} onCheckedChange={(v) => void autoSave({ enabled: v })} />
           </div>
           {settings.enabled && (
             <div className="space-y-3 border-t pt-3">
@@ -186,7 +195,7 @@ export const KnowledgePage: React.FC = () => {
                 <div className="flex flex-wrap gap-x-4 gap-y-1">
                   {(['help', 'docs', 'custom'] as const).map((k) => (
                     <label key={k} className="flex items-center gap-1.5 text-xs cursor-pointer select-none">
-                      <input type="checkbox" className="accent-primary" checked={settings.sources[k]} onChange={(e) => patch({ sources: { ...settings.sources, [k]: e.target.checked } })} />
+                      <input type="checkbox" disabled={saving} className="accent-primary" checked={settings.sources[k]} onChange={(e) => void autoSave({ sources: { ...settings.sources, [k]: e.target.checked } })} />
                       {sourceLabel(k)}{status && <span className="text-muted-foreground">（{t('knowledge.count', { count: status[k] })}）</span>}
                     </label>
                   ))}
@@ -208,7 +217,7 @@ export const KnowledgePage: React.FC = () => {
                       <Input type="number" min={0.3} max={1} step={0.05} className="h-7 w-20 text-xs" value={settings.faq_threshold} onChange={(e) => patch({ faq_threshold: num(e.target.value) })} />
                     </label>
                   )}
-                  <Switch checked={settings.faq_direct} onCheckedChange={(v) => patch({ faq_direct: v })} />
+                  <Switch disabled={saving} checked={settings.faq_direct} onCheckedChange={(v) => void autoSave({ faq_direct: v })} />
                 </div>
               </div>
               <div className="flex items-center justify-between gap-3 rounded-md border p-3">
@@ -216,7 +225,7 @@ export const KnowledgePage: React.FC = () => {
                   <HelpLabel title={t('knowledge.semantic')} description={<p>{t('knowledge.semantic_desc')}</p>} labelClassName="text-sm font-medium" />
                   {status && !status.embedModel && <p className="text-[11px] text-muted-foreground mt-0.5">{t('knowledge.semantic_need_model')}</p>}
                 </div>
-                <Switch checked={settings.semantic} disabled={!!status && !status.embedModel && !settings.semantic} onCheckedChange={(v) => patch({ semantic: v })} />
+                <Switch checked={settings.semantic} disabled={saving || (!!status && !status.embedModel && !settings.semantic)} onCheckedChange={(v) => void autoSave({ semantic: v })} />
               </div>
             </div>
           )}
