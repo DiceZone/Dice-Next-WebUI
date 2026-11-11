@@ -1,77 +1,81 @@
 # Dice!Next WebUI
 
-Dice!Next 的本地管理后台前端。它与后端 API 通信，用于配置机器人连接、管理群组和用户、维护规则包与插件，以及查看跑团日志和团务数据。
+<p>
+  <b>English</b> · <a href="README.zh-Hans.md">简体中文</a> · <a href="README.zh-Hant.md">繁體中文</a> · <a href="README.ja.md">日本語</a>
+</p>
 
-## 功能范围
+The frontend of the Dice!Next local admin panel. It talks to the backend API to configure bot connections, manage groups and users, maintain rule packs and plugins, and view session logs and game data.
 
-- 仪表盘、系统设置与适配器连接管理。
-- 群组、用户、权限和模拟聊天管理。
-- 人物卡、规则包、JavaScript / Lua 插件与数据管理。
-- 跑团日志表格、团务卡片、日志导出与上传操作。
-- 简体中文、繁体中文、英文与日文界面。
+## Scope
 
-首页服务器信息下方的“常用操作”支持自定义：点击右上角调整按钮，选择最多 6 个页面入口，使用上下箭头排序，保存或恢复默认。偏好保存在当前浏览器；不会修改机器人配置，清理浏览器站点数据后恢复默认。全局搜索“常用操作”也可定位到此处。
+- Dashboard, system settings and adapter connection management.
+- Groups, users, permissions and simulated chat.
+- Character sheets, rule packs, JavaScript / Lua plugins and data management.
+- Session log tables, game cards, log export and upload actions.
+- Simplified Chinese, Traditional Chinese, English and Japanese interfaces.
 
-## 技术栈
+"Quick actions" below the server info on the home page can be customized: click the adjust button at the top right, pick up to 6 page entries, reorder them with the up and down arrows, then save or restore the defaults. The preference is saved in the current browser; it doesn't change the bot configuration, and clearing the browser's site data restores the defaults. Searching "Quick actions" in global search also takes you there.
+
+## Tech Stack
 
 - React 18
 - TypeScript
 - Vite 6
-- Tailwind CSS 与 Radix UI
+- Tailwind CSS and Radix UI
 - TanStack Router / Table
 
-## 开发
+## Development
 
-环境要求：Node.js 26.12.1 或更新的 26.x 安全版本，以及随附的 npm。
-CI 使用 `26.x` 并强制检查最新版本；构建前校验最低安全版本并记录实际版本。
+Requirements: Node.js 26.12.1 or a newer 26.x security release, with the bundled npm.
+CI uses `26.x` and enforces the latest version; the minimum secure version is checked before building and the actual version is recorded.
 
 ```powershell
 npm ci
 npm run dev
 ```
 
-开发服务器启动后会显示本地访问地址。实际 API 由 Dice!Next 后端提供；请先启动后端或在开发环境配置可访问的后端地址。
+Once the development server starts, it shows the local address. The actual API is served by the Dice!Next backend; start the backend first or configure a reachable backend address in the development environment.
 
-## 检查与构建
+## Checks and Builds
 
-独立 GitHub Actions 在 push / PR 中运行测试、类型检查、生产构建和 PWA 产物检查，仅检查前端，不编译后端、不发布或部署。
+A separate GitHub Actions workflow runs tests, type checks, the production build and PWA artifact checks on push / PR. It only checks the frontend, without compiling the backend, publishing or deploying.
 
-隔离预览 `npm run dev:preview` 不连接真实机器人。若要查看实际文案序列化结果，可编译主仓的 `tools/reply-preview.cpp`（链接 `markdown.cpp`、`markdown_md4c.cpp`、MD4C 与 nlohmann JSON），并将可执行文件绝对路径放入 `DICENEXT_UI_PREVIEW_RENDERER`。未配置时明确显示预览不可用，不用简易正则伪造平台输出。
+The isolated preview `npm run dev:preview` doesn't connect to a real bot. To see the actual text serialization results, compile `tools/reply-preview.cpp` from the main repository (linking `markdown.cpp`, `markdown_md4c.cpp`, MD4C and nlohmann JSON) and put the absolute path of the executable in `DICENEXT_UI_PREVIEW_RENDERER`. When it isn't configured, the preview clearly shows as unavailable instead of faking platform output with simple regexes.
 
 ```powershell
 npm run lint
 npm run build
 ```
 
-`npm run build` 会生成 `dist/`。该目录由主程序的打包流程带入 Windows、Linux 和 macOS 发行包，不应提交到仓库。
+`npm run build` generates `dist/`. The main program's packaging flow brings this directory into the Windows, Linux and macOS release packages; it shouldn't be committed to the repository.
 
-## 安装为应用
+## Install as an App
 
-WebUI 提供应用清单，可通过支持该功能的浏览器安装为独立窗口应用：
+The WebUI provides an app manifest, so browsers that support it can install it as a standalone window app:
 
-- Chrome / Edge：使用地址栏安装图标，或浏览器菜单中的安装应用入口；入口名称和出现时机由浏览器决定。
-- macOS Safari 17 及以上：在“文件”菜单中选择“添加到程序坞”。
-- iPhone / iPad：在浏览器分享菜单中选择“添加到主屏幕”。
+- Chrome / Edge: use the install icon in the address bar or the install app entry in the browser menu; the entry's name and when it appears are up to the browser.
+- macOS Safari 17 and later: choose "Add to Dock" in the "File" menu.
+- iPhone / iPad: choose "Add to Home Screen" in the browser's share menu.
 
-请使用 HTTPS，或本机 `http://localhost:端口` / `http://127.0.0.1:端口`。普通 HTTP 的局域网或公网 IP 不满足浏览器推荐安装的安全要求；不要为此关闭浏览器安全限制。
+Use HTTPS, or the local `http://localhost:port` / `http://127.0.0.1:port`. Plain HTTP on a LAN or public IP doesn't meet the browsers' security requirements for offering installation; don't turn off browser security restrictions for this.
 
-安装的是当前地址的管理面板，不是机器人后端。后端仍需运行，登录校验保持不变；本功能不注册 Service Worker、不增加离线/API 缓存，也不提供离线管理或后台运行机器人。服务器地址改变后需从新地址重新安装。
+What gets installed is the admin panel at the current address, not the bot backend. The backend still needs to run, and login checks stay the same; this feature doesn't register a Service Worker, add offline / API caching, or provide offline management or run the bot in the background. After the server address changes, install again from the new address.
 
-应用图标复用 `public/favicon.svg`。替换该图标后执行 `npm run icons:generate`，并提交生成的 `public/icons/` 文件。构建后可执行 `PWA_TEST_DIST=1 node --test tests/pwa.test.mjs` 检查发行资源。
+The app icon reuses `public/favicon.svg`. After replacing it, run `npm run icons:generate` and commit the generated `public/icons/` files. After building, run `PWA_TEST_DIST=1 node --test tests/pwa.test.mjs` to check the release assets.
 
-## 与其他项目的关系
+## Relationship to Other Projects
 
-浏览器回归测试固定使用仓库内的独立样例，不自动读取同级仓库，保证本地与 CI 的数据一致。
-`node tests/ui-preview.mjs` 可手动查看同一套样例；`npm run dev:preview` 则显式启用
-`--workspace`，在同级主程序与文档仓库可用时读取完整指令和文案。两种模式都不连接真实机器人，
-修改仅保留在预览进程内。
+Browser regression tests always use the standalone samples in this repository and don't read sibling repositories automatically, so local and CI data match.
+`node tests/ui-preview.mjs` shows the same samples manually; `npm run dev:preview` explicitly enables
+`--workspace` and reads the full commands and texts when the sibling main program and documentation repositories are available. Neither mode connects to a real bot,
+and changes are kept only inside the preview process.
 
-本项目与 `Dice-Next`、`Dice-Next-Doc`、`onedice-cpp-lib` 放在同一工作区中开发。后端打包时通过 `DICENEXT_WEB_ROOT` 找到本项目的 `dist/`；若未设置该变量，则默认读取同级 `Dice-Next-WebUI`。
+This project is developed in the same workspace as `Dice-Next`, `Dice-Next-Doc` and `onedice-cpp-lib`. When packaging the backend, `DICENEXT_WEB_ROOT` points to this project's `dist/`; if the variable isn't set, the sibling `Dice-Next-WebUI` is used by default.
 
-## 反馈
+## Feedback
 
-项目仍在内部开发和测试阶段。问题、建议和测试反馈请通过 QQ 群 `933145116` 提交。
+The project is still in internal development and testing. Please send problems, suggestions and test feedback through QQ group `933145116`.
 
-## 开源许可证
+## License
 
-本项目以 **GNU Affero General Public License v3.0 or later（AGPL-3.0-or-later）** 发布，与 [Dice-Next](https://github.com/DiceZone/Dice-Next) 主仓库保持一致。完整条款见 [LICENSE](LICENSE)。
+This project is released under the **GNU Affero General Public License v3.0 or later (AGPL-3.0-or-later)**, the same as the [Dice-Next](https://github.com/DiceZone/Dice-Next) main repository. See [LICENSE](LICENSE) for the full terms.
