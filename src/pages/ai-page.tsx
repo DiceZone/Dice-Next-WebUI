@@ -1,3 +1,4 @@
+import { AiModelOptions, ThinkingSelect, type ModelTuning, type ThinkingMode } from '@/components/ai-model-options';
 import { AiMemoryDialog } from '@/components/ai-memory-dialog';
 import { useTourState } from '@/components/onboarding/tour-data';
 import { tourSamples } from '@/lib/tour-samples';
@@ -27,7 +28,7 @@ import { Sparkles, Plus, Trash2, Loader2, AlertTriangle, Wand2, Languages, Messa
 
 interface AiProvider { id: string; name: string; base_url: string; api_key: string; enabled: boolean; }
 type ModelKind = 'chat' | 'embedding';
-interface AiModel {
+interface AiModel extends ModelTuning {
   id: string; name: string; provider_id: string; model: string; kind: ModelKind; vision: boolean;
   enabled: boolean; price_in: number; price_out: number;
   token_limit: number; cost_limit: number; used_tokens: number; used_cost: number;
@@ -75,8 +76,8 @@ const emptyMemory = (): Memory => ({
 });
 interface Tools { enabled: boolean; roll_dice: boolean; draw_deck: boolean; get_attr: boolean; set_attr: boolean; run_command: boolean; search_help: boolean; max_rounds: number; }
 const emptyTools = (): Tools => ({ enabled: false, roll_dice: true, draw_deck: true, get_attr: true, set_attr: false, run_command: true, search_help: true, max_rounds: 3 });
-interface Vision { enabled: boolean; prompt: string; max_images: number; max_image_kb: number; pass_url: boolean; }
-const emptyVision = (): Vision => ({ enabled: false, prompt: '', max_images: 2, max_image_kb: 1024, pass_url: false });
+interface Vision { max_tokens: number; timeout_sec: number; thinking: ThinkingMode; enabled: boolean; prompt: string; max_images: number; max_image_kb: number; pass_url: boolean; }
+const emptyVision = (): Vision => ({ max_tokens: 2048, timeout_sec: 60, thinking: 'auto', enabled: false, prompt: '', max_images: 2, max_image_kb: 1024, pass_url: false });
 interface WlEntry { platform: string; id: string; is_group: boolean; name?: string; }
 interface Whitelist { enabled: boolean; list: WlEntry[]; }
 const emptyWhitelist = (): Whitelist => ({ enabled: false, list: [] });
@@ -320,7 +321,7 @@ export const AiPage: React.FC = () => {
       <Dialog open={!!modelDraft} onOpenChange={(open) => { if (!open) setModelDraft(null); }}>
         <DialogContent layout="editor" className="max-w-2xl"><DialogHeader><DialogTitle>{t(models.some((m) => m.id === modelDraft?.id) ? 'ai.edit_model' : 'ai.add_model')}</DialogTitle></DialogHeader>
           {modelDraft && <><DialogBody className="space-y-4 pr-2">
-            <div className="space-y-1"><Label>{t('ai.preset')}</Label><Select value="" onValueChange={(id) => { const preset = modelPresets.find((p) => p.model === id); if (preset) setModelDraft({ ...modelDraft, name: preset.name, model: preset.model, kind: preset.kind, vision: preset.vision, price_in: preset.price_in, price_out: preset.price_out }); }}><SelectTrigger><SelectValue placeholder={t('ai.preset_pick')} /></SelectTrigger><SelectContent>{modelPresets.filter((p) => p.provider === providerPresetId(providers.find((x) => x.id === modelDraft.provider_id)?.base_url || '')).map((p) => <SelectItem key={p.model} value={p.model}>{p.name}</SelectItem>)}</SelectContent></Select></div>
+            <div className="space-y-1"><Label>{t('ai.preset')}</Label><Select value="" onValueChange={(id) => { const preset = modelPresets.find((p) => p.model === id); if (preset) setModelDraft({ ...modelDraft, name: preset.name, model: preset.model, kind: preset.kind, vision: preset.vision, price_in: preset.price_in, price_cached_in: preset.price_in, price_out: preset.price_out }); }}><SelectTrigger><SelectValue placeholder={t('ai.preset_pick')} /></SelectTrigger><SelectContent>{modelPresets.filter((p) => p.provider === providerPresetId(providers.find((x) => x.id === modelDraft.provider_id)?.base_url || '')).map((p) => <SelectItem key={p.model} value={p.model}>{p.name}</SelectItem>)}</SelectContent></Select></div>
             <p className="text-xs text-muted-foreground">{t('ai.preset_pricing_note')}</p>
             <div className="space-y-1"><Label>{t('ai.name_ph')}</Label><Input value={modelDraft.name} onChange={(e) => setModelDraft({ ...modelDraft, name: e.target.value })} /></div>
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -362,6 +363,7 @@ export const AiPage: React.FC = () => {
                       <div className="space-y-1"><Label className="text-xs">{t('ai.cost_limit')}</Label>
                         <Input type="number" className="h-8 text-sm" value={modelDraft.cost_limit} onChange={(e) => setModelDraft({ ...modelDraft, cost_limit: num(e.target.value) })} /></div>
                     </div>
+            <AiModelOptions value={modelDraft} onChange={(patch) => setModelDraft({ ...modelDraft, ...patch })} />
           </DialogBody><DialogFooter><Button variant="outline" onClick={() => setModelDraft(null)}>{t('common.cancel')}</Button><Button disabled={!modelDraft.provider_id || !modelDraft.model.trim()} onClick={() => {
             setModels((ms) => ms.some((m) => m.id === modelDraft.id) ? ms.map((m) => m.id === modelDraft.id ? modelDraft : m) : [...ms, modelDraft]);
             setUsages((us) => Object.fromEntries(Object.entries(us).map(([k, u]) => [k, { ...u, models: u.models.filter((e) => e.id !== modelDraft.id || usageFits(USAGES.find((x) => x.key === k)!, modelDraft)) }])));
@@ -978,6 +980,11 @@ export const AiPage: React.FC = () => {
                     <div className="space-y-1 sm:col-span-2">{usageHint('vision')}</div>
                     <div className="space-y-1"><Label className="text-xs">{t('ai.vision_max_images')}</Label>
                       <Input type="number" className="h-8 text-sm" value={vision.max_images} onChange={(e) => setVision((p) => ({ ...p, max_images: num(e.target.value) }))} /></div>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-1"><HelpLabel title={t('ai.vision_thinking')} description={<p>{t('ai.vision_thinking_help')}</p>} /><ThinkingSelect label={t('ai.vision_thinking')} value={vision.thinking} onChange={(thinking) => void autoSave({ vision: { thinking } }, () => setVision((v) => ({ ...v, thinking })))} /></div>
+                    <div className="space-y-1"><HelpLabel title={t('ai.vision_max_tokens')} description={<p>{t('ai.vision_max_tokens_help')}</p>} /><Input aria-label={t('ai.vision_max_tokens')} type="number" min={1} max={393216} value={vision.max_tokens} onChange={(e) => setVision((v) => ({ ...v, max_tokens: Math.max(1, Math.min(393216, num(e.target.value))) }))} /></div>
+                    <div className="space-y-1"><Label>{t('ai.vision_timeout')}</Label><Input aria-label={t('ai.vision_timeout')} type="number" min={5} max={300} value={vision.timeout_sec} onChange={(e) => setVision((v) => ({ ...v, timeout_sec: Math.max(5, Math.min(300, num(e.target.value))) }))} /></div>
                   </div>
                   <div className="space-y-1"><HelpLabel title={t('ai.vision_size_limit')} description={<p>{t('ai.vision_size_desc')}</p>} labelClassName="text-xs" /><Input type="number" min={1} max={8192} value={vision.max_image_kb} onChange={(e) => setVision((p) => ({ ...p, max_image_kb: num(e.target.value) }))} /></div>
                   <div className="space-y-1">

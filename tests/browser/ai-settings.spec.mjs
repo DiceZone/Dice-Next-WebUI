@@ -60,6 +60,57 @@ test('feature switches save only the changed field and roll back on failure', as
   await expect(toggle).toBeChecked();
 });
 
+test('model thinking and off-peak prices survive save; vision has its own budget', async ({ page }) => {
+  const writes = [];
+  const data = { enabled: true, providers: [{ id: 'p1', name: 'DeepSeek', base_url: 'https://api.deepseek.com/v1', enabled: true }],
+    models: [{ id: 'm1', name: 'DeepSeek Flash', provider_id: 'p1', model: 'deepseek-flash', kind: 'chat', vision: true, enabled: true, price_in: 0.3, price_out: 1.2, token_limit: 0, cost_limit: 0, used_tokens: 0, used_cost: 0 }],
+    vision: { enabled: true } };
+  await page.route('**/api/system/ai', route => {
+    if (route.request().method() === 'PUT') {
+      const patch = route.request().postDataJSON(); writes.push(patch);
+      if (patch.models) data.models = patch.models;
+      if (patch.vision) data.vision = { ...data.vision, ...patch.vision };
+    }
+    return route.fulfill({ json: { code: 0, data } });
+  });
+  await page.goto('/#/ai?focus=ai-models');
+  // The model list is the second tab on wide screens and a select on mobile.
+  const tabs = page.getByRole('tab', { name: '模型', exact: true });
+  if (test.info().project.name !== 'mobile') await tabs.click();
+  else { await page.getByRole('combobox', { name: '模型列表', exact: true }).click(); await page.getByRole('option', { name: '模型', exact: true }).click(); }
+  await page.getByRole('button', { name: '编辑 DeepSeek Flash', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByRole('combobox', { name: '思考模式', exact: true }).click();
+  await page.getByRole('option', { name: '关闭', exact: true }).click();
+  await dialog.getByRole('spinbutton', { name: '单次输出额度（token，0 跟随用途）', exact: true }).fill('8192');
+  await dialog.getByRole('switch', { name: '启用谷时价格', exact: true }).click();
+  await dialog.getByRole('combobox', { name: '谷时开始', exact: true }).first().click();
+  await page.getByRole('option', { name: '23', exact: true }).click();
+  await dialog.getByRole('combobox', { name: '谷时结束', exact: true }).first().click();
+  await page.getByRole('option', { name: '07', exact: true }).click();
+  await dialog.getByLabel('谷时输入单价（USD / 百万 token）', { exact: true }).fill('0.15');
+  await dialog.screenshot({ path: 'test-results/ai-model-options-' + test.info().project.name + '.png' });
+  await dialog.getByRole('button', { name: '确定', exact: true }).click();
+  await page.getByRole('button', { name: '保存', exact: true }).click();
+  await expect.poll(() => writes.some((p) => p.models?.[0]?.thinking === 'disabled')).toBe(true);
+  expect(data.models[0].max_tokens).toBe(8192);
+  expect(data.models[0].off_peak).toMatchObject({ enabled: true, start: '23:00', end: '07:00', price_in: 0.15, utc_offset_minutes: 480 });
+  await page.reload();
+  await page.goto('/#/ai/chat');
+  const vision = page.locator('[data-setting-anchor="ai-vision"]');
+  await expect(vision.getByLabel('识图输出额度（token）', { exact: true })).toHaveValue('2048');
+  await vision.getByLabel('识图输出额度（token）', { exact: true }).fill('4096');
+  await vision.getByLabel('识图超时（秒）', { exact: true }).fill('120');
+  await vision.getByRole('combobox', { name: '识图思考模式', exact: true }).click();
+  await page.getByRole('option', { name: '开启', exact: true }).click();
+  await expect.poll(() => data.vision.thinking).toBe('enabled');
+  await page.getByRole('button', { name: '保存', exact: true }).click();
+  await expect.poll(() => data.vision.max_tokens).toBe(4096);
+  expect(data.vision.timeout_sec).toBe(120);
+  await page.reload();
+  await expect(vision.getByLabel('识图输出额度（token）', { exact: true })).toHaveValue('4096');
+});
+
 test('memory graph filters groups and edits or deletes the selected record only', async ({ page }, info) => {
   const writes = [];
   await page.route('**/api/system/ai', route => route.fulfill({ json: { code: 0, data: { enabled: true, memory: { short: { enabled: true } } } } }));
