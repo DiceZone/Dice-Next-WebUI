@@ -476,12 +476,12 @@ test('adapter cards flow into multiple columns while preserving details and edit
   }
 });
 
-test('first mobile visit never opens navigation over onboarding or persists mobile state', async ({ browser }) => {
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+test('first mobile visit never opens navigation over onboarding or persists mobile state', async ({ browser, baseURL }) => {
+  const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 } });
   const page = await context.newPage();
   try {
     await page.addInitScript(() => localStorage.setItem('dice-lang', 'zh-Hans'));
-    await page.goto('http://127.0.0.1:43197/#/notice-settings');
+    await page.goto('/#/notice-settings');
     await page.getByRole('button', { name: /我用过 DiceNext/ }).click();
     await expect(page.locator('.v2-mobile-menu')).toHaveCount(0);
     await page.locator('#mobile-navigation-trigger').click();

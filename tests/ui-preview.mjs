@@ -207,12 +207,12 @@ const listDecks = () => [...deckFiles].map(([filename, content], index) => {
   return { id: index + 1, filename, title: data._title?.[0] || filename, author: data._author?.[0], version: data._version?.[0], date: data._date?.[0], description: data._brief?.[0], entries: keys.filter((key) => !key.startsWith('_')), hidden_entries: keys.filter((key) => key.startsWith('_')) };
 });
 
-export async function startUiPreview(port = Number(process.env.DICENEXT_UI_PREVIEW_PORT || 5173)) {
+export async function startUiPreview(port = Number(process.env.DICENEXT_UI_PREVIEW_PORT || 5173), { strictPort = true } = {}) {
 const mcpPreview = createMcpPreview();
 const server = await createServer({
   configFile: false,
   resolve: { alias: { '@': fileURLToPath(new URL('../src', import.meta.url)) } },
-  server: { host: '127.0.0.1', port, strictPort: true },
+  server: { host: '127.0.0.1', port, strictPort },
   plugins: [react(), tailwindcss(), {
     name: 'isolated-ui-preview',
     transformIndexHtml() {
