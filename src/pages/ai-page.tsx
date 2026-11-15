@@ -107,6 +107,18 @@ function sectionFromHash(): 'models' | 'polish' | 'translate' | 'chat' | 'npc' {
   return 'models';
 }
 
+function KeywordInput({ value, placeholder, onChange, className }: {
+  value: string[]; placeholder: string; onChange: (keywords: string[]) => void; className: string;
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+  return <Input className={className} placeholder={placeholder} value={draft ?? value.join(', ')}
+    onChange={(event) => {
+      const text = event.currentTarget.value;
+      setDraft(text);
+      onChange(text.split(/[,，]/).map((item) => item.trim()).filter(Boolean));
+    }} onBlur={() => setDraft(null)} />;
+}
+
 export const AiPage: React.FC = () => {
   const { t } = useTranslation();
   const toast = useToast();
@@ -627,8 +639,8 @@ export const AiPage: React.FC = () => {
                     <div key={i} className="flex items-center gap-2">
                       <Input className="h-8 text-sm w-32" value={l.name} placeholder={t('ai.trans_lang_name')}
                         onChange={(e) => setTrans((p) => ({ ...p, langs: p.langs.map((x, idx) => idx === i ? { ...x, name: e.target.value } : x) }))} />
-                      <Input className="h-8 text-sm flex-1" value={l.keywords.join(', ')} placeholder={t('ai.trans_lang_kw')}
-                        onChange={(e) => setTrans((p) => ({ ...p, langs: p.langs.map((x, idx) => idx === i ? { ...x, keywords: e.target.value.split(/[,，]/).map((s) => s.trim()).filter(Boolean) } : x) }))} />
+                      <KeywordInput className="h-8 text-sm flex-1" value={l.keywords} placeholder={t('ai.trans_lang_kw')}
+                        onChange={(keywords) => setTrans((p) => ({ ...p, langs: p.langs.map((x, idx) => idx === i ? { ...x, keywords } : x) }))} />
                       <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive shrink-0" onClick={() => setTrans((p) => ({ ...p, langs: p.langs.filter((_, idx) => idx !== i) }))}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -685,8 +697,8 @@ export const AiPage: React.FC = () => {
                       {t('ai.chat_at_bot')}
                     </label>
                     <div className="space-y-1"><Label className="text-xs">{t('ai.chat_keywords')}</Label>
-                      <Input className="h-8 text-sm" value={chat.keywords.join(', ')} placeholder={t('ai.chat_keywords_ph')}
-                        onChange={(e) => setChat((p) => ({ ...p, keywords: e.target.value.split(/[,，]/).map((s) => s.trim()).filter(Boolean) }))} /></div>
+                      <KeywordInput className="h-8 text-sm" value={chat.keywords} placeholder={t('ai.chat_keywords_ph')}
+                        onChange={(keywords) => setChat((p) => ({ ...p, keywords }))} /></div>
                     <div className="space-y-1"><Label className="text-xs">{t('ai.chat_standby')}</Label>
                       <Input type="number" className="h-8 text-sm w-28" value={chat.standby_prob} onChange={(e) => setChat((p) => ({ ...p, standby_prob: num(e.target.value) }))} /></div>
                     <div className="flex items-center gap-1.5">
@@ -1071,7 +1083,7 @@ export const AiPage: React.FC = () => {
                       </div>
                       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                         <div className="space-y-1"><Label className="text-xs">{t('ai.npc_triggers')}</Label>
-                          <Input className="h-8 text-sm" placeholder={t('ai.npc_triggers_ph')} value={n.triggers.join(', ')} onChange={(e) => patchNpc(i, { triggers: e.target.value.split(/[,，]/).map((s) => s.trim()).filter(Boolean) })} /></div>
+                          <KeywordInput className="h-8 text-sm" placeholder={t('ai.npc_triggers_ph')} value={n.triggers} onChange={(triggers) => patchNpc(i, { triggers })} /></div>
                         <div className="space-y-1"><Label className="text-xs">{t('ai.npc_model')}</Label>{modelSelect(n.model_id, (v) => patchNpc(i, { model_id: v }))}</div>
                       </div>
                       <div className="space-y-1"><Label className="text-xs">{t('ai.npc_group')}</Label>

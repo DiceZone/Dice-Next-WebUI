@@ -8,6 +8,31 @@ test.beforeEach(async ({ page }, info) => {
   }, info.project.name === 'dark' ? 'dark' : 'light');
 });
 
+for (const [section, placeholder, keywords] of [
+  ['chat', '如：骰娘, 在吗, 讲个笑话', (body) => body.chat.keywords],
+  ['translate', '.lang 切换关键词，逗号分隔（如 de, german, 德语）', (body) => body.translate.langs[0].keywords],
+  ['npc', '如 店家, 老板', (body) => body.npc.list[0].triggers],
+]) {
+  test(`AI ${section} keywords retain typed separators and save individual items`, async ({ page }) => {
+    let written;
+    const data = { enabled: true, chat: { enabled: true }, translate: { enabled: true, langs: [{ name: 'test', keywords: [] }] },
+      npc: { enabled: true, list: [{ id: 'n1', name: 'test', triggers: [] }] } };
+    await page.route('**/api/system/ai', route => {
+      if (route.request().method() === 'PUT') written = route.request().postDataJSON();
+      return route.fulfill({ json: { code: 0, data } });
+    });
+    await page.goto('/#/ai/' + section);
+    const input = page.getByPlaceholder(placeholder, { exact: true });
+    await input.fill('alpha'); await input.press('End'); await input.press(',');
+    await expect(input).toHaveValue('alpha,');
+    await page.keyboard.insertText('在吗'); await page.keyboard.insertText('，');
+    await expect(input).toHaveValue('alpha,在吗，');
+    await page.keyboard.insertText(' third ');
+    await page.getByRole('button', { name: '保存', exact: true }).click();
+    await expect.poll(() => written && keywords(written)).toEqual(['alpha', '在吗', 'third']);
+  });
+}
+
 test('provider and model presets use dialogs and compact entries', async ({ page }, info) => {
   const tab = async (name) => {
     if (info.project.name === 'mobile') {
