@@ -1,3 +1,6 @@
+import { useFormLeaveGuard } from '@/hooks/use-form-leave-guard';
+import { navigatePanel } from '@/lib/panel-navigation';
+import { useLocation } from '@tanstack/react-router';
 import { AiModelOptions, ThinkingSelect, type ModelTuning, type ThinkingMode } from '@/components/ai-model-options';
 import { AiMemoryDialog } from '@/components/ai-memory-dialog';
 import { useTourState } from '@/components/onboarding/tour-data';
@@ -98,13 +101,23 @@ async function jget(path: string) { const r = await fetch('/api' + path); const 
 async function jput(path: string, body: unknown) { const r = await fetch('/api' + path, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); const j = await r.json(); if (j.code !== 0) throw new Error(j.message); return j.data; }
 async function jpost(path: string, body: unknown) { const r = await fetch('/api' + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); const j = await r.json(); if (j.code !== 0) throw new Error(j.message); return j.data; }
 
-function sectionFromHash(): 'models' | 'polish' | 'translate' | 'chat' | 'npc' {
-  const h = window.location.hash;
+function aiSection(h: string): 'models' | 'polish' | 'translate' | 'chat' | 'npc' {
   if (h.includes('/ai/polish')) return 'polish';
   if (h.includes('/ai/translate')) return 'translate';
   if (h.includes('/ai/npc')) return 'npc';
   if (h.includes('/ai/chat')) return 'chat';
   return 'models';
+}
+
+// The API merges nested objects but replaces arrays such as the NPC list.
+function mergeSettings(previous: Record<string, unknown>, patch: Record<string, unknown>): Record<string, unknown> {
+  const merged = { ...previous };
+  for (const [key, value] of Object.entries(patch)) {
+    merged[key] = value && typeof value === 'object' && !Array.isArray(value)
+      ? mergeSettings((previous[key] ?? {}) as Record<string, unknown>, value as Record<string, unknown>)
+      : value;
+  }
+  return merged;
 }
 
 function KeywordInput({ value, placeholder, onChange, className }: {
@@ -122,7 +135,7 @@ function KeywordInput({ value, placeholder, onChange, className }: {
 export const AiPage: React.FC = () => {
   const { t } = useTranslation();
   const toast = useToast();
-  const [section, setSection] = useState<'models' | 'polish' | 'translate' | 'chat' | 'npc'>(sectionFromHash());
+  const section = aiSection(useLocation().pathname);
   const [enabled, setEnabled] = useTourState(false, true);
   const [providers, setProviders] = useTourState<AiProvider[]>([], tourSamples.aiProviders);
   const [models, setModels] = useTourState<AiModel[]>([], tourSamples.models);
@@ -147,10 +160,27 @@ export const AiPage: React.FC = () => {
   const [providerDraft, setProviderDraft] = useState<AiProvider | null>(null);
   const [modelDraft, setModelDraft] = useState<AiModel | null>(null);
   const [advancedUsages, setAdvancedUsages] = useState(false);
-  const autoSave = async (body: unknown, apply: () => void) => {
+  const [saved, setSaved] = useState<Record<string, unknown> | null>(null);
+  const body: Record<string, unknown> = section === 'models' ? { enabled, providers, models, usages, params }
+        : section === 'polish' ? { polish } : section === 'translate' ? { translate: trans }
+        : section === 'npc' ? { npc } : { chat, memory, tools, vision, speech, whitelist: wl };
+  const dirty = saved !== null && Object.entries(body).some(([key, value]) => JSON.stringify(value) !== JSON.stringify(saved[key]));
+  const initialEditor = useRef('');
+  const dialogDirty = !!(providerDraft || modelDraft) && JSON.stringify(providerDraft || modelDraft) !== initialEditor.current;
+  const guard = useFormLeaveGuard(dirty || dialogDirty, saving, () => {
+    if (saved) applyData(saved);
+    setProviderDraft(null); setModelDraft(null);
+  });
+  const openProvider = (draft: AiProvider) => { initialEditor.current = JSON.stringify(draft); setProviderDraft(draft); };
+  const openModel = (draft: AiModel) => { initialEditor.current = JSON.stringify(draft); setModelDraft(draft); };
+  const closeEditor = async () => {
+    if (dialogDirty && !await guard.confirmDiscard()) return;
+    setProviderDraft(null); setModelDraft(null);
+  };
+  const autoSave = async (body: Record<string, unknown>, apply: () => void) => {
     if (writeBusy.current) return;
     writeBusy.current = true; setSaving(true);
-    try { await jput('/system/ai', body); apply(); }
+    try { await jput('/system/ai', body); setSaved(previous => mergeSettings(previous ?? {}, body)); apply(); }
     catch (e) { toast({ title: (e as Error).message, variant: 'destructive' }); }
     finally { writeBusy.current = false; setSaving(false); }
   };
@@ -172,30 +202,46 @@ export const AiPage: React.FC = () => {
     return () => window.removeEventListener('hashchange', syncTab);
   }, []);
 
-  useEffect(() => {
-    const onHash = () => setSection(sectionFromHash());
-    window.addEventListener('hashchange', onHash);
-    return () => window.removeEventListener('hashchange', onHash);
-  }, []);
-
   const applyData = (d: { enabled?: boolean; providers?: AiProvider[]; models?: AiModel[]; usages?: Partial<Usages>; speech?: Partial<Speech>; params?: Partial<Params>; polish?: Partial<Polish>; translate?: Partial<Translate>; chat?: Partial<Chat>; memory?: { short?: Partial<MemoryShort>; long?: Partial<MemoryLong> }; tools?: Partial<Tools>; vision?: Partial<Vision>; npc?: Partial<NpcConf>; whitelist?: Partial<Whitelist>; defaults?: { polish_text: string; polish_rp: string; translate: string; chat: string; summary: string; extract: string; vision: string } }) => {
-    setEnabled(!!d.enabled);
-    setProviders((d.providers || []).map((p: AiProvider) => ({ ...emptyProvider(), ...p })));
-    setModels((d.models || []).map((m: AiModel) => ({ ...emptyModel(), ...m })));
-    setUsages(Object.fromEntries(USAGES.map((u) => [u.key, { ...emptyUsages()[u.key], ...(d.usages?.[u.key] || {}) }])));
-    setSpeech({ enabled: !!d.speech?.enabled });
-    setParams({ ...emptyParams(), ...(d.params || {}) });
-    setPolish({ ...emptyPolish(), ...(d.polish || {}), cov: { ...emptyCov(true, false), ...(d.polish?.cov || {}) } });
-    setTrans({ ...emptyTranslate(), ...(d.translate || {}), cov: { ...emptyCov(true, true), ...(d.translate?.cov || {}) } });
-    setChat({ ...emptyChat(), ...(d.chat || {}) });
-    setMemory({ short: { ...emptyMemory().short, ...(d.memory?.short || {}) }, long: { ...emptyMemory().long, ...(d.memory?.long || {}) } });
-    setTools({ ...emptyTools(), ...(d.tools || {}) });
-    setVision({ ...emptyVision(), ...(d.vision || {}) });
-    setNpc({ enabled: !!d.npc?.enabled, list: (d.npc?.list || []).map((n) => ({ ...emptyNpc(), ...n })) });
-    setWl({ enabled: !!d.whitelist?.enabled, list: d.whitelist?.list || [] });
+    const loaded = {
+      enabled: !!d.enabled,
+      providers: (d.providers || []).map((p: AiProvider) => ({ ...emptyProvider(), ...p })),
+      models: (d.models || []).map((m: AiModel) => ({ ...emptyModel(), ...m })),
+      usages: Object.fromEntries(USAGES.map((u) => [u.key, { ...emptyUsages()[u.key], ...(d.usages?.[u.key] || {}) }])),
+      speech: { enabled: !!d.speech?.enabled },
+      params: { ...emptyParams(), ...(d.params || {}) },
+      polish: { ...emptyPolish(), ...(d.polish || {}), cov: { ...emptyCov(true, false), ...(d.polish?.cov || {}) } },
+      translate: { ...emptyTranslate(), ...(d.translate || {}), cov: { ...emptyCov(true, true), ...(d.translate?.cov || {}) } },
+      chat: { ...emptyChat(), ...(d.chat || {}) },
+      memory: { short: { ...emptyMemory().short, ...(d.memory?.short || {}) }, long: { ...emptyMemory().long, ...(d.memory?.long || {}) } },
+      tools: { ...emptyTools(), ...(d.tools || {}) },
+      vision: { ...emptyVision(), ...(d.vision || {}) },
+      npc: { enabled: !!d.npc?.enabled, list: (d.npc?.list || []).map((n) => ({ ...emptyNpc(), ...n })) },
+      whitelist: { enabled: !!d.whitelist?.enabled, list: d.whitelist?.list || [] },
+    };
+    setSaved(loaded);
+    setEnabled(loaded.enabled);
+    setProviders(loaded.providers);
+    setModels(loaded.models);
+    setUsages(loaded.usages);
+    setSpeech(loaded.speech);
+    setParams(loaded.params);
+    setPolish(loaded.polish);
+    setTrans(loaded.translate);
+    setChat(loaded.chat);
+    setMemory(loaded.memory);
+    setTools(loaded.tools);
+    setVision(loaded.vision);
+    setNpc(loaded.npc);
+    setWl(loaded.whitelist);
     if (d.defaults) setDefaults(d.defaults);
   };
-  useEffect(() => { (async () => { try { applyData(await jget('/system/ai')); } catch { /* ignore */ } })(); }, []);
+  useEffect(() => {
+    let active = true;
+    void jget('/system/ai').then(data => { if (active) applyData(data); })
+      .catch(error => { if (active) toast({ title: String(error), variant: 'destructive' }); });
+    return () => { active = false; };
+  }, []);
   // 白名单选择器数据源（首次展开时懒加载群/玩家列表）。
   useEffect(() => {
     if (!wlPicking || pickGroups.length || pickPlayers.length) return;
@@ -211,14 +257,14 @@ export const AiPage: React.FC = () => {
   const delNpc = (i: number) => setNpc((c) => ({ ...c, list: c.list.filter((_, idx) => idx !== i) }));
 
   const patch = (i: number, p: Partial<AiModel>) => setModels((ms) => ms.map((m, idx) => (idx === i ? { ...m, ...p } : m)));
-  const addModel = () => setModelDraft(emptyModel(providers[0]?.id || ''));
+  const addModel = () => openModel(emptyModel(providers[0]?.id || ''));
   const delModel = (i: number) => {
     const id = models[i]?.id;
     setModels((ms) => ms.filter((_, idx) => idx !== i));
     setUsages((us) => Object.fromEntries(Object.entries(us).map(([k, u]) => [k, { ...u, models: u.models.filter((e) => e.id !== id) }])));
   };
   const patchProvider = (i: number, p: Partial<AiProvider>) => setProviders((ps) => ps.map((x, idx) => (idx === i ? { ...x, ...p } : x)));
-  const addProvider = () => setProviderDraft(emptyProvider());
+  const addProvider = () => openProvider(emptyProvider());
   const delProvider = (i: number) => {
     const id = providers[i]?.id;
     const used = models.filter((m) => m.provider_id === id).length;
@@ -250,7 +296,7 @@ export const AiPage: React.FC = () => {
         <Route className="h-3.5 w-3.5 shrink-0" />
         <span>{t('ai.usage_hint', { usage: t('ai.usage_' + key) })}</span>
         <span className="text-foreground">{list.length ? list.map((e) => modelLabel(e.id)).join(t('ai.usage_list_sep')) : t('ai.usage_unassigned_' + (USAGES.find((u) => u.key === key)?.fallback === 'none' ? 'none' : 'fallback'))}</span>
-        <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => { window.location.hash = '#/ai?focus=ai-usage-' + key; setModelTab('usages'); }}>{t('ai.usage_goto')}</Button>
+        <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => navigatePanel('/ai?focus=ai-usage-' + key)}>{t('ai.usage_goto')}</Button>
       </div>
     );
   };
@@ -260,10 +306,8 @@ export const AiPage: React.FC = () => {
     if (writeBusy.current) return;
     writeBusy.current = true; setSaving(true);
     try {
-      const body = section === 'models' ? { enabled, providers, models, usages, params }
-        : section === 'polish' ? { polish } : section === 'translate' ? { translate: trans }
-        : section === 'npc' ? { npc } : { chat, memory, tools, vision, speech, whitelist: wl };
       await jput('/system/ai', body);
+      setSaved(previous => ({ ...previous, ...body }));
       toast({ title: t('common.save_success') });
     }
     catch (e) { toast({ title: (e as Error).message, variant: 'destructive' }); }
@@ -315,7 +359,7 @@ export const AiPage: React.FC = () => {
 
 
       <AiMemoryDialog kind={memoryKind} onClose={() => setMemoryKind(null)} />
-      <Dialog open={!!providerDraft} onOpenChange={(open) => { if (!open) setProviderDraft(null); }}>
+      <Dialog open={!!providerDraft} onOpenChange={(open) => { if (!open) void closeEditor(); }}>
         <DialogContent><DialogHeader><DialogTitle>{t(providers.some((p) => p.id === providerDraft?.id) ? 'ai.edit_provider' : 'ai.add_provider')}</DialogTitle></DialogHeader>
           {providerDraft && <div className="space-y-4">
             <Label>{t('ai.preset')}</Label><Select value="" onValueChange={(id) => { const preset = providerPresets.find((p) => p.id === id); if (preset) setProviderDraft({ ...providerDraft, name: preset.name, base_url: preset.base_url, api_key: '' }); }}><SelectTrigger><SelectValue placeholder={t('ai.preset_pick')} /></SelectTrigger><SelectContent>{providerPresets.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent></Select>
@@ -326,11 +370,11 @@ export const AiPage: React.FC = () => {
                     <div className="space-y-1"><Label className="text-xs">{t('ai.api_key')}</Label>
                       <Input type="password" className="h-8 text-sm" value={providerDraft.api_key} onChange={(e) => setProviderDraft({ ...providerDraft, api_key: e.target.value })} placeholder={t('ai.api_key_ph')} /></div>
                   </div>
-            <DialogFooter><Button variant="outline" onClick={() => setProviderDraft(null)}>{t('common.cancel')}</Button><Button disabled={!providerDraft.name.trim() || !/^https?:\/\//.test(providerDraft.base_url)} onClick={() => { setProviders((ps) => ps.some((p) => p.id === providerDraft.id) ? ps.map((p) => p.id === providerDraft.id ? providerDraft : p) : [...ps, providerDraft]); setProviderDraft(null); }}>{t('common.ok')}</Button></DialogFooter>
+            <DialogFooter><Button variant="outline" onClick={() => void closeEditor()}>{t('common.cancel')}</Button><Button disabled={!providerDraft.name.trim() || !/^https?:\/\//.test(providerDraft.base_url)} onClick={() => { setProviders((ps) => ps.some((p) => p.id === providerDraft.id) ? ps.map((p) => p.id === providerDraft.id ? providerDraft : p) : [...ps, providerDraft]); setProviderDraft(null); }}>{t('common.ok')}</Button></DialogFooter>
           </div>}
         </DialogContent>
       </Dialog>
-      <Dialog open={!!modelDraft} onOpenChange={(open) => { if (!open) setModelDraft(null); }}>
+      <Dialog open={!!modelDraft} onOpenChange={(open) => { if (!open) void closeEditor(); }}>
         <DialogContent layout="editor" className="max-w-2xl"><DialogHeader><DialogTitle>{t(models.some((m) => m.id === modelDraft?.id) ? 'ai.edit_model' : 'ai.add_model')}</DialogTitle></DialogHeader>
           {modelDraft && <><DialogBody className="space-y-4 pr-2">
             <div className="space-y-1"><Label>{t('ai.preset')}</Label><Select value="" onValueChange={(id) => { const preset = modelPresets.find((p) => p.model === id); if (preset) setModelDraft({ ...modelDraft, name: preset.name, model: preset.model, kind: preset.kind, vision: preset.vision, price_in: preset.price_in, price_cached_in: preset.price_in, price_out: preset.price_out }); }}><SelectTrigger><SelectValue placeholder={t('ai.preset_pick')} /></SelectTrigger><SelectContent>{modelPresets.filter((p) => p.provider === providerPresetId(providers.find((x) => x.id === modelDraft.provider_id)?.base_url || '')).map((p) => <SelectItem key={p.model} value={p.model}>{p.name}</SelectItem>)}</SelectContent></Select></div>
@@ -376,7 +420,7 @@ export const AiPage: React.FC = () => {
                         <Input type="number" className="h-8 text-sm" value={modelDraft.cost_limit} onChange={(e) => setModelDraft({ ...modelDraft, cost_limit: num(e.target.value) })} /></div>
                     </div>
             <AiModelOptions value={modelDraft} onChange={(patch) => setModelDraft({ ...modelDraft, ...patch })} />
-          </DialogBody><DialogFooter><Button variant="outline" onClick={() => setModelDraft(null)}>{t('common.cancel')}</Button><Button disabled={!modelDraft.provider_id || !modelDraft.model.trim()} onClick={() => {
+          </DialogBody><DialogFooter><Button variant="outline" onClick={() => void closeEditor()}>{t('common.cancel')}</Button><Button disabled={!modelDraft.provider_id || !modelDraft.model.trim()} onClick={() => {
             setModels((ms) => ms.some((m) => m.id === modelDraft.id) ? ms.map((m) => m.id === modelDraft.id ? modelDraft : m) : [...ms, modelDraft]);
             setUsages((us) => Object.fromEntries(Object.entries(us).map(([k, u]) => [k, { ...u, models: u.models.filter((e) => e.id !== modelDraft.id || usageFits(USAGES.find((x) => x.key === k)!, modelDraft)) }])));
             setModelDraft(null);
@@ -384,7 +428,8 @@ export const AiPage: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      <fieldset disabled={saving} className="min-w-0 space-y-6">
+      {guard.node}
+      <fieldset disabled={saving || saved === null} className="min-w-0 space-y-6">
       {section !== 'models' && <p className="text-xs text-muted-foreground">{t('ai.switch_autosave')}</p>}
       {/* ══ 模型 section ══ */}
       {section === 'models' && (<>
@@ -439,7 +484,7 @@ export const AiPage: React.FC = () => {
               <Card key={p.id}><CardContent className="flex items-center gap-3 p-4">
                 <Switch aria-label={t('common.enabled') + ' ' + p.name} checked={p.enabled} onCheckedChange={(v) => patchProvider(i, { enabled: v })} />
                 <div className="min-w-0 flex-1"><p className="truncate font-medium">{p.name || p.base_url}</p><p className="truncate text-xs text-muted-foreground">{p.base_url}</p><p className="text-xs text-muted-foreground">{t('ai.provider_models', { count: models.filter((m) => m.provider_id === p.id).length })}</p></div>
-                <Button size="icon" variant="ghost" aria-label={t('common.edit') + ' ' + p.name} onClick={() => setProviderDraft({ ...p })}><Pencil className="h-4 w-4" /></Button>
+                <Button size="icon" variant="ghost" aria-label={t('common.edit') + ' ' + p.name} onClick={() => openProvider({ ...p })}><Pencil className="h-4 w-4" /></Button>
                 <Button size="icon" variant="ghost" aria-label={t('common.delete') + ' ' + p.name} onClick={() => delProvider(i)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
               </CardContent></Card>
             ))}
@@ -460,7 +505,7 @@ export const AiPage: React.FC = () => {
                   <Switch aria-label={t('common.enabled') + ' ' + (m.name || m.model)} checked={m.enabled} onCheckedChange={(v) => patch(i, { enabled: v })} />
                   <div className="min-w-0 flex-1"><p className="truncate font-medium">{m.name || m.model}</p><p className="truncate text-xs text-muted-foreground">{providers.find((p) => p.id === m.provider_id)?.name} · {m.model}</p></div>
                   <Badge variant="secondary">{t('ai.kind_' + m.kind)}</Badge>
-                  <Button size="icon" variant="ghost" aria-label={t('common.edit') + ' ' + m.name} onClick={() => setModelDraft({ ...m })}><Pencil className="h-4 w-4" /></Button>
+                  <Button size="icon" variant="ghost" aria-label={t('common.edit') + ' ' + m.name} onClick={() => openModel({ ...m })}><Pencil className="h-4 w-4" /></Button>
                   <Button size="icon" variant="ghost" aria-label={t('common.delete') + ' ' + m.name} onClick={() => delModel(i)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                 </div>
                 <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
@@ -1103,7 +1148,8 @@ export const AiPage: React.FC = () => {
         </Card>
       )}
 
-      <div data-tour="ai-save" className="flex justify-end pt-2">
+      <div data-tour="ai-save" className="flex items-center justify-end gap-2 pt-2">
+        {dirty && <span className="text-sm text-muted-foreground">{t('ui_refresh.unsaved')}</span>}
         <Button onClick={save} disabled={saving}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{t('common.save')}</Button>
       </div>
       </fieldset>

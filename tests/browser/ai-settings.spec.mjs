@@ -67,6 +67,44 @@ test('provider and model presets use dialogs and compact entries', async ({ page
   await expect(page.locator('[data-setting-anchor="ai-usage-polish"]')).toBeVisible();
 });
 
+test('manual AI edits survive canceled navigation and failed saves while confirmed switches stay clean', async ({ page }) => {
+  const data = { enabled: true, chat: { enabled: true, keywords: ['alpha'] } };
+  let rejectManual = true;
+  await page.route('**/api/system/ai', route => {
+    if (route.request().method() === 'PUT') {
+      const patch = route.request().postDataJSON();
+      if (rejectManual && patch.chat?.keywords) return route.fulfill({ json: { code: 1, message: '模拟保存失败' } });
+      Object.assign(data.chat, patch.chat);
+    }
+    return route.fulfill({ json: { code: 0, data } });
+  });
+  const go = path => page.evaluate(async destination => {
+    const { navigatePanel } = await import('/src/lib/panel-navigation.ts');
+    navigatePanel(destination);
+  }, path);
+  const input = page.getByPlaceholder('如：骰娘, 在吗, 讲个笑话');
+  const dialog = page.getByRole('dialog', { name: '放弃未保存的修改？' });
+  await page.goto('/#/ai/chat');
+  await expect(input).toHaveValue('alpha');
+  await input.fill('alpha,beta');
+  await page.locator('[data-setting-anchor="ai-chat"] input[type=checkbox]').first().click();
+  await page.getByRole('button', { name: '保存', exact: true }).click();
+  await expect(page.getByText('模拟保存失败')).toBeVisible();
+  await go('/ai/polish'); await dialog.getByRole('button', { name: '继续编辑' }).click();
+  await expect(input).toHaveValue('alpha, beta');
+  rejectManual = false;
+  await page.getByRole('button', { name: '保存', exact: true }).click();
+  await expect.poll(() => data.chat.keywords).toEqual(['alpha','beta']);
+  await page.locator('[data-setting-anchor="ai-chat"] input[type=checkbox]').first().click();
+  await go('/ai/polish'); await expect(page.locator('[data-setting-anchor="ai-polish"]')).toBeVisible();
+  await go('/ai/chat'); await expect(input).toHaveValue('alpha, beta');
+  await input.fill('discard me');
+  await go('/help'); await dialog.getByRole('button', { name: '放弃修改' }).click();
+  await expect(page).toHaveURL(/#\/help$/);
+  await expect(input).toHaveCount(0);
+  await go('/ai/chat'); await expect(input).toHaveValue('alpha, beta');
+});
+
 test('feature switches save only the changed field and roll back on failure', async ({ page }) => {
   const writes = []; let fail = false;
   await page.route('**/api/system/ai', route => {

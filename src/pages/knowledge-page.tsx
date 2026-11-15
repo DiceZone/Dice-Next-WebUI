@@ -19,6 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useDialogs } from '@/hooks/use-dialogs';
+import { useFormLeaveGuard } from '@/hooks/use-form-leave-guard';
 import { AlertTriangle, BookOpen, Loader2, Pencil, Plus, Save, Search, Trash2, Upload, X } from 'lucide-react';
 
 interface KbSettings {
@@ -66,9 +67,17 @@ export const KnowledgePage: React.FC = () => {
   const [entryBusy, setEntryBusy] = useState(false);
   const writeBusy = useRef(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [savedSettings, setSavedSettings] = useState(emptySettings);
+  const initialEntry = useRef('');
+  const entryDirty = editorOpen && JSON.stringify([editing, tagsText, questionsText]) !== initialEntry.current;
+  const guard = useFormLeaveGuard(entryDirty || JSON.stringify(settings) !== JSON.stringify(savedSettings), saving || entryBusy);
+  const acceptSettings = (value: KbSettings) => { setSettings(value); setSavedSettings(value); };
+  const closeEntry = async () => {
+    if (!entryBusy && (!entryDirty || await guard.confirmDiscard())) setEditorOpen(false);
+  };
 
   const load = async () => {
-    try { setSettings({ ...emptySettings(), ...(await call('/knowledge/settings')) }); } catch { /* ignore */ }
+    try { acceptSettings({ ...emptySettings(), ...(await call('/knowledge/settings')) }); } catch { /* ignore */ }
     try { setStatus(await call('/knowledge/status')); } catch { /* ignore */ }
     try { setEntries(((await call('/knowledge/entries'))?.entries || []) as KbEntry[]); } catch { /* ignore */ }
   };
@@ -80,14 +89,14 @@ export const KnowledgePage: React.FC = () => {
   const autoSave = async (part: Partial<KbSettings>) => {
     if (writeBusy.current) return;
     writeBusy.current = true; setSaving(true);
-    try { await send('/knowledge/settings', 'PUT', part); patch(part); }
+    try { await send('/knowledge/settings', 'PUT', part); patch(part); setSavedSettings(s => ({ ...s, ...part })); }
     catch (e) { toast({ title: (e as Error).message, variant: 'destructive' }); }
     finally { writeBusy.current = false; setSaving(false); }
   };
 
   const saveSettings = async () => {
     setSaving(true);
-    try { setSettings({ ...emptySettings(), ...(await send('/knowledge/settings', 'PUT', settings)) }); toast({ title: t('common.save_success') }); }
+    try { acceptSettings({ ...emptySettings(), ...(await send('/knowledge/settings', 'PUT', settings)) }); toast({ title: t('common.save_success') }); }
     catch (e) { toast({ title: (e as Error).message, variant: 'destructive' }); }
     finally { setSaving(false); }
   };
@@ -102,6 +111,7 @@ export const KnowledgePage: React.FC = () => {
 
   const openEditor = (e?: KbEntry) => {
     const entry = e ? { ...e } : emptyEntry();
+    initialEntry.current = JSON.stringify([entry, entry.tags.join(', '), entry.questions.join('\n')]);
     setEditing(entry);
     setEditorOpen(true);
     setQuestionsText(entry.questions.join('\n'));
@@ -164,6 +174,7 @@ export const KnowledgePage: React.FC = () => {
   return (
     <div className="space-y-6">
       {dlg.node}
+      {guard.node}
       <PageHeader icon={BookOpen} title={t('nav.ai_knowledge')} description={t('knowledge.desc')} help={t('page_help.ai_knowledge')} />
 
       {status && !status.aiEnabled && (
@@ -303,7 +314,7 @@ export const KnowledgePage: React.FC = () => {
         </CardContent>
       </Card>
 
-      <Dialog open={editorOpen} onOpenChange={(open) => { if (!open && !entryBusy) setEditorOpen(false); }}>
+      <Dialog open={editorOpen} onOpenChange={(open) => { if (!open) void closeEntry(); }}>
         <DialogContent className="max-w-2xl max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-base flex items-center gap-2">{editing?.id ? <Pencil className="h-4 w-4" /> : <Plus className="h-4 w-4" />}{editing?.id ? t('knowledge.edit') : t('knowledge.add')}</DialogTitle>
@@ -325,7 +336,7 @@ export const KnowledgePage: React.FC = () => {
               </div>
               <div className="flex justify-end gap-2">
                 <Button onClick={() => void saveEntry()}>{entryBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}{t('common.save')}</Button>
-                <Button variant="outline" onClick={() => setEditorOpen(false)}><X className="mr-2 h-4 w-4" />{t('common.cancel')}</Button>
+                <Button variant="outline" onClick={() => void closeEntry()}><X className="mr-2 h-4 w-4" />{t('common.cancel')}</Button>
               </div>
             </fieldset>
           )}

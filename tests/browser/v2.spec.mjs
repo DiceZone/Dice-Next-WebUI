@@ -677,6 +677,24 @@ test('hash search links keep literal query values and Back works', async ({ page
   await expect(page.locator('[data-setting-anchor="webui-api-key"]')).toBeVisible();
   await page.goBack(); await expect(page).toHaveURL(/#\/cloud-services/);
 });
+test('server address draft prompts on navigation but reverting the edit clears the guard', async ({ page }) => {
+  await page.goto('/#/webui-settings');
+  const host = page.locator('#srv-host');
+  await expect(host).toBeVisible();
+  const original = await host.inputValue();
+  const openHelp = () => page.evaluate(async () => {
+    const { navigatePanel } = await import('/src/lib/panel-navigation.ts'); navigatePanel('/help');
+  });
+  await host.fill('example.test');
+  await openHelp();
+  await page.getByRole('dialog').getByRole('button', { name: '继续编辑' }).click();
+  await expect(host).toHaveValue('example.test');
+  await host.fill(original);
+  await openHelp();
+  await expect(page).toHaveURL(/#\/help$/);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+});
+
 test('browser Back does not discard a draft until its async guard approves', async ({ page }) => {
   await page.goto('/#/help');
   await expect(page.locator('main h1')).toBeVisible();

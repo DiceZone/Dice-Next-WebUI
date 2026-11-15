@@ -12,6 +12,7 @@ import { LOG_LEVELS, normalizeLogLevel } from '@/lib/runtime-logs';
 import type { LogLevel } from '@/types/log';
 import { zustandAppStore } from '@/store/app-store';
 import { useToast } from '@/hooks/use-toast';
+import { useFormLeaveGuard } from '@/hooks/use-form-leave-guard';
 import { ADMIN_PASSWORD_MAX_LENGTH, isValidAdminPassword, sanitizeAdminPassword } from '@/lib/admin-password';
 import { Monitor, Key, Eye, EyeOff, Copy, Palette, Terminal, Lock, Server, RefreshCw } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
@@ -38,13 +39,19 @@ export const WebuiSettingsPage: React.FC = () => {
   const [host, setHost] = useTourState('0.0.0.0', '127.0.0.1');
   const [port, setPort] = useTourState(18088, 18088);
   const [srvSaving, setSrvSaving] = useState(false);
+  const [savedServer, setSavedServer] = useState({ host: '0.0.0.0', port: 18088 });
+  const guard = useFormLeaveGuard(!!pwInput || localApiKey !== (apiKey ?? '') ||
+    host !== savedServer.host || port !== savedServer.port, saving || pwSaving || srvSaving);
   const [restartNeeded, setRestartNeeded] = useTourState(false, false);
 
   useEffect(() => {
     void (async () => {
       try { const r = await fetch('/api/system/log-mode'); const j = await r.json(); if (j.code === 0) { setRawLog(!!j.data.raw); setLogLevel(j.data.level === 'off' ? 'off' : normalizeLogLevel(j.data.level)); } } catch { /* ignore */ }
       try { const r = await fetch('/api/system/webui-auth'); const j = await r.json(); if (j.code === 0) setPwEnabled(!!j.data.enabled); } catch { /* ignore */ }
-      try { const r = await fetch('/api/system/server-config'); const j = await r.json(); if (j.code === 0) { setHost(j.data.host || '0.0.0.0'); setPort(Number(j.data.port) || 18088); } } catch { /* ignore */ }
+      try { const r = await fetch('/api/system/server-config'); const j = await r.json(); if (j.code === 0) {
+        const loaded = { host: j.data.host || '0.0.0.0', port: Number(j.data.port) || 18088 };
+        setHost(loaded.host); setPort(loaded.port); setSavedServer(loaded);
+      } } catch { /* ignore */ }
     })();
   }, []);
 
@@ -69,6 +76,7 @@ export const WebuiSettingsPage: React.FC = () => {
       const j = await r.json();
       if (j.code !== 0) throw new Error(j.message);
       setRestartNeeded(!!j.data.restart_required);
+      setSavedServer({ host, port });
       toast({ title: t('common.save_success') });
     } catch { toast({ title: t('common.save_fail'), variant: 'destructive' }); }
     finally { setSrvSaving(false); }
@@ -127,6 +135,7 @@ export const WebuiSettingsPage: React.FC = () => {
 
   return (
     <div className="space-y-6 max-w-3xl">
+      {guard.node}
       <PageHeader icon={Monitor} title={t('webui.title')} description={t('webui.desc')} help={t('page_help.webui')} />
 
       {/* API Key */}

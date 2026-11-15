@@ -427,6 +427,7 @@
     "intro_feature_ops": "<strong>Deployment and upkeep</strong>: packages for Windows, Linux and macOS plus a Docker image; built-in backup and restore, scheduled tasks, notification windows and automatic updates, with your data kept on your own machine."
   },
   "common": {
+    "unsaved_leave_hint": "Leaving will discard your changes on this page.",
     "retry": "Retry",
     "refresh": "Refresh",
     "back": "Back",

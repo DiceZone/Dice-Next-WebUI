@@ -427,6 +427,7 @@
     "intro_feature_ops": "<strong>部署与维护</strong>：提供 Windows、Linux、macOS 安装包与 Docker 镜像；内置备份恢复、定时任务、通知窗口与自动更新，数据保存在本机。"
   },
   "common": {
+    "unsaved_leave_hint": "离开后，本页尚未保存的修改将丢失。",
     "retry": "重试",
     "refresh": "刷新",
     "back": "返回",

@@ -1,3 +1,4 @@
+import { useFormLeaveGuard, useSettingsDraft } from '@/hooks/use-form-leave-guard';
 import React, { useCallback, useEffect } from 'react';
 import { useTourState, useTourValue } from '@/components/onboarding/tour-data';
 import { useTranslation } from 'react-i18next';
@@ -56,14 +57,15 @@ const LogsiteCard: React.FC = () => {
   const { t } = useTranslation();
   const toast = useToast();
   // — 日志站（API 地址可自建 + 上传协议）—
-  const [logsiteUrl, setLogsiteUrl] = useTourState('', '');
-  const [logsiteFormat, setLogsiteFormat] = useTourState('dicenext', 'dicenext');
+  const [logsiteUrl, setLogsiteUrl, acceptLogsiteUrl, logsiteUrlDirty] = useSettingsDraft('', '');
+  const [logsiteFormat, setLogsiteFormat, acceptLogsiteFormat, logsiteFormatDirty] = useSettingsDraft('dicenext', 'dicenext');
   const [logsiteOfficial, setLogsiteOfficial] = useTourState('', '');
   const [savingLogsite, setSavingLogsite] = useTourState(false, false);
+  const guard = useFormLeaveGuard(logsiteUrlDirty || logsiteFormatDirty, savingLogsite);
   const loadLogsite = async () => {
     try {
       const r = await fetch('/api/system/logsite'); const j = await r.json();
-      if (j.code === 0) { setLogsiteUrl(j.data.url || ''); setLogsiteFormat(j.data.format || 'dicenext'); setLogsiteOfficial(j.data.official || ''); }
+      if (j.code === 0) { acceptLogsiteUrl(j.data.url || ''); acceptLogsiteFormat(j.data.format || 'dicenext'); setLogsiteOfficial(j.data.official || ''); }
     } catch { /* ignore */ }
   };
   useEffect(() => { void loadLogsite(); }, []);
@@ -73,13 +75,14 @@ const LogsiteCard: React.FC = () => {
       const r = await fetch('/api/system/logsite', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: logsiteUrl.trim(), format: logsiteFormat }) });
       const j = await r.json(); if (j.code !== 0) throw new Error(j.message);
-      setLogsiteUrl(j.data.url || ''); setLogsiteFormat(j.data.format || 'dicenext');
+      acceptLogsiteUrl(j.data.url || ''); acceptLogsiteFormat(j.data.format || 'dicenext');
       toast({ title: t('common.save_success') });
     } catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
     finally { setSavingLogsite(false); }
   };
   return (
       <Card data-setting-anchor="settings-logsite">
+        {guard.node}
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <ScrollText className="h-4 w-4" />{t('settings.logsite_title')}

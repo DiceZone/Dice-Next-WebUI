@@ -1,3 +1,4 @@
+import { useFormLeaveGuard, useSettingsDraft } from '@/hooks/use-form-leave-guard';
 import { ExpressionEngineOrder } from '@/components/settings/expression-engine-order';
 import { CleanupSettingsCard } from '@/components/settings/cleanup-settings-card';
 import { SnBannerPreview, snBannerStyles, normalizeSnStyle, validSnTemplate, SN_FORMULA_EXAMPLE, SN_DEFAULT_COLOR, SN_COLOR_SWATCHES, normalizeSnColor, validSnColor, eyeDropperAvailable, pickScreenColor, type SnBannerStyle } from '@/components/settings/sn-banner-preview';
@@ -766,27 +767,27 @@ export const SettingsPage: React.FC = () => {
   const [settingsTarget, setSettingsTarget] = useTourState('', '');
   const [eventOverrides, setEventOverrides] = useTourState<Record<string, unknown>>({}, {});
   const [eventSources, setEventSources] = useTourState<Record<string, string>>({}, {});
-  const [expressionMode, setExpressionMode] = useTourState<ExpressionMode>('enhanced', 'enhanced');
-  const [expressionOrder, setExpressionOrder] = useTourState<ExpressionEngineId[]>(EXPRESSION_ENGINES, EXPRESSION_ENGINES);
+  const [expressionMode, setExpressionMode, acceptExpressionMode, expressionModeDirty] = useSettingsDraft<ExpressionMode>('enhanced', 'enhanced');
+  const [expressionOrder, setExpressionOrder, acceptExpressionOrder, expressionOrderDirty] = useSettingsDraft<ExpressionEngineId[]>(EXPRESSION_ENGINES, EXPRESSION_ENGINES);
   const [expressionEngines, setExpressionEngines] = useTourState<ExpressionEngineInfo[]>([], []);
   const [expressionOverrides, setExpressionOverrides] = useTourState<Record<string, unknown>>({}, {});
   const [expressionSources, setExpressionSources] = useTourState<Record<string, string>>({}, {});
   const [savingExpression, setSavingExpression] = useTourState(false, false);
   // — Prefixes —
-  const [prefixes, setPrefixes] = useTourState<string[]>([], ['.', '。', '!', '！', '/']);
+  const [prefixes, setPrefixes, acceptPrefixes, prefixesDirty] = useSettingsDraft<string[]>([], ['.', '。', '!', '！', '/']);
   const [savingPrefix, setSavingPrefix] = useTourState(false, false);
   // — Timezone (server/timezone_minutes; null = follow system) —
-  const [tzMinutes, setTzMinutes] = useTourState<number | null>(null, null);
+  const [tzMinutes, setTzMinutes, acceptTzMinutes, tzMinutesDirty] = useSettingsDraft<number | null>(null, null);
   // — Approval —
-  const [friendPolicy, setFriendPolicy] = useTourState('manual', 'manual');
-  const [friendKeyword, setFriendKeyword] = useTourState('', '');
-  const [groupInvitePolicy, setGroupInvitePolicy] = useTourState('manual', 'manual');
-  const [groupRejectBlacklist, setGroupRejectBlacklist] = useTourState(true, true);
-  const [groupRejectNonfriend, setGroupRejectNonfriend] = useTourState(false, false);
-  const [groupNameKeywordLeave, setGroupNameKeywordLeave] = useTourState('', '');   // 群名关键词自动退群
+  const [friendPolicy, setFriendPolicy, acceptFriendPolicy, friendPolicyDirty] = useSettingsDraft('manual', 'manual');
+  const [friendKeyword, setFriendKeyword, acceptFriendKeyword, friendKeywordDirty] = useSettingsDraft('', '');
+  const [groupInvitePolicy, setGroupInvitePolicy, acceptGroupInvitePolicy, groupInvitePolicyDirty] = useSettingsDraft('manual', 'manual');
+  const [groupRejectBlacklist, setGroupRejectBlacklist, acceptGroupRejectBlacklist, groupRejectBlacklistDirty] = useSettingsDraft(true, true);
+  const [groupRejectNonfriend, setGroupRejectNonfriend, acceptGroupRejectNonfriend, groupRejectNonfriendDirty] = useSettingsDraft(false, false);
+  const [groupNameKeywordLeave, setGroupNameKeywordLeave, acceptGroupNameKeywordLeave, groupNameKeywordLeaveDirty] = useSettingsDraft('', '');   // 群名关键词自动退群
   const [savingEvents, setSavingEvents] = useTourState(false, false);
-  const [welcomeMinDelay, setWelcomeMinDelay] = useTourState(0, 0);
-  const [welcomeMinCooldown, setWelcomeMinCooldown] = useTourState(0, 0);
+  const [welcomeMinDelay, setWelcomeMinDelay, acceptWelcomeMinDelay, welcomeMinDelayDirty] = useSettingsDraft(0, 0);
+  const [welcomeMinCooldown, setWelcomeMinCooldown, acceptWelcomeMinCooldown, welcomeMinCooldownDirty] = useSettingsDraft(0, 0);
   // — WebUI items (moved here) —
   const [autostart, setAutostart] = useTourState(false, false);
   const [quoteReply, setQuoteReply] = useTourState(true, true);
@@ -794,19 +795,19 @@ export const SettingsPage: React.FC = () => {
   const [respondSelf, setRespondSelf] = useTourState(false, false);
   const [rollReasonOff, setRollReasonOff] = useTourState(false, false);   // C#69：自响应/自控
   const [forwardLong, setForwardLong] = useTourState(false, false);
-  const [forwardThreshold, setForwardThreshold] = useTourState(1200, 1200);
-  const [segLen, setSegLen] = useTourState(600, 600);
+  const [forwardThreshold, setForwardThreshold, acceptForwardThreshold, forwardThresholdDirty] = useSettingsDraft(1200, 1200);
+  const [segLen, setSegLen, acceptSegLen, segLenDirty] = useSettingsDraft(600, 600);
   const [segEnabled, setSegEnabled] = useTourState(true, true);
   const [segSaving, setSegSaving] = useTourState(false, false);
-  const [nickPre, setNickPre] = useTourState('<', '<');
-  const [nickSuf, setNickSuf] = useTourState('>', '>');
+  const [nickPre, setNickPre, acceptNickPre, nickPreDirty] = useSettingsDraft('<', '<');
+  const [nickSuf, setNickSuf, acceptNickSuf, nickSufDirty] = useSettingsDraft('>', '>');
   const [nickSaving, setNickSaving] = useTourState(false, false);
   // — Globals —
   const [globals, setGlobals] = useTourState<Record<string, any>>({}, {});
   const [globalOverrides, setGlobalOverrides] = useTourState<Record<string, unknown>>({}, {});
   const [globalSources, setGlobalSources] = useTourState<Record<string, string>>({}, {});
   // — 插件签名公钥（可选）—
-  const [pluginKey, setPluginKey] = useTourState('', '');
+  const [pluginKey, setPluginKey, acceptPluginKey, pluginKeyDirty] = useSettingsDraft('', '');
   // — JS 插件网络访问（T8）—
   const [jsFetchStrict, setJsFetchStrict] = useTourState(false, false);
 
@@ -828,7 +829,7 @@ export const SettingsPage: React.FC = () => {
     } catch { /* ignore */ }
   };
   const loadPrefixes = async () => {
-    try { const r = await fetch('/api/system/prefixes'); const j = await r.json(); if (j.code === 0) setPrefixes(j.data?.prefixes || []); } catch { /* ignore */ }
+    try { const r = await fetch('/api/system/prefixes'); const j = await r.json(); if (j.code === 0) acceptPrefixes(j.data?.prefixes || []); } catch { /* ignore */ }
   };
   const selectedScopeAccount = masterAccounts.find((a) => a.id === settingsTarget);
   const settingsPlatform = settingsScope === 'adapter'
@@ -843,15 +844,19 @@ export const SettingsPage: React.FC = () => {
   const [loadedScopes, setLoadedScopes] = React.useState<Record<string, string>>({});
   const [scopeError, setScopeError] = React.useState('');
   const scopedReady = tour || ['events', 'expression', 'global'].every((key) => loadedScopes[key] === scopeKey);
-  const applyEventData = useCallback((data: any) => {
-    setFriendPolicy(data.friend_policy || 'manual');
-    setFriendKeyword(data.friend_keyword || '');
-    setGroupInvitePolicy(data.group_invite_policy || 'manual');
-    setGroupRejectBlacklist(data.group_invite_reject_blacklist !== false);
-    setGroupRejectNonfriend(data.group_invite_reject_nonfriend === true);
-    setGroupNameKeywordLeave(data.group_name_keyword_leave || '');
-    setWelcomeMinDelay(data.welcome_min_delay || 0);
-    setWelcomeMinCooldown(data.welcome_min_cooldown || 0);
+  const applyEventData = useCallback((data: any, section?: 'approval' | 'welcome') => {
+    if (section !== 'welcome') {
+      acceptFriendPolicy(data.friend_policy || 'manual');
+      acceptFriendKeyword(data.friend_keyword || '');
+      acceptGroupInvitePolicy(data.group_invite_policy || 'manual');
+      acceptGroupRejectBlacklist(data.group_invite_reject_blacklist !== false);
+      acceptGroupRejectNonfriend(data.group_invite_reject_nonfriend === true);
+      acceptGroupNameKeywordLeave(data.group_name_keyword_leave || '');
+    }
+    if (section !== 'approval') {
+      acceptWelcomeMinDelay(data.welcome_min_delay || 0);
+      acceptWelcomeMinCooldown(data.welcome_min_cooldown || 0);
+    }
     setEventOverrides(data.overrides || {});
     setEventSources(data.sources || {});
   }, []);
@@ -874,8 +879,8 @@ export const SettingsPage: React.FC = () => {
     const order = Array.isArray(data?.order)
       ? data.order.filter((id: string) => EXPRESSION_ENGINES.includes(id as ExpressionEngineId))
       : EXPRESSION_ENGINES;
-    setExpressionMode(mode);
-    setExpressionOrder(order.length ? order as ExpressionEngineId[] : EXPRESSION_ENGINES);
+    acceptExpressionMode(mode);
+    acceptExpressionOrder(order.length ? order as ExpressionEngineId[] : EXPRESSION_ENGINES);
     setExpressionEngines(Array.isArray(data?.engines) ? data.engines : []);
     setExpressionOverrides(data?.overrides || {});
     setExpressionSources(data?.sources || {});
@@ -899,9 +904,9 @@ export const SettingsPage: React.FC = () => {
     try { setAutoCard((await getJson('/system/auto-card')).enabled !== false); } catch { /* ignore */ }
     try { setRespondSelf(!!(await getJson('/system/respond-self')).enabled); } catch { /* ignore */ }
     try { setRollReasonOff(!!(await getJson('/system/roll-reason')).disabled); } catch { /* ignore */ }
-    try { const d = await getJson('/system/forward-long'); setForwardLong(!!d.enabled); setForwardThreshold(Number(d.threshold) || 1200); } catch { /* ignore */ }
-    try { const d = await getJson('/system/reply-segment'); setSegLen(Number(d.len) || 600); setSegEnabled(d.enabled !== false); } catch { /* ignore */ }
-    try { const d = await getJson('/system/nick-wrap'); setNickPre(d.prefix ?? '<'); setNickSuf(d.suffix ?? '>'); } catch { /* ignore */ }
+    try { const d = await getJson('/system/forward-long'); setForwardLong(!!d.enabled); acceptForwardThreshold(Number(d.threshold) || 1200); } catch { /* ignore */ }
+    try { const d = await getJson('/system/reply-segment'); acceptSegLen(Number(d.len) || 600); setSegEnabled(d.enabled !== false); } catch { /* ignore */ }
+    try { const d = await getJson('/system/nick-wrap'); acceptNickPre(d.prefix ?? '<'); acceptNickSuf(d.suffix ?? '>'); } catch { /* ignore */ }
   }, []);
   const applyGlobalData = useCallback((data: any) => {
     setGlobals(data?.values || {});
@@ -920,10 +925,10 @@ export const SettingsPage: React.FC = () => {
     } catch (e) { if (current()) setScopeError(String(e)); }
   }, [settingsScope, settingsTarget, settingsPlatform, applyGlobalData]);
   const loadPluginVerify = async () => {
-    try { const d = await getJson('/system/plugin-verify'); setPluginKey(d.public_key || ''); } catch { /* ignore */ }
+    try { const d = await getJson('/system/plugin-verify'); acceptPluginKey(d.public_key || ''); } catch { /* ignore */ }
   };
   const savePluginVerify = async () => {
-    try { await putJson('/system/plugin-verify', { public_key: pluginKey }); toast({ title: t('common.save_success') }); }
+    try { await putJson('/system/plugin-verify', { public_key: pluginKey }); acceptPluginKey(pluginKey); toast({ title: t('common.save_success') }); }
     catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
   };
   const loadJsFetch = async () => {
@@ -940,7 +945,7 @@ export const SettingsPage: React.FC = () => {
       const r = await fetch('/api/system/timezone'); const j = await r.json();
       if (j.code === 0) {
         const configured = j.data?.offset_minutes ?? null;
-        setTzMinutes(configured);
+        acceptTzMinutes(configured);
       }
     } catch { /* ignore */ }
   };
@@ -1003,7 +1008,7 @@ export const SettingsPage: React.FC = () => {
     try {
       const r = await fetch('/api/system/prefixes', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prefixes: cleaned }) });
       const j = await r.json(); if (j.code !== 0) throw new Error(j.message);
-      setPrefixes(j.data?.prefixes || cleaned); toast({ title: t('common.save_success') });
+      acceptPrefixes(j.data?.prefixes || cleaned); toast({ title: t('common.save_success') });
     } catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
     finally { setSavingPrefix(false); }
   };
@@ -1012,12 +1017,20 @@ export const SettingsPage: React.FC = () => {
       const r = await fetch('/api/system/timezone', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ offset_minutes: tzMinutes }) });
       const j = await r.json(); if (j.code !== 0) throw new Error(j.message);
       const configured = j.data?.offset_minutes ?? null;
-      setTzMinutes(configured);
+      acceptTzMinutes(configured);
       toast({ title: t('common.save_success') });
     } catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
   };
   const configuredPlatforms = PLATFORMS.filter((p) => masterAccounts.some((a) => a.type === p.value));
-  const changeSettingsScope = (scope: SettingsScope) => {
+  const scopedDirty = friendPolicyDirty || friendKeywordDirty || groupInvitePolicyDirty || groupRejectBlacklistDirty ||
+    groupRejectNonfriendDirty || groupNameKeywordLeaveDirty || welcomeMinDelayDirty || welcomeMinCooldownDirty ||
+    expressionModeDirty || expressionOrderDirty;
+  const maySwitchScope = async () => !savingEvents && !savingExpression && (!scopedDirty || await guard.confirmDiscard());
+  const changeTarget = async (target: string) => {
+    if (target !== settingsTarget && await maySwitchScope()) setSettingsTarget(target);
+  };
+  const changeSettingsScope = async (scope: SettingsScope) => {
+    if (scope === settingsScope || !await maySwitchScope()) return;
     setSettingsScope(scope);
     if (scope === 'global') setSettingsTarget('');
     else if (scope === 'adapter') setSettingsTarget(configuredPlatforms[0]?.value || PLATFORMS[0].value);
@@ -1045,7 +1058,7 @@ export const SettingsPage: React.FC = () => {
           group_name_keyword_leave: groupNameKeywordLeave.trim(),
         })) });
       const j = await r.json(); if (j.code !== 0) throw new Error(j.message);
-      if (current()) applyEventData(j.data);
+      if (current()) applyEventData(j.data, 'approval');
       toast({ title: t('common.save_success') });
     } catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
     finally { setSavingEvents(false); }
@@ -1058,7 +1071,7 @@ export const SettingsPage: React.FC = () => {
       const r = await fetch('/api/system/events', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(scopedEventBody({ welcome_min_delay: welcomeMinDelay, welcome_min_cooldown: welcomeMinCooldown })) });
       const j = await r.json(); if (j.code !== 0) throw new Error(j.message);
-      if (current()) applyEventData(j.data);
+      if (current()) applyEventData(j.data, 'welcome');
       toast({ title: t('common.save_success') });
     } catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
     finally { setSavingEvents(false); }
@@ -1071,7 +1084,7 @@ export const SettingsPage: React.FC = () => {
       const r = await fetch('/api/system/events', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(scopedEventBody({}, keys)) });
       const j = await r.json(); if (j.code !== 0) throw new Error(j.message);
-      if (current()) applyEventData(j.data);
+      if (current()) applyEventData(j.data, keys.includes('welcome_min_delay') ? 'welcome' : 'approval');
       toast({ title: t('settings.scope_reset_success') });
     } catch (e) { toast({ title: t('common.save_fail'), description: String(e), variant: 'destructive' }); }
   };
@@ -1200,26 +1213,29 @@ export const SettingsPage: React.FC = () => {
   };
   const toggleForwardLong = async (v: boolean) => {
     setForwardLong(v);
-    try { const d = await putJson('/system/forward-long', { enabled: v, threshold: forwardThreshold }); setForwardLong(!!d.enabled); setForwardThreshold(Number(d.threshold) || 1200); }
+    try { const d = await putJson('/system/forward-long', { enabled: v, threshold: forwardThreshold }); setForwardLong(!!d.enabled); acceptForwardThreshold(Number(d.threshold) || 1200); }
     catch (e) { toast({ title: (e as Error).message, variant: 'destructive' }); setForwardLong(!v); }
   };
   const saveForwardThreshold = async () => {
-    try { const d = await putJson('/system/forward-long', { enabled: forwardLong, threshold: forwardThreshold }); setForwardThreshold(Number(d.threshold) || 1200); toast({ title: t('common.save_success') }); }
+    try { const d = await putJson('/system/forward-long', { enabled: forwardLong, threshold: forwardThreshold }); acceptForwardThreshold(Number(d.threshold) || 1200); toast({ title: t('common.save_success') }); }
     catch (e) { toast({ title: (e as Error).message, variant: 'destructive' }); }
   };
   const saveSegLen = async () => {
     setSegSaving(true);
-    try { const d = await putJson('/system/reply-segment', { enabled: segEnabled, len: segLen }); setSegLen(Number(d.len) || 600); setSegEnabled(d.enabled !== false); toast({ title: t('common.save_success') }); }
+    try { const d = await putJson('/system/reply-segment', { enabled: segEnabled, len: segLen }); acceptSegLen(Number(d.len) || 600); setSegEnabled(d.enabled !== false); toast({ title: t('common.save_success') }); }
     catch (e) { toast({ title: (e as Error).message, variant: 'destructive' }); }
     finally { setSegSaving(false); }
   };
   const saveNickWrap = async () => {
     setNickSaving(true);
-    try { await putJson('/system/nick-wrap', { prefix: nickPre, suffix: nickSuf }); toast({ title: t('common.save_success') }); }
+    try { await putJson('/system/nick-wrap', { prefix: nickPre, suffix: nickSuf }); acceptNickPre(nickPre); acceptNickSuf(nickSuf); toast({ title: t('common.save_success') }); }
     catch (e) { toast({ title: (e as Error).message, variant: 'destructive' }); }
     finally { setNickSaving(false); }
   };
 
+  const guard = useFormLeaveGuard(prefixesDirty || tzMinutesDirty || forwardThresholdDirty || segLenDirty ||
+    nickPreDirty || nickSufDirty || pluginKeyDirty || scopedDirty,
+    savingPrefix || segSaving || nickSaving || savingExpression || savingEvents);
   const currentScopeProps: ScopedCardProps = {
     scope: settingsScope, target: settingsTarget, platform: settingsPlatform,
   };
@@ -1286,7 +1302,7 @@ export const SettingsPage: React.FC = () => {
             ))}
           </div>
           {settingsScope === 'adapter' && (
-            <Select value={settingsTarget} onValueChange={setSettingsTarget}>
+            <Select value={settingsTarget} onValueChange={changeTarget}>
               <SelectTrigger><SelectValue placeholder={t('settings.scope_select_adapter')} /></SelectTrigger>
               <SelectContent>
                 {(configuredPlatforms.length ? configuredPlatforms : PLATFORMS).map((p) => (
@@ -1298,7 +1314,7 @@ export const SettingsPage: React.FC = () => {
             </Select>
           )}
           {settingsScope === 'account' && (
-            <Select value={settingsTarget} onValueChange={setSettingsTarget}>
+            <Select value={settingsTarget} onValueChange={changeTarget}>
               <SelectTrigger><SelectValue placeholder={t('settings.scope_select_account')} /></SelectTrigger>
               <SelectContent>
                 {masterAccounts.map((a) => (
@@ -1630,7 +1646,7 @@ export const SettingsPage: React.FC = () => {
           checked={segEnabled}
           onToggle={async (v) => {
             setSegEnabled(v);
-            try { const d = await putJson('/system/reply-segment', { enabled: v, len: segLen }); setSegLen(Number(d.len) || 600); toast({ title: t('common.save_success') }); }
+            try { const d = await putJson('/system/reply-segment', { enabled: v, len: segLen }); acceptSegLen(Number(d.len) || 600); toast({ title: t('common.save_success') }); }
             catch (e) { setSegEnabled(!v); toast({ title: (e as Error).message, variant: 'destructive' }); }
           }}
         />
@@ -1726,6 +1742,7 @@ export const SettingsPage: React.FC = () => {
       </SettingsPanel>
       </SettingsWorkspace>
       {dlg.node}
+      {guard.node}
     </div>
   );
 };

@@ -2,12 +2,14 @@ import { useEffect, useRef } from 'react';
 import { registerNavigationGuard } from '@/lib/navigation-guard';
 
 /** Protect both hash-route changes and a full reload/close. */
-export function useUnsavedChanges(active: boolean, confirmLeave: () => Promise<boolean>) {
+export function useUnsavedChanges(active: boolean, confirmLeave: () => Promise<boolean>, discard?: () => void) {
+  const discardRef = useRef(discard);
+  discardRef.current = discard;
   const confirmRef = useRef(confirmLeave);
   confirmRef.current = confirmLeave;
   useEffect(() => {
     if (!active) return;
-    const unregister = registerNavigationGuard(() => confirmRef.current());
+    const unregister = registerNavigationGuard(() => confirmRef.current(), () => discardRef.current?.());
     const beforeUnload = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; };
     window.addEventListener('beforeunload', beforeUnload);
     return () => { unregister(); window.removeEventListener('beforeunload', beforeUnload); };

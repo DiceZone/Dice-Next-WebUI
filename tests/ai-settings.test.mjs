@@ -26,6 +26,8 @@ function fixture(direct) {
   for (const name of ['Enabled', 'Providers', 'Usages', 'Speech', 'Models', 'Params', 'Polish', 'Trans', 'Chat', 'Memory', 'Tools', 'Vision', 'Npc', 'Wl', 'Defaults', 'Saving']) {
     context['set' + name] = (value) => { state[name] = value; };
   }
+  context.setSaved = (next) => { state.saved = typeof next === 'function' ? next(state.saved) : next; };
+  context.mergeSettings = readFunction('mergeSettings', context);
   for (const name of ['USAGES', 'emptyUsages', 'emptyProvider', 'emptyCov', 'emptyParams', 'emptyModel', 'emptyPolish', 'emptyTranslate', 'emptyChat', 'emptyMemory', 'emptyTools', 'emptyVision', 'emptyNpc']) {
     context[name] = readFunction(name, context);
   }
@@ -35,7 +37,11 @@ function fixture(direct) {
   };
   context.jput = readFunction('jput', context);
   context.applyData = readFunction('applyData', context);
-  return { context, state, writes, notices, save: readFunction('save', context) };
+  const save = readFunction('save', context);
+  return { context, state, writes, notices, save: () => {
+    context.body = readFunction('body', context);
+    return save();
+  } };
 }
 
 test('AI page sends explicit false and retains it when applying the saved response', async () => {

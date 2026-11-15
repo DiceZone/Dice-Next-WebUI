@@ -427,6 +427,7 @@
     "intro_feature_ops": "<strong>導入と運用</strong>：Windows・Linux・macOS のパッケージと Docker イメージを提供。バックアップと復元、定期タスク、通知ウィンドウ、自動更新を内蔵し、データは自分のマシンに保存されます。"
   },
   "common": {
+    "unsaved_leave_hint": "このページを離れると、未保存の変更は失われます。",
     "retry": "再試行",
     "refresh": "更新",
     "back": "戻る",

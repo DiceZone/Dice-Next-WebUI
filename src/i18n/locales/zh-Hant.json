@@ -427,6 +427,7 @@
     "intro_feature_ops": "<strong>部署與維護</strong>：提供 Windows、Linux、macOS 安裝包與 Docker 映像；內建備份還原、定時任務、通知視窗與自動更新，資料儲存在本機。"
   },
   "common": {
+    "unsaved_leave_hint": "離開後，本頁尚未儲存的修改將遺失。",
     "retry": "重試",
     "refresh": "重新整理",
     "back": "返回",
