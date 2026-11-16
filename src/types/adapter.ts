@@ -41,6 +41,7 @@ export interface Adapter {
   createdAt: string;
   loginId?: string;
   loginName?: string;
+  avatarUrl?: string;
 }
 
 export interface AdapterFormData {

@@ -13,8 +13,16 @@ import { platformData } from '@/lib/qq-official-editor';
 import { EditorError, EditorSelect } from './qq-editor-shared';
 
 type Props = { adapterId: string; onBusy: (busy: boolean) => void };
-type Material = { image_id: string; file_name: string; url: string; preview_url?: string; expires_at: number };
+type Material = { image_id: string; file_name: string; url: string; preview_url?: string; expires_at: number; source?: string };
 const https = (value: string) => { try { const url = new URL(value); return url.protocol === 'https:' && !!url.hostname && !url.username && !url.password; } catch { return false; } };
+const asBase64 = (file: File) => new Promise<string>((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => resolve(String(reader.result).split(',')[1] || '');
+  reader.onerror = () => reject(reader.error);
+  reader.readAsDataURL(file);
+});
+const acceptImage = (file?: File) => !!file && file.size >= 1 && file.size <= 10 * 1024 * 1024
+  && (file.type.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp|ico|avif|heic|heif)$/i.test(file.name));
 
 export function QQMaterials({ adapterId, onBusy }: Props) {
   const { t } = useTranslation();
@@ -23,6 +31,8 @@ export function QQMaterials({ adapterId, onBusy }: Props) {
   const [items, setItems] = useState<Material[]>([]), [total, setTotal] = useState<number>();
   const [cursors, setCursors] = useState(['']), [next, setNext] = useState('');
   const [file, setFile] = useState<File>(), [preview, setPreview] = useState<Material>();
+  const replaceRef = useRef<HTMLInputElement>(null);
+  const [replaceId, setReplaceId] = useState('');
   useEffect(() => { onBusy(busy); return () => onBusy(false); }, [busy, onBusy]);
   const run = async (job: () => Promise<void>) => {
     setBusy(true); setError(''); setNotice('');
@@ -33,33 +43,56 @@ export function QQMaterials({ adapterId, onBusy }: Props) {
     if (!Array.isArray(data.images) || data.images.some(item => !item || typeof item.image_id !== 'string' || typeof item.url !== 'string')) throw new Error(t('qq_editor.errors_invalid_response'));
     setItems(data.images as Material[]); setTotal(Number(data.total)); setNext(typeof data.next_cursor === 'string' ? data.next_cursor : ''); setCursors(pages);
   };
+  useEffect(() => { void run(() => load()); }, [adapterId]);
+  const sourceLabel = (source?: string) => source === 'manual' ? t('qq_editor.material_source_manual') : source === 'cache' ? t('qq_editor.material_source_cache') : t('qq_editor.material_source_unknown');
+  const uploadFile = async (chosen: File) => {
+    if (!acceptImage(chosen)) throw new Error(t('qq_editor.material_limit'));
+    const result = platformData(await qqOfficialAction(adapterId, 'qq_material_upload', { fileName: chosen.name, base64: await asBase64(chosen), source: 'manual' }));
+    await load(cursors);
+    setNotice(`${t('qq_editor.upload_done')} ${String(result.url || '')}`);
+  };
   return <section className="space-y-4 rounded-xl border bg-card p-4" data-setting-anchor="qq-materials">
     {node}
     <div className="flex items-center gap-2"><h2 className="font-medium">{t('qq_editor.materials')}</h2><FeatureHelp title={t('qq_editor.materials')} description={t('qq_editor.material_help')} /></div>
+    <p className="text-sm text-muted-foreground">{t('image_resources.officialHostHint')}</p>
     <EditorError error={error} />{notice && <p role="status" className="break-all text-sm">{notice}</p>}
     <div className="flex flex-wrap items-center gap-3">
       <Button variant="outline" disabled={busy} onClick={() => void run(() => load())}>{t('common.refresh')}{busy ? '…' : ''}</Button>
       {total !== undefined && <span className="text-sm text-muted-foreground">{total} / 100</span>}
-      <Input type="file" className="w-full sm:w-72" accept="image/png,image/jpeg,image/gif,image/webp" disabled={busy} aria-label={t('qq_editor.upload_image')} onChange={e => setFile(e.target.files?.[0])} />
-      <Button disabled={busy || !file} onClick={() => void run(async () => {
-        if (!file || file.size < 1 || file.size > 10 * 1024 * 1024 || !['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(file.type)) throw new Error(t('qq_editor.material_limit'));
-        const base64 = await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result).split(',')[1]); reader.onerror = () => reject(reader.error); reader.readAsDataURL(file); });
-        const result = platformData(await qqOfficialAction(adapterId, 'qq_material_upload', { fileName: file.name, base64 }));
-        // Signed preview URLs stay in memory only. The durable reference is qqbot-media://.
-        await load(); setNotice(`${t('qq_editor.upload_done')} ${String(result.url || '')}`);
-      })}>{t('qq_editor.upload_image')}</Button>
+      <Input type="file" className="w-full sm:w-72" accept="image/*" disabled={busy} aria-label={t('qq_editor.upload_image')} onChange={e => setFile(e.target.files?.[0])} />
+      <Button disabled={busy || !file} onClick={() => void run(async () => { if (file) await uploadFile(file); })}>{t('qq_editor.upload_image')}</Button>
     </div>
+    {items.length === 0 && !busy && <p className="text-sm text-muted-foreground">{t('image_resources.officialHostEmpty')}</p>}
     {items.map(item => <div key={item.image_id} className="flex flex-wrap items-center gap-3 rounded-lg border p-3">
-      <div className="min-w-0 flex-1"><p className="break-all text-sm font-medium">{item.file_name || item.image_id}</p><p className="break-all text-xs text-muted-foreground">{item.url}</p><p className="text-xs text-muted-foreground">{t('qq_editor.expires')} {Number.isFinite(item.expires_at) ? new Date(item.expires_at * 1000).toLocaleString() : '—'}</p></div>
+      <div className="min-w-0 flex-1">
+        <p className="break-all text-sm font-medium">{item.file_name || item.image_id}</p>
+        <p className="text-xs text-muted-foreground">{sourceLabel(item.source)}</p>
+        <p className="break-all text-xs text-muted-foreground">{item.url}</p>
+        <p className="text-xs text-muted-foreground">{t('qq_editor.expires')} {Number.isFinite(item.expires_at) ? new Date(item.expires_at * 1000).toLocaleString() : '—'}</p>
+      </div>
       <div className="flex flex-wrap gap-2">
         <Button size="sm" variant="outline" disabled={!item.preview_url || !https(item.preview_url)} onClick={() => setPreview(item)}>{t('qq_editor.image_preview')}</Button>
         <Button size="sm" variant="outline" disabled={busy} onClick={() => void run(async () => { await navigator.clipboard.writeText(`![image](${item.url})`); setNotice(t('qq_editor.copied')); })}>{t('qq_editor.copy_image')}</Button>
+        {item.source !== 'manual' && <Button size="sm" variant="outline" disabled={busy} onClick={() => void run(async () => {
+          await qqOfficialAction(adapterId, 'qq_material_pin', { imageId: item.image_id, url: item.url, source: 'manual' });
+          await load(cursors); setNotice(t('qq_editor.material_pinned'));
+        })}>{t('qq_editor.material_pin')}</Button>}
+        <Button size="sm" variant="outline" disabled={busy} onClick={() => { setReplaceId(item.image_id); replaceRef.current?.click(); }}>{t('qq_editor.material_replace')}</Button>
         <Button size="sm" variant="outline" disabled={busy} onClick={() => void run(async () => {
           if (!await confirm({ title: t('common.delete'), description: t('qq_editor.material_delete'), destructive: true })) return;
           await qqOfficialAction(adapterId, 'qq_material_delete', { imageId: item.image_id }); await load();
         })}>{t('common.delete')}</Button>
       </div>
     </div>)}
+    <input ref={replaceRef} type="file" accept="image/*" className="hidden" onChange={e => {
+      const chosen = e.target.files?.[0]; e.target.value = '';
+      if (!chosen || !replaceId) return;
+      void run(async () => {
+        if (!await confirm({ title: t('qq_editor.material_replace'), description: t('qq_editor.material_replace_hint'), destructive: true })) return;
+        await qqOfficialAction(adapterId, 'qq_material_delete', { imageId: replaceId });
+        await uploadFile(chosen);
+      });
+    }} />
     <div className="flex gap-2"><Button variant="outline" disabled={busy || cursors.length < 2} onClick={() => void run(() => load(cursors.slice(0, -1)))}>{t('qq_editor.previous')}</Button><Button variant="outline" disabled={busy || !next} onClick={() => void run(() => load([...cursors, next]))}>{t('qq_editor.next')}</Button></div>
     <Dialog open={!!preview} onOpenChange={open => { if (!open) setPreview(undefined); }}><DialogContent><DialogHeader><DialogTitle>{preview?.file_name || t('qq_editor.image_preview')}</DialogTitle></DialogHeader>{preview?.preview_url && https(preview.preview_url) && <img src={preview.preview_url} alt={preview.file_name} referrerPolicy="no-referrer" className="max-h-[65vh] w-full object-contain" />}</DialogContent></Dialog>
   </section>;
