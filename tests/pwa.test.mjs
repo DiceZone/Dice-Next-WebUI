@@ -11,7 +11,8 @@ const manifest = JSON.parse(await readFile(new URL('manifest.json', publicDir), 
 
 test('入口声明安装清单和 Apple 图标', async () => {
   const html = await readFile(htmlFile, 'utf8');
-  assert.match(html, /<link rel="manifest" href="(?:%BASE_URL%|\.\/)manifest\.json"/);
+  // 公寓等反代会用 cookie 拦截未解锁的访问；不带 use-credentials 时浏览器抓清单不带 cookie，拿到的是拦截页，安装入口就不会出现
+  assert.match(html, /<link rel="manifest" href="(?:%BASE_URL%|\.\/)manifest\.json" crossorigin="use-credentials"/);
   assert.match(html, /<link rel="apple-touch-icon" href="(?:%BASE_URL%|\.\/)icons\/apple-touch-icon\.png"/);
   assert.match(html, /name="theme-color"/);
 });
