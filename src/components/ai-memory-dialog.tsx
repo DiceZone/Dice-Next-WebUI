@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Dialog, DialogBody, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,7 @@ import { useDialogs } from '@/hooks/use-dialogs';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 
-interface Memory { id: number; scope: string; scope_id: string; content: string; updated_at: number; hits: number; }
+interface Memory { id: number; scope: string; scope_id: string; content: string; updated_at: number; hits: number; meta?: { term?: string; approved?: boolean; previous?: { text: string; source: number }[] }; source?: { sender: string; text: string }; }
 async function request(path: string, method = 'GET', body?: unknown) {
   const response = await fetch('/api/system/ai/memory' + path, { method, headers: { 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
   const result = await response.json();
@@ -17,34 +17,49 @@ async function request(path: string, method = 'GET', body?: unknown) {
   return result.data;
 }
 
-export function AiMemoryDialog({ kind, onClose }: { kind: 'summary' | 'fact' | null; onClose: () => void }) {
+export function AiMemoryDialog({ kind, onClose }: { kind: 'summary' | 'fact' | 'alias' | null; onClose: () => void }) {
   const { t } = useTranslation(); const toast = useToast(); const dialogs = useDialogs(t);
   const [items, setItems] = useState<Memory[]>([]); const [busy, setBusy] = useState(false);
   const [error, setError] = useState(''); const [group, setGroup] = useState('');
   const [query, setQuery] = useState(''); const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<Memory | null>(null); const [draft, setDraft] = useState('');
+  const selection = useRef(0);
   useEffect(() => {
     if (!kind) return;
     let active = true; setBusy(true); setError(''); setSelected(null); setItems([]); setQuery(''); setPage(0);
     request('?kind=' + kind).then((data) => { if (active) { setItems(data.items); setGroup(data.items[0]?.scope_id || ''); } })
       .catch((e: Error) => { if (active) setError(e.message); }).finally(() => { if (active) setBusy(false); });
-    return () => { active = false; };
+    return () => { active = false; selection.current++; };
   }, [kind]);
   const groups = [...new Set(items.map((item) => item.scope_id))];
-  const matches = items.filter((item) => item.scope_id === group && item.content.toLowerCase().includes(query.toLowerCase()));
+  const matches = items.filter((item) => item.scope_id === group && [item.content, item.meta?.term].some((value) => value?.toLowerCase().includes(query.toLowerCase())));
   const visible = matches.slice(page * 8, page * 8 + 8);
   const select = async (item: Memory | null) => {
     if (selected && draft !== selected.content && !await dialogs.confirm({ title: t('ai.memory_discard'), description: t('ai.memory_discard_desc') })) return false;
+    const version = ++selection.current;
     setSelected(item); setDraft(item?.content || '');
+    if (item) {
+      setBusy(true);
+      try {
+        const data = await request('?kind=' + kind + '&id=' + item.id);
+        if (version !== selection.current) return false;
+        const current = data.items[0] as Memory | undefined;
+        setSelected(current || null); setDraft(current?.content || '');
+      } catch (e) {
+        if (version === selection.current) toast({ title: (e as Error).message, variant: 'destructive' });
+      } finally { if (version === selection.current) setBusy(false); }
+    } else setBusy(false);
     return true;
   };
-  const save = async () => {
+  const save = async (approved?: boolean) => {
     if (!selected) return;
     setBusy(true);
     try {
-      await request('', 'PUT', { id: selected.id, content: draft, previous_content: selected.content });
-      const next = { ...selected, content: draft, updated_at: Math.floor(Date.now() / 1000) };
-      setItems((all) => all.map((item) => item.id === next.id ? next : item)); setSelected(next);
+      await request('', 'PUT', { id: selected.id, content: draft, previous_content: selected.content, previous_approved: selected.meta?.approved, approved });
+      const { items: refreshed } = await request('?kind=' + kind) as { items: Memory[] };
+      const detail = await request('?kind=' + kind + '&id=' + selected.id);
+      const next = detail.items[0] as Memory | undefined;
+      setItems(refreshed); setSelected(next || null); setDraft(next?.content || '');
       toast({ title: t('common.save_success') });
     } catch (e) { toast({ title: (e as Error).message, variant: 'destructive' }); }
     finally { setBusy(false); }
@@ -59,7 +74,7 @@ export function AiMemoryDialog({ kind, onClose }: { kind: 'summary' | 'fact' | n
   const height = Math.max(180, visible.length * 76);
   return <>{dialogs.node}<Dialog open={!!kind} onOpenChange={async (open) => {
     if (!open && !busy && (!selected || draft === selected.content || await dialogs.confirm({ title: t('ai.memory_discard'), description: t('ai.memory_discard_desc') }))) onClose();
-  }}><DialogContent layout="editor" className="max-w-6xl"><DialogHeader><DialogTitle>{t(kind === 'fact' ? 'ai.mlong_stored' : 'ai.mem_stored')}</DialogTitle></DialogHeader>
+  }}><DialogContent layout="editor" className="max-w-6xl"><DialogHeader><DialogTitle>{t(kind === 'alias' ? 'ai.group_terms' : kind === 'fact' ? 'ai.mlong_stored' : 'ai.mem_stored')}</DialogTitle></DialogHeader>
     <div className="grid gap-3 sm:grid-cols-2"><Select disabled={busy} value={group || undefined} onValueChange={async (value) => { if (await select(null)) { setGroup(value); setPage(0); } }}><SelectTrigger aria-label={t('ai.memory_scope')}><SelectValue placeholder={t('ai.memory_scope')} /></SelectTrigger><SelectContent>{groups.map((id) => <SelectItem key={id} value={id}>{id}</SelectItem>)}</SelectContent></Select><Input aria-label={t('ai.memory_search')} placeholder={t('ai.memory_search')} value={query} onChange={(e) => { setQuery(e.target.value); setPage(0); }} /></div>
     <DialogBody className="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
       <div className="min-w-0 rounded-xl border bg-muted/20 p-3">
@@ -69,15 +84,18 @@ export function AiMemoryDialog({ kind, onClose }: { kind: 'summary' | 'fact' | n
         <div className="overflow-x-auto"><div className="relative min-w-[440px]" style={{ height }}>
           <svg className="absolute inset-0 h-full w-full text-primary/30" aria-hidden="true" viewBox={`0 0 440 ${height}`} preserveAspectRatio="none">{visible.map((item, i) => <path key={item.id} d={`M 130 ${height / 2} C 180 ${height / 2}, 155 ${i * 76 + 36}, 205 ${i * 76 + 36}`} fill="none" stroke="currentColor" strokeWidth="2" />)}</svg>
           <div className="absolute left-0 w-[30%] break-all rounded-xl bg-primary/10 p-3 text-center text-xs font-medium text-primary" style={{ top: '50%', transform: 'translateY(-50%)' }}>{group || t('ai.memory_scope')}</div>
-          {visible.map((item, i) => <Button key={item.id} variant="outline" disabled={busy} className={`absolute left-[47%] h-16 w-[53%] justify-start whitespace-normal rounded-xl px-3 text-left text-xs ${selected?.id === item.id ? 'border-primary bg-primary/10' : 'bg-card'}`} style={{ top: i * 76 + 4 }} onClick={() => void select(item)}><span className="line-clamp-2 break-all">{item.content}</span></Button>)}
+          {visible.map((item, i) => <Button key={item.id} variant="outline" disabled={busy} className={`absolute left-[47%] h-16 w-[53%] justify-start whitespace-normal rounded-xl px-3 text-left text-xs ${selected?.id === item.id ? 'border-primary bg-primary/10' : 'bg-card'}`} style={{ top: i * 76 + 4 }} onClick={() => void select(item)}><span className="line-clamp-2 break-all">{kind === 'alias' ? item.meta?.term + ' · ' + t(item.meta?.approved ? 'ai.term_active' : 'ai.term_pending') : item.content}</span></Button>)}
         </div></div>
         <div className="mt-3 flex items-center justify-center gap-3"><Button size="sm" variant="outline" disabled={page === 0} onClick={() => setPage(page - 1)}>←</Button><span className="text-xs">{page + 1} / {Math.max(1, Math.ceil(matches.length / 8))}</span><Button size="sm" variant="outline" disabled={(page + 1) * 8 >= matches.length} onClick={() => setPage(page + 1)}>→</Button></div>
       </div>
       <div className="flex min-w-0 flex-col gap-3 rounded-xl border p-4">{selected ? <>
         <p className="break-all text-sm font-medium">{selected.scope_id}</p><p className="text-xs text-muted-foreground">{new Date(selected.updated_at * 1000).toLocaleString()} · {t('ai.memory_hits', { count: selected.hits })}</p>
+        {selected.meta?.term && <strong>{selected.meta.term}</strong>}
+        {selected.source && <blockquote className="whitespace-pre-wrap break-words rounded-lg bg-muted p-3 text-sm">{t('ai.memory_source')} · {selected.source.sender}：{selected.source.text}</blockquote>}
+        {!!selected.meta?.previous?.length && <details><summary>{t('ai.memory_revisions')}</summary><ul className="list-disc space-y-1 pl-5">{selected.meta.previous.map((v, i) => <li key={i}>{v.text}</li>)}</ul></details>}
         <Textarea aria-label={t('ai.memory_content')} value={draft} disabled={busy} onChange={(e) => setDraft(e.target.value)} className="min-h-64 flex-1" />
         {kind === 'fact' && <p className="text-xs text-muted-foreground">{t('ai.memory_embed_edit')}</p>}
-        <div className="flex justify-end gap-2"><Button variant="outline" disabled={busy} onClick={() => void remove()}>{t('common.delete')}</Button><Button disabled={busy || !draft.trim() || draft === selected.content} onClick={() => void save()}>{t('common.save')}</Button></div>
+        <div className="flex flex-wrap justify-end gap-2">{kind === 'alias' && <Button disabled={busy || !draft.trim()} onClick={() => void save(!selected.meta?.approved)}>{t(selected.meta?.approved ? 'ai.term_disable' : 'ai.term_approve')}</Button>}<Button variant="outline" disabled={busy} onClick={() => void remove()}>{t('common.delete')}</Button><Button disabled={busy || !draft.trim() || draft === selected.content} onClick={() => void save()}>{t('common.save')}</Button></div>
       </> : <p className="py-10 text-center text-sm text-muted-foreground">{t('ai.memory_select')}</p>}</div>
     </DialogBody>
   </DialogContent></Dialog></>;

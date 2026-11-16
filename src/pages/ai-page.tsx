@@ -314,7 +314,7 @@ export const AiPage: React.FC = () => {
     finally { writeBusy.current = false; setSaving(false); }
   };
 
-  const [memoryKind, setMemoryKind] = useState<'summary' | 'fact' | null>(null);
+  const [memoryKind, setMemoryKind] = useState<'summary' | 'fact' | 'alias' | null>(null);
 
   const test = async (m: AiModel) => {
     setTesting((s) => ({ ...s, [m.id]: true }));
@@ -879,6 +879,7 @@ export const AiPage: React.FC = () => {
                     <p className="text-[11px] text-muted-foreground">{t('ai.mlong_note')}</p>
 
                   <div className="flex items-center justify-between rounded-md border p-3"><Label>{t('ai.mlong_stored')}</Label><Button size="sm" variant="outline" onClick={() => setMemoryKind('fact')}>{t('ai.mem_view')}</Button></div>
+                  <div className="flex items-center justify-between rounded-md border p-3"><Label>{t('ai.group_terms')}</Label><Button size="sm" variant="outline" onClick={() => setMemoryKind('alias')}>{t('ai.mem_view')}</Button></div>
                   </div>
                 )}
               </div>
