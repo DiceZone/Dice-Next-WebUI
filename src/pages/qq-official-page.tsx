@@ -8,6 +8,7 @@ import { QQMenuEditor } from '@/components/adapter/qq-menu-editor';
 import { QQPanelEditor } from '@/components/adapter/qq-panel-editor';
 import { QQMaterials, QQMessageComposer } from '@/components/adapter/qq-media-editor';
 import { EditorError } from '@/components/adapter/qq-editor-shared';
+import { OfficialBotIdentity, OfficialBotOption, officialBotOptionLabel } from '@/components/adapter/official-bot-account';
 import { zustandAdapterStore } from '@/store/adapter-store';
 import { navigatePanel } from '@/lib/panel-navigation';
 import type { Adapter } from '@/types/adapter';
@@ -56,10 +57,16 @@ export function QQOfficialPage() {
         const query = new URLSearchParams(window.location.hash.split('?')[1] || '');
         query.set('adapter', value); navigatePanel(`/qq-official?${query}`);
       }}>
-        <SelectTrigger className="w-full min-w-0 sm:w-80" aria-label={t('qq_editor.account')}><SelectValue placeholder={t('qq_editor.account')} /></SelectTrigger>
-        <SelectContent>{official.map((account) => <SelectItem key={account.id} value={account.id}>{account.name} · {account.appId || account.id}</SelectItem>)}</SelectContent>
+        <SelectTrigger className="w-full min-w-0 sm:w-80" aria-label={t('qq_editor.account')}>
+          {adapter ? <OfficialBotOption adapter={adapter} /> : <SelectValue placeholder={t('qq_editor.account')} />}
+        </SelectTrigger>
+        <SelectContent>{official.map((account) => (
+          <SelectItem key={account.id} value={account.id} textValue={officialBotOptionLabel(account)}>
+            <OfficialBotOption adapter={account} />
+          </SelectItem>
+        ))}</SelectContent>
       </Select>
-      {adapter && <span className="break-all font-mono text-xs text-muted-foreground">AppID: {adapter.appId || '—'}</span>}
+      {adapter && <OfficialBotIdentity adapter={adapter} />}
     </div>
     {!adapter ? <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">{official.length ? t('qq_editor.account') : t('qq_editor.no_account')}</div>
       : <><p className={`text-sm ${adapter.status === 'connected' ? 'hidden' : 'rounded-lg border border-amber-400/30 bg-amber-400/5 p-3 text-amber-600 dark:text-amber-300'}`}>{t('qq_editor.offline')}</p>
