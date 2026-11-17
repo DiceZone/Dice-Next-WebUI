@@ -78,3 +78,20 @@ test('localized grades/families stay complete and editor preserves server-side w
   assert.match(editor, /outcome.reset/);
   assert.match(editor, /!useInherited && <>/);
 });
+
+test('a family that inherits the standard text previews its detail line, and only then', () => {
+  const failure = row('dice.outcome.standard.failure', '', { outcome: { family: 'standard', grade: 'failure' }, fallbackKeys: ['dice.check.result'] });
+  const sanity = row('dice.outcome.sanity.failure', '', { outcome: { family: 'sanity', grade: 'failure' },
+    fallbackKeys: [failure.key, 'card.sc.result'], inheritedDetailKey: 'dice.outcome_detail.sanity' });
+  const original = row('card.sc.result', 'SAN {loss} {final}');
+  const detail = '\n{text:dice.outcome_detail.sanity}';
+  assert.equal(resolveOutcomeText(sanity, index(failure, original)).value, original.default);
+  const custom = { ...failure, override: 'flavour' };
+  assert.equal(resolveOutcomeText(sanity, index(custom, original)).value, 'flavour' + detail);
+  assert.equal(resolveOutcomeText(sanity, index(custom, original), { [failure.key]: { value: 'persona', format: 'plain' } }).value, 'persona' + detail);
+  assert.equal(resolveOutcomeText({ ...sanity, override: 'own' }, index(custom, original)).value, 'own');
+  assert.equal(resolveOutcomeText(custom, index(custom)).value, 'flavour');
+  const weighted = writeTemplateVariants([{ text: 'a', weight: 1 }, { text: '', weight: 1 }]);
+  assert.equal(resolveOutcomeText(sanity, index({ ...failure, override: weighted }, original)).value,
+    writeTemplateVariants([{ text: 'a' + detail, weight: 1 }, { text: '', weight: 1 }]));
+});

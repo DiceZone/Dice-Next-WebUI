@@ -1,3 +1,5 @@
+import { readTemplateVariants, writeTemplateVariants, WEIGHTED_TEMPLATE_PREFIX } from './weighted-templates.js';
+
 export type TemplateFormat = 'plain' | 'markdown';
 export interface OutcomeMetadata { family: string; grade: string; }
 export interface OutcomeText {
@@ -10,6 +12,8 @@ export interface OutcomeText {
   presetStyle?: 'traditional' | 'standard' | 'visual';
   outcome?: OutcomeMetadata;
   fallbackKeys?: string[];
+  /** Line the backend appends when this slot uses the standard slot's text. */
+  inheritedDetailKey?: string;
   legacyCompatibility?: boolean;
   legacyReferences?: string[];
 }
@@ -77,12 +81,28 @@ export function resolveOutcomeText(
   if (reasonBase) return configuredText(text, persona) ?? configuredText(index.get(reasonBase), persona)
     ?? { key: text.key, value: text.default, format: text.defaultFormat, layer: 'builtin' };
   if (!text.outcome) return undefined;
+  const resolved = resolveOutcomeSlot(text, text.outcome, index, persona);
+  // The standard text cannot show SAN loss, growth or the other side of a
+  // contest; the backend appends the family's detail line, so the preview does too.
+  if (!resolved || !text.inheritedDetailKey || !resolved.key.startsWith('dice.outcome.standard.')) return resolved;
+  return { ...resolved, value: withDetailLine(resolved.value, text.inheritedDetailKey) };
+}
+
+function withDetailLine(value: string, detailKey: string): string {
+  const line = '\n{text:' + detailKey + '}';
+  if (!value.startsWith(WEIGHTED_TEMPLATE_PREFIX)) return value === '' ? value : value + line;
+  return writeTemplateVariants(readTemplateVariants(value).map(item => ({ ...item, text: item.text === '' ? '' : item.text + line })));
+}
+
+function resolveOutcomeSlot(
+  text: OutcomeText, outcome: OutcomeMetadata, index: ReadonlyMap<string, OutcomeText>, persona: PersonaTexts,
+): ResolvedOutcomeText | undefined {
   for (const key of [text.key, ...(text.fallbackKeys ?? [])]) {
     let row = key === text.key ? text : index.get(key);
     if (!row) continue;
     const optional = key.startsWith('dice.outcome.');
     // The representative successful SAN preview has zero loss.
-    if (!optional && text.outcome.family === 'sanity' && !['failure', 'fumble'].includes(text.outcome.grade))
+    if (!optional && outcome.family === 'sanity' && !['failure', 'fumble'].includes(outcome.grade))
       row = index.get('card.sc.result_noloss') ?? row;
     const entry = persona[row.key];
     if (entry && (!optional || entry.value !== ''))
@@ -90,7 +110,7 @@ export function resolveOutcomeText(
     if (row.override !== null && (!optional || row.override !== ''))
       return { key: row.key, value: row.override, format: row.format, layer: 'global' };
     if (!optional) {
-      const legacy = legacyCheckFallback(row, text.outcome, index, persona);
+      const legacy = legacyCheckFallback(row, outcome, index, persona);
       if (legacy) return legacy;
     }
     if (!optional || row.default !== '')
