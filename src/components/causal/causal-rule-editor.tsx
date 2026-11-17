@@ -1,3 +1,4 @@
+import { VariableTextarea, replyVariables, captureVariables, tokens } from '@/components/reply/variable-picker';
 /**
  * C#29 + C#66: Causal Rule Editor — 重做为「更贴近真人操作」的向导式编辑器。
  * 设计要点：①模板库一键套用（解决「没实例」）；②自然语言「当…就…」句式行；
@@ -84,9 +85,6 @@ const ACT_OPS: { id: string; type: CausalActionType }[] = [
   { id: 'api', type: 'api_call' },
 ];
 
-// 回复可用变量（点击插入）
-const REPLY_VARS = ['{nick}', '{at}', '{counter:名字}', '{$1}', '{date}', '{time}', '{a|b|c}'];
-
 // ── 模板库：一键套用现成规则 ──
 function templates(): { key: string; rule: Partial<CausalRule> }[] {
   return [
@@ -125,7 +123,7 @@ export const CausalRuleEditor: React.FC<Props> = ({ rule, open, onOpenChange, on
   const testKey = JSON.stringify([open, editing, testMsg, testUser, testGroup, testNick]);
   const testGate = useRequestGate(testKey);
   React.useEffect(() => { setTestResult(null); }, [testKey]);
-  const replyRefs = useRef<Record<number, HTMLTextAreaElement | null>>({});
+
 
   React.useEffect(() => {
     if (open) { setEditing({ ...rule }); setTestResult(null); }
@@ -149,16 +147,6 @@ export const CausalRuleEditor: React.FC<Props> = ({ rule, open, onOpenChange, on
     setEditing((e) => ({ ...e, actions: e.actions.map((a, idx) => (idx === i ? { ...a, ...p } : a)) }));
   const addAct = () => setEditing((e) => ({ ...e, actions: [...e.actions, { type: 'reply', replies: [''] }] }));
   const delAct = (i: number) => setEditing((e) => ({ ...e, actions: e.actions.filter((_, idx) => idx !== i) }));
-
-  const insertVar = (ai: number, tok: string) => {
-    const ta = replyRefs.current[ai];
-    const cur = (editing.actions[ai].replies || ['']).join('\n');
-    if (!ta) { patchAct(ai, { replies: (cur + tok).split('\n') }); return; }
-    const s = ta.selectionStart, en = ta.selectionEnd;
-    const next = cur.slice(0, s) + tok + cur.slice(en);
-    patchAct(ai, { replies: next.split('\n') });
-    setTimeout(() => { ta.focus(); ta.selectionStart = ta.selectionEnd = s + tok.length; }, 0);
-  };
 
   const handleTest = async () => {
     if (testMsg === '') return;
@@ -313,19 +301,12 @@ export const CausalRuleEditor: React.FC<Props> = ({ rule, open, onOpenChange, on
                   </div>
                   {action.type === 'reply' && (
                     <div className="space-y-1.5">
-                      <Textarea
-                        ref={(el) => { replyRefs.current[i] = el; }}
-                        className="text-sm min-h-[60px]"
-                        value={(action.replies || []).join('\n')}
-                        onChange={(e) => patchAct(i, { replies: e.target.value.split('\n') })}
-                        placeholder={t('causal.v2.reply_ph')}
-                      />
-                      <div className="flex flex-wrap gap-1">
-                        {REPLY_VARS.map((v) => (
-                          <button key={v} type="button" onClick={() => insertVar(i, v)}
-                            className="rounded border bg-muted/50 px-1.5 py-0.5 text-[10px] font-mono hover:bg-muted">{v}</button>
-                        ))}
-                      </div>
+                      <VariableTextarea
+                        options={[...replyVariables, ...captureVariables(editing.conditions), ...tokens(['counter:名字',
+                          ...editing.actions.flatMap(a => a.counterName ? ['counter:' + a.counterName] : [])])]}
+                        className="text-sm min-h-[60px]" value={(action.replies || []).join('\n')}
+                        onValueChange={value => patchAct(i, { replies: value.split('\n') })}
+                        placeholder={t('causal.v2.reply_ph')} />
                     </div>
                   )}
                   {(action.type === 'counter_add' || action.type === 'counter_set' || action.type === 'counter_reset') && (

@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+import { VariableInput, VariableTextarea, replyVariables, captureVariables, tokens } from './variable-picker';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { AdvancedOptions } from '@/components/ui/advanced-options';
@@ -100,6 +100,7 @@ export const ReplyForm: React.FC<ReplyFormProps> = ({ open, onOpenChange, onSubm
   const setResult = (i: number, v: string) => setResults((rs) => rs.map((r, idx) => (idx === i ? v : r)));
   const addResult = () => { setResults((rs) => [...rs, '']); setWeights((ws) => [...ws, 1]); };
   const delResult = (i: number) => { setResults((rs) => rs.filter((_, idx) => idx !== i)); setWeights((ws) => ws.filter((_, idx) => idx !== i)); };
+  const variables = [...replyVariables, ...(eventTrigger ? tokens(['at']) : captureVariables(conditions))];
   const probabilities = resultProbabilities(results, weights);
 
   const submit = async () => {
@@ -214,9 +215,9 @@ export const ReplyForm: React.FC<ReplyFormProps> = ({ open, onOpenChange, onSubm
                     )}
                   </div>
                 </div>
-                <Textarea rows={3} value={r} onChange={(e) => setResult(i, e.target.value)}
+                <VariableTextarea options={variables} rows={3} value={r} onValueChange={value => setResult(i, value)}
                   placeholder={t('replies.result_ph')} />
-                <PresentationTemplateEditor text={r} onChange={value => setResult(i, value)} allowMath={false} />
+                <PresentationTemplateEditor options={variables} text={r} onChange={value => setResult(i, value)} allowMath={false} />
                 <div className="flex flex-wrap items-center gap-2 text-xs">
                   <Label htmlFor={`reply-weight-${i}`} className="text-xs">{t('replies.result_weight')}</Label>
                   <Input id={`reply-weight-${i}`} type="number" min={0} max={MAX_REPLY_WEIGHT} step={1} className="h-8 w-24" value={Number.isNaN(weights[i]) ? '' : weights[i]}
@@ -265,11 +266,11 @@ export const ReplyForm: React.FC<ReplyFormProps> = ({ open, onOpenChange, onSubm
               </div>
             </div>
             {cooldownSec > 0 && (
-              <Input value={cooldownNotice} onChange={(e) => setCooldownNotice(e.target.value)}
+              <VariableInput options={replyVariables} value={cooldownNotice} onValueChange={setCooldownNotice}
                 placeholder={t('replies.limit_cd_notice_ph')} />
             )}
             {dayLimit > 0 && (
-              <Input value={dayLimitNotice} onChange={(e) => setDayLimitNotice(e.target.value)}
+              <VariableInput options={replyVariables} value={dayLimitNotice} onValueChange={setDayLimitNotice}
                 placeholder={t('replies.limit_daylimit_notice_ph')} />
             )}
             <div className="flex flex-wrap items-start gap-2">

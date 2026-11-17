@@ -1,3 +1,5 @@
+import { ImageOff, MoreHorizontal, RefreshCw } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
@@ -24,6 +26,18 @@ const asBase64 = (file: File) => new Promise<string>((resolve, reject) => {
 const acceptImage = (file?: File) => !!file && file.size >= 1 && file.size <= 10 * 1024 * 1024
   && (file.type.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp|ico|avif|heic|heif)$/i.test(file.name));
 
+function MaterialThumbnail({ item, open }: { item: Material; open: (item: Material) => void }) {
+  const { t } = useTranslation();
+  const [failed, setFailed] = useState(false);
+  const src = item.preview_url && https(item.preview_url) ? item.preview_url : https(item.url) ? item.url : '';
+  return <button type="button" className="grid aspect-[4/3] w-full place-items-center overflow-hidden bg-muted/60"
+    disabled={!src || failed} aria-label={t('qq_editor.image_preview')} onClick={() => open({ ...item, preview_url: src })}>
+    {src && !failed ? <img src={src} alt={item.file_name || item.image_id} loading="lazy" decoding="async" referrerPolicy="no-referrer"
+      onError={() => setFailed(true)} className="h-full w-full object-contain" /> :
+      <span className="flex flex-col items-center gap-1 text-xs text-muted-foreground"><ImageOff className="size-5" />{t('image_resources.previewFailed')}</span>}
+  </button>;
+}
+
 export function QQMaterials({ adapterId, onBusy }: Props) {
   const { t } = useTranslation();
   const { confirm, node } = useDialogs(t);
@@ -32,6 +46,7 @@ export function QQMaterials({ adapterId, onBusy }: Props) {
   const [cursors, setCursors] = useState(['']), [next, setNext] = useState('');
   const [file, setFile] = useState<File>(), [preview, setPreview] = useState<Material>();
   const replaceRef = useRef<HTMLInputElement>(null);
+  const [pageVersion, setPageVersion] = useState(0);
   const [replaceId, setReplaceId] = useState('');
   useEffect(() => { onBusy(busy); return () => onBusy(false); }, [busy, onBusy]);
   const run = async (job: () => Promise<void>) => {
@@ -41,7 +56,7 @@ export function QQMaterials({ adapterId, onBusy }: Props) {
   const load = async (pages = ['']) => {
     const data = platformData(await qqOfficialAction(adapterId, 'qq_material_list', { cursor: pages[pages.length - 1] }));
     if (!Array.isArray(data.images) || data.images.some(item => !item || typeof item.image_id !== 'string' || typeof item.url !== 'string')) throw new Error(t('qq_editor.errors_invalid_response'));
-    setItems(data.images as Material[]); setTotal(Number(data.total)); setNext(typeof data.next_cursor === 'string' ? data.next_cursor : ''); setCursors(pages);
+    setPageVersion(n => n + 1); setItems(data.images as Material[]); setTotal(Number(data.total)); setNext(typeof data.next_cursor === 'string' ? data.next_cursor : ''); setCursors(pages);
   };
   useEffect(() => { void run(() => load()); }, [adapterId]);
   const sourceLabel = (source?: string) => source === 'manual' ? t('qq_editor.material_source_manual') : source === 'cache' ? t('qq_editor.material_source_cache') : t('qq_editor.material_source_unknown');
@@ -53,37 +68,45 @@ export function QQMaterials({ adapterId, onBusy }: Props) {
   };
   return <section className="space-y-4 rounded-xl border bg-card p-4" data-setting-anchor="qq-materials">
     {node}
-    <div className="flex items-center gap-2"><h2 className="font-medium">{t('qq_editor.materials')}</h2><FeatureHelp title={t('qq_editor.materials')} description={t('qq_editor.material_help')} /></div>
-    <p className="text-sm text-muted-foreground">{t('image_resources.officialHostHint')}</p>
+    <div className="flex flex-wrap items-center gap-2"><h2 className="font-medium">{t('qq_editor.materials')}</h2><FeatureHelp title={t('qq_editor.materials')} description={t('qq_editor.material_help')} />
+      {Number.isFinite(total) && <span className="text-xs tabular-nums text-muted-foreground">{total} / 100</span>}
+      <Button size="icon" variant="ghost" className="ml-auto h-8 w-8" disabled={busy} aria-label={t('common.refresh')} onClick={() => void run(() => load())}>
+        <RefreshCw className={busy ? 'size-4 animate-spin' : 'size-4'} /></Button>
+    </div>
     <EditorError error={error} />{notice && <p role="status" className="break-all text-sm">{notice}</p>}
-    <div className="flex flex-wrap items-center gap-3">
-      <Button variant="outline" disabled={busy} onClick={() => void run(() => load())}>{t('common.refresh')}{busy ? '…' : ''}</Button>
-      {total !== undefined && <span className="text-sm text-muted-foreground">{total} / 100</span>}
-      <Input type="file" className="w-full sm:w-72" accept="image/*" disabled={busy} aria-label={t('qq_editor.upload_image')} onChange={e => setFile(e.target.files?.[0])} />
+    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 sm:max-w-md">
+      <Input type="file" className="w-full min-w-0 truncate" accept="image/*" disabled={busy} aria-label={t('qq_editor.upload_image')} onChange={e => setFile(e.target.files?.[0])} />
       <Button disabled={busy || !file} onClick={() => void run(async () => { if (file) await uploadFile(file); })}>{t('qq_editor.upload_image')}</Button>
     </div>
     {items.length === 0 && !busy && <p className="text-sm text-muted-foreground">{t('image_resources.officialHostEmpty')}</p>}
-    {items.map(item => <div key={item.image_id} className="flex flex-wrap items-center gap-3 rounded-lg border p-3">
-      <div className="min-w-0 flex-1">
-        <p className="break-all text-sm font-medium">{item.file_name || item.image_id}</p>
-        <p className="text-xs text-muted-foreground">{sourceLabel(item.source)}</p>
-        <p className="break-all text-xs text-muted-foreground">{item.url}</p>
-        <p className="text-xs text-muted-foreground">{t('qq_editor.expires')} {Number.isFinite(item.expires_at) ? new Date(item.expires_at * 1000).toLocaleString() : '—'}</p>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        <Button size="sm" variant="outline" disabled={!item.preview_url || !https(item.preview_url)} onClick={() => setPreview(item)}>{t('qq_editor.image_preview')}</Button>
-        <Button size="sm" variant="outline" disabled={busy} onClick={() => void run(async () => { await navigator.clipboard.writeText(`![image](${item.url})`); setNotice(t('qq_editor.copied')); })}>{t('qq_editor.copy_image')}</Button>
-        {item.source !== 'manual' && <Button size="sm" variant="outline" disabled={busy} onClick={() => void run(async () => {
-          await qqOfficialAction(adapterId, 'qq_material_pin', { imageId: item.image_id, url: item.url, source: 'manual' });
-          await load(cursors); setNotice(t('qq_editor.material_pinned'));
-        })}>{t('qq_editor.material_pin')}</Button>}
-        <Button size="sm" variant="outline" disabled={busy} onClick={() => { setReplaceId(item.image_id); replaceRef.current?.click(); }}>{t('qq_editor.material_replace')}</Button>
-        <Button size="sm" variant="outline" disabled={busy} onClick={() => void run(async () => {
-          if (!await confirm({ title: t('common.delete'), description: t('qq_editor.material_delete'), destructive: true })) return;
-          await qqOfficialAction(adapterId, 'qq_material_delete', { imageId: item.image_id }); await load();
-        })}>{t('common.delete')}</Button>
-      </div>
-    </div>)}
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-[repeat(auto-fill,minmax(13rem,1fr))] sm:gap-4">
+      {items.map(item => <article key={item.image_id} className="min-w-0 overflow-hidden rounded-lg border bg-card">
+        <MaterialThumbnail key={pageVersion} item={item} open={setPreview} />
+        <div className="space-y-1.5 p-2.5 sm:p-3">
+          <h3 title={item.file_name || item.image_id} className="truncate text-sm font-medium">{item.file_name || item.image_id}</h3>
+          <p className="text-xs text-muted-foreground">{sourceLabel(item.source)}</p>
+          {item.expires_at > 0 && <p className="text-xs text-muted-foreground">{t('qq_editor.expires')} {new Date(item.expires_at * 1000).toLocaleDateString()}</p>}
+          <div className="flex flex-wrap items-center justify-between gap-1 pt-1">
+            <Button size="sm" variant="outline" className="h-8 px-2 text-xs" disabled={busy} onClick={() => void run(async () => {
+              await navigator.clipboard.writeText('![image](' + item.url + ')'); setNotice(t('qq_editor.copied'));
+            })}>{t('qq_editor.copy_image')}</Button>
+            <DropdownMenu><DropdownMenuTrigger asChild><Button size="icon" variant="ghost" className="h-8 w-8" disabled={busy} aria-label={t('common.more')}><MoreHorizontal className="size-4" /></Button></DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {item.source !== 'manual' && <DropdownMenuItem onSelect={() => void run(async () => {
+                  await qqOfficialAction(adapterId, 'qq_material_pin', { imageId: item.image_id, url: item.url, source: 'manual' });
+                  await load(cursors); setNotice(t('qq_editor.material_pinned'));
+                })}>{t('qq_editor.material_pin')}</DropdownMenuItem>}
+                <DropdownMenuItem onSelect={() => { setReplaceId(item.image_id); replaceRef.current?.click(); }}>{t('qq_editor.material_replace')}</DropdownMenuItem>
+                <DropdownMenuItem className="text-destructive" onSelect={() => void run(async () => {
+                  if (!await confirm({ title: t('common.delete'), description: t('qq_editor.material_delete'), destructive: true })) return;
+                  await qqOfficialAction(adapterId, 'qq_material_delete', { imageId: item.image_id }); await load();
+                })}>{t('common.delete')}</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+      </article>)}
+    </div>
     <input ref={replaceRef} type="file" accept="image/*" className="hidden" onChange={e => {
       const chosen = e.target.files?.[0]; e.target.value = '';
       if (!chosen || !replaceId) return;

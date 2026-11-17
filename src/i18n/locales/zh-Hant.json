@@ -2221,7 +2221,7 @@
     "v2_tooltip": "下方灰色小字是 Dice!V2 原版鍵值",
     "insert_global": "插入全域變數",
     "global_vars_title": "全域變數",
-    "global_vars_desc": "這些變數在任意文字中都可用（如骰子自稱）。目前指令的專屬變數在外層彈窗裡。",
+    "global_vars_desc": "可依名稱或說明搜尋。點選變數會插入到游標處；已選取的文字會被取代。",
     "gvar_self": "骰子自稱",
     "gvar_nick": "暱稱",
     "gvar_user": "QQ號",

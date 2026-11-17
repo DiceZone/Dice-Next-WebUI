@@ -1,3 +1,4 @@
+import { VariableInput, tokens } from '@/components/reply/variable-picker';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
@@ -134,7 +135,9 @@ export const RuleEditor: React.FC<Props> = ({ file, onClose, onSaved }) => {
             <div className="flex-1 space-y-1">
               <div className="flex gap-1">
                 <Input className="w-32 h-8 text-xs" placeholder={t('ruleed.cmd_name')} value={r.k} onChange={(e) => set(rows.map((x, j) => j === i ? { ...x, k: e.target.value } : x))} />
-                <Input className="flex-1 h-8 text-xs" placeholder={t('ruleed.cmd_tmpl')} value={r.v} onChange={(e) => set(rows.map((x, j) => j === i ? { ...x, v: e.target.value } : x))} />
+                <div className="min-w-0 flex-1"><VariableInput className="h-8 text-xs" options={tokens(['nick', 'user', 'group', 'self', 'date', 'time', 'arg', '1d100',
+                  ...form.alias.map(row => row.k), ...form.defaults.map(row => row.k)].filter(Boolean))} placeholder={t('ruleed.cmd_tmpl')} value={r.v}
+                  onValueChange={v => set(rows.map((x, j) => j === i ? { ...x, v } : x))} /></div>
               </div>
               <Input className="h-8 text-xs" placeholder={t('ruleed.cmd_help')} value={r.h ?? ''} onChange={(e) => set(rows.map((x, j) => j === i ? { ...x, h: e.target.value } : x))} />
             </div>

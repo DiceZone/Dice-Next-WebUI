@@ -1,3 +1,4 @@
+import { VariablePicker, templateVariables, type Variable } from '@/components/reply/variable-picker';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Trash2 } from 'lucide-react';
@@ -9,6 +10,7 @@ import { PresentationTemplateEditor } from '@/components/reply/presentation-temp
 import { MAX_TEMPLATE_WEIGHT, probabilities, splitLegacySample, validWeights, type TemplateVariant } from '@/lib/weighted-templates';
 
 interface Props {
+  options?: Variable[];
   items: TemplateVariant[];
   onChange: (items: TemplateVariant[]) => void;
   activeIndex?: number;
@@ -21,8 +23,10 @@ interface Props {
   onTextKeyDown?: React.KeyboardEventHandler<HTMLTextAreaElement>;
 }
 
-export function WeightedTemplateEditor({ items, onChange, activeIndex, onActiveIndex, textareaRef, toolbar, afterText, onTextKeyDown }: Props) {
+export function WeightedTemplateEditor({ options = templateVariables, items, onChange, activeIndex, onActiveIndex, textareaRef, toolbar, afterText, onTextKeyDown }: Props) {
   const { t } = useTranslation();
+  const localRef = React.useRef<HTMLTextAreaElement>(null);
+  const field = textareaRef ?? localRef;
   const [localIndex, setLocalIndex] = useState(0);
   const index = Math.min(activeIndex ?? localIndex, items.length - 1);
   const select = (next: number) => { setLocalIndex(next); onActiveIndex?.(next); };
@@ -61,12 +65,12 @@ export function WeightedTemplateEditor({ items, onChange, activeIndex, onActiveI
       </div>
       <div className="space-y-1.5">
         {toolbar}
-        <Textarea ref={textareaRef} rows={8} className="min-h-44 font-mono text-sm" spellCheck={false}
+        <Textarea ref={field} rows={8} className="min-h-44 font-mono text-sm" spellCheck={false}
           aria-label={t('weighted.reply_number', { n: index + 1 })} value={items[index].text}
           onKeyDown={onTextKeyDown} onChange={event => update({ text: event.target.value })} />
-        {afterText}
+        <div className="flex flex-wrap gap-2"><VariablePicker field={field} options={options} onChange={text => update({ text })} />{afterText}</div>
       </div>
-      <PresentationTemplateEditor text={items[index].text} onChange={text => update({ text })} />
+      <PresentationTemplateEditor options={options} text={items[index].text} onChange={text => update({ text })} />
     </div>
     {!validWeights(items) && <p role="alert" className="text-xs text-destructive">{t('weighted.invalid_weights')}</p>}
     {legacy && legacy.length > 1 && legacy.length <= 256 && <Button type="button" size="sm" variant="outline"

@@ -19,6 +19,14 @@ test('reason reply editor previews the inherited custom roll and can override it
   await expect.poll(() => previews.at(-1)?.variants?.[0]?.text).toBe('我的回复 {res}');
   await dialog.getByRole('switch', { name: '单独设置此回复', exact: true }).click();
   await expect(dialog.getByLabel('回复 1', { exact: true })).toHaveValue('我的回复 {res}');
+  const field = dialog.getByLabel('回复 1', { exact: true });
+  await field.evaluate(el => { el.focus(); el.setSelectionRange(0, 4); });
+  await dialog.getByRole('button', { name: '插入变量', exact: true }).first().click();
+  const picker = page.getByRole('dialog', { name: '插入变量', exact: true });
+  await picker.getByRole('searchbox').fill('理由');
+  await picker.getByRole('button', { name: /\{reason\}/ }).click();
+  await expect(field).toHaveValue('{reason} {res}');
+  await expect(field).toBeFocused();
 });
 
 test('expression engine priority follows drag and arrow order after saving and reloading', async ({ page }, info) => {
@@ -55,7 +63,7 @@ test('expression engine priority follows drag and arrow order after saving and r
   await page.screenshot({ path: info.outputPath('engine-order.png'), fullPage: true });
 });
 
-test('official materials load images only on preview and upload, paginate and delete per account', async ({ page }, info) => {
+test('official materials show thumbnails on entry and upload, paginate and delete per account', async ({ page }, info) => {
   const calls = [], imageRequests = [];
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aRZkAAAAASUVORK5CYII=', 'base64');
   await page.route('https://assets.example.test/**', route => { imageRequests.push(route.request().url()); return route.fulfill({ contentType: 'image/png', body: png }); });
@@ -65,14 +73,13 @@ test('official materials load images only on preview and upload, paginate and de
       : posted.action === 'qq_material_upload' ? { image_id: 'new', url: 'qqbot-media://image/v1/new' } : {};
     await route.fulfill({ json: { code: 0, data } });
   });
-  await page.goto('/#/qq-official?focus=qq-materials');
+  await page.goto('/#/files?tab=official');
   const materials = page.locator('[data-setting-anchor="qq-materials"]');
-  await materials.getByRole('button', { name: '刷新', exact: true }).click();
   await expect(materials.getByText('image.png', { exact: true })).toBeVisible();
-  expect(imageRequests).toHaveLength(0);
+  await expect.poll(() => imageRequests.length).toBeGreaterThan(0);
+  await expect(materials.getByRole("img", { name: "image.png" })).toBeVisible();
   await materials.getByRole('button', { name: '预览图片', exact: true }).click();
   await expect(page.getByRole('dialog').locator('img')).toBeVisible();
-  await expect.poll(() => imageRequests.length).toBe(1);
   await page.keyboard.press('Escape');
   await materials.getByRole('button', { name: '下一页', exact: true }).click();
   await expect(materials.getByRole('button', { name: '下一页', exact: true })).toBeDisabled();
@@ -81,7 +88,8 @@ test('official materials load images only on preview and upload, paginate and de
   await materials.locator('button').filter({ hasText: /^上传图片$/ }).click();
   await expect(materials.getByRole('status')).toContainText('图片上传成功');
   expect(calls.find(call => call.action === 'qq_material_upload').params.base64).toBe(png.toString('base64'));
-  await materials.getByRole('button', { name: '删除', exact: true }).click();
+  await materials.getByRole('button', { name: '更多', exact: true }).click();
+  await page.getByRole('menuitem', { name: '删除', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: '确定', exact: true }).click();
   await expect.poll(() => calls.filter(call => call.action === 'qq_material_delete').length).toBe(1);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -584,6 +592,25 @@ test('cleanup settings separate retention from platform actions and persist grou
   await expect(card.locator('#cleanup-groupDays')).toHaveValue('45');
   await expect(card.locator('#cleanup-userRecordDays')).toHaveValue('180');
   await expect(card.locator('#cleanup-days')).toHaveValue('0');
+});
+
+test('custom reply inserts a capture into the selected reply only', async ({ page }) => {
+  await page.goto('/#/replies');
+  await page.getByRole('button', { name: '添加回复', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByRole('combobox').first().click();
+  await page.getByRole('option', { name: '前缀匹配', exact: true }).click();
+  await dialog.getByRole('button', { name: '添加随机回复', exact: true }).click();
+  const inputs = dialog.locator('textarea');
+  await inputs.nth(0).fill('first');
+  await inputs.nth(1).fill('aXb');
+  await inputs.nth(1).evaluate(el => el.setSelectionRange(1, 2));
+  await dialog.getByRole('button', { name: '插入变量', exact: true }).nth(1).click();
+  const picker = page.getByRole('dialog', { name: '插入变量', exact: true });
+  await picker.getByRole('button', { name: '{$1}', exact: true }).click();
+  await expect(inputs.nth(0)).toHaveValue('first');
+  await expect(inputs.nth(1)).toHaveValue('a{$1}b');
+  await expect(inputs.nth(1)).toBeFocused();
 });
 
 test('dialog and editable inputs use a white light surface and retain a dark surface', async ({ page }, info) => {

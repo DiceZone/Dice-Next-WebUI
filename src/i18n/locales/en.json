@@ -2221,7 +2221,7 @@
     "v2_tooltip": "The gray text below is the original Dice!V2 key",
     "insert_global": "Insert global var",
     "global_vars_title": "Global variables",
-    "global_vars_desc": "These work in any text (e.g. the bot's self-name). Command-specific vars are in the outer dialog.",
+    "global_vars_desc": "Search by name or description. Select a variable to insert it at the cursor or replace the selected text.",
     "gvar_self": "bot self-name",
     "gvar_nick": "nickname",
     "gvar_user": "QQ id",

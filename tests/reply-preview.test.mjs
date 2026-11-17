@@ -27,7 +27,9 @@ test('legacy FormFeed is accepted case-insensitively and is not offered as a dis
   for (const name of ['FormFeed', 'formfeed', 'FORMFEED', 'fOrMfEeD']) assert.equal(isFormFeedVariable(name), true);
   for (const name of ['formFeed ', 'form feed', 'FormFeed:1', 'FormFeeds', 'nick']) assert.equal(isFormFeedVariable(name), false);
   const source = await readFile(new URL('../src/pages/commands-page.tsx', import.meta.url), 'utf8');
-  assert.match(source, /const GLOBAL_VARS = .*'FormFeed'/);
+  const picker = await readFile(new URL('../src/components/reply/variable-picker.tsx', import.meta.url), 'utf8');
+  assert.match(picker, /const globalNames = .*'FormFeed'/);
+  assert.match(source, /globalNames as GLOBAL_VARS/);
   assert.match(source, /const unknown = .*!isFormFeedVariable\(u\)/);
   assert.match(source, /const exclusiveVars = .*!isFormFeedVariable\(v.name\)/);
   assert.ok(source.includes('previewMessages(preview).map'));

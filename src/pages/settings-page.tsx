@@ -1,3 +1,4 @@
+import { VariableTextarea, templateVariables, tokens } from '@/components/reply/variable-picker';
 import { useFormLeaveGuard, useSettingsDraft } from '@/hooks/use-form-leave-guard';
 import { ExpressionEngineOrder } from '@/components/settings/expression-engine-order';
 import { CleanupSettingsCard } from '@/components/settings/cleanup-settings-card';
@@ -211,11 +212,11 @@ const BotMessageCard: React.FC<ScopedCardProps> = (scopeProps) => {
       <CardContent className="space-y-3">
         <div className="space-y-2">
           <Label htmlFor={`${id}-message`}>{t('bot_message.message')}</Label>
-          <Textarea id={`${id}-message`} rows={5} value={message} onChange={(e) => setMessage(e.target.value)} />
+          <VariableTextarea options={templateVariables} id={`${id}-message`} rows={5} value={message} onValueChange={setMessage} />
         </div>
         {showHeader && <div className="space-y-2">
           <Label htmlFor={`${id}-header`}>{t('bot_message.header')}</Label>
-          <Textarea id={`${id}-header`} rows={2} value={header} onChange={(e) => setHeader(e.target.value)} />
+          <VariableTextarea options={templateVariables} id={`${id}-header`} rows={2} value={header} onValueChange={setHeader} />
         </div>}
         <p className="text-xs text-muted-foreground">{t('bot_message.language', { locale })}</p>
         <div className="flex flex-wrap justify-end gap-2">
@@ -311,8 +312,8 @@ const SnBannerCard: React.FC<ScopedCardProps> = (scopeProps) => {
         </div>}
         {(mode === 'custom' || !valid) && <div className="space-y-2">
           <Label htmlFor={`${id}-template`}>{t('qq_sn.template')}</Label>
-          <Textarea id={`${id}-template`} rows={3} className="font-mono text-sm" value={template}
-            onChange={e => setTemplate(e.target.value)} aria-invalid={!valid} aria-describedby={`${id}-help`} />
+          <VariableTextarea options={tokens(["sn", "sn_tex"])} id={`${id}-template`} rows={3} className="font-mono text-sm" value={template}
+            onValueChange={setTemplate} aria-invalid={!valid} aria-describedby={`${id}-help`} />
           <p id={`${id}-help`} className="text-xs text-muted-foreground">{t('qq_sn.template_help')}</p>
           {!valid && <p role="alert" className="text-sm text-destructive">{t('qq_sn.invalid')}</p>}
           <div className="flex flex-wrap gap-2">

@@ -1,3 +1,4 @@
+import { globalNames as GLOBAL_VARS, contextNames, templateMacros, tokens } from '@/components/reply/variable-picker';
 import { useTourActive, useTourState } from '@/components/onboarding/tour-data';
 import { tourSamples } from '@/lib/tour-samples';
 import React, { useEffect, useState, useCallback, useRef } from 'react';
@@ -20,7 +21,7 @@ import { PersonaManagerCard } from '@/components/persona/persona-manager';
 import { PersonaAccessDialog } from '@/components/persona/persona-access-dialog';
 import {
   Loader2, RefreshCw, RotateCcw, Save, ChevronRight, ChevronDown, Pencil, Trash2, Download, Upload,
-  Globe, Users, BookText, UserCheck, ArrowUpDown, ArrowUp, ArrowDown, Search, WandSparkles,
+  Users, BookText, UserCheck, ArrowUpDown, ArrowUp, ArrowDown, Search, WandSparkles,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/ui/page-header';
@@ -56,9 +57,6 @@ const LANGS = [
   { code: 'ja', label: '日本語' },
 ];
 
-// Global variables and authored message-control tokens. Shown behind
-// the「插入全局变量」button; command-specific vars stay as first-level chips.
-const GLOBAL_VARS = ['self', 'nick', 'name', 'qqnick', 'card', 'pcname', 'qqnickw', 'cardw', 'pcnamew', 'user', 'group', 'date', 'time', 'FormFeed'];
 const GLOBAL_SET = new Set(GLOBAL_VARS);
 
 const extractVars = (s: string): string[] =>
@@ -695,7 +693,6 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
   const [previewPlain, setPreviewPlain] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(true);
   const [previewFailed, setPreviewFailed] = useState(false);
-  const [showGlobals, setShowGlobals] = useState(false);
   const taRef = useRef<HTMLTextAreaElement>(null);
   const markdownKeys = useMarkdownEditing({ textareaRef: taRef, value: text, onChange: setText });
   const inheritedSource = reply.inherited?.key.startsWith('dice.outcome.')
@@ -770,12 +767,11 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storedValue, format, previewPlatform, previewStyle, previewPlain, resample, useInherited, reply.inherited, reply.key, previewKey, lang, personaId]);
 
-  // Command-specific vars (chips) vs global vars (behind the button).
+  // Required command fields are checked separately from optional global variables.
   const exclusiveVars = reply.vars.filter((v) => !GLOBAL_SET.has(v.name) && !isFormFeedVariable(v.name));
   const allowed = new Set([...reply.vars.map((v) => v.name), ...GLOBAL_VARS, ...(reply.legacyReferences ?? []),
     ...Object.values(reply.presets ?? {}).flatMap(preset => variablesOutsidePresentation(preset.value)),
-    ...templateLocalNames(variants.map(item => item.text).join('\n')), 'uid', 'gid', 'selfId', 'user.trust', 'user.favor', 'game.pls', 'game.gms',
-    'list_all_deck', 'list_extern_deck', 'list_extern_order', 'list_reply_deck', 'list_dice_sister']);
+    ...templateLocalNames(variants.map(item => item.text).join('\n')), ...contextNames, 'game.pls', 'game.gms', 'strSelfName', 'strSelfCall', 'strSelfNick']);
   const joined = variants.map(item => item.text).join('\n');
   const used = extractVars(joined);
   const unknown = [...new Set(varsOutsideBars(joined).filter((u) => !allowed.has(u) && !isFormFeedVariable(u) && !u.includes('|') && !u.includes(':')))];
@@ -788,7 +784,7 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
     setText(text.slice(0, s) + tok + text.slice(e));
     setTimeout(() => { ta.focus(); ta.selectionStart = ta.selectionEnd = s + tok.length; }, 0);
   };
-  const insert = (name: string) => insertRaw(`{${name}}`);
+
 
   const save = async () => {
     if (saving) return;
@@ -836,19 +832,6 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
   const presetStyles = PRESET_ORDER.filter(style => reply.presets?.[style]);
   const canReset = reply.override != null || hasInheritance;
   const variableBar = <div className="flex flex-wrap items-center gap-1.5" data-testid="template-variables">
-    <span className="text-xs text-muted-foreground">{t('visual_editor.insert_variable')}</span>
-    {exclusiveVars.length === 0 && <span className="text-xs text-muted-foreground">{t('commands.no_vars')}</span>}
-    {exclusiveVars.map((v) => (
-      <button key={v.name} type="button" onClick={() => insert(v.name)} title={v.desc}
-        className="inline-flex items-center gap-1 rounded border bg-background px-2 py-0.5 text-xs transition-colors hover:bg-muted">
-        <code className="text-primary">{`{${v.name}}`}</code>
-        {v.desc && <span className="text-muted-foreground">{v.desc}</span>}
-      </button>
-    ))}
-    <button type="button" onClick={() => setShowGlobals(true)}
-      className="inline-flex items-center gap-1 rounded border border-dashed px-2 py-0.5 text-xs transition-colors hover:bg-muted">
-      <Globe className="h-3.5 w-3.5 text-primary" />{t('commands.insert_global')}
-    </button>
     <ImageResourcePicker directory={personaId > 0 ? `text/persona-${personaId}` : 'text/default'} disabled={saving}
       className="h-6 border-dashed px-2 text-xs" onSelect={(entry) => insertRaw(entry.code)}>{t('commands.insert_image')}</ImageResourcePicker>
   </div>;
@@ -903,7 +886,7 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
             <Button type="button" size="sm" variant="outline" disabled={converting} onClick={() => void convertToMarkdown()}>
               {converting && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />}{t('visual_editor.to_markdown')}</Button>
           </div>}
-          <WeightedTemplateEditor items={variants} onChange={items => { edited.current = true; setVariants(items); }} activeIndex={activeIndex}
+          <WeightedTemplateEditor items={variants} options={[...tokens(allowed), ...tokens(templateMacros), ...reply.vars.map(v => ({ token: '{' + v.name + '}', description: v.desc }))]} onChange={items => { edited.current = true; setVariants(items); }} activeIndex={activeIndex}
             onActiveIndex={setActiveIndex} textareaRef={taRef}
             toolbar={<MarkdownToolbar textareaRef={taRef} value={text} onChange={setText} disabled={format !== 'markdown'} />}
             onTextKeyDown={format === 'markdown' ? markdownKeys.onKeyDown : undefined}
@@ -1000,27 +983,8 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
         </DialogFooter>
       </DialogContent>
 
-      {/* second-level popup: global variables */}
       {dialogs.node}
-      <Dialog open={showGlobals} onOpenChange={setShowGlobals}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-1.5 pr-6">{t('commands.global_vars_title')}
-              <FeatureHelp title={t('commands.global_vars_title')} description={<p>{t('commands.global_vars_desc')}</p>} />
-            </DialogTitle>
-            <DialogDescription className="sr-only">{t('commands.global_vars_desc')}</DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-wrap gap-1.5">
-            {GLOBAL_VARS.map((name) => (
-              <button key={name} type="button" onClick={() => { insert(name); setShowGlobals(false); }}
-                className="inline-flex items-center gap-1 rounded border px-2 py-1 text-xs hover:bg-muted transition-colors">
-                <code className="text-primary">{`{${name}}`}</code>
-                <span className="text-muted-foreground">{t(`commands.gvar_${name}`)}</span>
-              </button>
-            ))}
-          </div>
-        </DialogContent>
-      </Dialog>
+
     </Dialog>
   );
 };

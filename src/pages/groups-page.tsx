@@ -1,3 +1,4 @@
+import { VariablePicker } from '@/components/reply/variable-picker';
 import { useTourActive, useTourState } from '@/components/onboarding/tour-data';
 import { tourSamples } from '@/lib/tour-samples';
 import { useWorkspaceView } from '@/hooks/use-workspace-view';
@@ -1026,21 +1027,8 @@ const FunctionTab: React.FC<any> = ({ group, base, scopedBody, onChanged, onBack
         <div className="space-y-1">
           <Label className="text-xs text-muted-foreground">{t('groups.welcome_text')}</Label>
           <Textarea ref={welcomeRef} className="text-sm min-h-[72px] resize-y" value={group.welcome || ''} onChange={(e) => void save({ welcome: e.target.value })} placeholder={t('groups.welcome_text_ph')} />
-          <div className="flex flex-wrap gap-1.5">
-            {([['{at}','groups.var_at'],['{user}','groups.var_user'],['{nick}','groups.var_nick']] as const).map(([token, label]) => (
-              <button key={token} type="button" className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-muted hover:bg-muted/80 transition-colors font-mono" onClick={() => {
-                const el = welcomeRef.current; if (!el) return;
-                const v = group.welcome || ''
-                const s = el.selectionStart ?? v.length
-                const nv = v.slice(0, s) + token + v.slice(el.selectionEnd ?? s)
-                void save({ welcome: nv })
-                requestAnimationFrame(() => { el.focus(); el.setSelectionRange(s + token.length, s + token.length) })
-              }}>
-                <span className="text-primary">{token}</span>
-                <span className="text-muted-foreground">{t(label)}</span>
-              </button>
-            ))}
-          </div>
+          <VariablePicker field={welcomeRef} options={['at', 'user', 'nick'].map(name => ({ token: '{' + name + '}', description: t('groups.var_' + name) }))}
+            onChange={welcome => void save({ welcome })} />
         </div>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <div>

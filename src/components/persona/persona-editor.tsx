@@ -1,3 +1,5 @@
+import { VariableInput, templateVariables, tokens, type Variable } from '@/components/reply/variable-picker';
+import { variablesOutsidePresentation } from '@/lib/presentation-template';
 /**
  * C#28-B: Persona Editor — inline key→value editing for persona entries
  */
@@ -25,7 +27,8 @@ interface Props {
 }
 
 export const PersonaEditor: React.FC<Props> = ({ persona, onClose, onChanged }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const catalogLocale = i18n.resolvedLanguage || i18n.language;
   const toast = useToast();
   const [entries, setEntries] = useState<PersonaEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,6 +38,24 @@ export const PersonaEditor: React.FC<Props> = ({ persona, onClose, onChanged }) 
   const [editingValues, setEditingValues] = useState<Record<number, string>>({});
   const [saving, setSaving] = useState(false);
   const [supportsWeighted, setSupportsWeighted] = useState(false);
+
+  const [catalog, setCatalog] = useState<Record<string, Variable[]>>({});
+  useEffect(() => {
+    let active = true;
+    type Entry = { key: string; vars?: { name: string; desc?: string }[]; default?: string; legacyReferences?: string[]; presets?: Record<string, { value: string }> };
+    const index: Record<string, Variable[]> = {};
+    const add = (entry: Entry) => {
+      const names = [...(entry.legacyReferences ?? []), ...variablesOutsidePresentation(entry.default ?? ''),
+        ...Object.values(entry.presets ?? {}).flatMap(preset => variablesOutsidePresentation(preset.value))];
+      index[entry.key] = [...(index[entry.key] ?? []), ...tokens(names), ...(entry.vars ?? []).map(v => ({ token: '{' + v.name + '}', description: v.desc }))];
+    };
+    void Promise.allSettled([
+      apiClient.get<Entry[]>('/i18n/all?lang=' + encodeURIComponent(catalogLocale)).then(res => res.data.forEach(add)),
+      apiClient.get<{ replies: Entry[] }[]>('/commands?lang=' + encodeURIComponent(catalogLocale)).then(res => res.data.forEach(row => row.replies.forEach(add))),
+    ]).then(() => { if (active) setCatalog(index); });
+    return () => { active = false; };
+  }, [catalogLocale]);
+  const optionsFor = (key: string) => [...templateVariables, ...(catalog[key] ?? [])];
 
   const fetchEntries = useCallback(async () => {
     setLoading(true);
@@ -129,7 +150,7 @@ export const PersonaEditor: React.FC<Props> = ({ persona, onClose, onChanged }) 
           </div>
           <div className="min-w-0 space-y-1">
             <Label className="text-xs">{t('persona.ed.value_label')}</Label>
-            <Input value={newValue} onChange={(e) => setNewValue(e.target.value)} placeholder={t('persona.ed.value_ph')} className="h-8 text-sm" />
+            <VariableInput options={optionsFor(newKey.trim())} value={newValue} onValueChange={setNewValue} placeholder={t('persona.ed.value_ph')} className="h-8 text-sm" />
           </div>
           <Button size="sm" className="col-span-2 sm:col-span-1" onClick={handleAdd}><Plus className="mr-1 h-4 w-4" />{t('common.add')}</Button>
         </div>
@@ -176,7 +197,7 @@ export const PersonaEditor: React.FC<Props> = ({ persona, onClose, onChanged }) 
                     </Button>
                   </div>
                   </div>
-                  <WeightedTemplateEditor items={readTemplateVariants(currentValue)}
+                  <WeightedTemplateEditor options={optionsFor(entry.key)} items={readTemplateVariants(currentValue)}
                     onChange={items => setEditingValues(prev => ({ ...prev, [entry.id]: writeTemplateVariants(items) }))} />
                 </div>
               );

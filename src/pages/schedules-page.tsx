@@ -1,3 +1,4 @@
+import { VariableTextarea, finalTextVariables, replyVariables } from '@/components/reply/variable-picker';
 import { useTourState } from '@/components/onboarding/tour-data';
 import { tourSamples } from '@/lib/tour-samples';
 import React, { useEffect, useState } from 'react';
@@ -328,8 +329,10 @@ export const SchedulesPage: React.FC = () => {
           )}
           <div className="space-y-1.5">
             <Label className="font-normal">{form.action === 'leave' ? t('schedules.farewell') : form.action === 'command' ? t('schedules.plugin_command') : t('schedules.content')}</Label>
-            <Textarea rows={2} value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })}
-              placeholder={form.action === 'command' ? t('schedules.plugin_command_placeholder') : t('schedules.content_placeholder')} />
+            {form.action === 'command'
+              ? <Textarea rows={2} value={form.content} onChange={e => setForm({ ...form, content: e.target.value })} placeholder={t('schedules.plugin_command_placeholder')} />
+              : <VariableTextarea options={form.action === 'leave' ? finalTextVariables : replyVariables} rows={2} value={form.content}
+                  onValueChange={content => setForm({ ...form, content })} placeholder={t('schedules.content_placeholder')} />}
             {form.action === 'command' && <p className="text-xs text-muted-foreground">{t('schedules.plugin_command_hint')}</p>}
           </div>
           <div className="flex justify-end gap-2">

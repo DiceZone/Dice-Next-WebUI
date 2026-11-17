@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { PaginationBar } from '@/components/ui/pagination-bar';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+import { VariableTextarea, templateVariables } from '@/components/reply/variable-picker';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogBody, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
@@ -209,7 +209,7 @@ export const HelpDocsPage: React.FC = () => {
       </DialogTitle><DialogDescription>{t(edit.mode === 'builtin' ? 'ui_refresh.help_builtin_hint' : edit.mode === 'custom' ? 'help_library.custom_hint' : 'ui_refresh.help_file_hint')}</DialogDescription></DialogHeader>
         <DialogBody className="space-y-4"><label className="block space-y-2 text-sm"><span>{t('helpdoc.name')}</span><Input value={edit.name} disabled={edit.mode !== 'new' || busy} placeholder={t('helpdoc.name_ph')} onChange={(event) => setEdit({ ...edit, name: event.target.value })} /></label>
           {edit.i18nKey && <div className="space-y-2"><p className="text-xs text-muted-foreground">{t('help_library.language', { locale: edit.locale })}</p><Select value={edit.format} disabled={busy} onValueChange={(format) => setEdit({ ...edit, format: format as 'plain' | 'markdown' })}><SelectTrigger aria-label={t('commands.format_label')}><SelectValue /></SelectTrigger><SelectContent><SelectItem value="plain">{t('commands.format_plain')}</SelectItem><SelectItem value="markdown">{t('commands.format_markdown')}</SelectItem></SelectContent></Select></div>}
-          <label className="block space-y-2 text-sm"><span>{t('ui_refresh.help_content')}</span><Textarea className="min-h-[35vh] font-mono text-sm leading-relaxed sm:min-h-[45vh]" spellCheck={false} value={edit.content} disabled={busy} onChange={(event) => setEdit({ ...edit, content: event.target.value })} /></label>
+          <div className="block space-y-2 text-sm"><label htmlFor="help-entry-content">{t('ui_refresh.help_content')}</label><VariableTextarea id="help-entry-content" options={templateVariables} className="min-h-[35vh] font-mono text-sm leading-relaxed sm:min-h-[45vh]" spellCheck={false} value={edit.content} disabled={busy} onValueChange={content => setEdit({ ...edit, content })} /></div>
         </DialogBody>
         <DialogFooter className="shrink-0 gap-2 border-t pt-4"><span className="mr-auto self-center text-xs text-muted-foreground">{dirty ? t('ui_refresh.unsaved') : ''}</span><Button variant="outline" disabled={busy} onClick={closeEditor}>{t('common.cancel')}</Button><Button disabled={busy} onClick={save}>{t(busy ? 'common.loading' : 'common.save')}</Button></DialogFooter>
       </DialogContent>}

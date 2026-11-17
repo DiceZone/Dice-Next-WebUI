@@ -1,3 +1,4 @@
+import { VariableTextarea, templateVariables, tokens } from '@/components/reply/variable-picker';
 import React from 'react';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 import { useTranslation } from 'react-i18next';
@@ -108,8 +109,8 @@ export function DeckEditor({ filename, title, initialContent, initialGroup, onCl
               {entries ? <div className="space-y-3">
                 {entries.slice(offset, offset + 30).map((entry, index) => <div key={offset + index} className="flex items-start gap-2 rounded-lg border bg-card p-3 shadow-sm">
                   <span className="w-6 shrink-0 pt-2 text-right font-mono text-xs text-muted-foreground">{offset + index + 1}</span>
-                  <Textarea disabled={saving} aria-label={t('ui_refresh.entry_label', { number: offset + index + 1 })} rows={2} className="min-h-16 resize-y border-transparent bg-transparent shadow-none focus-visible:border-input" value={entry}
-                    onChange={(event) => update(entries.map((item, i) => i === offset + index ? event.target.value : item))} />
+                  <div className="min-w-0 flex-1"><VariableTextarea options={[...templateVariables, ...tokens(["1d100", ...keys.filter(key => key !== activeGroup && Array.isArray(parsed.document?.[key]))])]} disabled={saving} aria-label={t('ui_refresh.entry_label', { number: offset + index + 1 })} rows={2} className="min-h-16 resize-y border-transparent bg-transparent shadow-none focus-visible:border-input" value={entry}
+                    onValueChange={value => update(entries.map((item, i) => i === offset + index ? value : item))} /></div>
                   <div className="flex shrink-0 flex-col gap-1">
                     <ImageResourcePicker iconOnly directory={`deck/${filename}`} disabled={saving} onSelect={(image) => update(entries.map((item, i) => i === offset + index ? item + image.code : item))} />
                     <Button disabled={saving} size="icon" variant="ghost" aria-label={t('ui_refresh.remove_entry', { number: offset + index + 1 })} className="text-muted-foreground hover:text-destructive" onClick={() => update(entries.filter((_, i) => i !== offset + index))}><Trash2 className="h-4 w-4" /></Button>

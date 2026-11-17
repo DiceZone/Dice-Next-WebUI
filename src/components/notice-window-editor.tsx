@@ -1,3 +1,4 @@
+import { VariablePicker } from '@/components/reply/variable-picker';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, ExternalLink, Loader2, Mail, Plus, Search, Trash2 } from 'lucide-react';
@@ -84,11 +85,6 @@ export function NoticeWindowEditor({ initial, meta, busy, onSave, onClose }: {
     if (validation) { setError(nm(validation)); return; }
     setError(''); await onSave(value);
   };
-  const insertVariable = (name: string) => {
-    const area = bodyRef.current, tag = `{{${name}}}`, start = area?.selectionStart ?? body.length, end = area?.selectionEnd ?? start;
-    setBody(body.slice(0, start) + tag + body.slice(end));
-    requestAnimationFrame(() => { area?.focus(); area?.setSelectionRange(start + tag.length, start + tag.length); });
-  };
   return <Dialog open onOpenChange={open => { if (!open && !busy) onClose(); }}>
     <DialogContent layout="editor" className="max-w-6xl gap-0 p-0" data-testid="notice-editor">
       <DialogHeader className="border-b px-5 py-5 pr-12 sm:px-7 sm:pr-14">
@@ -151,7 +147,7 @@ export function NoticeWindowEditor({ initial, meta, busy, onSave, onClose }: {
                 <div className="mt-4 min-w-0 space-y-4"><p className="text-xs text-muted-foreground">{nm('advanced_help')}</p>
                   {(ch.profile === 'dingtalk' || ch.profile === 'feishu') && <div className="space-y-2"><Label htmlFor="notice-sign-secret">{nm('secret')}</Label><Input id="notice-sign-secret" type="password" autoComplete="new-password" value={ch.sign_secret || ''} onChange={e => patchChannel({ sign_secret: e.target.value })} /><p className="text-xs text-muted-foreground">{nm('signing_help')}</p></div>}
                   <div className="space-y-2"><Label htmlFor="notice-body">{nm('body')}</Label><Textarea ref={bodyRef} id="notice-body" className="h-44 min-h-0 resize-none font-mono text-xs" spellCheck={false} value={body} onChange={e => setBody(e.target.value)} /></div>
-                  <details><summary className="cursor-pointer text-xs text-muted-foreground">{nm('variables')}</summary><div className="mt-2 flex max-h-28 flex-wrap gap-1 overflow-y-auto p-1">{webhookVariables.map(variable => <Button key={variable} size="sm" variant="outline" className="h-7 font-mono text-xs" onClick={() => insertVariable(variable)}>{`{{${variable}}}`}</Button>)}</div></details>
+                  <VariablePicker field={bodyRef} options={webhookVariables.map(name => ({ token: '{{' + name + '}}' }))} onChange={setBody} />
                   <div className="space-y-2"><Label htmlFor="notice-headers">{nm('headers')}</Label><Textarea id="notice-headers" className="h-24 min-h-0 resize-none font-mono text-xs" spellCheck={false} value={headers} onChange={e => setHeaders(e.target.value)} /></div>
                 </div>
               </details>

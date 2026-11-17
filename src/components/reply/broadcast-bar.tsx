@@ -3,7 +3,7 @@ import { useTourState } from '@/components/onboarding/tour-data';
 import { useTranslation } from 'react-i18next';
 import { FeatureHelp } from '@/components/ui/feature-help';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
+import { VariableTextarea, finalTextVariables } from './variable-picker';
 import {
   Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription,
 } from '@/components/ui/dialog';
@@ -83,7 +83,7 @@ export const BroadcastBar: React.FC<{ render?: 'both' | 'banner' | 'button' }> =
             </DialogTitle>
             <DialogDescription>{t('feature_help.broadcast_note')}</DialogDescription>
           </DialogHeader>
-          <Textarea value={text} onChange={(e) => setText(e.target.value)} rows={4}
+          <VariableTextarea options={finalTextVariables} value={text} onValueChange={setText} rows={4}
             placeholder={t('broadcast.placeholder')} maxLength={800} />
           <div className={`text-right text-xs ${tooLong ? 'text-destructive' : 'text-muted-foreground'}`}>{chars}/200</div>
           <DialogFooter>
