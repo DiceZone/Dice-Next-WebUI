@@ -12,7 +12,9 @@ export interface NoticeRule {
   channels: NoticeChannel[];
 }
 export interface NoticeAccount { id: string; name: string; platform: string; login_id: string; login_name: string }
-export interface NoticeMeta { catalog: { op: string; area: number }[]; accounts: NoticeAccount[]; smtp_ready: boolean; smtp_host: string; smtp_from: string; legacy_smtp_ready?: boolean }
+/** default=false: original Dice! never sent it; only an explicit per-event selection includes it. */
+export interface NoticeEvent { op: string; area: number; default?: boolean }
+export interface NoticeMeta { catalog: NoticeEvent[]; accounts: NoticeAccount[]; smtp_ready: boolean; smtp_host: string; smtp_from: string; legacy_smtp_ready?: boolean }
 export type WebhookProfile = 'generic' | 'wecom' | 'dingtalk' | 'feishu' | 'custom';
 export type NoticeSubscription = Omit<NoticeRule, 'id' | 'channels' | 'legacy'> & {
   sender?: Pick<NoticeChannel, 'delivery' | 'adapter_ids' | 'preferred_adapter'>;
@@ -28,8 +30,8 @@ export function channelTitle(channel: NoticeChannel, fallback: string): string {
   if (channel.kind === 'webhook') { try { return new URL(channel.url || '').host; } catch { return fallback; } }
   return [channel.display_name, channel.name].find(name => name && name !== channel.chat_id && name !== '用户') || fallback;
 }
-export function eventIsSelected(rule: NoticeRule, event: { op: string; area: number }): boolean {
-  return rule.subscription === 'levels' ? Boolean(rule.level_mask & event.area) : rule.events.includes(event.op);
+export function eventIsSelected(rule: NoticeRule, event: NoticeEvent): boolean {
+  return rule.subscription === 'levels' ? Boolean(rule.level_mask & event.area) && event.default !== false : rule.events.includes(event.op);
 }
 export function setEvent(rule: NoticeRule, op: string, catalog: NoticeMeta['catalog']): NoticeRule {
   const selected = catalog.filter(event => eventIsSelected(rule, event)).map(event => event.op);

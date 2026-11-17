@@ -97,3 +97,14 @@ test('advanced Webhook JSON is validated, escaped and substituted once with type
   assert.equal(webhookPreview(webhookPreset('dingtalk'), { message: '消息' }).text.content, '消息');
   assert.equal(webhookPreview(webhookPreset('wecom'), { message: '消息' }).text.content, '消息');
 });
+
+test('severity subscriptions leave out events the server marks as opt-in only', () => {
+  const rule = emptyNoticeRule();
+  const schedule = { op: 'schedule', area: 2, default: false }, invite = { op: 'group_invite', area: 2, default: true };
+  assert.equal(eventIsSelected(rule, invite), true);
+  assert.equal(eventIsSelected(rule, schedule), false);
+  // Switching to per-event keeps what the severity subscription really delivered.
+  const picked = setEvent(rule, 'schedule', [invite, schedule]);
+  assert.deepEqual(picked.events.sort(), ['group_invite', 'schedule']);
+  assert.equal(eventIsSelected(picked, schedule), true);
+});
