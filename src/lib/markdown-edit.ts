@@ -2,8 +2,8 @@
 // source (variables, [[components]], escapes), so every action is a small,
 // reversible text change around the selection instead of a rich-text model.
 
-export type MarkdownAction = 'bold' | 'italic' | 'strike' | 'code' | 'heading' | 'quote' | 'bullet' | 'number' | 'divider' | 'link';
-export const MARKDOWN_ACTIONS: MarkdownAction[] = ['bold', 'italic', 'strike', 'code', 'heading', 'quote', 'bullet', 'number', 'divider', 'link'];
+export type MarkdownAction = 'bold' | 'italic' | 'strike' | 'code' | 'heading' | 'quote' | 'bullet' | 'number' | 'divider' | 'table' | 'link';
+export const MARKDOWN_ACTIONS: MarkdownAction[] = ['bold', 'italic', 'strike', 'code', 'heading', 'quote', 'bullet', 'number', 'divider', 'table', 'link'];
 export interface MarkdownEdit { text: string; start: number; end: number }
 
 const INLINE: Partial<Record<MarkdownAction, string>> = { bold: '**', italic: '*', strike: '~~', code: '`' };
@@ -87,10 +87,19 @@ function toggleLines(text: string, start: number, end: number, action: MarkdownA
     start: lineStart + gap.length, end: lineStart + gap.length + next.length };
 }
 
-export function applyMarkdown(text: string, start: number, end: number, action: MarkdownAction, placeholder = 'text'): MarkdownEdit {
+export function applyMarkdown(text: string, start: number, end: number, action: MarkdownAction, placeholder = 'text', column = 'Column'): MarkdownEdit {
   const from = Math.max(0, Math.min(start, end, text.length)), to = Math.min(text.length, Math.max(start, end));
   const mark = INLINE[action];
   if (mark) return toggleInline(text, from, to, mark, placeholder);
+  if (action === 'table') {
+    // Insert after a selection: never rewrite a component or sample's pipe separators.
+    const before = text.slice(0, to), after = text.slice(to);
+    const prefix = before + (!before || before.endsWith('\n\n') ? '' : before.endsWith('\n') ? '\n' : '\n\n');
+    const suffix = (!after || after.startsWith('\n\n') ? '' : after.startsWith('\n') ? '\n' : '\n\n') + after;
+    const header = '| ' + column + ' 1 | ' + column + ' 2 |\n| --- | --- |\n';
+    const row = '| ' + placeholder + ' | ' + placeholder + ' |';
+    return { text: prefix + header + row + suffix, start: prefix.length + 2, end: prefix.length + 4 + column.length };
+  }
   if (action === 'divider') {
     const before = from > 0 && text[from - 1] !== '\n' ? '\n' : '';
     const after = to < text.length && text[to] !== '\n' ? '\n' : '';

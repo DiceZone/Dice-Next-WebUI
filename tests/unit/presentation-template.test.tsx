@@ -78,4 +78,16 @@ describe('Editable presentation components', () => {
     await screen.findByText('42');
     expect(container.querySelector('math')).not.toBeNull();
   });
+  it('previews table cells, escaped pipes and an empty cell without consuming the next paragraph', () => {
+    render(
+      <MarkdownExample
+        enabled
+        text={'| Skill | Value |\n| --- | --- |\n| **Spot** \\| Listen | |\n\nNext'}
+      />,
+    );
+    expect(screen.getByRole('table')).toBeVisible();
+    expect(screen.getByRole('columnheader', { name: 'Value' })).toBeVisible();
+    expect(screen.getAllByRole('cell').map((td) => td.textContent)).toEqual(['Spot | Listen', '']);
+    expect(screen.getByText('Next').closest('table')).toBeNull();
+  });
 });

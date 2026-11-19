@@ -143,6 +143,31 @@ test('formula picker inserts editable TeX and fallback without consuming ordinar
   await expect(parent.getByLabel('普通文本替代文字 1', { exact: true })).toHaveValue('D100={res}/{san} {grade}');
 });
 
+for (const [cmd, key, title, vars, fallback] of [
+  ['r', 'dice.roll.result', '方框普通掷骰', ['res'], '{res}'],
+  ['ra', 'dice.check.result', '方框技能检定', ['attr', 'roll', 'rate', 'level'], '{attr} {roll}/{rate} {level}'],
+]) {
+  test('roll editor inserts table and preset: ' + title, async ({ page }, info) => {
+    await page.route('**/api/commands?*', route => route.fulfill({ json: { code: 0, data: [{
+      cmd, title, category: '掷骰', sources: ['core'], example: '.' + cmd, desc: title, replies: [{
+        key, default: '{nick}', override: null, format: 'markdown', defaultFormat: 'markdown',
+        vars: vars.map(name => ({ name, desc: name })),
+      }],
+    }] } }));
+    await page.goto('/#/commands');
+    await page.getByRole('button', { name: '编辑', exact: true }).first().click();
+    const editor = page.getByRole('dialog').first();
+    if (info.project.name === 'mobile') await editor.getByRole('tab', { name: '编辑', exact: true }).click();
+    await editor.getByRole('button', { name: '插入表格', exact: true }).click();
+    await expect(editor.locator('textarea').first()).toHaveValue(/\| 列 1 \| 列 2 \|/);
+    await editor.getByRole('button', { name: '添加公式', exact: true }).click();
+    const picker = page.getByRole('dialog', { name: '公式预设', exact: true });
+    await expect(picker.getByRole('button', { name: '边框理智检定', exact: true })).toBeDisabled();
+    await picker.getByRole('button', { name: title, exact: true }).click();
+    await expect(editor.getByLabel('普通文本替代文字 1', { exact: true })).toHaveValue(fallback);
+  });
+}
+
 test('visual templates keep edited buttons and formulas after saving and reopening', async ({ page }, info) => {
   test.skip(!process.env.DICENEXT_UI_PREVIEW_RENDERER, 'Production template renderer required');
   const preset = '**{nick}** 掷骰\n> `{res}`\n[[action:再掷一次|.r]]';

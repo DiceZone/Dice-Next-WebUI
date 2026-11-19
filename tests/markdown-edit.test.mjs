@@ -80,6 +80,13 @@ test('Ctrl/⌘+B and Ctrl/⌘+I are the only shortcuts', () => {
   assert.equal(key('k', { ctrlKey: true }), null);
 });
 
+test('inserting a table keeps selected template code intact and selects the first heading', () => {
+  const left = '[[action:再掷|.r]] {sample:a|b}';
+  const edit = applyMarkdown(left + '\n末行', 0, left.length, 'table', '文字', '列');
+  assert.equal(edit.text, left + '\n\n| 列 1 | 列 2 |\n| --- | --- |\n| 文字 | 文字 |\n\n末行');
+  assert.equal(selected(edit), '列 1');
+});
+
 test('the reply editor uses the toolbar, defaults to Markdown and has no per-variable style menu', () => {
   const editor = readFileSync(new URL('../src/pages/commands-page.tsx', import.meta.url), 'utf8');
   assert.match(editor, /<MarkdownToolbar textareaRef=\{taRef\}/);

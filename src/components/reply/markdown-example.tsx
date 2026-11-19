@@ -35,9 +35,43 @@ const inlineMarkdown = (text: string, prefix: string): React.ReactNode[] => {
   return out;
 };
 
+// Preview pipe tables produced by the editor. Keep escaped pipes inside their cell.
+function tableCells(line: string) {
+  const trimmed = line.trim();
+  if (!trimmed.startsWith('|') || !trimmed.endsWith('|')) return [];
+  const cells: string[] = [];
+  let cell = '';
+  for (let i = 1; i < trimmed.length - 1; i++) {
+    const ch = trimmed[i];
+    if (ch === '\\' && i + 1 < trimmed.length - 1) cell += ch + trimmed[++i];
+    else if (ch === '|') { cells.push(cell.trim()); cell = ''; }
+    else cell += ch;
+  }
+  cells.push(cell.trim());
+  return cells;
+}
+
 export const MarkdownExample: React.FC<{ text: string; enabled: boolean }> = ({ text, enabled }) => {
   if (!enabled) return <div className="whitespace-pre-wrap break-words">{text}</div>;
-  return <div className="space-y-1 break-words">{text.split(/\r?\n/).map((line, i) => {
+  const lines = text.split(/\r?\n/);
+  let nextLine = 0;
+  return <div className="space-y-1 break-words">{lines.map((line, i) => {
+    if (i < nextLine) return null;
+    const header = tableCells(line), separator = tableCells(lines[i + 1] ?? '');
+    if (header.length && header.length === separator.length && separator.every(cell => /^:?-{3,}:?$/.test(cell))) {
+      const rows: string[][] = [];
+      nextLine = i + 2;
+      while (nextLine < lines.length) {
+        const cells = tableCells(lines[nextLine]);
+        if (!cells.length) break;
+        rows.push(cells);
+        nextLine++;
+      }
+      return <div key={i} className="max-w-full overflow-x-auto"><table className="border-collapse text-left text-sm">
+        <thead><tr>{header.map((cell, c) => <th key={c} className="border px-2 py-1">{inlineMarkdown(cell, 'h' + c)}</th>)}</tr></thead>
+        <tbody>{rows.map((row, r) => <tr key={r}>{header.map((_, c) => <td key={c} className="border px-2 py-1">{inlineMarkdown(row[c] ?? '', r + '-' + c)}</td>)}</tr>)}</tbody>
+      </table></div>;
+    }
     const heading = line.match(/^(#{1,6})\s+(.*)$/);
     if (heading) return <div key={i} className="font-bold" style={{ fontSize: `${Math.max(1, 1.45 - heading[1].length * 0.08)}rem` }}>{inlineMarkdown(heading[2], `h${i}`)}</div>;
     if (/^>\s?/.test(line)) return <blockquote key={i} className="border-l-2 border-primary/40 pl-3 text-muted-foreground">{inlineMarkdown(line.replace(/^>\s?/, ''), `q${i}`)}</blockquote>;

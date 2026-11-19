@@ -1,14 +1,14 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Bold, Code, Heading2, Italic, Link2, List, ListOrdered, Minus, Quote, Strikethrough, type LucideIcon } from 'lucide-react';
+import { Bold, Code, Heading2, Italic, Link2, List, ListOrdered, Minus, Table2, Quote, Strikethrough, type LucideIcon } from 'lucide-react';
 import { applyMarkdown, shortcutAction, type MarkdownAction } from '@/lib/markdown-edit';
 import { cn } from '@/lib/utils';
 
 const ICONS: Record<MarkdownAction, LucideIcon> = {
   bold: Bold, italic: Italic, strike: Strikethrough, code: Code, heading: Heading2,
-  quote: Quote, bullet: List, number: ListOrdered, divider: Minus, link: Link2,
+  quote: Quote, bullet: List, number: ListOrdered, table: Table2, divider: Minus, link: Link2,
 };
-const GROUPS: MarkdownAction[][] = [['bold', 'italic', 'strike', 'code'], ['heading', 'quote', 'bullet', 'number', 'divider'], ['link']];
+const GROUPS: MarkdownAction[][] = [['bold', 'italic', 'strike', 'code'], ['heading', 'quote', 'bullet', 'number', 'table', 'divider'], ['link']];
 const SHORTCUTS: Partial<Record<MarkdownAction, string>> = { bold: 'B', italic: 'I' };
 
 interface Props {
@@ -24,7 +24,7 @@ export function useMarkdownEditing({ textareaRef, value, onChange }: Omit<Props,
   const apply = (action: MarkdownAction) => {
     const area = textareaRef.current;
     const start = area?.selectionStart ?? value.length, end = area?.selectionEnd ?? value.length;
-    const edit = applyMarkdown(value, start, end, action, t('visual_editor.markdown.placeholder'));
+    const edit = applyMarkdown(value, start, end, action, t('visual_editor.markdown.placeholder'), t('visual_editor.markdown.column'));
     if (edit.text === value && edit.start === start && edit.end === end) return;
     onChange(edit.text);
     requestAnimationFrame(() => {
