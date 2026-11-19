@@ -801,3 +801,48 @@ test('command categories and secondary actions remain reachable after the worksp
   await page.getByRole('menuitem', { name: '人格管理' }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
 });
+
+test('image hosting selects providers, persists QQ source and shows panel bandwidth warning', async ({ page }, info) => {
+  let host = {};
+  const writes = [];
+  await page.route('**/api/system/global*', async route => {
+    if (route.request().method() === 'PUT') {
+      const body = route.request().postDataJSON();
+      if (body.values?.image_host) { host = body.values.image_host; writes.push(host); }
+      if (body.image_host) { host = body.image_host; writes.push(host); }
+    }
+    await route.fulfill({ json: { code: 0, data: { values: { image_host: host }, overrides: {}, sources: {} } } });
+  });
+  await page.goto('/#/settings?focus=settings-image-host');
+  const card = page.locator('[data-setting-anchor="settings-image-host"]');
+  const mode = card.getByRole('combobox', { name: '图床（稳定图片链接）', exact: true });
+  await expect(mode).toContainText('QQ 图床');
+  await mode.click();
+  await page.getByRole('option', { name: '第三方图床（通用上传）', exact: true }).click();
+  const url = card.getByRole('textbox', { name: '上传网址', exact: true });
+  await expect(url).toBeDisabled();
+  await card.getByRole('combobox', { name: '服务提供方', exact: true }).click();
+  await page.getByRole('option', { name: 'ImgBB', exact: true }).click();
+  await expect(url).toBeEnabled();
+  await expect(url).toHaveValue('https://api.imgbb.com/1/upload');
+  await card.getByLabel('API Key / Token', { exact: true }).fill('fixture-key');
+  await card.getByRole('button', { name: '保存', exact: true }).click();
+  await expect.poll(() => writes.at(-1)?.provider).toBe('imgbb');
+  expect(writes.at(-1)).toMatchObject({ mode: 'generic', file_field: 'image', result_path: 'data.url', api_key: 'fixture-key' });
+  await page.reload();
+  await expect(card.getByRole('combobox', { name: '服务提供方', exact: true })).toContainText('ImgBB');
+  await card.getByRole('combobox', { name: '服务提供方', exact: true }).click();
+  await page.getByRole('option', { name: 'Lsky Pro', exact: true }).click();
+  await expect(url).toHaveValue('');
+  await expect(card.getByLabel('API Key / Token', { exact: true })).toHaveValue('');
+  await mode.click();
+  await page.getByRole('option', { name: '面板图链（自托管）', exact: true }).click();
+  const warning = card.getByText('（不建议，被访问时会大量占用服务器带宽）', { exact: true });
+  await expect(warning).toBeVisible();
+  await expect(warning).toHaveClass(/text-destructive/);
+  await card.screenshot({ path: info.outputPath('image-host-panel.png') });
+  await mode.click();
+  await page.getByRole('option', { name: 'QQ 图床（默认，原始链接）', exact: true }).click();
+  await card.getByRole('button', { name: '保存', exact: true }).click();
+  await expect.poll(() => writes.at(-1)?.mode).toBe('qq');
+});

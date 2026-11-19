@@ -1,3 +1,4 @@
+import { imageHostPresets, imageHostProvider, selectImageHostProvider, type ImageHostConf } from '@/lib/image-host-presets';
 import { VariableTextarea, templateVariables, tokens } from '@/components/reply/variable-picker';
 import { useFormLeaveGuard, useSettingsDraft } from '@/hooks/use-form-leave-guard';
 import { ExpressionEngineOrder } from '@/components/settings/expression-engine-order';
@@ -504,19 +505,20 @@ const MessageFormatCard: React.FC<ScopedCardProps> = (scopeProps) => {
   );
 };
 // ── 图床配置组件 ────────────────────────────────────────
-interface ImageHostConf { mode?: string; url?: string; file_field?: string; result_path?: string; public_base?: string; headers?: string[]; }
 
 const ImageHostCard: React.FC<ScopedCardProps> = (scopeProps) => {
   const { t } = useTranslation();
   const toast = useToast();
-  const [c, setC] = useTourState<ImageHostConf>({ mode: 'none', file_field: 'file', result_path: 'data.url' }, { mode: 'none', file_field: 'file', result_path: 'data.url' });
+  const [c, setC] = useTourState<ImageHostConf>({ mode: 'qq', file_field: 'file', result_path: 'data.url' }, { mode: 'qq', file_field: 'file', result_path: 'data.url' });
   const [headersText, setHeadersText] = useTourState('', '');
+  const [extraFieldsText, setExtraFieldsText] = useTourState('{}', '{}');
   const [saving, setSaving] = useTourState(false, false);
 
   const { ready, status } = useScopedLoader(scopeProps, (d) => {
         const value = (d.values?.image_host || {}) as ImageHostConf;
-        setC({ mode: value.mode || 'none', url: value.url || '', file_field: value.file_field || 'file', result_path: value.result_path || 'data.url', public_base: value.public_base || '' });
+        setC({ ...value, mode: value.mode || 'qq', url: value.url || '', file_field: value.file_field || 'file', result_path: value.result_path || 'data.url', public_base: value.public_base || '' });
         setHeadersText((value.headers || []).join('\n'));
+        setExtraFieldsText(JSON.stringify(value.extra_fields || {}, null, 2));
   });
 
   const save = async () => {
@@ -524,7 +526,10 @@ const ImageHostCard: React.FC<ScopedCardProps> = (scopeProps) => {
     setSaving(true);
     try {
       const headers = headersText.split('\n').map((s) => s.trim()).filter(Boolean);
-      const body: ImageHostConf = { mode: c.mode, url: c.url, file_field: c.file_field, result_path: c.result_path, public_base: c.public_base, headers };
+      const extraFields = JSON.parse(extraFieldsText || '{}');
+      if (!extraFields || Array.isArray(extraFields) || typeof extraFields !== 'object' || Object.values(extraFields).some(v => typeof v !== 'string')) throw new Error(t('settings.imghost_extra_invalid'));
+      if (c.mode === 'generic' && (!imageHostProvider(c) || !/^https?:\/\/[^/]+/i.test(c.url || ''))) throw new Error(t('settings.imghost_url_required'));
+      const body: ImageHostConf = { ...c, headers, extra_fields: extraFields };
       const d = await putJson('/system/global', scopedBody(scopeProps, { image_host: body })) as any;
       const value = (d.values?.image_host || body) as ImageHostConf;
       setC(value);
@@ -534,7 +539,9 @@ const ImageHostCard: React.FC<ScopedCardProps> = (scopeProps) => {
     finally { setSaving(false); }
   };
 
-  const mode = c.mode || 'none';
+  const mode = c.mode || 'qq';
+  const provider = imageHostProvider(c);
+  const preset = imageHostPresets[provider as keyof typeof imageHostPresets];
   return (
     <Card data-setting-anchor="settings-image-host">
       <CardHeader>
@@ -542,8 +549,10 @@ const ImageHostCard: React.FC<ScopedCardProps> = (scopeProps) => {
           <Image className="h-4 w-4" />{t('settings.imghost_title')}
           <FeatureHelp title={t('settings.imghost_title')} description={<>
             <p>{t('settings.imghost_desc')}</p>
+            <p>{t('settings.imghost_qq_hint')}</p>
             <p>{t('settings.imghost_generic_hint')}</p>
             <p>{t('settings.imghost_local_hint')}</p>
+            <p className="text-destructive">{t('settings.imghost_local_warning')}</p>
           </>} />
         </CardTitle>
       </CardHeader>
@@ -551,17 +560,41 @@ const ImageHostCard: React.FC<ScopedCardProps> = (scopeProps) => {
       <fieldset disabled={!ready || saving} className="min-w-0">
       <CardContent className="space-y-3">
         <Select value={mode} onValueChange={(v) => setC({ ...c, mode: v })}>
-          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="h-9" aria-label={t('settings.imghost_title')}><SelectValue /></SelectTrigger>
           <SelectContent>
+            <SelectItem value="qq">{t('settings.imghost_qq')}</SelectItem>
             <SelectItem value="none">{t('settings.imghost_none')}</SelectItem>
             <SelectItem value="generic">{t('settings.imghost_generic')}</SelectItem>
             <SelectItem value="local">{t('settings.imghost_local')}</SelectItem>
           </SelectContent>
         </Select>
+        {mode === 'qq' && <p className="text-xs text-muted-foreground">{t('settings.imghost_qq_hint')}</p>}
         {mode === 'generic' && (
           <div className="space-y-2">
-            <div><Label className="text-xs">{t('settings.imghost_url')}</Label>
-              <Input className="h-8 text-sm" value={c.url || ''} onChange={(e) => setC({ ...c, url: e.target.value })} placeholder="https://your-imagehost/api/upload" /></div>
+            <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-[minmax(10rem,1fr)_minmax(0,2fr)]">
+              <div className="min-w-0 space-y-1.5"><Label>{t('settings.imghost_provider')}</Label>
+                <Select value={provider} onValueChange={(value) => {
+                  const next = selectImageHostProvider(c, value); setC(next);
+                  setHeadersText((next.headers || []).join('\n'));
+                  setExtraFieldsText(JSON.stringify(next.extra_fields || {}, null, 2));
+                }}>
+                  <SelectTrigger aria-label={t('settings.imghost_provider')}><SelectValue placeholder={t('settings.imghost_choose_provider')} /></SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(imageHostPresets).map(([id, value]) => <SelectItem key={id} value={id}>{value.name}</SelectItem>)}
+                    <SelectItem value="custom">{t('settings.imghost_custom')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="min-w-0 space-y-1.5"><Label>{t('settings.imghost_url')}</Label>
+                <Input aria-label={t('settings.imghost_url')} disabled={!provider} value={c.url || ''} onChange={(e) => setC({ ...c, url: e.target.value })} placeholder={preset?.placeholder || 'https://your-imagehost/api/upload'} />
+              </div>
+            </div>
+            {preset && <div className="space-y-1.5"><Label>{t('settings.imghost_api_key')}</Label>
+              <Input type="password" autoComplete="off" aria-label={t('settings.imghost_api_key')} value={c.api_key || ''} onChange={(e) => setC({ ...c, api_key: e.target.value })} />
+            </div>}
+            <details className="rounded-md border p-3" open={provider === 'custom' ? true : undefined}>
+              <summary className="cursor-pointer text-sm">{t('ui_refresh.advanced')}</summary>
+              <div className="mt-3 space-y-3">
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <div><Label className="text-xs">{t('settings.imghost_field')}</Label>
                 <Input className="h-8 text-sm" value={c.file_field || ''} onChange={(e) => setC({ ...c, file_field: e.target.value })} placeholder="file" /></div>
@@ -570,13 +603,19 @@ const ImageHostCard: React.FC<ScopedCardProps> = (scopeProps) => {
             </div>
             <div><Label className="text-xs">{t('settings.imghost_headers')}</Label>
               <Textarea className="text-xs font-mono h-20" value={headersText} onChange={(e) => setHeadersText(e.target.value)} placeholder="Authorization: Bearer xxxx" /></div>
+              <div className="space-y-1.5"><Label>{t('settings.imghost_extra_fields')}</Label>
+                <Textarea aria-label={t('settings.imghost_extra_fields')} className="font-mono text-xs" value={extraFieldsText} onChange={e => setExtraFieldsText(e.target.value)} />
+              </div>
+              </div>
+            </details>
           </div>
         )}
         {mode === 'local' && (
           <div>
             <Label className="text-xs">{t('settings.imghost_base')}</Label>
             <Input className="h-8 text-sm" value={c.public_base || ''} onChange={(e) => setC({ ...c, public_base: e.target.value })} placeholder="https://your-domain.com" />
-            <p className="text-[11px] text-muted-foreground mt-1">{t('settings.imghost_local_hint')}</p>
+            <p className="mt-2 text-sm text-muted-foreground">{t('settings.imghost_local_hint')}</p>
+            <p className="mt-1 text-sm text-destructive">{t('settings.imghost_local_warning')}</p>
           </div>
         )}
         <div className="flex justify-end gap-2">

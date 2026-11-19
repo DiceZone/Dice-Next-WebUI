@@ -317,7 +317,7 @@ export const SETTINGS_SEARCH_ENTRIES: SettingsSearchEntry[] = [
   e('settings-identity-binding', '/settings', 'nav.settings', 'global_search.identity_binding_title', '身份绑定 身份綁定 qq官方 official bind real qq account high risk 冒认 冒認', 'global_search.identity_binding_desc'),
   e('settings-save-images', '/settings', 'nav.settings', 'settings.save_images', '保存图片 保存圖片 log image archive', 'settings.save_images_desc'),
   e('settings-image-send', '/settings', 'nav.settings', 'settings.imgsend_title', '图片发送 圖片發送 base64 http url image send', 'settings.imgsend_desc'),
-  e('settings-image-host', '/settings', 'nav.settings', 'settings.imghost_title', '图床 圖床 image host upload headers public url', 'settings.imghost_desc'),
+  e('settings-image-host', '/settings', 'nav.settings', 'settings.imghost_title', '图床 圖床 QQ 原图 原圖 CQ 图片链接 圖片連結 跑团日志 即時日誌 实时日志 image host upload headers public url', 'settings.imghost_desc'),
   e('settings-chat-retention', '/settings', 'nav.settings', 'chatcfg.title', '聊天记录 聊天記錄 保留期 retention history privacy database'),
   e('settings-js-fetch', '/settings', 'nav.settings', 'settings.js_fetch_title', 'js plugin fetch network 网络 網路 安全 strict sealdice', 'settings.js_fetch_desc'),
   e('settings-heartbeat', '/cloud-services', 'cloud.title', 'settings.heartbeat_title', '云服务 雲服務 心跳 骰主 昵称 暱稱 QQ 上报 上報 在线 在線 状态 狀態 heart.dice.zone heartbeat public interval', 'settings.heartbeat_desc', false),
