@@ -186,7 +186,9 @@ test('visual templates keep edited buttons and formulas after saving and reopeni
   await dialog.getByLabel('按钮文字 1').fill('继续掷骰');
   await dialog.getByLabel('填入的指令 1').fill('/r 2d6');
   await dialog.getByRole('button', { name: '添加公式', exact: true }).click();
-  await page.getByRole('dialog', { name: '公式预设', exact: true }).getByRole('button', { name: '红色文字', exact: true }).click();
+  const formulaPicker = page.getByRole('dialog', { name: '公式预设', exact: true });
+  await formulaPicker.getByRole('button', { name: '红色文字', exact: true }).click();
+  await expect(formulaPicker).toHaveCount(0);
   await pane('预期回复示例');
   await expect(dialog.locator('[data-math-preview]')).toBeVisible();
   await expect(dialog.getByText('继续掷骰 · /r 2d6', { exact: true })).toBeVisible();
@@ -630,7 +632,7 @@ test('custom reply inserts a capture into the selected reply only', async ({ pag
   await inputs.nth(1).evaluate(el => el.setSelectionRange(1, 2));
   await dialog.getByRole('button', { name: '插入变量', exact: true }).nth(1).click();
   const picker = page.getByRole('dialog', { name: '插入变量', exact: true });
-  await picker.getByRole('button', { name: '{$1}', exact: true }).click();
+  await picker.getByRole('button', { name: /^\{\$1\}\s/ }).click();
   await expect(inputs.nth(0)).toHaveValue('first');
   await expect(inputs.nth(1)).toHaveValue('a{$1}b');
   await expect(inputs.nth(1)).toBeFocused();
