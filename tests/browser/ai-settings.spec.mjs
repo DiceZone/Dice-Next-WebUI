@@ -95,7 +95,11 @@ test('manual AI edits survive canceled navigation and failed saves while confirm
   rejectManual = false;
   await page.getByRole('button', { name: '保存', exact: true }).click();
   await expect.poll(() => data.chat.keywords).toEqual(['alpha','beta']);
-  await page.locator('[data-setting-anchor="ai-chat"] input[type=checkbox]').first().click();
+  const toggle = page.locator('[data-setting-anchor="ai-chat"] input[type=checkbox]').first();
+  const previouslyChecked = await toggle.isChecked();
+  await toggle.click();
+  await expect(toggle).toBeChecked({ checked: !previouslyChecked });
+  await expect(toggle).toBeEnabled();
   await go('/ai/polish'); await expect(page.locator('[data-setting-anchor="ai-polish"]')).toBeVisible();
   await go('/ai/chat'); await expect(input).toHaveValue('alpha, beta');
   await input.fill('discard me');
@@ -176,26 +180,55 @@ test('model thinking and off-peak prices survive save; vision has its own budget
 
 test('memory graph filters groups and edits or deletes the selected record only', async ({ page }, info) => {
   const writes = [];
+  const memories = new Map([
+    [1, { id: 1, scope: 'group', scope_id: 'onebot:111', content: '第一群的记忆', updated_at: 1700000000, hits: 2 }],
+    [2, { id: 2, scope: 'group', scope_id: 'onebot:222', content: '第二群的记忆', updated_at: 1700000000, hits: 0 }],
+  ]);
   await page.route('**/api/system/ai', route => route.fulfill({ json: { code: 0, data: { enabled: true, memory: { short: { enabled: true } } } } }));
   await page.route('**/api/system/ai/memory**', route => {
-    const req = route.request(); if (req.method() !== 'GET') writes.push({ method: req.method(), body: req.postDataJSON(), url: req.url() });
-    return route.fulfill({ json: { code: 0, data: { items: [
-      { id: 1, scope: 'group', scope_id: 'onebot:111', content: '第一群的记忆', updated_at: 1700000000, hits: 2 },
-      { id: 2, scope: 'group', scope_id: 'onebot:222', content: '第二群的记忆', updated_at: 1700000000, hits: 0 },
-    ] } } });
+    const req = route.request();
+    const id = new URL(req.url()).searchParams.get('id');
+    if (req.method() === 'GET') {
+      const items = id === null ? [...memories.values()] : [memories.get(Number(id))].filter(Boolean);
+      return route.fulfill({ json: { code: 0, data: { items } } });
+    }
+    if (req.method() === 'PUT') {
+      const body = req.postDataJSON();
+      const memory = memories.get(body.id);
+      expect(memory?.content).toBe(body.previous_content);
+      memory.content = body.content;
+      writes.push({ method: 'PUT', body });
+    } else if (req.method() === 'DELETE') {
+      expect(memories.delete(Number(id))).toBe(true);
+      writes.push({ method: 'DELETE', id });
+    } else {
+      return route.fulfill({ status: 405 });
+    }
+    return route.fulfill({ json: { code: 0, data: null } });
   });
   await page.goto('/#/ai/chat');
   await page.getByRole('button', { name: '查看', exact: true }).first().click();
   const dialog = page.getByRole('dialog');
-  await dialog.getByRole('button', { name: '第一群的记忆', exact: true }).click();
+  const scope = dialog.getByRole('combobox', { name: '选择群组／会话' });
+  await scope.click();
+  await page.getByRole('option', { name: 'onebot:222', exact: true }).click();
+  await dialog.getByRole('button', { name: '第二群的记忆', exact: true }).click();
+  await expect(dialog.getByLabel('记忆内容', { exact: true })).toHaveValue('第二群的记忆');
   await page.screenshot({ path: `test-results/ai-memory-${info.project.name}.png` });
-  await expect(dialog.getByRole('button', { name: '第二群的记忆' })).toHaveCount(0);
+  await expect(dialog.getByRole('button', { name: '第一群的记忆' })).toHaveCount(0);
   await dialog.getByLabel('记忆内容', { exact: true }).fill('修改后的记忆');
   await dialog.getByRole('button', { name: '保存', exact: true }).click();
   await expect(dialog.getByRole('button', { name: '修改后的记忆', exact: true })).toBeVisible();
-  expect(writes[0].body).toEqual({ id: 1, content: '修改后的记忆', previous_content: '第一群的记忆' });
+  expect(writes[0].body).toEqual({ id: 2, content: '修改后的记忆', previous_content: '第二群的记忆' });
   await dialog.getByRole('button', { name: '删除', exact: true }).click();
   await page.getByRole('dialog', { name: '删除这条记忆？', exact: true }).getByRole('button', { name: '删除', exact: true }).click();
   await expect(dialog.getByRole('button', { name: '修改后的记忆', exact: true })).toHaveCount(0);
-  expect(writes[1].url).toContain('?id=1');
+  expect(writes[1]).toEqual({ method: 'DELETE', id: '2' });
+  await page.reload();
+  await page.getByRole('button', { name: '查看', exact: true }).first().click();
+  await dialog.getByRole('button', { name: '第一群的记忆', exact: true }).click();
+  await expect(dialog.getByLabel('记忆内容', { exact: true })).toHaveValue('第一群的记忆');
+  await scope.click();
+  await expect(page.getByRole('option')).toHaveCount(1);
+  await expect(page.getByRole('option', { name: 'onebot:111', exact: true })).toBeVisible();
 });
