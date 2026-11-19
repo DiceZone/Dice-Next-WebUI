@@ -121,6 +121,28 @@ test('official picture composer validates inputs and sends the selected native c
   await page.screenshot({ path: info.outputPath('qq-message-composer.png'), fullPage: true });
 });
 
+test('formula picker inserts editable TeX and fallback without consuming ordinary braces', async ({ page }, info) => {
+  await page.route('**/api/commands?*', route => route.fulfill({ json: { code: 0, data: [{
+    cmd: 'sc', title: '理智检定', category: '掷骰', sources: ['core'], example: '.sc 1/1d6', desc: '理智检定', replies: [{
+      key: 'card.sc.result', default: '{nick}', override: null, format: 'markdown', defaultFormat: 'markdown',
+      vars: ['res', 'san', 'grade', 'loss', 'final'].map(name => ({ name, desc: name })),
+    }],
+  }] } }));
+  await page.goto('/#/commands');
+  await page.getByRole('button', { name: '编辑', exact: true }).first().click();
+  const parent = page.getByRole('dialog').first();
+  if (info.project.name === 'mobile') await parent.getByRole('tab', { name: '编辑', exact: true }).click();
+  await parent.getByRole('button', { name: '添加公式', exact: true }).click();
+  const picker = page.getByRole('dialog', { name: '公式预设', exact: true });
+  await expect(picker).toBeVisible();
+  await expect(picker.getByRole('button', { name: '边框理智检定', exact: true })).toBeEnabled();
+  expect(await picker.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+  await picker.getByRole('button', { name: '边框理智检定', exact: true }).click();
+  await expect(picker).toHaveCount(0);
+  await expect(parent.getByLabel('TeX 公式 1', { exact: true })).toHaveValue(/\\boxed.*\{\{res\}\}/);
+  await expect(parent.getByLabel('普通文本替代文字 1', { exact: true })).toHaveValue('D100={res}/{san} {grade}');
+});
+
 test('visual templates keep edited buttons and formulas after saving and reopening', async ({ page }, info) => {
   test.skip(!process.env.DICENEXT_UI_PREVIEW_RENDERER, 'Production template renderer required');
   const preset = '**{nick}** 掷骰\n> `{res}`\n[[action:再掷一次|.r]]';
@@ -164,6 +186,7 @@ test('visual templates keep edited buttons and formulas after saving and reopeni
   await dialog.getByLabel('按钮文字 1').fill('继续掷骰');
   await dialog.getByLabel('填入的指令 1').fill('/r 2d6');
   await dialog.getByRole('button', { name: '添加公式', exact: true }).click();
+  await page.getByRole('dialog', { name: '公式预设', exact: true }).getByRole('button', { name: '红色文字', exact: true }).click();
   await pane('预期回复示例');
   await expect(dialog.locator('[data-math-preview]')).toBeVisible();
   await expect(dialog.getByText('继续掷骰 · /r 2d6', { exact: true })).toBeVisible();

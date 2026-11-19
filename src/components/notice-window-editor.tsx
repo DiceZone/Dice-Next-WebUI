@@ -147,7 +147,7 @@ export function NoticeWindowEditor({ initial, meta, busy, onSave, onClose }: {
                 <div className="mt-4 min-w-0 space-y-4"><p className="text-xs text-muted-foreground">{nm('advanced_help')}</p>
                   {(ch.profile === 'dingtalk' || ch.profile === 'feishu') && <div className="space-y-2"><Label htmlFor="notice-sign-secret">{nm('secret')}</Label><Input id="notice-sign-secret" type="password" autoComplete="new-password" value={ch.sign_secret || ''} onChange={e => patchChannel({ sign_secret: e.target.value })} /><p className="text-xs text-muted-foreground">{nm('signing_help')}</p></div>}
                   <div className="space-y-2"><Label htmlFor="notice-body">{nm('body')}</Label><Textarea ref={bodyRef} id="notice-body" className="h-44 min-h-0 resize-none font-mono text-xs" spellCheck={false} value={body} onChange={e => setBody(e.target.value)} /></div>
-                  <VariablePicker field={bodyRef} options={webhookVariables.map(name => ({ token: '{{' + name + '}}' }))} onChange={setBody} />
+                  <VariablePicker field={bodyRef} options={webhookVariables.map(name => ({ token: '{{' + name + '}}', descriptionKey: name === 'time' ? 'noticeTime' : name }))} onChange={setBody} />
                   <div className="space-y-2"><Label htmlFor="notice-headers">{nm('headers')}</Label><Textarea id="notice-headers" className="h-24 min-h-0 resize-none font-mono text-xs" spellCheck={false} value={headers} onChange={e => setHeaders(e.target.value)} /></div>
                 </div>
               </details>

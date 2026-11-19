@@ -1,4 +1,8 @@
+import { variableHelpCopy } from './variable-help';
+import { formulaCopy } from './formula-presets';
 const en = {
+  formula: formulaCopy.en,
+  variables: variableHelpCopy.en,
   load: 'Load preset',
   preset_hint: 'Load preset puts a built-in display style (wording, buttons and status bars) into the editor; save to keep it. Clear customization deletes the saved text so the reply follows the global display style again.',
   default_text: 'Default text', follow_default: 'Clear customization (follow default)',
@@ -23,6 +27,8 @@ const en = {
 export const visualEditorCopy = {
   en,
   'zh-Hans': {
+    formula: formulaCopy['zh-Hans'],
+    variables: variableHelpCopy['zh-Hans'],
     load: '载入预设',
     preset_hint: '「载入预设」把某种内置显示方案的文案、按钮和状态条放进编辑框，保存后生效；「清除自定义」删除已保存的文案，回复重新跟随全局显示方案。',
     default_text: '默认文案', follow_default: '清除自定义（跟随默认）',
@@ -45,6 +51,8 @@ export const visualEditorCopy = {
     math_0: 'TeX 公式', math_1: '普通文本替代文字', example_action: '掷骰', required: '请填写组件的所有字段，字段中不能包含结束标记或换行。',
   },
   'zh-Hant': {
+    formula: formulaCopy['zh-Hant'],
+    variables: variableHelpCopy['zh-Hant'],
     load: '載入預設',
     preset_hint: '「載入預設」把某種內建顯示方案的文案、按鈕與狀態條放進編輯框，儲存後生效；「清除自訂」刪除已儲存的文案，回覆重新跟隨全域顯示方案。',
     default_text: '預設文案', follow_default: '清除自訂（跟隨預設）',
@@ -67,6 +75,8 @@ export const visualEditorCopy = {
     math_0: 'TeX 公式', math_1: '純文字替代文字', example_action: '擲骰', required: '請填寫元件的所有欄位，欄位中不可包含結束標記或換行。',
   },
   ja: {
+    formula: formulaCopy.ja,
+    variables: variableHelpCopy.ja,
     load: 'プリセットを読み込む',
     preset_hint: '「プリセットを読み込む」は内蔵の表示方式の文面・ボタン・ステータスバーを編集欄に入れます（保存で反映）。「カスタムを解除」は保存した文面を削除し、全体の表示方式に戻します。',
     default_text: '既定の文面', follow_default: 'カスタムを解除（既定に従う）',

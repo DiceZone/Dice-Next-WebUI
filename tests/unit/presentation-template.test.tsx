@@ -12,8 +12,20 @@ import {
 import { PresentationTemplateEditor } from '../../src/components/reply/presentation-template-editor';
 import { MarkdownExample } from '../../src/components/reply/markdown-example';
 import { visualEditorCopy } from '../../src/i18n/visual-editor';
+import { formulaPresets, formulaIllustration } from '../../src/lib/formula-presets';
+import katex from 'katex';
 
 describe('Editable presentation components', () => {
+  it('keeps TeX groups out of variable diagnostics and renders every preset', () => {
+    for (const preset of formulaPresets) {
+      const source = `[[math:${preset.formula}|${preset.fallback}]]`;
+      expect(presentationComponents(source)).toHaveLength(1);
+      expect(new Set(variablesOutsidePresentation(source))).toEqual(new Set(preset.variables));
+      expect(() =>
+        katex.renderToString(formulaIllustration(preset.formula), { throwOnError: true, trust: false }),
+      ).not.toThrow();
+    }
+  });
   it('edits only the chosen component inside nested sample text', () => {
     const text = '{sample:正文A [[action:重投|/rc 力量-20]]|正文B [[action:看卡|.pc show]]}';
     const parts = presentationComponents(text);
@@ -53,6 +65,9 @@ describe('Editable presentation components', () => {
     await user.type(screen.getByLabelText('Command to fill 1'), '/rc 力量-20');
     expect(screen.getByLabelText('Source')).toHaveValue('Edited roll\n[[action:Again|/rc 力量-20]]');
     await user.click(screen.getByRole('button', { name: 'Add formula' }));
+    expect(screen.getByRole('dialog', { name: 'Formula presets' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Boxed sanity check' })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'Red text' }));
     expect((screen.getByLabelText('Source') as HTMLTextAreaElement).value).toContain('[[math:');
     await user.click(screen.getByRole('button', { name: 'Remove component 1' }));
     expect((screen.getByLabelText('Source') as HTMLTextAreaElement).value).toContain('Edited roll');

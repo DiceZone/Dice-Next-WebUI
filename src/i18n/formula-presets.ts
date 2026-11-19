@@ -1,0 +1,6 @@
+export const formulaCopy = {
+  'zh-Hans': { title: '公式预设', hint: '点击插入后可继续编辑。下方是示意效果；实际点数来自指令。公式使用双花括号变量，普通替代文字使用单花括号。不支持公式的平台显示替代文字；QQ 最终效果以客户端为准。', color: '红色文字', gothic: '哥特体标题', check: '边框理智检定', sanity: '理智变化', custom: '自定义公式', missing: '本条回复未提供变量：{{names}}' },
+  'zh-Hant': { title: '公式預設', hint: '點擊插入後可繼續編輯。下方是示意效果；實際點數來自指令。公式使用雙花括號變數，普通替代文字使用單花括號。不支援公式的平台顯示替代文字；QQ 最終效果以客戶端為準。', color: '紅色文字', gothic: '哥德體標題', check: '邊框理智檢定', sanity: '理智變化', custom: '自訂公式', missing: '本條回覆未提供變數：{{names}}' },
+  en: { title: 'Formula presets', hint: 'Select to insert, then edit freely. These are illustrations; actual values come from the command. Use double braces for formula variables and single braces in the fallback. Unsupported platforms use the fallback; QQ rendering depends on the client.', color: 'Red text', gothic: 'Gothic heading', check: 'Boxed sanity check', sanity: 'SAN change', custom: 'Custom formula', missing: 'Variables unavailable in this reply: {{names}}' },
+  ja: { title: '数式プリセット', hint: '選択して挿入後、自由に編集できます。表示は見本で、実際の値はコマンドから取得します。数式内の変数は二重波括弧、代替テキストは一重波括弧です。非対応のプラットフォームは代替文を表示し、QQ の描画はクライアントに依存します。', color: '赤色テキスト', gothic: 'ゴシック見出し', check: '枠付き SAN 判定', sanity: 'SAN の変化', custom: 'カスタム数式', missing: 'この返信で利用できない変数：{{names}}' },
+};

@@ -1,4 +1,6 @@
 import { Plus, Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import { FormulaPicker } from './formula-picker';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { VariableInput, tokens, templateVariables, type Variable } from './variable-picker';
@@ -9,6 +11,7 @@ export function PresentationTemplateEditor({ text, onChange, options = templateV
   text: string; onChange: (value: string) => void; allowMath?: boolean; options?: Variable[];
 }) {
   const { t } = useTranslation();
+  const [formulaOpen, setFormulaOpen] = useState(false);
   const components = presentationComponents(text);
   const fieldOptions = (kind: PresentationKind, field: number) => {
     const candidates = kind === 'bar' && field > 0
@@ -17,12 +20,15 @@ export function PresentationTemplateEditor({ text, onChange, options = templateV
       .filter(v => componentFieldValid(kind, field, v.token));
   };
   const add = (kind: PresentationKind) => {
+    if (kind === 'math') { setFormulaOpen(true); return; }
     const fields = kind === 'action' ? [t('visual_editor.example_action'), '.r']
       : kind === 'bar' ? ['HP', '{hp}', '{hpmax}']
       : ['\\textcolor{#E5484D}{ {{nick}} }', '{nick}'];
     onChange(text + (text && !text.endsWith('\n') ? '\n' : '') + componentSource(kind, fields));
   };
   return <div className="space-y-3" data-testid="presentation-template-editor">
+    {allowMath && <FormulaPicker open={formulaOpen} onOpenChange={setFormulaOpen} options={options}
+      onSelect={(formula, fallback) => onChange(text + (text && !text.endsWith('\n') ? '\n' : '') + componentSource('math', [formula, fallback]))} />}
     <div className="flex flex-wrap items-center justify-between gap-2">
       <HelpLabel title={t(allowMath ? 'visual_editor.components' : 'visual_editor.components_basic')} description={<><p>{t('visual_editor.hint')}</p>{allowMath && <p>{t('visual_editor.math_hint')}</p>}</>} labelClassName="text-sm font-medium" />
       <div className="flex flex-wrap gap-1.5">{(['action', 'bar', ...(allowMath ? ['math'] : [])] as PresentationKind[]).map(kind =>

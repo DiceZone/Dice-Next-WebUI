@@ -6,8 +6,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { FeatureHelp } from '@/components/ui/feature-help';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogBody, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { describedVariables, type Variable } from '@/lib/variable-description';
 
-export type Variable = { token: string; description?: string };
+export type { Variable } from '@/lib/variable-description';
 export type TextField = HTMLInputElement | HTMLTextAreaElement;
 export const globalNames = ['self', 'nick', 'name', 'qqnick', 'card', 'pcname', 'qqnickw', 'cardw', 'pcnamew', 'user', 'group', 'date', 'time', 'FormFeed'];
 export const contextNames = ['uid', 'gid', 'selfId', 'char.hp', 'char.mp', 'char.san', 'user.trust', 'user.favor', 'list_all_deck', 'list_extern_deck', 'list_extern_order', 'list_reply_deck', 'list_dice_sister'];
@@ -42,13 +43,8 @@ export function VariablePicker({ options, field, onChange }: Props) {
   const [query, setQuery] = useState('');
   const selection = useRef([0, 0]);
   const caret = useRef<number | null>(null);
-  const unique = new Map<string, string>();
-  for (const { token, description } of open ? options : []) {
-    const name = token.slice(1, -1);
-    const label = description || (globalNames.includes(name) ? t('commands.gvar_' + name) : '');
-    if (!unique.has(token) || label) unique.set(token, label);
-  }
-  const filtered = [...unique].filter(([token, label]) => (token + ' ' + label).toLowerCase().includes(query.trim().toLowerCase()));
+  const filtered = describedVariables(open ? options : [], t)
+    .filter(([token, label]) => (token + ' ' + label).toLowerCase().includes(query.trim().toLowerCase()));
   if (!options.length) return null;
   return <Dialog open={open} onOpenChange={next => {
     if (next) {
@@ -73,7 +69,7 @@ export function VariablePicker({ options, field, onChange }: Props) {
         }
       }}>
       <DialogHeader><div className="flex items-center gap-2"><DialogTitle>{t('visual_editor.insert_variable')}</DialogTitle>
-        <FeatureHelp title={t('visual_editor.insert_variable')} description={<p>{t('commands.global_vars_desc')}</p>} />
+        <FeatureHelp title={t('visual_editor.insert_variable')} description={<p>{t('visual_editor.variables.hint')}</p>} />
       </div></DialogHeader>
       <Input type="search" value={query} onChange={e => setQuery(e.target.value)} aria-label={t('visual_editor.search_variable')} placeholder={t('visual_editor.search_variable')} />
       <DialogBody><div className="grid gap-1.5 sm:grid-cols-2">{filtered.map(([token, label]) =>
@@ -85,7 +81,7 @@ export function VariablePicker({ options, field, onChange }: Props) {
           caret.current = start + token.length;
           setOpen(false);
         }}><code className="block break-all text-xs text-primary">{token}</code>
-          {label && <span className="text-xs text-muted-foreground">{label}</span>}</button>)}</div>
+          <span className="mt-1 block break-words text-xs leading-relaxed text-muted-foreground">{label}</span></button>)}</div>
         {!filtered.length && <p className="text-sm text-muted-foreground">{t('persona.ed.no_match')}</p>}
       </DialogBody>
     </DialogContent>
