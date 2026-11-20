@@ -28,6 +28,9 @@ const compiled = await build({
   },
   alias: { '@': fileURLToPath(new URL('../src/', import.meta.url)) },
   bundle: true, write: false, platform: 'node', format: 'cjs',
+  // This in-memory SSR test checks markup, not CSS or fonts. Vite/browser
+  // tests separately verify the shipped KaTeX styles and rendered boxes.
+  loader: { '.css': 'empty' },
   define: { 'process.env.NODE_ENV': '"production"' }, logLevel: 'silent',
 });
 const module = { exports: {} };

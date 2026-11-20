@@ -72,6 +72,9 @@ const compiled = await build({
   },
   alias: { '@': fileURLToPath(new URL('../src/', import.meta.url)) },
   bundle: true, write: false, platform: 'node', format: 'cjs',
+  // CSS has no effect on static markup. Let Vite/browser tests cover styles
+  // and fonts instead of asking this output-less Node bundle to emit assets.
+  loader: { '.css': 'empty' },
   define: { 'process.env.NODE_ENV': '"production"' }, logLevel: 'silent',
 });
 const module = { exports: {} };
