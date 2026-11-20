@@ -2,6 +2,49 @@ import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 const manifest = JSON.parse(readFileSync(new URL('../../src/routes/route-manifest.json', import.meta.url)));
 
+test('boxed formulas keep their border and color in reply previews and the playground', async ({ page }, info) => {
+  const formula = String.raw`\boxed{\overset{\huge\mathsf{d100=\textcolor{red}{48}/44}}{\text{失败}}}`;
+  const rendered = '$' + formula + '$';
+  const fallback = 'D100=48/44 失败';
+  await page.route('**/api/commands?*', route => route.fulfill({ json: { code: 0, data: [{
+    cmd: 'sc', title: '理智检定', category: '掷骰', sources: ['core'], example: '.sc 1/1d6', desc: '理智检定',
+    replies: [{ key: 'card.sc.result', default: '[[math:' + formula + '|' + fallback + ']]', override: null,
+      format: 'markdown', defaultFormat: 'markdown', vars: [] }],
+  }] } }));
+  await page.route('**/api/templates/markdown-source', route => route.fulfill({ json: { code: 0, data: { value: '[[math:' + formula + '|' + fallback + ']]' } } }));
+  await page.route('**/api/templates/preview', route => {
+    const plain = route.request().postDataJSON().forcePlain;
+    return route.fulfill({ json: { code: 0, data: { templateVersion: 1,
+      simulation: { version: 1, seed: 1, command: '.sc 1/1d6', family: 'coc', grade: 'failure', args: {}, unresolved: [], issues: [] },
+      preview: { text: plain ? fallback : rendered, plain: fallback, markdown: !plain, payload: null, actions: [] },
+    } } });
+  });
+  const assertBox = async scope => {
+    const box = scope.locator('[data-math-preview] .katex-html .fbox').first();
+    await expect(box).toBeVisible();
+    await expect.poll(() => box.evaluate(el => parseFloat(getComputedStyle(el).borderTopWidth))).toBeGreaterThan(0);
+    await expect.poll(() => box.evaluate(el => el.getBoundingClientRect().width)).toBeGreaterThan(50);
+    await expect(scope.locator('.katex-html [style*="color:red"]').first()).toHaveCSS('color', 'rgb(255, 0, 0)');
+    expect(await scope.locator('[data-math-preview]').first().evaluate(el => el.clientWidth <= el.parentElement.clientWidth + 1)).toBe(true);
+  };
+  await page.goto('/#/commands');
+  await page.getByRole('button', { name: '编辑', exact: true }).first().click();
+  const dialog = page.getByRole('dialog').first();
+  if (info.project.name === 'mobile') await dialog.getByRole('tab', { name: '预期回复示例', exact: true }).click();
+  await assertBox(dialog);
+  await page.screenshot({ path: info.outputPath('boxed-formula-preview.png'), fullPage: true });
+  await dialog.getByRole('switch', { name: '模拟 .bot text plain' }).click();
+  await expect(dialog.locator('[data-preview-message]')).toHaveText(fallback);
+  await expect(dialog.locator('[data-math-preview]')).toHaveCount(0);
+
+  await page.route('**/api/test/message', route => route.fulfill({ json: { reply: rendered, markdown: true } }));
+  await page.goto('/#/playground');
+  const input = page.locator('[data-tour="playground-composer"] input');
+  await input.fill('.sc 1/1d6'); await input.press('Enter');
+  await assertBox(page);
+  await page.screenshot({ path: info.outputPath('boxed-formula-playground.png'), fullPage: true });
+});
+
 test('reason reply editor previews the inherited custom roll and can override it independently', async ({ page }) => {
   const previews = [];
   await page.route('**/api/commands?*', route => route.fulfill({ json: { code: 0, data: [{ cmd: 'r', title: '掷骰', category: '掷骰', sources: ['core'], example: '.r', desc: '掷骰', replies: [

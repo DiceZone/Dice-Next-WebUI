@@ -1,5 +1,5 @@
-import { lazy, Suspense } from 'react';
 import { MarkdownExample } from '@/components/reply/markdown-example';
+import { MathFormula } from '@/components/reply/math-formula';
 
 export type SnBannerStyle = 'small_red' | 'quote' | 'plain' | 'custom' | 'off';
 export const snBannerStyles: SnBannerStyle[] = ['small_red', 'quote', 'plain', 'custom', 'off'];
@@ -39,31 +39,12 @@ export async function pickScreenColor(): Promise<string | null> {
   catch { return null; }
 }
 
-// Loaded only for custom formulas. MathML uses browser fonts, without loading
-// KaTeX's full font bundle; trust=false rejects HTML, links and external images.
-const Formula = lazy(async () => {
-  const { default: katex } = await import('katex');
-  return { default: ({ text }: { text: string }) => {
-    try {
-      const markup = katex.renderToString(text, {
-        output: 'mathml', throwOnError: true, strict: 'ignore', trust: false,
-        maxExpand: 100, maxSize: 10,
-      });
-      return <span dangerouslySetInnerHTML={{ __html: markup }} />;
-    } catch {
-      return <code className="break-all text-destructive">{text}</code>;
-    }
-  } };
-});
-
 function CustomPreview({ text }: { text: string }) {
   // Only unescaped $ delimit a formula. This is an appearance preview of the
   // documented Markdown subset, not an HTML interpreter or QQ action executor.
   const parts = text.split(/(?<!\\)\$([^$\n]+)(?<!\\)\$/g);
   return <div className="space-y-1 break-words">{parts.map((part, index) => index % 2
-    ? <Suspense key={index} fallback={<span className="inline-block h-4 w-32 animate-pulse rounded bg-muted" />}>
-        <Formula text={part} />
-      </Suspense>
+    ? <MathFormula key={index} text={part} />
     : part && <MarkdownExample key={index} text={part} enabled />)}</div>;
 }
 

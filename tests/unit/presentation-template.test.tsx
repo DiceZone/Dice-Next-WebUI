@@ -75,8 +75,9 @@ describe('Editable presentation components', () => {
   });
   it('previews formulas using bounded, untrusted TeX rendering', async () => {
     const { container } = render(<MarkdownExample enabled text={String.raw`Result $\frac{42}{60}$`} />);
-    await screen.findByText('42');
+    await screen.findAllByText('42');
     expect(container.querySelector('math')).not.toBeNull();
+    expect(container.querySelector('.katex-html')).not.toBeNull();
   });
   it('previews table cells, escaped pipes and an empty cell without consuming the next paragraph', () => {
     render(
