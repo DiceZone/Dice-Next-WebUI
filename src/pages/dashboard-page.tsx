@@ -1,6 +1,7 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useTourValue } from '@/components/onboarding/tour-data';
+import { useTourActive, useTourValue } from '@/components/onboarding/tour-data';
+import { useDashboardLogs } from '@/hooks/use-dashboard-logs';
 import { tourSamples } from '@/lib/tour-samples';
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/ui/page-header';
@@ -25,8 +26,10 @@ function formatUptime(seconds: number): string {
 
 export const DashboardPage: React.FC = () => {
   const { t } = useTranslation();
+  const tour = useTourActive();
+  const logs = useDashboardLogs(!tour);
   const query = useQuery({ queryKey: panelKeys.dashboard,
-    queryFn: async () => (await apiClient.get<DashboardStats>('/dashboard/stats')).data,
+    queryFn: async () => (await apiClient.get<DashboardStats>(logs ? '/dashboard/stats?logs=0' : '/dashboard/stats')).data,
     refetchInterval: 30_000 }, panelQueryClient);
   const liveStats = query.data || null;
   const loading = query.isPending;
@@ -68,7 +71,7 @@ export const DashboardPage: React.FC = () => {
           <div data-tour="dashboard-server" className="flex min-h-0 flex-1 flex-col"><ServerInfo /></div>
           <QuickActions onNavigate={navigatePanel} />
         </div>
-        <div data-tour="dashboard-logs" className="min-w-0 lg:h-full"><RecentLogs logs={stats?.recent_logs ?? []} /></div>
+        <div data-tour="dashboard-logs" className="min-w-0 lg:h-full"><RecentLogs logs={(!tour && logs) || stats?.recent_logs || []} /></div>
       </div>
     </div>
   );

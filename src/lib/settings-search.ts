@@ -344,6 +344,7 @@ export const SETTINGS_SEARCH_ENTRIES: SettingsSearchEntry[] = [
   e('notice-audit', '/notice-settings', 'nav.notice', 'noticeset.tab_audit', '审计 審計 审核 日志 日誌 audit operation history', 'noticeset.audit_hint', false, 'audit'),
 
   e('page-dashboard', '/', 'nav.dashboard', 'dashboard.title', '运行概览 運行概覽 dashboard overview status uptime 在线 在線 连接状态 連線狀態', 'dashboard.subtitle', true),
+  e('dashboard-live-logs', '/', 'nav.dashboard', 'dashboard.recent_logs', '实时日志 實時日誌 即時日誌 增量轮询 SSE CDN live logs polling リアルタイムログ', 'runtime_logs.help'),
   e('dashboard-shortcuts', '/', 'nav.dashboard', 'dashboard_shortcuts.customize', '常用操作 快捷入口 排序 自定义 自訂 quick actions shortcuts', 'dashboard_shortcuts.description'),
   e('page-statistics', '/statistics', 'nav.statistics', 'statistics.title', '数据统计 數據統計 statistics analytics metrics report trend 活跃用户 活躍使用者 活跃群组 活躍群組 骰点分布 骰點分佈 在线粒度 在線粒度', 'statistics.subtitle', true),
   e('page-playground', '/playground', 'nav.playground', 'nav.playground', '指令测试 指令測試 测试台 測試台 playground sandbox debug message 调试 調試'),
