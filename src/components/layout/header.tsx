@@ -6,7 +6,8 @@ import { GlobalSettingsSearch } from '@/components/layout/global-settings-search
 import { zustandAppStore } from '@/store/app-store';
 import { useSystemUpdateStore } from '@/store/system-update-store';
 import { formatVersion, isUpdateBusy } from '@/lib/system-update';
-import { CircleHelp, ChevronDown, Sun, Moon, MoreHorizontal, MonitorDown } from 'lucide-react';
+import { CircleHelp, ChevronDown, Sun, Moon, MoreHorizontal, MonitorDown, LogOut, Loader2 } from 'lucide-react';
+import { usePanelLogout } from '@/hooks/use-panel-logout';
 import { useToast } from '@/hooks/use-toast';
 import { promptInstall, useCanInstall } from '@/lib/pwa-install';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -29,6 +30,7 @@ export const Header: React.FC<HeaderProps> = ({ currentPath = '/', wsConnected: 
   const { t, i18n } = useTranslation();
   const toast = useToast();
   const canInstall = useCanInstall();
+  const { logout, busy: loggingOut } = usePanelLogout();
   const install = async () => {
     if ((await promptInstall()) === 'accepted') toast({ title: t('pwa.installed_toast') });
   };
@@ -149,6 +151,10 @@ export const Header: React.FC<HeaderProps> = ({ currentPath = '/', wsConnected: 
             <Moon className="h-5 w-5" />
           )}
         </Button>
+        <Button variant="ghost" size="icon" className="h-10 w-10" onClick={() => void logout()} disabled={loggingOut}
+          title={t('settings.logout')} aria-label={t('settings.logout')}>
+          {loggingOut ? <Loader2 className="h-5 w-5 animate-spin" /> : <LogOut className="h-5 w-5" />}
+        </Button>
       </div>
       <div className="shrink-0 lg:hidden">
         <DropdownMenu>
@@ -166,6 +172,10 @@ export const Header: React.FC<HeaderProps> = ({ currentPath = '/', wsConnected: 
             <DropdownMenuRadioGroup value={i18n.language} onValueChange={(value) => changeLanguage(value as LanguageCode)}>
               {SUPPORTED_LANGUAGES.map((language) => <DropdownMenuRadioItem key={language.code} value={language.code}>{language.label}</DropdownMenuRadioItem>)}
             </DropdownMenuRadioGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={() => void logout()} disabled={loggingOut}>
+              <LogOut className="mr-2 h-4 w-4" />{t('settings.logout')}
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

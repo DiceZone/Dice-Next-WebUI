@@ -2,6 +2,38 @@ import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 const manifest = JSON.parse(readFileSync(new URL('../../src/routes/route-manifest.json', import.meta.url)));
 
+test('about page reads release notes from the documentation static feed', async ({ page }) => {
+  await page.route('https://docs.dice.zone/releases.json', route => route.fulfill({
+    headers: { 'Access-Control-Allow-Origin': '*' }, json: { schema: 1, repository: 'DiceZone/Dice-Next', releases: [{
+      tag_name: 'v3.0.0-beta.986', html_url: 'https://github.com/DiceZone/Dice-Next/releases/tag/v3.0.0-beta.986',
+      published_at: '2026-11-23T06:00:00Z', body: '## 问题修复\n- 内置登录通知帐号可选',
+    }] },
+  }));
+  await page.goto('/#/about');
+  await expect(page.getByText('问题修复\n- 内置登录通知帐号可选', { exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'v3.0.0-beta.986', exact: true })).toBeVisible();
+});
+
+test('panel logout is reachable from desktop header and mobile more menu', async ({ page }, info) => {
+  let logouts = 0;
+  await page.route('**/api/auth/status', route => route.fulfill({ json: { code: 0, data: { required: true, authed: true } } }));
+  await page.route('**/api/auth/logout', route => {
+    expect(route.request().method()).toBe('POST');
+    logouts++;
+    return route.fulfill({ json: { code: 0 } });
+  });
+  await page.goto('/#/');
+  if (info.project.name === 'mobile') {
+    await page.getByTestId('header-more').click();
+    await page.getByRole('menuitem', { name: '退出登录', exact: true }).click();
+  } else {
+    await page.locator('header').getByRole('button', { name: '退出登录', exact: true }).click();
+  }
+  await expect(page.getByLabel('密码', { exact: true })).toBeVisible();
+  await expect(page.locator('main')).toHaveCount(0);
+  expect(logouts).toBe(1);
+});
+
 test('boxed formulas keep their border and color in reply previews and the playground', async ({ page }, info) => {
   const formula = String.raw`\boxed{\overset{\huge\mathsf{d100=\textcolor{red}{48}/44}}{\text{失败}}}`;
   const rendered = '$' + formula + '$';

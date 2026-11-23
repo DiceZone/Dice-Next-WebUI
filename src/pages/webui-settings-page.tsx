@@ -18,12 +18,13 @@ import { Monitor, Key, Eye, EyeOff, Copy, Palette, Terminal, Lock, Server, Refre
 import { PageHeader } from '@/components/ui/page-header';
 import { SsoSettingsCard } from '@/components/settings/sso-settings-card';
 import { InstallAppCard } from '@/components/settings/install-app-card';
-import { panelQueryClient } from '@/lib/query-client';
+import { usePanelLogout } from '@/hooks/use-panel-logout';
 
 export const WebuiSettingsPage: React.FC = () => {
   const { t } = useTranslation();
   const { apiKey, setApiKey, theme, setTheme } = zustandAppStore();
   const toast = useToast();
+  const { logout, busy: loggingOut } = usePanelLogout();
   const [localApiKey, setLocalApiKey] = useTourState(apiKey ?? '', 'demo-api-key');
   const [showKey, setShowKey] = useTourState(false, false);
   const [saving, setSaving] = useState(false);
@@ -92,12 +93,6 @@ export const WebuiSettingsPage: React.FC = () => {
       }
       toast({ title: t('settings.restarting') });
     } catch { /* 连接会断开属正常 */ toast({ title: t('settings.restarting') }); }
-  };
-
-  const handleLogout = async () => {
-    panelQueryClient.clear();
-    try { await fetch('/api/auth/logout', { method: 'POST' }); } catch { /* ignore */ }
-    window.location.reload();
   };
 
   const handleSaveApiKey = async () => {
@@ -195,7 +190,7 @@ export const WebuiSettingsPage: React.FC = () => {
           </div>
           <p className="text-xs text-muted-foreground">{t('settings.webpw_hint')}</p>
           {pwEnabled && (
-            <Button variant="outline" size="sm" onClick={handleLogout}>{t('settings.logout')}</Button>
+            <Button id="webui-logout" variant="outline" size="sm" onClick={() => void logout()} disabled={loggingOut}>{t('settings.logout')}</Button>
           )}
         </CardContent>
       </Card>

@@ -332,6 +332,7 @@ export const SETTINGS_SEARCH_ENTRIES: SettingsSearchEntry[] = [
 
   e('webui-api-key', '/webui-settings', 'nav.webui', 'settings.api_key_title', 'api key token access secret 接口 密钥 密鑰', 'settings.api_key_desc'),
   e('webui-password', '/webui-settings', 'nav.webui', 'settings.webpw_title', '密码 密碼 password login 登录 登入 auth trust device 30天', 'settings.webpw_desc', true),
+  e('webui-logout', '/webui-settings', 'nav.webui', 'settings.logout', '退出登录 登出 退出登入 logout sign out 会话 會話 session', 'settings.logout_help'),
   e('webui-server', '/webui-settings', 'nav.webui', 'settings.server_title', 'ip host port 端口 端口号 監聽 listen address 18088 server', 'settings.server_desc'),
   e('webui-install', '/webui-settings', 'nav.webui', 'pwa.title', '安装为应用 安裝為應用 安装 安裝 应用 應用 桌面 主屏幕 主畫面 PWA install app desktop home screen standalone', 'pwa.desc'),
   e('webui-theme', '/webui-settings', 'nav.webui', 'settings.theme_title', '主题 主題 theme dark light system 深色 浅色 淺色', 'settings.theme_desc'),

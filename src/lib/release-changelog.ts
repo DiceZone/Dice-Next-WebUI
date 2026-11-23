@@ -4,6 +4,8 @@ const TAG = /^v\d+\.\d+\.\d+(?:-beta\.\d+)?$/;
 
 export const RECENT_RELEASES_URL =
   'https://api.github.com/repos/DiceZone/Dice-Next/releases?per_page=5';
+export const STATIC_RELEASES_URL = 'https://docs.dice.zone/releases.json';
+const CACHE_KEY = 'dice-release-notes-v1';
 
 export interface ReleaseNote {
   tag: string;
@@ -85,6 +87,11 @@ function releaseUrl(tag: string, value: unknown): string {
 }
 
 export function recentReleaseNotes(payload: unknown, limit = 5): ReleaseNote[] {
+  if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
+    const feed = payload as Record<string, unknown>;
+    if (feed.schema !== 1 || feed.repository !== 'DiceZone/Dice-Next') return [];
+    payload = feed.releases;
+  }
   if (!Array.isArray(payload) || limit < 1) return [];
   const notes: ReleaseNote[] = [];
   for (const item of payload) {
@@ -105,4 +112,42 @@ export function recentReleaseNotes(payload: unknown, limit = 5): ReleaseNote[] {
     if (notes.length >= limit) break;
   }
   return notes;
+}
+
+export async function loadReleaseNotes(signal: AbortSignal): Promise<{
+  notes: ReleaseNote[]; source: 'docs' | 'github' | 'cache';
+}> {
+  for (const [url, source] of [[STATIC_RELEASES_URL, 'docs'], [RECENT_RELEASES_URL, 'github']] as const) {
+    if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
+    const controller = new AbortController();
+    const abort = () => controller.abort();
+    signal.addEventListener('abort', abort, { once: true });
+    const timeout = setTimeout(abort, 8000);
+    try {
+      const response = await fetch(url, {
+        signal: controller.signal, credentials: 'omit', redirect: 'follow',
+        headers: { Accept: 'application/json' },
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const text = await response.text();
+      if (text.length > 512 * 1024) throw new Error('Release feed too large');
+      const notes = recentReleaseNotes(JSON.parse(text));
+      if (!notes.length) throw new Error('Empty release feed');
+      // Store only validated public notes, never credentials or arbitrary response fields.
+      try { localStorage.setItem(CACHE_KEY, JSON.stringify(notes.map(n => ({
+        tag_name: n.tag, html_url: n.url, published_at: n.publishedOn, body: n.notes,
+      })))); } catch { /* Storage can be unavailable or full. */ }
+      return { notes, source };
+    } catch (error) {
+      if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
+    } finally {
+      clearTimeout(timeout);
+      signal.removeEventListener('abort', abort);
+    }
+  }
+  try {
+    const notes = recentReleaseNotes(JSON.parse(localStorage.getItem(CACHE_KEY) || 'null'));
+    if (notes.length) return { notes, source: 'cache' };
+  } catch { /* Ignore a damaged cache. */ }
+  throw new Error('Release notes unavailable');
 }

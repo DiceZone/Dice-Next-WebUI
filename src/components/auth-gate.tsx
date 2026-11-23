@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ADMIN_PASSWORD_MAX_LENGTH, isValidAdminPassword, sanitizeAdminPassword } from '@/lib/admin-password';
 import { isHttpsPanel, ssoProviderLogo, ssoStartUrl, takeSsoResult, type SsoLoginProvider } from '@/lib/sso';
+import { PANEL_LOGGED_OUT } from '@/lib/panel-session';
 
 /**
  * WebUI 登录门（C#34）。挂在 AppRouter 外层：
@@ -35,10 +36,16 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
     }
   };
   useEffect(() => {
+    const loggedOut = () => {
+      setPw(''); setPw2(''); setNewPw(''); setNewPw2('');
+      setTrustDevice(false); setErr(''); setBusy(false); setState('login');
+    };
+    window.addEventListener(PANEL_LOGGED_OUT, loggedOut);
     // 第三方登录回调带回的结果只显示一次，随即从地址栏清掉。
     const result = takeSsoResult();
     if (result.error) setErr(t(result.error));
     void check();
+    return () => window.removeEventListener(PANEL_LOGGED_OUT, loggedOut);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

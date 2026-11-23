@@ -16,7 +16,7 @@ import { apiClient, ApiTimeoutError } from '@/lib/api-client';
 import { formatVersion, formatScheduledInstallAt, updateTimezoneLabel, isUpdateBusy, type UpdateAction, type UpdateSource, type UpdateSettings, type UpdateStatus } from '@/lib/system-update';
 import { useSystemUpdateStore } from '@/store/system-update-store';
 import { formatBuildTimeUtc8 } from '@/lib/build-time';
-import { RECENT_RELEASES_URL, recentReleaseNotes, type ReleaseNote } from '@/lib/release-changelog';
+import { loadReleaseNotes, type ReleaseNote } from '@/lib/release-changelog';
 import { useDialogs } from '@/hooks/use-dialogs';
 import { PageHeader } from '@/components/ui/page-header';
 import {
@@ -668,21 +668,16 @@ function ReleaseChangelog() {
   const { t } = useTranslation();
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [notes, setNotes] = useState<ReleaseNote[]>([]);
+  const [cached, setCached] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
-    fetch(RECENT_RELEASES_URL, {
-      signal: controller.signal,
-      headers: { Accept: 'application/vnd.github+json' },
-    })
-      .then(async (response) => {
-        if (!response.ok) throw new Error(String(response.status));
-        return response.json() as Promise<unknown>;
-      })
-      .then((payload) => {
-        const parsed = recentReleaseNotes(payload);
-        if (parsed.length === 0) throw new Error('empty');
-        setNotes(parsed);
+    setState('loading');
+    loadReleaseNotes(controller.signal)
+      .then(({ notes: parsed, source }) => {
+        if (controller.signal.aborted) return;
+        setNotes(parsed); setCached(source === 'cache');
         setState('ready');
       })
       .catch((error: unknown) => {
@@ -690,7 +685,7 @@ function ReleaseChangelog() {
         setState('error');
       });
     return () => controller.abort();
-  }, []);
+  }, [attempt]);
 
   return (
     <Card>
@@ -702,11 +697,15 @@ function ReleaseChangelog() {
         {state === 'error' && (
           <p>
             {t('about.changelog_unavailable')}{' '}
+            <Button variant="link" size="sm" onClick={() => setAttempt(value => value + 1)}>{t('about.changelog_retry')}</Button>{' '}
             <a className="text-primary hover:underline" href={RELEASES_PAGE} target="_blank" rel="noopener noreferrer">
               {t('about.changelog_all')}
             </a>
           </p>
         )}
+        {state === 'ready' && cached && <p>{t('about.changelog_cached')}{' '}
+          <Button variant="link" size="sm" onClick={() => setAttempt(value => value + 1)}>{t('about.changelog_retry')}</Button>
+        </p>}
         {state === 'ready' && notes.map((release, index) => (
           <div key={release.tag}>
             {index > 0 && <Separator className="mb-4" />}
