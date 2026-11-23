@@ -13,26 +13,41 @@ vi.mock('../../src/hooks/use-toast', () => ({ useToast: () => toast }));
 
 function LogoutAction() {
   const { logout, busy } = usePanelLogout();
-  return <button disabled={busy} onClick={() => void logout()}>Log out</button>;
+  return (
+    <button disabled={busy} onClick={() => void logout()}>
+      Log out
+    </button>
+  );
 }
-const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), {
-  status, headers: { 'Content-Type': 'application/json' },
-});
+const json = (data: unknown, status = 200) =>
+  new Response(JSON.stringify(data), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  });
 function mockServer(logout: () => Promise<Response>) {
-  const fetcher = vi.fn((url: string) => url === '/api/auth/status'
-    ? Promise.resolve(json({ code: 0, data: { required: true, authed: true } }))
-    : logout());
+  const fetcher = vi.fn((url: string) =>
+    url === '/api/auth/status'
+      ? Promise.resolve(json({ code: 0, data: { required: true, authed: true } }))
+      : logout(),
+  );
   vi.stubGlobal('fetch', fetcher);
   return fetcher;
 }
-afterEach(() => { vi.unstubAllGlobals(); zustandAppStore.getState().setApiKey(null); });
+afterEach(() => {
+  vi.unstubAllGlobals();
+  zustandAppStore.getState().setApiKey(null);
+});
 
 describe('panel logout', () => {
   it('revokes the session, clears browser credentials/cache and returns to login without reloading', async () => {
     const fetcher = mockServer(async () => json({ code: 0 }));
     zustandAppStore.getState().setApiKey('test-key');
     panelQueryClient.setQueryData(['private'], 'cached');
-    render(<AuthGate><LogoutAction /></AuthGate>);
+    render(
+      <AuthGate>
+        <LogoutAction />
+      </AuthGate>,
+    );
     await userEvent.click(await screen.findByRole('button', { name: 'Log out' }));
     expect(await screen.findByLabelText('auth.password')).toHaveValue('');
     expect(screen.queryByRole('button', { name: 'Log out' })).not.toBeInTheDocument();
@@ -48,9 +63,15 @@ describe('panel logout', () => {
     });
     zustandAppStore.getState().setApiKey('test-key');
     panelQueryClient.setQueryData(['private'], 'cached');
-    render(<AuthGate><LogoutAction /></AuthGate>);
+    render(
+      <AuthGate>
+        <LogoutAction />
+      </AuthGate>,
+    );
     await userEvent.click(await screen.findByRole('button', { name: 'Log out' }));
-    await waitFor(() => expect(toast).toHaveBeenCalledWith({ title: 'settings.logout_failed', variant: 'destructive' }));
+    await waitFor(() =>
+      expect(toast).toHaveBeenCalledWith({ title: 'settings.logout_failed', variant: 'destructive' }),
+    );
     expect(screen.getByRole('button', { name: 'Log out' })).toBeEnabled();
     expect(localStorage.getItem('dice-api-key')).toBe('test-key');
     expect(panelQueryClient.getQueryData(['private'])).toBe('cached');
@@ -59,16 +80,31 @@ describe('panel logout', () => {
     const fetcher = mockServer(async () => json({ code: 0 }));
     const unregister = registerNavigationGuard(async () => false);
     try {
-      render(<AuthGate><LogoutAction /></AuthGate>);
+      render(
+        <AuthGate>
+          <LogoutAction />
+        </AuthGate>,
+      );
       await userEvent.click(await screen.findByRole('button', { name: 'Log out' }));
       expect(fetcher.mock.calls.every(([url]) => url === '/api/auth/status')).toBe(true);
       expect(screen.getByRole('button', { name: 'Log out' })).toBeEnabled();
-    } finally { unregister(); }
+    } finally {
+      unregister();
+    }
   });
   it('disables repeated clicks while logout is pending', async () => {
     let finish!: (value: Response) => void;
-    const fetcher = mockServer(() => new Promise((resolve) => { finish = resolve; }));
-    render(<AuthGate><LogoutAction /></AuthGate>);
+    const fetcher = mockServer(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    render(
+      <AuthGate>
+        <LogoutAction />
+      </AuthGate>,
+    );
     const button = await screen.findByRole('button', { name: 'Log out' });
     await userEvent.click(button);
     expect(button).toBeDisabled();
