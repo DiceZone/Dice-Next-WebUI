@@ -740,7 +740,7 @@ test('cleanup settings separate retention from platform actions and persist grou
   await expect(card.locator('#cleanup-days')).toHaveValue('0');
 });
 
-test('custom reply inserts a capture into the selected reply only', async ({ page }) => {
+test('custom reply inserts variables and images into the selected reply only', async ({ page }) => {
   await page.goto('/#/replies');
   await page.getByRole('button', { name: '添加回复', exact: true }).click();
   const dialog = page.getByRole('dialog');
@@ -768,6 +768,12 @@ test('custom reply inserts a capture into the selected reply only', async ({ pag
   await expect(inputs.nth(0)).toHaveValue('first');
   await expect(inputs.nth(1)).toHaveValue('a{$1}b');
   await expect(inputs.nth(1)).toBeFocused();
+  await inputs.nth(1).evaluate(el => el.setSelectionRange(1, 5));
+  await editors.nth(1).getByRole('button', { name: '插入图片', exact: true }).click();
+  const images = page.getByRole('dialog', { name: '选择图片资源' });
+  await images.getByRole('button', { name: '使用这张图片', exact: true }).first().click();
+  await expect(inputs.nth(1)).toHaveValue(/^a\[img,file=data\/images\/reply\/[^\]]+\]b$/);
+  await expect(inputs.nth(0)).toHaveValue('first');
 });
 
 test('dialog and editable inputs use a white light surface and retain a dark surface', async ({ page }, info) => {
@@ -828,6 +834,7 @@ test('statistics preserves all dates, online history and both active rankings', 
 test('statistics range uses one selector and keeps yesterday distinct from today', async ({ page }) => {
   await page.goto('/#/statistics');
   const filter = page.getByRole('combobox', { name: '统计区间' });
+  await expect(filter).toContainText('7');
   for (const label of ['今天', '昨天', '自定义范围']) {
     await filter.click();
     await page.getByRole('option', { name: label, exact: true }).click();

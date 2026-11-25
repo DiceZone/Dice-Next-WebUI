@@ -723,7 +723,7 @@ test('reply dialogs use the shared scroll body, keep the fieldset inside and pin
   assert.equal(tag(scroll), 'DialogBody');
   assert.doesNotMatch(classes(fieldset), /overflow-|flex-1/);
   assert.match(fieldset.openingElement.getText(tree), /disabled=\{submitting\}/);
-  assert.match(source, /<ImageResourcePicker[\s\S]*?disabled=\{submitting\}/);
+  assert.match(source, /<VariableTextarea\b[^>]*imageDisabled=\{submitting\}/);
   const dialog = scroll.parent;
   assert.equal(tag(dialog), 'DialogContent');
   assert.match(dialog.openingElement.getText(tree), /layout="editor"/);
@@ -732,14 +732,6 @@ test('reply dialogs use the shared scroll body, keep the fieldset inside and pin
   assert.ok(classes(header).includes('shrink-0'));
   assert.ok(classes(footer).includes('shrink-0'));
   assert.ok(dialog.children.indexOf(footer) > dialog.children.indexOf(scroll));
-});
-
-test('reply image insertion delegates upload failures to the shared picker and only changes the selected result', () => {
-  const source = fs.readFileSync(new URL('../src/components/reply/reply-form.tsx', import.meta.url), 'utf8');
-  assert.doesNotMatch(source, /\/api\/assets\/upload|readAsDataURL/);
-  assert.match(source, /onSelect=\{\(entry\) => setResults\(\(rs\) => rs\.map\(\(value, idx\) => idx === i \? value \+ entry\.code : value\)\)\}/);
-  // Failure and cancellation are executed against the real shared browser in
-  // image-resources.test.mjs; there is no second private upload implementation.
 });
 
 test('reply scope keeps platforms and individual accounts distinct, including IDs containing colons', () => {

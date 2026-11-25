@@ -35,8 +35,20 @@ describe('V2 architecture contracts', () => {
   });
   it('separates accounts, filters, dates and pagination and never retries writes', async () => {
     expect(panelKeys.list('/logs?page=1')).not.toEqual(panelKeys.list('/logs?page=2'));
-    expect(panelKeys.statistics(7, 'onebot', 'bot-a', '1h')).not.toEqual(
-      panelKeys.statistics(7, 'onebot', 'bot-b', '1h'),
+    const filters = { days: '1', granularity: '1h', platform: 'onebot_v11', adapter: 'bot-a' };
+    const key = (extra: Record<string, string> = {}) =>
+      panelKeys.statistics(new URLSearchParams({ ...filters, ...extra }).toString());
+    expect(key()).toEqual(key({}));
+    for (const change of [
+      { adapter: 'bot-b' },
+      { period: 'yesterday' },
+      { granularity: '5m' },
+      { days: '7' },
+    ] as const) {
+      expect(key(change)).not.toEqual(key());
+    }
+    expect(key({ from: '2026-11-01', to: '2026-11-01' })).not.toEqual(
+      key({ from: '2026-11-02', to: '2026-11-02' }),
     );
     expect(panelKeys.replies('account', 'bot-a')).not.toEqual(panelKeys.replies('account', 'bot-b'));
     const client = createPanelQueryClient();

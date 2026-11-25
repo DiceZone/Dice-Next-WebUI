@@ -100,8 +100,19 @@ test('paste retains resource-operation warnings and clears the clipboard only af
   assert.equal(h.textButton('image_resources.paste'),undefined);h.unmount();
 });
 test('reply, text, deck and chat editors all use the common resource picker rather than legacy upload',()=>{
-  for(const file of ['components/reply/reply-form.tsx','pages/commands-page.tsx','components/deck-editor.tsx','pages/groups-page.tsx']){assert.ok(source(file).includes('ImageResourcePicker'),file);assert.ok(!source(file).includes('/api/assets/upload'),file);}
-  assert.ok(source('components/deck-editor.tsx').includes('directory={`deck/${filename}`}'));
+  const integrations = [
+    ['components/reply/reply-form.tsx', '<VariableTextarea', "imageDirectory={reply?.id ? `reply/${reply.id}` : 'reply'}"],
+    ['pages/commands-page.tsx', '<WeightedTemplateEditor', "imageDirectory={personaId > 0 ? `text/persona-${personaId}` : 'text/default'}"],
+    ['components/persona/weighted-template-editor.tsx', '<VariableTextarea', 'imageDirectory={imageDirectory}'],
+    ['components/deck-editor.tsx', '<VariableTextarea', 'imageDirectory={`deck/${filename}`}'],
+    ['components/reply/variable-picker.tsx', '<ImageResourcePicker', 'directory={imageDirectory}'],
+    ['pages/groups-page.tsx', '<ImageResourcePicker', 'directory="chat"'],
+  ];
+  for (const [file, component, directory] of integrations) {
+    const editor = source(file);
+    assert.ok(editor.includes(component) && editor.includes(directory), file);
+    assert.ok(!editor.includes('/api/assets/upload'), file);
+  }
 });
 test('isolated preview lists 47 metadata rows by server page and generates images only on content requests',()=>{
   const preview=createImageResourcesPreview();const url=new URL('http://preview.invalid/api/resources/images?directory=reply&page=3&size=20');

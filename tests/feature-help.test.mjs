@@ -429,7 +429,7 @@ test('statistics defaults to seven days in both live and tutorial views, so five
   let defaultDays;
   let fineDetailGuard;
   const visit = (node) => {
-    if (ts.isVariableDeclaration(node) && node.name.getText(source) === '[days, setDays]') defaultDays = node.initializer;
+    if (ts.isVariableDeclaration(node) && node.name.getText(source) === '[period, setPeriod]') defaultDays = node.initializer;
     if (ts.isJsxElement(node) && node.openingElement.tagName.getText(source) === 'SelectItem') {
       const attributes = node.openingElement.attributes.properties;
       if (attributes.some((property) => ts.isJsxAttribute(property) && property.name.getText(source) === 'value' && property.initializer?.text === '5m')) {
@@ -440,13 +440,12 @@ test('statistics defaults to seven days in both live and tutorial views, so five
   };
   visit(source);
   assert.equal(defaultDays?.expression.getText(source), 'useTourState');
-  assert.deepEqual(defaultDays.arguments.map((argument) => argument.getText(source)), ['7', '7']);
+  assert.deepEqual(defaultDays.arguments.map((argument) => argument.text), ['7', '7']);
   assert.equal(fineDetailGuard?.getText(source), '{days > 7}');
   for (const language of languages) {
     const html = renderPage('StatisticsPage', '#/statistics', language, true);
-    const datePicker = html.split(`aria-label="${escapeHtml(messages[language].statistics.date_range)}"`)[1]?.split('</div>')[0];
-    const selected = [...datePicker.matchAll(/<button\b([^>]*)>([\s\S]*?)<\/button>/g)].filter(([, attributes]) => attributes.includes('aria-pressed="true"'));
-    assert.equal(selected.length, 1, `${language}: one default date range`);
-    assert.ok(selected[0][2].includes('7'), `${language}: seven-day range selected`);
+    const datePickers = [...html.matchAll(/<button\b[^>]*>/g)].filter(([tag]) =>
+      tag.includes('role="combobox"') && tag.includes(`aria-label="${escapeHtml(messages[language].statistics.date_range)}"`));
+    assert.equal(datePickers.length, 1, `${language}: one date range selector`);
   }
 });
