@@ -1026,9 +1026,9 @@ const FunctionTab: React.FC<any> = ({ group, base, scopedBody, onChanged, onBack
         </div>
         <div className="space-y-1">
           <Label className="text-xs text-muted-foreground">{t('groups.welcome_text')}</Label>
-          <Textarea ref={welcomeRef} className="text-sm min-h-[72px] resize-y" value={group.welcome || ''} onChange={(e) => void save({ welcome: e.target.value })} placeholder={t('groups.welcome_text_ph')} />
           <VariablePicker field={welcomeRef} options={['at', 'user', 'nick'].map(name => ({ token: '{' + name + '}', description: t('groups.var_' + name) }))}
             onChange={welcome => void save({ welcome })} />
+          <Textarea ref={welcomeRef} className="text-sm min-h-[72px] resize-y" value={group.welcome || ''} onChange={(e) => void save({ welcome: e.target.value })} placeholder={t('groups.welcome_text_ph')} />
         </div>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <div>

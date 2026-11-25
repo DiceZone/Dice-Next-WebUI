@@ -1727,6 +1727,10 @@ export const SettingsPage: React.FC = () => {
       <ImageHostCard key={`ImageHostCard:${scopeKey}`} {...currentScopeProps}
         overridden={settingsScope !== 'global' && Object.prototype.hasOwnProperty.call(globalOverrides, 'image_host')}
         onReset={() => void resetGlobalScope(['image_host'])} />
+      {settingsScope === 'global' && scopedReady && <StatisticsRetentionCard
+        key={`${globals.roll_stats_keep_days}/${globals.performance_keep_days}`}
+        rollDays={Number(globals.roll_stats_keep_days ?? 0)} performanceDays={Number(globals.performance_keep_days ?? 30)}
+        onSaved={() => void loadGlobals()} />}
       {/* 聊天记录保留期 */}
       <ChatRetentionCard key={`ChatRetentionCard:${scopeKey}`} {...currentScopeProps}
         overridden={settingsScope !== 'global' && ['chat_retention_days', 'chat_persist'].some((key) => Object.prototype.hasOwnProperty.call(globalOverrides, key))}
@@ -1790,6 +1794,37 @@ export const SettingsPage: React.FC = () => {
 
 
 // ── 聊天记录保留期 ─────────────────────────────────────────
+function StatisticsRetentionCard({ rollDays, performanceDays, onSaved }: {
+  rollDays: number; performanceDays: number; onSaved: () => void;
+}) {
+  const { t } = useTranslation();
+  const toast = useToast();
+  const [rolls, setRolls] = React.useState(String(rollDays));
+  const [performance, setPerformance] = React.useState(String(performanceDays));
+  const [saving, setSaving] = React.useState(false);
+  const valid = [rolls, performance].every(value => /^\d{1,4}$/.test(value) && Number(value) <= 3650);
+  async function save() {
+    if (!valid || saving) return;
+    setSaving(true);
+    try {
+      await putJson('/system/global', { scope: 'global', values: {
+        roll_stats_keep_days: Number(rolls), performance_keep_days: Number(performance),
+      } });
+      onSaved();
+      toast({ title: t('common.save_success') });
+    } catch (error) { toast({ title: t('common.save_fail'), description: String(error), variant: 'destructive' }); }
+    finally { setSaving(false); }
+  }
+  return <Card data-setting-anchor="settings-stats-retention">
+    <CardHeader><CardTitle>{t('statistics.retention')}</CardTitle><CardDescription>{t('statistics.retention_hint')}</CardDescription></CardHeader>
+    <CardContent className="grid gap-3 sm:grid-cols-2">
+      <label className="space-y-1 text-sm">{t('statistics.roll_retention')}<Input type="number" min={0} max={3650} value={rolls} onChange={e => setRolls(e.target.value)} /></label>
+      <label className="space-y-1 text-sm">{t('statistics.perf_retention')}<Input type="number" min={0} max={3650} value={performance} onChange={e => setPerformance(e.target.value)} /></label>
+      <Button type="button" className="w-fit" disabled={!valid || saving} onClick={save}>{t('common.save')}</Button>
+    </CardContent>
+  </Card>;
+}
+
 const ChatRetentionCard: React.FC<ScopedCardProps> = (scopeProps) => {
   const { t } = useTranslation();
   const toast = useToast();

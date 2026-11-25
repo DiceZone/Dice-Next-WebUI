@@ -10,6 +10,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { FeatureHelp } from '@/components/ui/feature-help';
 import { AvailabilityHistory } from '@/components/statistics/availability-history';
 import type { OnlineGranularity } from '@/lib/availability-history';
+import { DatePicker } from '@/components/ui/date-time-picker';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -100,7 +101,12 @@ const commandLabel = (command: string) => ({
 const lastUsed = (value: string) => value ? value.slice(0, 10) : '—';
 export const StatisticsPage: React.FC = () => {
   const { t } = useTranslation();
-  const [days, setDays] = useTourState(7, 7);
+  const [period, setPeriod] = useTourState('7', '7');
+  const [range, setRange] = useTourState({ from: '', to: '' }, { from: '', to: '' });
+  const [draft, setDraft] = React.useState(range);
+  const custom = period === 'custom';
+  const span = (from: string, to: string) => (Date.parse(to) - Date.parse(from)) / 86_400_000 + 1;
+  const days = custom ? span(range.from, range.to) : period === 'yesterday' ? 1 : Number(period);
   const [platform, setPlatform] = useTourState('', '');
   const [adapter, setAdapter] = useTourState('', '');
   const [granularity, setGranularity] = useTourState<OnlineGranularity>('1h', '1h');
@@ -132,10 +138,12 @@ export const StatisticsPage: React.FC = () => {
       setLoading(true);
       try {
         const params = new URLSearchParams({ days: String(days), granularity });
+        if (custom) { params.set('from', range.from); params.set('to', range.to); }
+        if (period === 'yesterday') params.set('period', period);
         if (platform) params.set('platform', platform);
         if (adapter) params.set('adapter', adapter);
         const payload = await panelQueryClient.fetchQuery({
-          queryKey: panelKeys.statistics(days, platform, adapter, granularity),
+          queryKey: panelKeys.statistics(params.toString()),
           queryFn: () => apiClient.get<StatisticsData>('/statistics/overview?' + params.toString()), staleTime: 0 });
         if (!active) return;
         setData(payload.data);
@@ -152,16 +160,27 @@ export const StatisticsPage: React.FC = () => {
       active = false;
       window.clearInterval(timer);
     };
-  }, [days, platform, adapter, granularity]);
+  }, [days, period, custom, range, platform, adapter, granularity]);
 
   const adapterOptions = useMemo(() => {
     const rows = data?.filters.adapters || [];
     return platform ? rows.filter((item) => item.platform === platform) : rows;
   }, [data, platform]);
 
-  const selectDays = (value: number) => {
-    setDays(value);
-    if (value > 7 && granularity === '5m') setGranularity('1h');
+  const today = new Date(Date.now() + (timezone ?? 0) * 60_000).toISOString().slice(0, 10);
+  const validDraft = span(draft.from, draft.to) >= 1 && span(draft.from, draft.to) <= 366 && draft.to <= today;
+  const selectPeriod = (value: string) => {
+    if (value === 'custom') {
+      const current = { from: data?.daily_usage[0]?.date || today, to: data?.daily_usage[data.daily_usage.length - 1]?.date || today };
+      setRange(current);
+      setDraft(current);
+    } else if (Number(value) > 7 && granularity === '5m') setGranularity('1h');
+    setPeriod(value);
+  };
+  const applyRange = () => {
+    if (!validDraft) return;
+    if (span(draft.from, draft.to) > 7 && granularity === '5m') setGranularity('1h');
+    setRange(draft);
   };
 
   const selectPlatform = (value: string) => {
@@ -182,15 +201,18 @@ export const StatisticsPage: React.FC = () => {
 
       <section data-tour="statistics-filters" aria-label={t('v2.filter_scope')} className="rounded-xl border bg-card">
         <div className="grid items-end gap-4 p-5 sm:grid-cols-2 xl:grid-cols-[minmax(260px,1fr)_minmax(160px,0.7fr)_minmax(220px,1fr)]">
-          <div className="space-y-2 sm:col-span-2 xl:col-span-1"><p className="text-xs font-medium text-muted-foreground">{t('statistics.date_range')}</p><div className="inline-flex max-w-full rounded-lg bg-muted p-1" aria-label={t('statistics.date_range')}>
-            {[7, 30, 90].map((value) => (
-              <Button key={value} type="button" variant="ghost" size="sm"
-                aria-pressed={days === value} className={cn('h-8 px-4 text-xs', days === value && 'bg-card text-foreground shadow-sm hover:bg-card')}
-                onClick={() => selectDays(value)}>
-                {t('statistics.days', { count: value })}
-              </Button>
-            ))}
-          </div></div>
+          <div className="min-w-0 space-y-2 sm:col-span-2 xl:col-span-1">
+            <p className="text-xs font-medium text-muted-foreground">{t('statistics.date_range')}</p>
+            <Select value={period} onValueChange={selectPeriod}>
+              <SelectTrigger aria-label={t('statistics.date_range')} className="h-10 w-full"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1">{t('statistics.today')}</SelectItem>
+                <SelectItem value="yesterday">{t('statistics.yesterday')}</SelectItem>
+                {[3, 7, 14, 30, 60, 90, 180, 365].map(value => <SelectItem key={value} value={String(value)}>{t('statistics.days', { count: value })}</SelectItem>)}
+                <SelectItem value="custom">{t('statistics.custom_range')}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
           <div className="min-w-0 space-y-2"><p className="text-xs font-medium text-muted-foreground">{t('statistics.platform_filter')}</p>
           <Select value={platform || '__all_platforms__'}
@@ -217,6 +239,14 @@ export const StatisticsPage: React.FC = () => {
               ))}
             </SelectContent>
           </Select></div>
+          {custom && <div className="col-span-full grid min-w-0 gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+            <div className="min-w-0 space-y-1"><p className="text-xs text-muted-foreground">{t('statistics.from')}</p>
+              <DatePicker value={draft.from} label={t('statistics.from')} onValueChange={from => setDraft({ ...draft, from })} /></div>
+            <div className="min-w-0 space-y-1"><p className="text-xs text-muted-foreground">{t('statistics.to')}</p>
+              <DatePicker value={draft.to} label={t('statistics.to')} onValueChange={to => setDraft({ ...draft, to })} /></div>
+            <Button type="button" className="h-10" disabled={!validDraft} onClick={applyRange}>{t('statistics.apply')}</Button>
+            {!validDraft && <p role="alert" className="col-span-full text-xs text-destructive">{t('statistics.invalid_range')}</p>}
+          </div>}
         </div>
           <div className="flex items-center gap-2 border-t px-5 py-2.5 text-[11px] text-muted-foreground">
             <CalendarDays className="h-3.5 w-3.5 shrink-0" />
@@ -235,12 +265,12 @@ export const StatisticsPage: React.FC = () => {
           foot={t('statistics.active_in_period')} />
         <Summary icon={UsersRound} label={t('statistics.active_groups')} value={number(data.summary.active_groups)}
           foot={t('statistics.active_in_period')} />
-        <Summary icon={PlugZap} label={t('statistics.availability')} value={percent(data.summary.availability_rate)}
+        <Summary icon={PlugZap} label={t('statistics.availability')} value={data.online_history.some(sample => sample.total_count > 0) ? percent(data.summary.availability_rate) : '—'}
           foot={data.summary.adapter_online + ' / ' + data.summary.adapter_total + ' ' + t('statistics.online')} />
       </div>
 
       <div className="grid gap-6 2xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-      <Card data-tour="statistics-trend">
+      <Card data-tour="statistics-trend" className="min-w-0">
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-base">
             <Activity className="h-4 w-4 text-primary" />{t('statistics.daily_trend')}
@@ -272,7 +302,7 @@ export const StatisticsPage: React.FC = () => {
             </SelectContent>
           </Select>
         </CardHeader>
-        <CardContent><AvailabilityHistory key={`${data.filters.days}/${data.filters.platform}/${data.filters.adapter}`}
+        <CardContent><AvailabilityHistory key={`${data.daily_usage[0]?.date}/${data.filters.days}/${data.filters.platform}/${data.filters.adapter}`}
           rows={data.online_history} dates={data.daily_usage.map(row => row.date)}
           granularity={data.filters.granularity || granularity} timezoneMinutes={timezone} /></CardContent>
       </Card>
@@ -337,7 +367,7 @@ function DailyTrend({ rows }: { rows: StatisticsData['daily_usage'] }) {
   const chartRows = rows.map((row) => ({ date: row.date, [commands]: row.commands, [rolls]: row.rolls }));
   return <div>
     <div className="overflow-x-auto pb-2" data-testid="v2-daily-trend">
-      <div style={{ width: Math.max(720, rows.length * 98 + 80), minWidth: '100%' }}>
+      <div style={{ width: rows.length * 98 + 80, minWidth: '100%' }}>
         <LineChart role="img" aria-label={t('statistics.daily_trend')} className="h-72"
           data={chartRows} index="date" categories={[commands, rolls]} colors={['violet', 'cyan']}
           valueFormatter={(value) => number(value)} showLegend={false} tickGap={0} intervalType={0}
@@ -394,11 +424,11 @@ function AdapterAvailability({ rows }: { rows: StatisticsData['adapter_availabil
           <i className={cn('h-2 w-2 shrink-0 rounded-full', row.connected ? 'bg-emerald-500' : 'bg-rose-500')} />
           <span className="truncate">{row.name || row.id}</span>
         </span>
-        <span className="tabular-nums">{percent(row.uptime_percent)}</span>
+        <span className="tabular-nums">{row.samples ? percent(row.uptime_percent) : '—'}</span>
       </div>
       <div className="h-2 overflow-hidden rounded-full bg-muted">
         <div className={cn('h-full rounded-full', row.uptime_percent >= 99 ? 'bg-emerald-500' : row.uptime_percent >= 95 ? 'bg-amber-500' : 'bg-rose-500')}
-          style={{ width: Math.max(0, Math.min(100, row.uptime_percent)) + '%' }} />
+          style={{ width: (row.samples ? Math.max(0, Math.min(100, row.uptime_percent)) : 0) + '%' }} />
       </div>
       <p className="mt-1 text-[10px] text-muted-foreground">{platformLabel(row.platform)} · {row.samples || 0} {t('statistics.samples')}</p>
     </div>

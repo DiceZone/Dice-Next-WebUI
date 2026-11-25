@@ -23,7 +23,6 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { Plus, X } from 'lucide-react';
-import { ImageResourcePicker } from '@/components/image-resource-picker';
 import { PresentationTemplateEditor } from './presentation-template-editor';
 import { presentationIssues } from '@/lib/presentation-template';
 import type { ReplyRule, ReplyFormData, MatchType, ReplyLogic, ReplyCondition, ReplyScopeMode } from '@/types/reply';
@@ -208,16 +207,15 @@ export const ReplyForm: React.FC<ReplyFormProps> = ({ open, onOpenChange, onSubm
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="text-xs text-muted-foreground">{t('replies.result_n', { n: i + 1 })}</span>
                   <div className="flex flex-wrap items-center gap-1">
-                    <ImageResourcePicker directory={reply?.id ? `reply/${reply.id}` : 'reply'} disabled={submitting} className="h-8 text-xs"
-                      onSelect={(entry) => setResults((rs) => rs.map((value, idx) => idx === i ? value + entry.code : value))}>{t('replies.insert_image')}</ImageResourcePicker>
                     {results.length > 1 && (
                       <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" aria-label={t('replies.remove_result')} onClick={() => delResult(i)}><X className="h-3.5 w-3.5" /></Button>
                     )}
                   </div>
                 </div>
-                <VariableTextarea options={variables} rows={3} value={r} onValueChange={value => setResult(i, value)}
-                  placeholder={t('replies.result_ph')} />
-                <PresentationTemplateEditor options={variables} text={r} onChange={value => setResult(i, value)} allowMath={false} />
+                <PresentationTemplateEditor options={variables} text={r} onChange={value => setResult(i, value)} allowMath={false}
+                  renderField={tools => <VariableTextarea options={variables} rows={3} value={r} extraTools={tools}
+                    imageDirectory={reply?.id ? `reply/${reply.id}` : 'reply'} imageDisabled={submitting}
+                    onValueChange={value => setResult(i, value)} placeholder={t('replies.result_ph')} />} />
                 <div className="flex flex-wrap items-center gap-2 text-xs">
                   <Label htmlFor={`reply-weight-${i}`} className="text-xs">{t('replies.result_weight')}</Label>
                   <Input id={`reply-weight-${i}`} type="number" min={0} max={MAX_REPLY_WEIGHT} step={1} className="h-8 w-24" value={Number.isNaN(weights[i]) ? '' : weights[i]}

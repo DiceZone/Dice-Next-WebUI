@@ -1,10 +1,9 @@
-import { VariablePicker, templateVariables, type Variable } from '@/components/reply/variable-picker';
+import { VariableTextarea, templateVariables, type Variable } from '@/components/reply/variable-picker';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { FeatureHelp } from '@/components/ui/feature-help';
 import { PresentationTemplateEditor } from '@/components/reply/presentation-template-editor';
 import { MAX_TEMPLATE_WEIGHT, probabilities, splitLegacySample, validWeights, type TemplateVariant } from '@/lib/weighted-templates';
@@ -18,12 +17,12 @@ interface Props {
   textareaRef?: React.RefObject<HTMLTextAreaElement>;
   /** Formatting controls shown right above the text. */
   toolbar?: React.ReactNode;
-  /** Variable chips and similar insert helpers shown right below the text. */
-  afterText?: React.ReactNode;
+  imageDirectory?: string;
+  imageDisabled?: boolean;
   onTextKeyDown?: React.KeyboardEventHandler<HTMLTextAreaElement>;
 }
 
-export function WeightedTemplateEditor({ options = templateVariables, items, onChange, activeIndex, onActiveIndex, textareaRef, toolbar, afterText, onTextKeyDown }: Props) {
+export function WeightedTemplateEditor({ options = templateVariables, items, onChange, activeIndex, onActiveIndex, textareaRef, toolbar, imageDirectory, imageDisabled, onTextKeyDown }: Props) {
   const { t } = useTranslation();
   const localRef = React.useRef<HTMLTextAreaElement>(null);
   const field = textareaRef ?? localRef;
@@ -65,12 +64,12 @@ export function WeightedTemplateEditor({ options = templateVariables, items, onC
       </div>
       <div className="space-y-1.5">
         {toolbar}
-        <Textarea ref={field} rows={8} className="min-h-44 font-mono text-sm" spellCheck={false}
-          aria-label={t('weighted.reply_number', { n: index + 1 })} value={items[index].text}
-          onKeyDown={onTextKeyDown} onChange={event => update({ text: event.target.value })} />
-        <div className="flex flex-wrap gap-2"><VariablePicker field={field} options={options} onChange={text => update({ text })} />{afterText}</div>
+        <PresentationTemplateEditor options={options} text={items[index].text} onChange={text => update({ text })}
+          renderField={tools => <VariableTextarea fieldRef={field} options={options} imageDirectory={imageDirectory} imageDisabled={imageDisabled}
+            extraTools={tools} rows={8} className="min-h-44 font-mono text-sm" spellCheck={false}
+            aria-label={t('weighted.reply_number', { n: index + 1 })} value={items[index].text}
+            onKeyDown={onTextKeyDown} onValueChange={text => update({ text })} />} />
       </div>
-      <PresentationTemplateEditor options={options} text={items[index].text} onChange={text => update({ text })} />
     </div>
     {!validWeights(items) && <p role="alert" className="text-xs text-destructive">{t('weighted.invalid_weights')}</p>}
     {legacy && legacy.length > 1 && legacy.length <= 256 && <Button type="button" size="sm" variant="outline"

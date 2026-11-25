@@ -197,7 +197,7 @@ export const PersonaEditor: React.FC<Props> = ({ persona, onClose, onChanged }) 
                     </Button>
                   </div>
                   </div>
-                  <WeightedTemplateEditor options={optionsFor(entry.key)} items={readTemplateVariants(currentValue)}
+                  <WeightedTemplateEditor imageDirectory={`text/persona-${persona.id}`} imageDisabled={saving} options={optionsFor(entry.key)} items={readTemplateVariants(currentValue)}
                     onChange={items => setEditingValues(prev => ({ ...prev, [entry.id]: writeTemplateVariants(items) }))} />
                 </div>
               );

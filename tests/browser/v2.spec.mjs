@@ -726,6 +726,17 @@ test('custom reply inserts a capture into the selected reply only', async ({ pag
   await dialog.getByRole('combobox').first().click();
   await page.getByRole('option', { name: '前缀匹配', exact: true }).click();
   await dialog.getByRole('button', { name: '添加随机回复', exact: true }).click();
+  const editors = dialog.getByTestId('presentation-template-editor');
+  for (const editor of await editors.all()) {
+    const fieldTop = (await editor.locator('textarea').boundingBox()).y;
+    let last = null;
+    for (const name of ['插入图片', '插入变量', '添加按钮', '添加状态条']) {
+      const bounds = await editor.getByRole('button', { name, exact: true }).boundingBox();
+      expect(bounds.y + bounds.height).toBeLessThanOrEqual(fieldTop);
+      if (last) expect(bounds.y > last.y || bounds.x > last.x).toBe(true);
+      last = bounds;
+    }
+  }
   const inputs = dialog.locator('textarea');
   await inputs.nth(0).fill('first');
   await inputs.nth(1).fill('aXb');
@@ -791,6 +802,21 @@ test('statistics preserves all dates, online history and both active rankings', 
   await expect(page.locator('[data-setting-anchor="statistics-online"]')).toBeVisible();
   await expect(page.getByRole('heading', { name: /最常使用的玩家|活跃用户/ })).toBeVisible();
   await expect(page.getByRole('heading', { name: /活跃群组/ })).toBeVisible();
+});
+
+test('statistics range uses one selector and keeps yesterday distinct from today', async ({ page }) => {
+  await page.goto('/#/statistics');
+  const filter = page.getByRole('combobox', { name: '统计区间' });
+  for (const label of ['今天', '昨天', '自定义范围']) {
+    await filter.click();
+    await page.getByRole('option', { name: label, exact: true }).click();
+    await expect(filter).toContainText(label);
+    if (label !== '自定义范围')
+      await expect(page.getByTestId('v2-daily-trend').locator('.recharts-xAxis .recharts-cartesian-axis-tick-value')).toHaveCount(1);
+  }
+  await expect(page.getByRole('button', { name: '开始日期' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '结束日期' })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
 test('compact header keeps navigation, search and account controls separate', async ({ page }) => {

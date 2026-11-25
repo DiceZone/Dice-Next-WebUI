@@ -1,7 +1,7 @@
 // Deterministic, in-memory visual examples; never connected to a real bot.
 export function statisticsPreview(base, params) {
   const requestedDays = Number(params.get('days') || 7);
-  const days = [7, 30, 90].includes(requestedDays) ? requestedDays : 7;
+  const days = Number.isInteger(requestedDays) && requestedDays >= 1 && requestedDays <= 366 ? requestedDays : 7;
   const sizes = { '5m': 5, '1h': 60, '6h': 360, '1d': 1440 };
   const requestedGranularity = params.get('granularity') || '1h';
   const granularity = Object.hasOwn(sizes, requestedGranularity) && !(days > 7 && requestedGranularity === '5m') ? requestedGranularity : '1h';
@@ -9,7 +9,7 @@ export function statisticsPreview(base, params) {
   const adapter = params.get('adapter') || '';
   const options = [...base.filters.adapters, { id: 'demo-adapter-kook', name: '港灯 · 预览', platform: 'kook', connected: true }];
   const scope = options.filter(item => (!platform || item.platform === platform) && (!adapter || item.id === adapter));
-  const end = Date.parse(base.daily_usage.at(-1).date + 'T00:00:00Z');
+  const end = Date.parse((params.get('to') || base.daily_usage.at(-1).date) + 'T00:00:00Z') - (params.get('period') === 'yesterday' ? 86_400_000 : 0);
   const daily = Array.from({ length: days }, (_, index) => ({ date: new Date(end - (days - 1 - index) * 86_400_000).toISOString().slice(0, 10),
     commands: [8, 14, 10, 22, 16, 26, 32][index % 7], rolls: [6, 10, 8, 16, 12, 19, 24][index % 7] }));
   const buckets = new Map();

@@ -4,7 +4,6 @@ import { tourSamples } from '@/lib/tour-samples';
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
-import { ImageResourcePicker } from '@/components/image-resource-picker';
 import { WeightedTemplateEditor } from '@/components/persona/weighted-template-editor';
 import { readTemplateVariants, writeTemplateVariants, templateSummary, validWeights } from '@/lib/weighted-templates';
 import { AdvancedOptions } from '@/components/ui/advanced-options';
@@ -777,15 +776,6 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
   const unknown = [...new Set(varsOutsideBars(joined).filter((u) => !allowed.has(u) && !isFormFeedVariable(u) && !u.includes('|') && !u.includes(':')))];
   const missing = reply.outcome || reply.legacyCompatibility ? [] : exclusiveVars.map((v) => v.name).filter((n) => !used.includes(n));
 
-  const insertRaw = (tok: string) => {
-    const ta = taRef.current;
-    if (!ta) { setText((x) => x + tok); return; }
-    const s = ta.selectionStart, e = ta.selectionEnd;
-    setText(text.slice(0, s) + tok + text.slice(e));
-    setTimeout(() => { ta.focus(); ta.selectionStart = ta.selectionEnd = s + tok.length; }, 0);
-  };
-
-
   const save = async () => {
     if (saving) return;
     if (reasonBase && useInherited) { await reset(); return; }
@@ -831,11 +821,6 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
 
   const presetStyles = PRESET_ORDER.filter(style => reply.presets?.[style]);
   const canReset = reply.override != null || hasInheritance;
-  const variableBar = <div className="flex flex-wrap items-center gap-1.5" data-testid="template-variables">
-    <ImageResourcePicker directory={personaId > 0 ? `text/persona-${personaId}` : 'text/default'} disabled={saving}
-      className="h-6 border-dashed px-2 text-xs" onSelect={(entry) => insertRaw(entry.code)}>{t('commands.insert_image')}</ImageResourcePicker>
-  </div>;
-
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent layout="editor" className="max-w-2xl lg:max-w-6xl">
@@ -890,7 +875,7 @@ const EditReplyModal: React.FC<{ lang: string; cmd: string; description: string;
             onActiveIndex={setActiveIndex} textareaRef={taRef}
             toolbar={<MarkdownToolbar textareaRef={taRef} value={text} onChange={setText} disabled={format !== 'markdown'} />}
             onTextKeyDown={format === 'markdown' ? markdownKeys.onKeyDown : undefined}
-            afterText={variableBar} />
+            imageDirectory={personaId > 0 ? `text/persona-${personaId}` : 'text/default'} imageDisabled={saving} />
           {unknown.length > 0 && <p role="alert" className="text-xs text-destructive">{t('commands.err_unknown', { vars: unknown.map((u) => `{${u}}`).join(' ') })}</p>}
           {missing.length > 0 && unknown.length === 0 && <p className="text-xs text-amber-600">{t('commands.warn_missing', { vars: missing.map((m) => `{${m}}`).join(' ') })}</p>}
           <AdvancedOptions defaultExpanded={false} title={t('ui_refresh.advanced_options')} description={t('ui_refresh.template_advanced_hint')}>

@@ -1,5 +1,5 @@
 import { Plus, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { FormulaPicker } from './formula-picker';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
@@ -7,8 +7,8 @@ import { VariableInput, tokens, templateVariables, type Variable } from './varia
 import { HelpLabel } from '@/components/ui/help-label';
 import { componentFieldValid, componentSource, presentationComponents, replaceComponent, type PresentationKind } from '@/lib/presentation-template';
 
-export function PresentationTemplateEditor({ text, onChange, options = templateVariables, allowMath = true }: {
-  text: string; onChange: (value: string) => void; allowMath?: boolean; options?: Variable[];
+export function PresentationTemplateEditor({ text, onChange, options = templateVariables, allowMath = true, renderField }: {
+  text: string; onChange: (value: string) => void; allowMath?: boolean; renderField?: (tools: ReactNode) => ReactNode; options?: Variable[];
 }) {
   const { t } = useTranslation();
   const [formulaOpen, setFormulaOpen] = useState(false);
@@ -26,16 +26,17 @@ export function PresentationTemplateEditor({ text, onChange, options = templateV
       : ['\\textcolor{#E5484D}{ {{nick}} }', '{nick}'];
     onChange(text + (text && !text.endsWith('\n') ? '\n' : '') + componentSource(kind, fields));
   };
+  const tools = <>{(['action', 'bar', ...(allowMath ? ['math'] : [])] as PresentationKind[]).map(kind =>
+    <Button key={kind} type="button" size="sm" variant="outline" className="h-8 text-xs" onClick={() => add(kind)}>
+      <Plus className="mr-1 h-3.5 w-3.5" />{t(`visual_editor.add_${kind}`)}
+    </Button>)}</>;
   return <div className="space-y-3" data-testid="presentation-template-editor">
     {allowMath && <FormulaPicker open={formulaOpen} onOpenChange={setFormulaOpen} options={options}
       onSelect={(formula, fallback) => onChange(text + (text && !text.endsWith('\n') ? '\n' : '') + componentSource('math', [formula, fallback]))} />}
-    <div className="flex flex-wrap items-center justify-between gap-2">
+    <div>
       <HelpLabel title={t(allowMath ? 'visual_editor.components' : 'visual_editor.components_basic')} description={<><p>{t('visual_editor.hint')}</p>{allowMath && <p>{t('visual_editor.math_hint')}</p>}</>} labelClassName="text-sm font-medium" />
-      <div className="flex flex-wrap gap-1.5">{(['action', 'bar', ...(allowMath ? ['math'] : [])] as PresentationKind[]).map(kind =>
-        <Button key={kind} type="button" size="sm" variant="outline" onClick={() => add(kind)}>
-          <Plus className="mr-1 h-3.5 w-3.5" />{t(`visual_editor.add_${kind}`)}
-        </Button>)}</div>
     </div>
+    {renderField ? renderField(tools) : <div className="flex flex-wrap gap-1.5">{tools}</div>}
     {components.map((component, index) => <div key={index} className="min-w-0 space-y-2 rounded-lg border bg-background p-3" data-component-kind={component.kind}>
       <div className="flex items-center justify-between gap-2">
         <span className="text-xs font-medium">{t(`visual_editor.kind_${component.kind}`)} {index + 1}</span>

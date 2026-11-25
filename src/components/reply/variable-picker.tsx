@@ -1,4 +1,5 @@
-import { useRef, useState, type ComponentProps, type RefObject } from 'react';
+import { ImageResourcePicker } from '@/components/image-resource-picker';
+import { useRef, useState, type ComponentProps, type RefObject, type ReactNode } from 'react';
 import { Braces } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
@@ -92,12 +93,30 @@ type InsertFieldProps = { options: Variable[]; onValueChange: (value: string) =>
 
 export function VariableInput({ options, onValueChange, value, ...props }: InsertFieldProps & ComponentProps<typeof Input>) {
   const ref = useRef<HTMLInputElement>(null);
-  return <div className="min-w-0 space-y-1.5"><Input {...props} ref={ref} value={value} onChange={e => onValueChange(e.target.value)} />
-    <VariablePicker options={options} field={ref} onChange={onValueChange} /></div>;
+  return <div className="min-w-0 space-y-1.5">
+    <VariablePicker options={options} field={ref} onChange={onValueChange} />
+    <Input {...props} ref={ref} value={value} onChange={e => onValueChange(e.target.value)} /></div>;
 }
 
-export function VariableTextarea({ options, onValueChange, value, ...props }: InsertFieldProps & ComponentProps<typeof Textarea>) {
-  const ref = useRef<HTMLTextAreaElement>(null);
-  return <div className="min-w-0 space-y-1.5"><Textarea {...props} ref={ref} value={value} onChange={e => onValueChange(e.target.value)} />
-    <VariablePicker options={options} field={ref} onChange={onValueChange} /></div>;
+type TextTools = { imageDirectory?: string; extraTools?: ReactNode; fieldRef?: RefObject<HTMLTextAreaElement>; imageDisabled?: boolean };
+export function VariableTextarea({ options, onValueChange, value, imageDirectory, extraTools, fieldRef, imageDisabled, ...props }: InsertFieldProps & ComponentProps<typeof Textarea> & TextTools) {
+  const { t } = useTranslation();
+  const local = useRef<HTMLTextAreaElement>(null);
+  const field = fieldRef ?? local;
+  const insertImage = (code: string) => {
+    const el = field.current;
+    if (!el || el.disabled || el.readOnly) return;
+    const start = el.selectionStart;
+    onValueChange(el.value.slice(0, start) + code + el.value.slice(el.selectionEnd));
+    requestAnimationFrame(() => { el.focus({ preventScroll: true }); el.setSelectionRange(start + code.length, start + code.length); });
+  };
+  return <div className="min-w-0 space-y-1.5">
+    <div className="flex flex-wrap items-center gap-1.5">
+      {imageDirectory && <ImageResourcePicker directory={imageDirectory} disabled={imageDisabled || props.disabled || props.readOnly} className="h-8 text-xs"
+        onSelect={image => insertImage(image.code)}>{t('commands.insert_image')}</ImageResourcePicker>}
+      <VariablePicker options={options} field={field} onChange={onValueChange} />
+      {extraTools}
+    </div>
+    <Textarea {...props} ref={field} value={value} onChange={e => onValueChange(e.target.value)} />
+  </div>;
 }

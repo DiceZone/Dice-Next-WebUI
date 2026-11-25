@@ -23,7 +23,7 @@ export const panelKeys = {
   adapters: ['panel', 'adapters'] as const,
   dashboard: ['panel', 'dashboard'] as const,
   list: (url: string) => ['panel', 'server-list', url] as const,
-  statistics: (days: number, platform: string, adapter: string, granularity: string) =>
-    ['panel', 'statistics', days, platform, adapter, granularity] as const,
+  statistics: (parameters: string) =>
+    ['panel', 'statistics', parameters] as const,
   replies: (scope: string, target: string) => ['panel', 'replies', scope, target] as const,
 };
