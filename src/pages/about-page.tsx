@@ -33,8 +33,16 @@ const formatBytes = (bytes: number) => {
   return value.toFixed(index === 0 ? 0 : 1) + ' ' + units[index];
 };
 
-// Static, translator-owned copy (no user input) rendered with its <strong> emphasis.
-const INTRO_FEATURES = ['dice', 'platforms', 'compat', 'panel', 'records', 'ops'] as const;
+const PROJECT_CREDITS = [
+  ['Dice!', 'https://github.com/Dice-Developer-Team/Dice'],
+  ['SealDice', 'https://github.com/sealdice/sealdice-core'],
+  ['OlivOS', 'https://github.com/OlivOS-Team/OlivOS'],
+  ['NapCat', 'https://github.com/NapNeko/NapCatQQ'],
+  ['LLOneBot', 'https://www.llonebot.com/'],
+  ['SnowLuma', 'https://snowluma.github.io/'],
+  ['MaiBot', 'https://github.com/Mai-with-u/MaiBot'],
+  ['CatOfficial', 'https://github.com/DiceZone/CatOfficial'],
+] as const;
 
 export const AboutPage: React.FC = () => {
   const { t } = useTranslation();
@@ -236,426 +244,417 @@ export const AboutPage: React.FC = () => {
           : 'neutral';
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="@container space-y-6">
       <PageHeader icon={Info} title={t('about.title')} description={t('about.subtitle')} help={t('page_help.about')} />
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">{t('about.intro_title')}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3 text-sm text-muted-foreground">
-          <p dangerouslySetInnerHTML={{ __html: t('about.intro_text') }} />
-          <div className="space-y-1.5">
-            <p className="font-medium text-foreground">{t('about.intro_features_title')}</p>
-            <ul className="list-disc space-y-1 pl-5">
-              {INTRO_FEATURES.map((key) => <li key={key} dangerouslySetInnerHTML={{ __html: t(`about.intro_feature_${key}`) }} />)}
-            </ul>
-          </div>
-          <p>{t('about.license')}</p>
-        </CardContent>
-      </Card>
-
-      <Card data-tour="about-version">
-        <CardHeader>
-          <CardTitle className="text-base">{t('about.version_title')}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2 text-sm">
-          <div className="flex justify-between items-center">
-            <span className="text-muted-foreground">{t('about.current_version')}</span>
-            <div className="flex items-center gap-2">
-              <span className="font-mono font-medium">{formatVersion(version)}</span>
-            </div>
-          </div>
-          {buildTime && (
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">{t('about.build_time')}</span>
-              <span className="font-mono text-xs">{formatBuildTimeUtc8(buildTime)}</span>
-            </div>
-          )}
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">{t('about.backend_framework')}</span>
-            <span>Drogon (C++20)</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">{t('about.frontend_framework')}</span>
-            <span>React + TypeScript</span>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card data-setting-anchor="about-update">
-        <CardHeader className="space-y-1">
-          <div className="flex items-center justify-between gap-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <RefreshCw className="h-4 w-4" />
-              {t('about.update_title')}
-              <FeatureHelp title={t('about.update_title')} description={<p>{t('about.update_desc')}</p>} />
-            </CardTitle>
-            <Badge variant={phaseVariant}>
-              {t('about.phase_' + phase, { defaultValue: phase })}
-            </Badge>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-5">
-          <div className="grid gap-2 text-sm">
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-muted-foreground">{t('about.current_version')}</span>
-              <span className="font-mono">{formatVersion(updateStatus?.current ?? version)}</span>
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-muted-foreground">{t('about.latest_version')}</span>
-              <span className="font-mono">
-                {updateStatus?.latest?.tag ?? t('about.update_not_checked')}
-              </span>
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-muted-foreground">{t('about.update_platform')}</span>
-              <span className="font-mono">
-                {updateStatus ? updateStatus.platform.os + '/' + updateStatus.platform.arch : '—'}
-              </span>
-            </div>
-            {updateStatus?.source && (
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-muted-foreground">{t('about.update_source_used')}</span>
-                <span className="font-mono text-xs break-all text-right">{updateStatus.source}</span>
+      <div className="grid items-start gap-6 @min-[54rem]:grid-cols-2">
+        <div className="min-w-0 space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">{t('about.intro_title')}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm text-muted-foreground">
+              <p dangerouslySetInnerHTML={{ __html: t('about.intro_text') }} />
+              <p>{t('about.license')}</p>
+              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                <span className="font-medium text-foreground">{t('about.thanks_title')}</span>
+                {PROJECT_CREDITS.map(([name, url]) => (
+                  <a key={url} href={url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{name}</a>
+                ))}
               </div>
-            )}
-            {!!updateStatus?.checkedAt && (
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-muted-foreground">{t('about.update_checked_at')}</span>
-                <span>{new Date(updateStatus.checkedAt * 1000).toLocaleString()}</span>
+            </CardContent>
+          </Card>
+
+          <Card data-tour="about-version">
+            <CardHeader>
+              <CardTitle className="text-base">{t('about.version_title')}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-sm">
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">{t('about.current_version')}</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono font-medium">{formatVersion(version)}</span>
+                </div>
               </div>
-            )}
-            {updateStatus?.latest?.asset && (
-              <>
+              {buildTime && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">{t('about.build_time')}</span>
+                  <span className="font-mono text-xs">{formatBuildTimeUtc8(buildTime)}</span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">{t('about.backend_framework')}</span>
+                <span>Drogon (C++20)</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">{t('about.frontend_framework')}</span>
+                <span>React + TypeScript</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card data-tour="about-stack">
+            <CardHeader>
+              <CardTitle className="text-base">{t('about.stack_title')}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-sm text-muted-foreground">
+              <p><strong className="text-foreground">{t('about.stack_backend')}</strong>：{t('about.stack_backend_text')}</p>
+              <p><strong className="text-foreground">{t('about.stack_frontend')}</strong>：{t('about.stack_frontend_text')}</p>
+              <p><strong className="text-foreground">{t('about.stack_adapter')}</strong>：{t('about.stack_adapter_text')}</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">{t('about.testers_title')}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,8rem),1fr))] gap-3">
+                {TESTERS.map((p) => (
+                  <div key={p.qq} className="flex items-center gap-2.5">
+                    <img
+                      src={`https://q1.qlogo.cn/g?b=qq&nk=${p.qq}&s=100`}
+                      alt={p.name}
+                      loading="lazy"
+                      className="h-9 w-9 rounded-full bg-muted object-cover shrink-0"
+                    />
+                    <span className="text-sm font-medium truncate">{p.name}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+        <div className="@container min-w-0 space-y-6">
+          <Card data-setting-anchor="about-update">
+            <CardHeader className="space-y-1">
+              <div className="flex items-center justify-between gap-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <RefreshCw className="h-4 w-4" />
+                  {t('about.update_title')}
+                  <FeatureHelp title={t('about.update_title')} description={<p>{t('about.update_desc')}</p>} />
+                </CardTitle>
+                <Badge variant={phaseVariant}>
+                  {t('about.phase_' + phase, { defaultValue: phase })}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <div className="grid gap-2 text-sm">
                 <div className="flex items-center justify-between gap-3">
-                  <span className="text-muted-foreground">{t('about.update_asset')}</span>
-                  <span className="font-mono text-xs text-right">
-                    {updateStatus.latest.asset.name} ({formatBytes(updateStatus.latest.asset.size)})
+                  <span className="text-muted-foreground">{t('about.current_version')}</span>
+                  <span className="font-mono">{formatVersion(updateStatus?.current ?? version)}</span>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-muted-foreground">{t('about.latest_version')}</span>
+                  <span className="font-mono">
+                    {updateStatus?.latest?.tag ?? t('about.update_not_checked')}
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
-                  <span className="text-muted-foreground">{t('about.update_integrity')}</span>
-                  <span className="font-mono text-xs">{updateStatus.latest.asset.sha256.slice(0, 12)}…</span>
+                  <span className="text-muted-foreground">{t('about.update_platform')}</span>
+                  <span className="font-mono">
+                    {updateStatus ? updateStatus.platform.os + '/' + updateStatus.platform.arch : '—'}
+                  </span>
                 </div>
-              </>
-            )}
-            {['connecting', 'downloading', 'verifying', 'preparing', 'cancelling'].includes(phase) && updateStatus && (
-              <div className="space-y-1 pt-1">
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>{t('about.phase_' + phase)}</span>
-                  <span>{formatBytes(updateStatus.downloadedBytes)} / {formatBytes(updateStatus.totalBytes)}</span>
-                </div>
-                <div className="h-2 overflow-hidden rounded-full bg-muted">
-                  <div
-                    className="h-full bg-primary transition-all"
-                    style={{
-                      width: Math.min(100, updateStatus.totalBytes > 0
-                        ? (updateStatus.downloadedBytes / updateStatus.totalBytes) * 100
-                        : 0) + '%',
-                    }}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-
-          {visibleUpdateError && (
-            <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-              <p className="min-w-0 flex-1 whitespace-pre-wrap break-words select-text">
-                {t('about.update_error')}: {visibleUpdateError}
-              </p>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-7 shrink-0 gap-1 px-2 text-destructive hover:text-destructive"
-                onClick={() => void copyUpdateError()}
-                title={t('about.update_error_copy')}
-              >
-                {errorCopied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                {t(errorCopied ? 'about.update_error_copied' : 'about.update_error_copy')}
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 shrink-0 text-destructive hover:text-destructive"
-                onClick={() => {
-                  dispatchErrorNotice({ type: 'dismissed' });
-                  setErrorCopied(false);
-                }}
-                aria-label={t('about.update_error_dismiss')}
-                title={t('about.update_error_dismiss')}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          )}
-
-          {updateStatus?.selfUpdateBlockedReason === 'container' ? (
-            <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-800 dark:text-amber-200">
-              {t('about.update_container_hint', {
-                type: updateStatus.runtime?.containerType || 'container',
-              })}
-            </div>
-          ) : updateStatus && !updateStatus.installSupported ? (
-            <div className="rounded-md border bg-muted/40 p-3 text-sm text-muted-foreground">
-              {t('about.update_manual_hint')}
-            </div>
-          ) : null}
-
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              onClick={() => void runAction('check')}
-              disabled={updateBusy || !!working || statusUncertain}
-            >
-              <RefreshCw className={'mr-2 h-4 w-4 ' + (phase === 'checking' ? 'animate-spin' : '')} />
-              {t('about.update_check')}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => void runAction('download')}
-              disabled={updateStatus?.downloadSupported === false || !updateStatus?.updateAvailable || !updateStatus.latest?.asset || (updateStatus.pending && updateStatus.pendingTag === updateStatus.latest.tag) || updateBusy || !!working || statusUncertain}
-            >
-              <Download className="mr-2 h-4 w-4" />
-              {t('about.update_download')}
-            </Button>
-            <Button
-              onClick={() => void installUpdate()}
-              disabled={!updateStatus?.installSupported || !updateStatus.pending || updateBusy || !!working || statusUncertain}
-            >
-              <ShieldCheck className="mr-2 h-4 w-4" />
-              {t('about.update_install')}
-            </Button>
-            {updateStatus?.cancelSupported && (updateStatus.canCancel || phase === 'cancelling') && (
-              <Button variant="outline" onClick={() => void runAction('cancel')}
-                disabled={!updateStatus.canCancel || !!working}>
-                <X className="mr-2 h-4 w-4" />
-                {t(phase === 'cancelling' ? 'about.phase_cancelling' : 'about.update_cancel')}
-              </Button>
-            )}
-            {statusUncertain && (
-              <Button variant="outline" onClick={() => void loadUpdateStatus()} disabled={!!working}>
-                <RefreshCw className="mr-2 h-4 w-4" />{t('about.update_refresh_status')}
-              </Button>
-            )}
-          </div>
-          {statusUncertain && <p className="text-sm text-muted-foreground">{t('about.update_status_uncertain')}</p>}
-          {!!updateStatus?.scheduledInstallAt && (
-            <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm" role="status">
-              {t('about.update_scheduled_pending', {
-                tag: updateStatus.pendingTag || updateStatus.latest?.tag || '',
-                time: formatScheduledInstallAt(updateStatus.scheduledInstallAt, updateStatus.timezoneMinutes ?? 0),
-              })}
-            </div>
-          )}
-
-          <Separator />
-
-          <div className="space-y-4">
-            <div>
-              <h3 className="text-sm font-medium">{t('about.update_settings')}</h3>
-            </div>
-
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <HelpLabel htmlFor="update-auto-check" title={t('about.update_auto_check')} description={<p>{t('about.update_auto_check_desc')}</p>} />
-              </div>
-              <Switch
-                id="update-auto-check"
-                checked={updateDraft?.autoCheck ?? false}
-                disabled={!updateDraft}
-                onCheckedChange={(checked) => updateSetting('autoCheck', checked)}
-              />
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="flex flex-col gap-2">
-                <div className="flex min-h-6 flex-1 items-center">
-                  <Label htmlFor="update-interval">{t('about.update_interval')}</Label>
-                </div>
-                <Select
-                  value={String(updateDraft?.intervalHours ?? 6)}
-                  disabled={!updateDraft || !updateDraft.autoCheck}
-                  onValueChange={(value) => updateSetting('intervalHours', Number(value))}
-                >
-                  <SelectTrigger id="update-interval"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {[1, 3, 6, 12, 24, 48, 72, 168].map((hours) => (
-                      <SelectItem key={hours} value={String(hours)}>
-                        {t('about.update_hours', { count: hours })}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <div className="flex min-h-6 flex-1 items-center gap-1.5">
-                  <Label htmlFor="update-auto-action">{t('about.update_auto_action')}</Label>
-                  <FeatureHelp title={t('about.update_auto_action')} description={
-                    <dl className="space-y-2">
-                      {(['notify', 'download', 'install'] as const).map((action) => (
-                        <div key={action}>
-                          <dt className="font-medium">{t(`about.action_${action}`)}</dt>
-                          <dd>{t(`about.update_action_${action}_desc`)}</dd>
-                        </div>
-                      ))}
-                    </dl>
-                  } />
-                </div>
-                <Select
-                  value={updateDraft?.autoAction ?? 'notify'}
-                  disabled={!updateDraft || !updateDraft.autoCheck}
-                  onValueChange={(value) => updateSetting('autoAction', value as UpdateAction)}
-                >
-                  <SelectTrigger id="update-auto-action"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="notify">{t('about.action_notify')}</SelectItem>
-                    <SelectItem value="download" disabled={updateStatus?.downloadSupported === false}>
-                      {t('about.action_download')}
-                    </SelectItem>
-                    <SelectItem value="install" disabled={!updateStatus?.installSupported}>
-                      {t('about.action_install')}
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div data-setting-anchor="about-update-schedule" role="group" aria-disabled={scheduleDisabled}
-                className={'space-y-3 rounded-lg border p-3 sm:col-span-2' + (scheduleDisabled ? ' bg-muted/40 opacity-50' : '')}>
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-1.5">
-                    <Label htmlFor="update-scheduled-install">{t('about.update_scheduled_install')}</Label>
-                    <FeatureHelp title={t('about.update_scheduled_install')}
-                      ariaLabel={t('about.update_scheduled_install_help')}
-                      description={<>
-                        <p>{t('about.update_scheduled_install_desc')}</p>
-                        {!updateStatus?.scheduledInstallSupported && <p>{t('about.update_schedule_unsupported')}</p>}
-                      </>}
-                    />
+                {updateStatus?.source && (
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-muted-foreground">{t('about.update_source_used')}</span>
+                    <span className="font-mono text-xs break-all text-right">{updateStatus.source}</span>
                   </div>
-                  <Switch id="update-scheduled-install"
-                    checked={updateDraft?.scheduledInstall ?? false}
-                    disabled={scheduleDisabled}
-                    onCheckedChange={(checked) => updateSetting('scheduledInstall', checked)}
-                  />
-                </div>
-                {updateDraft?.scheduledInstall && (
-                  <div className="max-w-sm space-y-2">
-                    <Label>{t('about.update_install_time')}</Label>
-                    <TimePicker value={updateDraft.installTime ?? '04:00'}
-                      label={t('about.update_install_time')}
-                      disabled={scheduleDisabled}
-                      onValueChange={(value) => updateSetting('installTime', value)}
-                    />
-                    <p className="text-xs text-muted-foreground">{t('about.update_install_timezone', {
-                      timezone: updateTimezoneLabel(updateStatus?.timezoneMinutes ?? 0),
-                    })}</p>
+                )}
+                {!!updateStatus?.checkedAt && (
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-muted-foreground">{t('about.update_checked_at')}</span>
+                    <span>{new Date(updateStatus.checkedAt * 1000).toLocaleString()}</span>
+                  </div>
+                )}
+                {updateStatus?.latest?.asset && (
+                  <>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-muted-foreground">{t('about.update_asset')}</span>
+                      <span className="min-w-0 break-all font-mono text-xs text-right">
+                        {updateStatus.latest.asset.name} ({formatBytes(updateStatus.latest.asset.size)})
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-muted-foreground">{t('about.update_integrity')}</span>
+                      <span className="font-mono text-xs">{updateStatus.latest.asset.sha256.slice(0, 12)}…</span>
+                    </div>
+                  </>
+                )}
+                {['connecting', 'downloading', 'verifying', 'preparing', 'cancelling'].includes(phase) && updateStatus && (
+                  <div className="space-y-1 pt-1">
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>{t('about.phase_' + phase)}</span>
+                      <span>{formatBytes(updateStatus.downloadedBytes)} / {formatBytes(updateStatus.totalBytes)}</span>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-muted">
+                      <div
+                        className="h-full bg-primary transition-all"
+                        style={{
+                          width: Math.min(100, updateStatus.totalBytes > 0
+                            ? (updateStatus.downloadedBytes / updateStatus.totalBytes) * 100
+                            : 0) + '%',
+                        }}
+                      />
+                    </div>
                   </div>
                 )}
               </div>
 
-              <div className="space-y-2 sm:col-span-2">
-                <div className="flex items-center gap-1.5">
-                  <Label>{t('about.update_source')}</Label>
-                  <FeatureHelp title={t('about.update_source')} description={<>
-                    <p>{t('about.update_settings_desc')}</p>
-                    <p>{t('about.update_source_desc')}</p>
-                  </>} />
-                </div>
-                <Select
-                  value={updateDraft?.source ?? 'auto'}
-                  disabled={!updateDraft}
-                  onValueChange={(value) => updateSetting('source', value as UpdateSource)}
-                >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="auto">{t('about.source_auto')}</SelectItem>
-                    <SelectItem value="direct">{t('about.source_direct')}</SelectItem>
-                    <SelectItem value="mirror">{t('about.source_mirror')}</SelectItem>
-                    <SelectItem value="custom">{t('about.source_custom')}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {updateDraft?.source === 'custom' && (
-                <div className="space-y-2 sm:col-span-2">
-                  <Label htmlFor="update-custom-mirror">{t('about.update_custom_mirror')}</Label>
-                  <Input
-                    id="update-custom-mirror"
-                    value={updateDraft.customMirror}
-                    placeholder={t('about.custom_mirror_placeholder')}
-                    onChange={(event) => updateSetting('customMirror', event.target.value)}
-                  />
-                  <p className="text-xs text-muted-foreground">{t('about.custom_mirror_desc')}</p>
+              {visibleUpdateError && (
+                <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                  <p className="min-w-0 flex-1 whitespace-pre-wrap break-words select-text">
+                    {t('about.update_error')}: {visibleUpdateError}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 shrink-0 gap-1 px-2 text-destructive hover:text-destructive"
+                    onClick={() => void copyUpdateError()}
+                    title={t('about.update_error_copy')}
+                  >
+                    {errorCopied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                    {t(errorCopied ? 'about.update_error_copied' : 'about.update_error_copy')}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 shrink-0 text-destructive hover:text-destructive"
+                    onClick={() => {
+                      dispatchErrorNotice({ type: 'dismissed' });
+                      setErrorCopied(false);
+                    }}
+                    aria-label={t('about.update_error_dismiss')}
+                    title={t('about.update_error_dismiss')}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
                 </div>
               )}
-            </div>
 
-            <div className="flex items-center gap-3">
-              <Button
-                onClick={() => void saveUpdateSettings()}
-                disabled={!settingsDirty || !!working || !updateDraft}
-              >
-                <Save className="mr-2 h-4 w-4" />
-                {t('about.update_save')}
-              </Button>
-              {saved && <span className="text-sm text-green-600 dark:text-green-400">{t('about.update_saved')}</span>}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+              {updateStatus?.selfUpdateBlockedReason === 'container' ? (
+                <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-800 dark:text-amber-200">
+                  {t('about.update_container_hint', {
+                    type: updateStatus.runtime?.containerType || 'container',
+                  })}
+                </div>
+              ) : updateStatus && !updateStatus.installSupported ? (
+                <div className="rounded-md border bg-muted/40 p-3 text-sm text-muted-foreground">
+                  {t('about.update_manual_hint')}
+                </div>
+              ) : null}
 
-      <Card data-tour="about-stack">
-        <CardHeader>
-          <CardTitle className="text-base">{t('about.stack_title')}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2 text-sm text-muted-foreground">
-          <p><strong className="text-foreground">{t('about.stack_backend')}</strong>：{t('about.stack_backend_text')}</p>
-          <p><strong className="text-foreground">{t('about.stack_frontend')}</strong>：{t('about.stack_frontend_text')}</p>
-          <p><strong className="text-foreground">{t('about.stack_adapter')}</strong>：{t('about.stack_adapter_text')}</p>
-        </CardContent>
-      </Card>
-
-      <ReleaseChangelog />
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">{t('about.thanks_title')}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-1 text-sm">
-          <p><a href="https://github.com/Dice-Developer-Team/Dice" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Dice!</a></p>
-          <p><a href="https://github.com/sealdice/sealdice-core" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">SealDice</a></p>
-          <p><a href="https://github.com/OlivOS-Team/OlivOS" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">OlivOS</a></p>
-          <p><a href="https://github.com/NapNeko/NapCatQQ" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">NapCat</a></p>
-          <p><a href="https://www.llonebot.com/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">LLOneBot</a></p>
-          <p><a href="https://snowluma.github.io/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">SnowLuma</a></p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">{t('about.testers_title')}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {TESTERS.map((p) => (
-              <div key={p.qq} className="flex items-center gap-2.5">
-                <img
-                  src={`https://q1.qlogo.cn/g?b=qq&nk=${p.qq}&s=100`}
-                  alt={p.name}
-                  loading="lazy"
-                  className="h-9 w-9 rounded-full bg-muted object-cover shrink-0"
-                />
-                <span className="text-sm font-medium truncate">{p.name}</span>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => void runAction('check')}
+                  disabled={updateBusy || !!working || statusUncertain}
+                >
+                  <RefreshCw className={'mr-2 h-4 w-4 ' + (phase === 'checking' ? 'animate-spin' : '')} />
+                  {t('about.update_check')}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => void runAction('download')}
+                  disabled={updateStatus?.downloadSupported === false || !updateStatus?.updateAvailable || !updateStatus.latest?.asset || (updateStatus.pending && updateStatus.pendingTag === updateStatus.latest.tag) || updateBusy || !!working || statusUncertain}
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  {t('about.update_download')}
+                </Button>
+                <Button
+                  onClick={() => void installUpdate()}
+                  disabled={!updateStatus?.installSupported || !updateStatus.pending || updateBusy || !!working || statusUncertain}
+                >
+                  <ShieldCheck className="mr-2 h-4 w-4" />
+                  {t('about.update_install')}
+                </Button>
+                {updateStatus?.cancelSupported && (updateStatus.canCancel || phase === 'cancelling') && (
+                  <Button variant="outline" onClick={() => void runAction('cancel')}
+                    disabled={!updateStatus.canCancel || !!working}>
+                    <X className="mr-2 h-4 w-4" />
+                    {t(phase === 'cancelling' ? 'about.phase_cancelling' : 'about.update_cancel')}
+                  </Button>
+                )}
+                {statusUncertain && (
+                  <Button variant="outline" onClick={() => void loadUpdateStatus()} disabled={!!working}>
+                    <RefreshCw className="mr-2 h-4 w-4" />{t('about.update_refresh_status')}
+                  </Button>
+                )}
               </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+              {statusUncertain && <p className="text-sm text-muted-foreground">{t('about.update_status_uncertain')}</p>}
+              {!!updateStatus?.scheduledInstallAt && (
+                <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm" role="status">
+                  {t('about.update_scheduled_pending', {
+                    tag: updateStatus.pendingTag || updateStatus.latest?.tag || '',
+                    time: formatScheduledInstallAt(updateStatus.scheduledInstallAt, updateStatus.timezoneMinutes ?? 0),
+                  })}
+                </div>
+              )}
+
+              <Separator />
+
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-sm font-medium">{t('about.update_settings')}</h3>
+                </div>
+
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <HelpLabel htmlFor="update-auto-check" title={t('about.update_auto_check')} description={<p>{t('about.update_auto_check_desc')}</p>} />
+                  </div>
+                  <Switch
+                    id="update-auto-check"
+                    checked={updateDraft?.autoCheck ?? false}
+                    disabled={!updateDraft}
+                    onCheckedChange={(checked) => updateSetting('autoCheck', checked)}
+                  />
+                </div>
+
+                <div className="grid gap-4 @sm:grid-cols-2">
+                  <div className="flex flex-col gap-2">
+                    <div className="flex min-h-6 flex-1 items-center">
+                      <Label htmlFor="update-interval">{t('about.update_interval')}</Label>
+                    </div>
+                    <Select
+                      value={String(updateDraft?.intervalHours ?? 6)}
+                      disabled={!updateDraft || !updateDraft.autoCheck}
+                      onValueChange={(value) => updateSetting('intervalHours', Number(value))}
+                    >
+                      <SelectTrigger id="update-interval"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {[1, 3, 6, 12, 24, 48, 72, 168].map((hours) => (
+                          <SelectItem key={hours} value={String(hours)}>
+                            {t('about.update_hours', { count: hours })}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <div className="flex min-h-6 flex-1 items-center gap-1.5">
+                      <Label htmlFor="update-auto-action">{t('about.update_auto_action')}</Label>
+                      <FeatureHelp title={t('about.update_auto_action')} description={
+                        <dl className="space-y-2">
+                          {(['notify', 'download', 'install'] as const).map((action) => (
+                            <div key={action}>
+                              <dt className="font-medium">{t(`about.action_${action}`)}</dt>
+                              <dd>{t(`about.update_action_${action}_desc`)}</dd>
+                            </div>
+                          ))}
+                        </dl>
+                      } />
+                    </div>
+                    <Select
+                      value={updateDraft?.autoAction ?? 'notify'}
+                      disabled={!updateDraft || !updateDraft.autoCheck}
+                      onValueChange={(value) => updateSetting('autoAction', value as UpdateAction)}
+                    >
+                      <SelectTrigger id="update-auto-action"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="notify">{t('about.action_notify')}</SelectItem>
+                        <SelectItem value="download" disabled={updateStatus?.downloadSupported === false}>
+                          {t('about.action_download')}
+                        </SelectItem>
+                        <SelectItem value="install" disabled={!updateStatus?.installSupported}>
+                          {t('about.action_install')}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div data-setting-anchor="about-update-schedule" role="group" aria-disabled={scheduleDisabled}
+                    className={'space-y-3 rounded-lg border p-3 sm:col-span-2' + (scheduleDisabled ? ' bg-muted/40 opacity-50' : '')}>
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-1.5">
+                        <Label htmlFor="update-scheduled-install">{t('about.update_scheduled_install')}</Label>
+                        <FeatureHelp title={t('about.update_scheduled_install')}
+                          ariaLabel={t('about.update_scheduled_install_help')}
+                          description={<>
+                            <p>{t('about.update_scheduled_install_desc')}</p>
+                            {!updateStatus?.scheduledInstallSupported && <p>{t('about.update_schedule_unsupported')}</p>}
+                          </>}
+                        />
+                      </div>
+                      <Switch id="update-scheduled-install"
+                        checked={updateDraft?.scheduledInstall ?? false}
+                        disabled={scheduleDisabled}
+                        onCheckedChange={(checked) => updateSetting('scheduledInstall', checked)}
+                      />
+                    </div>
+                    {updateDraft?.scheduledInstall && (
+                      <div className="max-w-sm space-y-2">
+                        <Label>{t('about.update_install_time')}</Label>
+                        <TimePicker value={updateDraft.installTime ?? '04:00'}
+                          label={t('about.update_install_time')}
+                          disabled={scheduleDisabled}
+                          onValueChange={(value) => updateSetting('installTime', value)}
+                        />
+                        <p className="text-xs text-muted-foreground">{t('about.update_install_timezone', {
+                          timezone: updateTimezoneLabel(updateStatus?.timezoneMinutes ?? 0),
+                        })}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-2 sm:col-span-2">
+                    <div className="flex items-center gap-1.5">
+                      <Label>{t('about.update_source')}</Label>
+                      <FeatureHelp title={t('about.update_source')} description={<>
+                        <p>{t('about.update_settings_desc')}</p>
+                        <p>{t('about.update_source_desc')}</p>
+                      </>} />
+                    </div>
+                    <Select
+                      value={updateDraft?.source ?? 'auto'}
+                      disabled={!updateDraft}
+                      onValueChange={(value) => updateSetting('source', value as UpdateSource)}
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="auto">{t('about.source_auto')}</SelectItem>
+                        <SelectItem value="direct">{t('about.source_direct')}</SelectItem>
+                        <SelectItem value="mirror">{t('about.source_mirror')}</SelectItem>
+                        <SelectItem value="custom">{t('about.source_custom')}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {updateDraft?.source === 'custom' && (
+                    <div className="space-y-2 sm:col-span-2">
+                      <Label htmlFor="update-custom-mirror">{t('about.update_custom_mirror')}</Label>
+                      <Input
+                        id="update-custom-mirror"
+                        value={updateDraft.customMirror}
+                        placeholder={t('about.custom_mirror_placeholder')}
+                        onChange={(event) => updateSetting('customMirror', event.target.value)}
+                      />
+                      <p className="text-xs text-muted-foreground">{t('about.custom_mirror_desc')}</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <Button
+                    onClick={() => void saveUpdateSettings()}
+                    disabled={!settingsDirty || !!working || !updateDraft}
+                  >
+                    <Save className="mr-2 h-4 w-4" />
+                    {t('about.update_save')}
+                  </Button>
+                  {saved && <span className="text-sm text-green-600 dark:text-green-400">{t('about.update_saved')}</span>}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <ReleaseChangelog />
+        </div>
+      </div>
 
       {dialogs.node}
     </div>
@@ -715,7 +714,7 @@ function ReleaseChangelog() {
               </a>
               {release.publishedOn && <span className="ml-2 font-normal text-muted-foreground">{release.publishedOn}</span>}
             </p>
-            <p className="mt-1 whitespace-pre-wrap">{release.notes || t('about.changelog_no_detail')}</p>
+            <p className="mt-1 whitespace-pre-wrap [overflow-wrap:anywhere]">{release.notes || t('about.changelog_no_detail')}</p>
           </div>
         ))}
         {state === 'ready' && (

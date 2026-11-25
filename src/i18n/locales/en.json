@@ -430,14 +430,7 @@
     "phase_downloaded": "Downloaded",
     "phase_installing": "Installing",
     "phase_error": "Update failed",
-    "phase_up_to_date": "Up to date",
-    "intro_features_title": "Highlights",
-    "intro_feature_dice": "<strong>Rolling for play</strong>: CoC, D&D, BRP and WoD checks, hidden rolls and house rules, plus the bundled coc7r (Keeper Companion 2026) extension. Three expression engines—Dice!Next, OneDice and DiceScript—fall back in order, and rolls use a secure random source.",
-    "intro_feature_platforms": "<strong>Many platforms</strong>: connect several accounts at once over OneBot v11, Milky, the official QQ bot (WebSocket / Webhook), Discord and KOOK; reply style, switches and other settings cascade from global to platform to account.",
-    "intro_feature_compat": "<strong>Compatibility and migration</strong>: keeps Dice! command habits and the Lua mod ecosystem, imports classic character sheets, group settings, replies, decks and session logs; JS plugins follow SealDice and decks support the SealDice .deck format.",
-    "intro_feature_panel": "<strong>Web admin panel</strong>: four languages, with a command tester, reply / persona / deck / rule editors, global search, activity statistics and runtime logs; most settings apply as soon as they are saved.",
-    "intro_feature_records": "<strong>Session records and optional cloud services</strong>: log recording, export and upload to log viewers, campaigns shared across groups; optionally BDC cloud character sheets, cloud blacklist and heartbeat, plus an authorised read-only MCP endpoint.",
-    "intro_feature_ops": "<strong>Deployment and upkeep</strong>: packages for Windows, Linux and macOS plus a Docker image; built-in backup and restore, scheduled tasks, notification windows and automatic updates, with your data kept on your own machine."
+    "phase_up_to_date": "Up to date"
   },
   "common": {
     "unsaved_leave_hint": "Leaving will discard your changes on this page.",

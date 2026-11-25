@@ -430,14 +430,7 @@
     "phase_downloaded": "ダウンロード済み",
     "phase_installing": "インストール中",
     "phase_error": "更新失敗",
-    "phase_up_to_date": "最新版",
-    "intro_features_title": "主な特徴",
-    "intro_feature_dice": "<strong>セッション用ダイス</strong>：CoC、D&D、BRP、WoD の判定、シークレットダイス、ハウスルール、同梱の coc7r（Keeper Companion 2026）拡張。Dice!Next・OneDice・DiceScript の 3 つの式エンジンが順にフォールバックし、ダイスはセキュアな乱数源を使います。",
-    "intro_feature_platforms": "<strong>マルチプラットフォーム</strong>：OneBot v11、Milky、QQ 公式ボット（WebSocket / Webhook）、Discord、KOOK の複数アカウントを同時接続。返信形式やスイッチなどはグローバル → プラットフォーム → アカウントの順に上書きできます。",
-    "intro_feature_compat": "<strong>互換性と移行</strong>：Dice! のコマンド習慣と Lua Mod の生態を引き継ぎ、旧版のキャラクターシート、グループ設定、返信、デッキ、セッションログを取り込めます。JS プラグインは SealDice に準拠し、デッキは SealDice の .deck 形式に対応します。",
-    "intro_feature_panel": "<strong>Web 管理パネル</strong>：4 言語に対応し、コマンドテスト、返信・人格・デッキ・ルールの編集、全体検索、利用統計、実行ログを備えます。主な設定は保存するとすぐ反映されます。",
-    "intro_feature_records": "<strong>セッション記録と任意のクラウド</strong>：ログの記録・書き出し・ログサイトへのアップロード、グループをまたぐキャンペーン管理。必要に応じて BDC のクラウドキャラクターシート、クラウドブラックリスト、ハートビート、認可制の読み取り専用 MCP を利用できます。",
-    "intro_feature_ops": "<strong>導入と運用</strong>：Windows・Linux・macOS のパッケージと Docker イメージを提供。バックアップと復元、定期タスク、通知ウィンドウ、自動更新を内蔵し、データは自分のマシンに保存されます。"
+    "phase_up_to_date": "最新版"
   },
   "common": {
     "unsaved_leave_hint": "このページを離れると、未保存の変更は失われます。",

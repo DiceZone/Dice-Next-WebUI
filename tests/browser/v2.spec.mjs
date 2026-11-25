@@ -627,6 +627,27 @@ test('first mobile visit never opens navigation over onboarding or persists mobi
   } finally { await context.close(); }
 });
 
+test('about groups project details and updates into responsive columns', async ({ page }, info) => {
+  await page.goto('/#/about');
+  const cards = page.locator('main .v2-card');
+  await expect(cards.locator('.v2-card-header > h3, .v2-card-header > div > h3')).toHaveText([
+    '项目介绍', '版本信息', '技术栈', '测试人员致谢', /检测与自动更新/, '更新日志',
+  ]);
+  for (const name of ['MaiBot', 'CatOfficial']) {
+    await expect(cards.first().getByRole('link', { name, exact: true })).toBeVisible();
+  }
+  const [intro, testers, update, changelog] = await Promise.all([0, 3, 4, 5].map(i => cards.nth(i).boundingBox()));
+  if (info.project.name === 'mobile') {
+    expect(update.y).toBeGreaterThan(testers.y + testers.height);
+    expect(update.x).toBe(intro.x);
+  } else {
+    expect(update.x).toBeGreaterThan(intro.x + intro.width);
+    expect(update.y).toBe(intro.y);
+  }
+  expect(changelog.x).toBe(update.x);
+  expect(changelog.y).toBeGreaterThan(update.y + update.height);
+});
+
 test('settings pages use the full modern workspace width', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   for (const route of ['/settings', '/cloud-services', '/notice-settings', '/webui-settings', '/schedules', '/backup', '/about']) {

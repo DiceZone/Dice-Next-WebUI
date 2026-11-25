@@ -430,14 +430,7 @@
     "phase_downloaded": "已下載",
     "phase_installing": "正在安裝",
     "phase_error": "更新失敗",
-    "phase_up_to_date": "已是最新",
-    "intro_features_title": "專案特色",
-    "intro_feature_dice": "<strong>跑團擲骰</strong>：COC、DND、BRP、WOD 等檢定與暗骰、房規，內建 coc7r（Keeper Companion 2026）擴充；Dice!Next、OneDice、DiceScript 三套運算式引擎可依序備援，擲骰使用安全隨機源。",
-    "intro_feature_platforms": "<strong>多平台接入</strong>：OneBot v11、Milky、QQ 官方機器人（WebSocket / Webhook）、Discord 與 KOOK 可同時連線多個帳號；回覆形式、開關等設定依全域、平台、帳號逐級覆寫。",
-    "intro_feature_compat": "<strong>相容與遷移</strong>：沿用 Dice! 的指令習慣與 Lua Mod 生態，可匯入舊版角色卡、群設定、回覆、牌堆與跑團日誌；JS 外掛對齊 SealDice，牌堆支援海豹 .deck 格式。",
-    "intro_feature_panel": "<strong>網頁管理面板</strong>：四語介面，提供指令測試、回覆 / 人格 / 牌堆 / 規則編輯、全域搜尋、活躍度統計與執行日誌，常用設定儲存後即時生效。",
-    "intro_feature_records": "<strong>跑團記錄與可選雲端服務</strong>：日誌記錄、匯出與日誌站上傳，團務可跨群接入；依需要接入 BDC 雲端角色卡、雲端黑名單與心跳，以及授權受控的 MCP 唯讀介面。",
-    "intro_feature_ops": "<strong>部署與維護</strong>：提供 Windows、Linux、macOS 安裝包與 Docker 映像；內建備份還原、定時任務、通知視窗與自動更新，資料儲存在本機。"
+    "phase_up_to_date": "已是最新"
   },
   "common": {
     "unsaved_leave_hint": "離開後，本頁尚未儲存的修改將遺失。",
