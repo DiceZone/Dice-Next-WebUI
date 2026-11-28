@@ -21,7 +21,10 @@ test('group message likes are opt-in and save independently of emoji in text', a
   await page.goto('/#/ai/chat');
   const toggle = page.getByRole('checkbox', { name: /允许用点赞回应群消息/ });
   await expect(toggle).not.toBeChecked();
-  await toggle.check();
+  // Controlled checkbox only flips after autoSave finishes; Playwright's check()
+  // retries the click and the second press is dropped while writeBusy is set.
+  await toggle.click();
+  await expect(toggle).toBeChecked();
   await expect.poll(() => written).toEqual({ chat: { reaction_enabled: true } });
   await page.reload();
   await expect(toggle).toBeChecked();
