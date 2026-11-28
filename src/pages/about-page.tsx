@@ -138,7 +138,11 @@ export const AboutPage: React.FC = () => {
     if (operationRef.current) return;
     const confirmed = await dialogs.confirm({
       title: t('about.update_install_confirm_title'),
-      description: t('about.update_install_confirm_desc'),
+      description: t(
+        updateStatus?.platform?.os === 'android'
+          ? 'about.update_install_confirm_desc_android'
+          : 'about.update_install_confirm_desc',
+      ),
       confirmText: t('about.update_install'),
       destructive: true,
     });
@@ -441,6 +445,10 @@ export const AboutPage: React.FC = () => {
                   {t('about.update_container_hint', {
                     type: updateStatus.runtime?.containerType || 'container',
                   })}
+                </div>
+              ) : updateStatus?.platform?.os === 'android' ? (
+                <div className="rounded-md border bg-muted/40 p-3 text-sm text-muted-foreground">
+                  {t('about.update_android_hint')}
                 </div>
               ) : updateStatus && !updateStatus.installSupported ? (
                 <div className="rounded-md border bg-muted/40 p-3 text-sm text-muted-foreground">

@@ -383,6 +383,8 @@
     "update_install": "安裝並重啟",
     "update_install_confirm_title": "安裝更新並重啟？",
     "update_install_confirm_desc": "骰娘會短暫離線。管理器會在替換前檢查安裝包，失敗時自動回滾舊版本；data 中的使用者資料與第三方外掛不會被覆蓋。",
+    "update_install_confirm_desc_android": "將開啟系統安裝界面。確認後會替換目前應用；骰子資料仍保留在應用私有目錄。請先允許 Dice!Next 安裝應用。",
+    "update_android_hint": "手機上會下載 APK。點安裝後由系統安裝器更新本應用。無法在背景靜默安裝。",
     "update_manual_hint": "目前的執行方式不支援一鍵安裝。Windows 請透過 dice-next.exe 啟動；Linux/macOS 請使用含管理器的新版完整安裝包，透過 start.sh 或 dice-next 啟動。直接執行核心只支援檢查與下載；舊安裝須先停機完整覆蓋一次。",
     "update_container_hint": "已偵測到容器執行環境（{{type}}）。程式仍會檢查並通知新版本，但禁止下載或安裝程式更新；請拉取新映像並重新建立容器。",
     "update_settings": "自動更新設定",

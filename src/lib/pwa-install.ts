@@ -60,6 +60,8 @@ export function isStandalone(): boolean {
 /** Called once at startup. Registration needs a secure context (HTTPS or localhost). */
 export function setupPwa(base = './') {
   if (typeof window === 'undefined') return;
+  // Phone WebView injects DiceNext; a service worker offline page would race the native splash.
+  if ('DiceNext' in window) return;
   window.addEventListener('beforeinstallprompt', (event) => {
     event.preventDefault();
     deferred = event as BeforeInstallPromptEvent;

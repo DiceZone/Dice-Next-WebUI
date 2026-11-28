@@ -383,6 +383,8 @@
     "update_install": "Install and restart",
     "update_install_confirm_title": "Install the update and restart?",
     "update_install_confirm_desc": "The bot will be offline briefly. The manager validates the package before replacement and automatically rolls back on failure. User data and third-party plugins under data are preserved.",
+    "update_install_confirm_desc_android": "The system installer will open. Confirming replaces this app; Dice!Next data stays in the app’s private directory. Allow Dice!Next to install apps first if prompted.",
+    "update_android_hint": "The phone downloads an APK. Tap Install to update through the system installer. Silent background installs are not available.",
     "update_manual_hint": "One-click installation requires the package manager: dice-next.exe on Windows, or start.sh / dice-next in a new complete Linux/macOS package. Direct-core mode only supports checks and downloads. Older installations need one initial manual package upgrade while stopped.",
     "update_container_hint": "A container environment was detected ({{type}}). Dice!Next will still check for and announce releases, but downloading or installing program updates is disabled. Pull a new image and recreate the container instead.",
     "update_settings": "Automatic update settings",

@@ -50,7 +50,7 @@ export interface DiskInfo {
 /** Host machine metrics from GET /api/system/sysinfo (and dashboard `system`). */
 export interface SystemInfo {
   os: string;
-  os_id: string;          // logo key: windows/ubuntu/debian/centos/rocky/linux/macos
+  os_id: string;          // logo key: windows/ubuntu/debian/centos/rocky/linux/macos/android
   cpu_model: string;
   cpu_cores: number;      // logical
   cpu_physical: number;   // physical cores
