@@ -28,7 +28,8 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
       const j = await r.json();
       const d = j.data || {};
       setSsoProviders(Array.isArray(d.sso) ? d.sso : []);
-      if (d.need_setup) setState('setup');
+      if (d.passwordless) setState('ok');
+      else if (d.need_setup) setState('setup');
       else if (d.required && !d.authed) setState('login');
       else setState('ok');
     } catch {

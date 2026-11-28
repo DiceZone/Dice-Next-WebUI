@@ -19,6 +19,7 @@ import type { Adapter, AdapterFormData, AdapterType } from '@/types/adapter';
 import { PlatformIcon } from '@/components/platform-icon';
 import apiClient from '@/lib/api-client';
 import { officialWebhookUrl } from '@/lib/adapter-connection';
+import { openExternalUrl, prefersJumpLogin } from '@/lib/app-bridge';
 import { OfficialWebhookWarning } from './official-webhook-warning';
 
 /** Auto-correct URL to proper ws:// or wss:// format */
@@ -85,7 +86,9 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
   const qrPollingRef = React.useRef(false);
   const qrGeneration = React.useRef(0);
   const [manualLogin, setManualLogin] = React.useState(isEdit);
+  const [showQr, setShowQr] = React.useState(false);
   const [advanced, setAdvanced] = React.useState(false);
+  const jumpLogin = prefersJumpLogin();
 
   const form = useForm<FormInput, unknown, FormValues>({
     resolver: zodResolver(adapterFormSchema),
@@ -268,6 +271,7 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
       if (generation !== qrGeneration.current) return;
       const session = start.data;
       setQr(session);
+      if (jumpLogin) openExternalUrl(session.url);
       qrPollingRef.current = true;
       const poll = async (): Promise<void> => {
         if (!qrPollingRef.current || generation !== qrGeneration.current) return;
@@ -349,7 +353,7 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
             <Select
               value={watch('type')}
               onValueChange={(v) => {
-                ++qrGeneration.current; qrPollingRef.current = false; setQr(null); setQrBusy(false);
+                ++qrGeneration.current; qrPollingRef.current = false; setQr(null); setQrBusy(false); setShowQr(false);
                 setValue('type', v as AdapterType);
                 if (v === 'milky') setValue('connectionMode', 'forward_ws');
               }}
@@ -413,6 +417,14 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
             </div>}
           </div>
           <section className="mx-auto w-full max-w-[320px] space-y-2">
+            {jumpLogin && !manualLogin && !showQr ? (
+              <div className="flex flex-col items-center gap-3 py-4">
+                <p className="text-center text-sm text-muted-foreground">{qr ? t('adapters.qr_waiting_app') : t('adapters.qr_hint_app')}</p>
+                <Button type="button" onClick={() => { if (qr?.url) openExternalUrl(qr.url); else void startQrLogin(); }} disabled={qrBusy}>
+                  <ExternalLink className="mr-2 h-4 w-4" />{t(qrBusy && !qr ? 'adapters.qr_loading' : 'adapters.qr_open_qq')}
+                </Button>
+              </div>
+            ) : (
             <div className="relative flex aspect-square w-full flex-col items-center justify-center rounded-xl border bg-muted/20 p-5">
               {manualLogin ? <div className="w-full space-y-4">
                 <div className="space-y-2"><Label htmlFor="appId">AppID</Label><Input id="appId" autoComplete="off" {...register('appId')} /></div>
@@ -422,11 +434,17 @@ export const AdapterForm: React.FC<AdapterFormProps> = ({ open, onOpenChange, on
                 {!qr && <Button type="button" size="sm" className="absolute top-1/2 -translate-y-1/2" onClick={startQrLogin} disabled={qrBusy}><ScanLine className="h-4 w-4" />{t(qrBusy ? 'adapters.qr_loading' : 'adapters.qr_start')}</Button>}
               </>}
             </div>
+            )}
             {errors.appId && <p role="alert" className="text-xs text-destructive">{errors.appId.message}</p>}
+            {jumpLogin && !manualLogin && (
+              <button type="button" className="w-full py-1 text-center text-xs text-muted-foreground hover:text-primary" onClick={() => setShowQr(!showQr)}>
+                {showQr ? t('adapters.qr_open_qq') : t('adapters.qr_show_code')}
+              </button>
+            )}
             <button type="button" className="w-full py-1 text-center text-xs text-muted-foreground hover:text-primary" onClick={() => {
-              ++qrGeneration.current; qrPollingRef.current = false; setQr(null); setQrBusy(false); setManualLogin(!manualLogin);
+              ++qrGeneration.current; qrPollingRef.current = false; setQr(null); setQrBusy(false); setShowQr(false); setManualLogin(!manualLogin);
             }}>{manualLogin ? t('adapters.qr_switch') : <>{t('adapters.manual_input')} <strong>AppID{t('adapters.and')}AppSecret</strong></>}</button>
-            {!manualLogin && qr && <p className="text-center text-xs text-muted-foreground">{t('adapters.qr_hint')}</p>}
+            {!manualLogin && qr && (showQr || !jumpLogin) && <p className="text-center text-xs text-muted-foreground">{t('adapters.qr_hint')}</p>}
           </section>
           <Button type="button" variant="ghost" className="w-full justify-between" aria-expanded={advanced} aria-controls="official-advanced" onClick={() => setAdvanced(!advanced)}>
             {t('adapters.advanced_options')}<ChevronDown className={advanced ? 'h-4 w-4 rotate-180 transition-transform' : 'h-4 w-4 transition-transform'} />

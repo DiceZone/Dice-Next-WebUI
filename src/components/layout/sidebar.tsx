@@ -147,11 +147,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPath, onNavigate, mobil
           <DialogPrimitive.Content aria-describedby={undefined}
             onCloseAutoFocus={(event) => { event.preventDefault(); document.getElementById('mobile-navigation-trigger')?.focus(); }}
             className="v2-mobile-menu fixed inset-0 z-50 flex h-dvh w-full flex-col bg-card outline-none">
-            <div className="flex shrink-0 items-center justify-between border-b px-5 py-3 pt-[max(.75rem,env(safe-area-inset-top))]">
+            <div className="flex shrink-0 items-center justify-between border-b px-5 py-3">
               <DialogPrimitive.Title className="flex items-center gap-2"><img src="./favicon.svg" alt="" className="h-7 w-7" /><BrandWordmark /><span className="sr-only">{t('header.panel_title')}</span></DialogPrimitive.Title>
               <DialogPrimitive.Close asChild><Button variant="ghost" size="icon" aria-label={t('common.close')}><X className="h-5 w-5" /></Button></DialogPrimitive.Close>
             </div>
-            <nav ref={mobileNavRef} aria-label={t('header.panel_title')} className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-4 py-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+            <nav ref={mobileNavRef} aria-label={t('header.panel_title')} className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-4 py-5">
               {[
                 { labelKey: 'v2.navigation.workspace', children: NAV.filter((node): node is Leaf => !isGroup(node) && !['/roadmap', '/about'].includes(node.path)) },
                 ...NAV.filter(isGroup),
@@ -174,7 +174,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPath, onNavigate, mobil
         'v2-sidebar relative z-40 hidden h-full shrink-0 flex-col overflow-hidden border-r bg-card transition-[width] duration-200 motion-reduce:transition-none lg:flex',
         sidebarCollapsed ? 'w-[64px]' : 'w-[232px]')}>
         {/* Brand */}
-        <div className={cn('flex h-16 shrink-0 items-center px-4', sidebarCollapsed ? 'justify-center' : 'justify-between')}>
+        <div className={cn('v2-topbar flex shrink-0 items-center px-4', sidebarCollapsed ? 'justify-center' : 'justify-between')}>
           {!sidebarCollapsed && (
             <div className="flex items-center gap-2 overflow-hidden">
               <img src="./favicon.svg" alt="" className="h-7 w-7" />

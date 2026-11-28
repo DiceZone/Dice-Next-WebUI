@@ -44,10 +44,12 @@ export const WebuiSettingsPage: React.FC = () => {
   const guard = useFormLeaveGuard(!!pwInput || localApiKey !== (apiKey ?? '') ||
     host !== savedServer.host || port !== savedServer.port, saving || pwSaving || srvSaving);
   const [restartNeeded, setRestartNeeded] = useTourState(false, false);
+  const [passwordless, setPasswordless] = useState(false);
 
   useEffect(() => {
     void (async () => {
       try { const r = await fetch('/api/system/log-mode'); const j = await r.json(); if (j.code === 0) { setRawLog(!!j.data.raw); setLogLevel(j.data.level === 'off' ? 'off' : normalizeLogLevel(j.data.level)); } } catch { /* ignore */ }
+      try { const r = await fetch('/api/auth/status'); const j = await r.json(); if (j?.data?.passwordless) setPasswordless(true); } catch { /* ignore */ }
       try { const r = await fetch('/api/system/webui-auth'); const j = await r.json(); if (j.code === 0) setPwEnabled(!!j.data.enabled); } catch { /* ignore */ }
       try { const r = await fetch('/api/system/server-config'); const j = await r.json(); if (j.code === 0) {
         const loaded = { host: j.data.host || '0.0.0.0', port: Number(j.data.port) || 18088 };
@@ -158,8 +160,8 @@ export const WebuiSettingsPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* WebUI 登录口令 */}
-      <Card data-setting-anchor="webui-password">
+      {/* WebUI 登录口令（本机应用 WebView 免密，不展示设置口令） */}
+      {!passwordless && <Card data-setting-anchor="webui-password">
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <Lock className="h-4 w-4" />{t('settings.webpw_title')}
@@ -193,7 +195,7 @@ export const WebuiSettingsPage: React.FC = () => {
             <Button id="webui-logout" variant="outline" size="sm" onClick={() => void logout()} disabled={loggingOut}>{t('settings.logout')}</Button>
           )}
         </CardContent>
-      </Card>
+      </Card>}
 
       {/* 第三方登录 */}
       <SsoSettingsCard />

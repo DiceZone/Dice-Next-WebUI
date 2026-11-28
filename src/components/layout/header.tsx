@@ -31,11 +31,19 @@ export const Header: React.FC<HeaderProps> = ({ currentPath = '/', wsConnected: 
   const toast = useToast();
   const canInstall = useCanInstall();
   const { logout, busy: loggingOut } = usePanelLogout();
+  const [passwordless, setPasswordless] = React.useState(false);
   const install = async () => {
     if ((await promptInstall()) === 'accepted') toast({ title: t('pwa.installed_toast') });
   };
   const version = useSystemUpdateStore((state) => state.version);
   const updateStatus = useSystemUpdateStore((state) => state.status);
+
+  useEffect(() => {
+    void fetch('/api/auth/status')
+      .then((r) => r.json())
+      .then((j) => setPasswordless(!!j?.data?.passwordless))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     let stopped = false;
@@ -84,7 +92,7 @@ export const Header: React.FC<HeaderProps> = ({ currentPath = '/', wsConnected: 
   </button>;
 
   return (
-    <header className="z-20 flex h-14 shrink-0 items-center gap-1 border-b bg-card px-2 sm:h-16 sm:gap-3 sm:px-6 xl:px-9">
+    <header className="v2-topbar z-20 flex shrink-0 items-center gap-1 border-b bg-card px-2 sm:gap-3 sm:px-6 xl:px-9">
       <div className="flex shrink-0 items-center gap-1 sm:gap-3">
         {/* Brand precedes the menu trigger on narrow screens. */}
         <div className="flex shrink-0 items-center gap-2 lg:hidden">
@@ -151,10 +159,10 @@ export const Header: React.FC<HeaderProps> = ({ currentPath = '/', wsConnected: 
             <Moon className="h-5 w-5" />
           )}
         </Button>
-        <Button variant="ghost" size="icon" className="h-10 w-10" onClick={() => void logout()} disabled={loggingOut}
+        {!passwordless && <Button variant="ghost" size="icon" className="h-10 w-10" onClick={() => void logout()} disabled={loggingOut}
           title={t('settings.logout')} aria-label={t('settings.logout')}>
           {loggingOut ? <Loader2 className="h-5 w-5 animate-spin" /> : <LogOut className="h-5 w-5" />}
-        </Button>
+        </Button>}
       </div>
       <div className="shrink-0 lg:hidden">
         <DropdownMenu>
@@ -172,10 +180,12 @@ export const Header: React.FC<HeaderProps> = ({ currentPath = '/', wsConnected: 
             <DropdownMenuRadioGroup value={i18n.language} onValueChange={(value) => changeLanguage(value as LanguageCode)}>
               {SUPPORTED_LANGUAGES.map((language) => <DropdownMenuRadioItem key={language.code} value={language.code}>{language.label}</DropdownMenuRadioItem>)}
             </DropdownMenuRadioGroup>
+            {!passwordless && <>
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={() => void logout()} disabled={loggingOut}>
               <LogOut className="mr-2 h-4 w-4" />{t('settings.logout')}
             </DropdownMenuItem>
+            </>}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
