@@ -18,6 +18,7 @@ import { Cloud, Info, MoreHorizontal, Plug, Unplug, Pencil, Trash2, Wifi, PlugZa
 import type { Adapter } from '@/types/adapter';
 import { adapterConnectionKey } from '@/lib/adapter-connection';
 import { OfficialConnectionInfo } from './official-connection-info';
+import { OfficialBotAvatar, qqPortrait } from './official-bot-account';
 import { PlatformIcon, platformLabel } from '@/components/platform-icon';
 
 interface AdapterCardProps {
@@ -77,6 +78,7 @@ export const AdapterCard: React.FC<AdapterCardProps> = ({
   const avatarQQ = adapter.type === 'qq_official' ? (adapter.qqNumber || '')
     : adapter.type === 'onebot_v11' ? (adapter.loginId || '')
       : builtin ? (adapter.loginId || adapter.qqNumber || '') : '';   // Discord/KOOK 无 QQ 头像
+  const onebotPortrait = adapter.type === 'qq_official' ? '' : qqPortrait(avatarQQ);
   const { t } = useTranslation();
   const [detailOpen, setDetailOpen] = React.useState(false);
   const identityLabel = adapter.type === 'qq_official' ? t('adapters.detail_app_id') : t('adapters.detail_bot_id');
@@ -101,9 +103,11 @@ export const AdapterCard: React.FC<AdapterCardProps> = ({
           <div className={cn('flex flex-1 items-center gap-3 min-w-0', !adapter.enabled && 'opacity-50')}>
             {/* QQ avatar with connection status overlay */}
             <div className="relative shrink-0">
-              {avatarQQ && !avatarQQ.startsWith('demo-') ? (
+              {adapter.type === 'qq_official' ? (
+                <OfficialBotAvatar adapter={adapter} className="h-10 w-10" />
+              ) : onebotPortrait ? (
                 <img
-                  src={`https://q1.qlogo.cn/g?b=qq&nk=${avatarQQ}&s=100`}
+                  src={onebotPortrait}
                   alt={adapter.loginName || adapter.name}
                   className="h-10 w-10 rounded-full object-cover"
                   onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}

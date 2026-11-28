@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { PlatformIcon } from '@/components/platform-icon';
 import { cn } from '@/lib/utils';
 import type { Adapter } from '@/types/adapter';
@@ -15,11 +15,38 @@ export function officialBotOptionLabel(adapter: Adapter) {
   return `${officialBotNick(adapter)}(${officialBotId(adapter)})`;
 }
 
+/** 普通 QQ 头像。13 位官民号不会命中。 */
+export function qqPortrait(uin?: string | number, size: 40 | 100 | 140 | 640 = 100): string {
+  const n = String(uin ?? '').trim();
+  if (!/^\d{5,12}$/.test(n)) return '';
+  return `https://q.qlogo.cn/g?b=qq&nk=${n}&s=${size}`;
+}
+
+export function officialBotAvatarSources(adapter: Adapter): string[] {
+  const urls: string[] = [];
+  if (adapter.avatarUrl && /^https?:\/\//i.test(adapter.avatarUrl)) urls.push(adapter.avatarUrl);
+  const qq = qqPortrait(adapter.qqNumber);
+  if (qq && !urls.includes(qq)) urls.push(qq);
+  return urls;
+}
+
 export function officialBotAvatarUrl(adapter: Adapter) {
-  if (adapter.avatarUrl && /^https?:\/\//i.test(adapter.avatarUrl)) return adapter.avatarUrl;
-  if (adapter.qqNumber && /^[1-9]\d{0,19}$/.test(adapter.qqNumber))
-    return `https://q1.qlogo.cn/g?b=qq&nk=${adapter.qqNumber}&s=100`;
-  return undefined;
+  return officialBotAvatarSources(adapter)[0];
+}
+
+export function OfficialBotAvatar({ adapter, className }: { adapter: Adapter; className?: string }) {
+  const urls = officialBotAvatarSources(adapter);
+  const [i, setI] = useState(0);
+  useEffect(() => { setI(0); }, [adapter.avatarUrl, adapter.qqNumber]);
+  if (i < urls.length) {
+    return <img src={urls[i]} alt="" referrerPolicy="no-referrer" onError={() => setI((n) => n + 1)}
+      className={cn('shrink-0 rounded-full bg-muted object-cover', className)} />;
+  }
+  return (
+    <div className={cn('flex shrink-0 items-center justify-center rounded-full bg-primary/10', className)}>
+      <PlatformIcon platform="qq_official" className="h-1/2 w-1/2" />
+    </div>
+  );
 }
 
 export function OfficialBotOption({ adapter, className }: { adapter: Adapter; className?: string }) {
@@ -32,17 +59,11 @@ export function OfficialBotOption({ adapter, className }: { adapter: Adapter; cl
 }
 
 export function OfficialBotIdentity({ adapter }: { adapter: Adapter }) {
-  const src = officialBotAvatarUrl(adapter);
-  const [failed, setFailed] = useState(false);
   const nick = officialBotNick(adapter);
   const qq = adapter.qqNumber?.trim();
   return (
     <span className="flex min-w-0 items-center gap-2 text-sm">
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10">
-        {src && !failed
-          ? <img src={src} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" onError={() => setFailed(true)} />
-          : <PlatformIcon platform="qq_official" className="h-4 w-4" />}
-      </span>
+      <OfficialBotAvatar adapter={adapter} className="h-8 w-8" />
       <span className="min-w-0 truncate">{qq ? `${nick}(${qq})` : nick}</span>
     </span>
   );
