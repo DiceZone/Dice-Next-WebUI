@@ -383,6 +383,7 @@ export const SETTINGS_SEARCH_ENTRIES: SettingsSearchEntry[] = [
   e('ai-params', '/ai', 'nav.ai', 'ai.params', '请求参数 請求參數 temperature top_p max_tokens penalty 温度 溫度', 'ai.params_desc'),
   e('ai-polish', '/ai/polish', 'nav.ai', 'ai.polish', '回复润色 回覆潤色 polish rewrite rp 人设 人設 风格 風格 提示词 提示詞', 'ai.polish_desc', true),
   e('ai-translate', '/ai/translate', 'nav.ai', 'ai.trans', '回复翻译 回覆翻譯 翻译 翻譯 translate translation lang 语言 語言 多语言 多語言 缓存 快取', 'ai.trans_desc', true),
+  e('ai-chat-reaction', '/ai/chat', 'nav.ai', 'ai.chat_reaction', '点赞 按讚 表情 回应 いいね reaction thumbs up Milky Discord', 'ai.chat_desc'),
   e('ai-chat', '/ai/chat', 'nav.ai', 'ai.chat', 'ai 对话 對話 聊天 chat 人设 人設 上下文 context 关键词 關鍵詞 at 待机 待機', 'ai.chat_desc'),
   e('ai-memory-short', '/ai/chat', 'nav.ai', 'ai.mem', '短期记忆 短期記憶 群历史 群歷史 摘要 summary rolling memory 上下文 思维导图 思維導圖 graph 编辑 記憶', 'ai.mem_desc'),
   e('ai-memory-long', '/ai/chat', 'nav.ai', 'ai.mlong', '长期记忆 長期記憶 向量 vector embedding embed 相似度 similarity 事实 事實 top-k 群称呼 群稱呼 群黑话 群黑話 纠错 修正 来源 glossary alias jargon correction', 'ai.mlong_desc'),

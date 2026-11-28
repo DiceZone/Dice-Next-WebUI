@@ -68,8 +68,8 @@ const emptyCov = (roll = true, others = false): Cov => ({ roll, deck: others, fu
 const emptyParams = (): Params => ({ temperature: 0.7, top_p: 1, max_tokens: 1024, frequency_penalty: 0, presence_penalty: 0 });
 const emptyPolish = (): Polish => ({ enabled: false, mode: 'text', persona: '', prompt: '', cov: emptyCov(true, false) });
 const emptyTranslate = (): Translate => ({ enabled: false, prompt: '', cov: emptyCov(true, true), langs: [] });
-interface Chat { enabled: boolean; persona: string; prompt: string; at_bot: boolean; keywords: string[]; standby_prob: number; decision: boolean; context_rounds: number; max_chars: number; cooldown_sec: number; reply_at: boolean; no_emoji: boolean; filters: string[]; }
-const emptyChat = (): Chat => ({ enabled: false, persona: '', prompt: '', at_bot: true, keywords: [], standby_prob: 0, decision: false, context_rounds: 10, max_chars: 200, cooldown_sec: 5, reply_at: false, no_emoji: true, filters: [] });
+interface Chat { enabled: boolean; persona: string; prompt: string; at_bot: boolean; keywords: string[]; standby_prob: number; decision: boolean; context_rounds: number; max_chars: number; cooldown_sec: number; reply_at: boolean; no_emoji: boolean; reaction_enabled: boolean; filters: string[]; }
+const emptyChat = (): Chat => ({ enabled: false, persona: '', prompt: '', at_bot: true, keywords: [], standby_prob: 0, decision: false, context_rounds: 10, max_chars: 200, cooldown_sec: 5, reply_at: false, no_emoji: true, reaction_enabled: false, filters: [] });
 interface MemoryShort { enabled: boolean; rounds: number; max_chars: number; summary_prompt: string; }
 interface MemoryLong { enabled: boolean; top_k: number; min_similarity: number; max_facts: number; extract_prompt: string; }
 interface Memory { short: MemoryShort; long: MemoryLong; }
@@ -772,6 +772,13 @@ export const AiPage: React.FC = () => {
                   <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none">
                     <input type="checkbox" className="accent-primary" checked={chat.no_emoji} onChange={(e) => { const checked = e.target.checked; void autoSave({ chat: { no_emoji: checked } }, () => setChat((p) => ({ ...p, no_emoji: checked }))) }} />
                     {t('ai.chat_no_emoji')}
+                  </label>
+                  <label data-setting-anchor="ai-chat-reaction" className="flex items-center gap-1.5 text-xs cursor-pointer select-none">
+                    <input type="checkbox" className="accent-primary" checked={!!chat.reaction_enabled} onChange={(e) => {
+                      const checked = e.target.checked;
+                      void autoSave({ chat: { reaction_enabled: checked } }, () => setChat((p) => ({ ...p, reaction_enabled: checked })));
+                    }} />
+                    {t('ai.chat_reaction')}
                   </label>
 
                   <div className="space-y-1">

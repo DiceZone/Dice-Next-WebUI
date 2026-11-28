@@ -1336,6 +1336,7 @@
     "chat_keywords": "Trigger keywords (comma-separated)",
     "chat_keywords_ph": "e.g. bot, hello, tell a joke",
     "chat_standby": "Standby prob (0-100, non-@/non-keyword only)",
+    "chat_reaction": "Allow thumbs-up reactions in group chats (Milky, Discord)",
     "chat_no_emoji": "No emoji / emoticons in output",
     "chat_filters": "Custom filter words (one per line)",
     "chat_filters_ph": "One word/phrase per line to filter out, e.g.:\n[image]\nad signature\nsome watermark",

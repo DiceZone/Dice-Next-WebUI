@@ -8,6 +8,26 @@ test.beforeEach(async ({ page }, info) => {
   }, info.project.name === 'dark' ? 'dark' : 'light');
 });
 
+test('group message likes are opt-in and save independently of emoji in text', async ({ page }) => {
+  const data = { enabled: true, chat: { enabled: true, no_emoji: true } };
+  let written;
+  await page.route('**/api/system/ai', route => {
+    if (route.request().method() === 'PUT') {
+      written = route.request().postDataJSON();
+      Object.assign(data.chat, written.chat);
+    }
+    return route.fulfill({ json: { code: 0, data } });
+  });
+  await page.goto('/#/ai/chat');
+  const toggle = page.getByRole('checkbox', { name: /允许用点赞回应群消息/ });
+  await expect(toggle).not.toBeChecked();
+  await toggle.check();
+  await expect.poll(() => written).toEqual({ chat: { reaction_enabled: true } });
+  await page.reload();
+  await expect(toggle).toBeChecked();
+  await expect(page.getByRole('checkbox', { name: /不输出 emoji/ })).toBeChecked();
+});
+
 for (const [section, placeholder, keywords] of [
   ['chat', '如：骰娘, 在吗, 讲个笑话', (body) => body.chat.keywords],
   ['translate', '.lang 切换关键词，逗号分隔（如 de, german, 德语）', (body) => body.translate.langs[0].keywords],

@@ -1336,6 +1336,7 @@
     "chat_keywords": "トリガーキーワード（カンマ区切り）",
     "chat_keywords_ph": "例：ボット, いる？, 冗談言って",
     "chat_standby": "待機確率(0-100、@/キーワード以外のみ)",
+    "chat_reaction": "グループで「いいね」による応答を許可（Milky、Discord）",
     "chat_no_emoji": "emoji / 顔文字を出力しない",
     "chat_filters": "カスタムフィルター語（1行に1つ）",
     "chat_filters_ph": "除外したい語/フレーズを1行ずつ。例:\n[画像]\n広告署名\n透かし文字",

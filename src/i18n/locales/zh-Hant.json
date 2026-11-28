@@ -1336,6 +1336,7 @@
     "chat_keywords": "觸發關鍵詞（逗號分隔）",
     "chat_keywords_ph": "如：骰娘, 在嗎, 講個笑話",
     "chat_standby": "待機概率(0-100，僅非@/非關鍵詞時)",
+    "chat_reaction": "允許用按讚回應群組訊息（Milky、Discord）",
     "chat_no_emoji": "不輸出 emoji / 表情符號",
     "chat_filters": "自訂過濾詞（每行一個）",
     "chat_filters_ph": "每行一個要過濾的詞/短語，如：\n[圖片]\n廣告簽名\n某某浮水印",

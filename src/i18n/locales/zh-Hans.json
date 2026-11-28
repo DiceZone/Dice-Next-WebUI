@@ -1303,6 +1303,7 @@
     "chat_keywords": "触发关键词（逗号分隔）",
     "chat_keywords_ph": "如：骰娘, 在吗, 讲个笑话",
     "chat_standby": "待机概率(0-100，仅非@/非关键词时)",
+    "chat_reaction": "允许用点赞回应群消息（Milky、Discord）",
     "chat_no_emoji": "不输出 emoji / 表情符号",
     "chat_filters": "自定义过滤词（每行一个）",
     "chat_filters_ph": "每行一个要过滤的词/短语，如：\n[图片]\n广告签名\n某某水印",
